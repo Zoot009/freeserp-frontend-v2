@@ -1,17 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useTheme } from "next-themes"
 
 /**
- * Free-tier launcher for the AI chat. Mirrors the look of the paid-only
- * `AiChatPanel` floating button so the UX is consistent, but clicking it
- * opens an upsell modal explaining what's locked instead of starting a
- * session.
+ * Free-tier launcher for the AI chat. Sits in the bottom-right corner of the
+ * comparison results page where the paid `AiChatPanel` would. Clicking it
+ * opens a small upgrade dialog rather than starting a chat session.
+ *
+ * Styling uses the dashboard tokens (--brand, --bg-elev, --text, --border,
+ * --r-lg, --shadow-lg, …) defined in app/dashboard.css under `.fs-app`,
+ * so it matches the rest of the SaaS dashboard chrome.
  */
 export function AskAnalystUpsell() {
-  const { resolvedTheme } = useTheme()
-  const isLight = resolvedTheme === "light"
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -19,6 +19,15 @@ export function AskAnalystUpsell() {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
+  }, [open])
+
+  // Lock <body> scroll while the modal is open. Without this the page
+  // underneath scrolls when the user scrolls inside the modal.
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = prev }
   }, [open])
 
   const features = [
@@ -31,21 +40,22 @@ export function AskAnalystUpsell() {
   ]
 
   return (
-    <div className="aau-root" data-theme={isLight ? "light" : "dark"}>
+    <div className="aau-root">
       <button
         type="button"
         className="aau-launcher"
         onClick={() => setOpen(true)}
         aria-label="Ask the analyst (Upgrade required)"
       >
-        <span className="aau-lglyph">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        <span className="aau-lglyph" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
           </svg>
         </span>
-        Ask the analyst
-        <span className="aau-tag mono">Paid</span>
+        <span className="aau-llabel">Ask the analyst</span>
+        <span className="aau-tag">PRO</span>
       </button>
 
       {open && (
@@ -54,23 +64,29 @@ export function AskAnalystUpsell() {
           <div className="aau-modal">
             <header className="aau-head">
               <div className="aau-brand">
-                <span className="aau-glyph">A</span>
+                <span className="aau-glyph" aria-hidden>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                </span>
                 <span>Audit Co-Pilot</span>
               </div>
               <button className="aau-close" onClick={() => setOpen(false)} aria-label="Close">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
                   <path d="M4 4l8 8M12 4l-8 8" />
                 </svg>
               </button>
             </header>
             <div className="aau-body">
-              <p className="aau-eyebrow mono">Paid feature</p>
+              <p className="aau-eyebrow">Paid feature</p>
               <h2 className="aau-title">Unlock the analyst chat</h2>
-              <p className="aau-lead">Turn your audit into a conversation. Paid plan includes:</p>
+              <p className="aau-lead">Turn your audit into a conversation. The paid plan includes:</p>
               <ul className="aau-list">
                 {features.map((f, i) => (
                   <li key={i}>
-                    <svg className="aau-check" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="aau-check" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M3 8l3.5 3.5L13 5" />
                     </svg>
                     <span>{f}</span>
@@ -87,174 +103,213 @@ export function AskAnalystUpsell() {
       )}
 
       <style jsx>{`
+        /* All colors / radii / shadows fall through to the dashboard tokens
+           defined in app/dashboard.css under .fs-app. We avoid hard-coding
+           palettes so the component tracks any future theme changes. */
         .aau-root {
-          --bg: #0e0d0c;
-          --panel: #1a1715;
-          --line: #2a2522;
-          --line-2: #3a322d;
-          --ink: #efe7df;
-          --ink-dim: #b8ada3;
-          --ink-mute: #7a716a;
-          --ink-faint: #4f4842;
-          --accent: #ff6b35;
-          --accent-soft: #ff8a5b;
-          --accent-bg: rgba(255, 107, 53, 0.08);
-          font-family: 'IBM Plex Sans', system-ui, sans-serif;
+          font-family: var(--font-sans), 'Geist', 'Inter', system-ui, sans-serif;
         }
-        .aau-root[data-theme="light"] {
-          --bg: #fafafa;
-          --panel: #ffffff;
-          --line: #e5e0db;
-          --line-2: #cdc6bf;
-          --ink: #1a1715;
-          --ink-dim: #4a443e;
-          --ink-mute: #7a716a;
-          --ink-faint: #b4ada6;
-          --accent: #d9531e;
-          --accent-soft: #ef7044;
-          --accent-bg: rgba(217, 83, 30, 0.08);
-        }
-        .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.02em; }
 
+        /* ── Floating launcher ────────────────────────────────────── */
         .aau-launcher {
-          position: fixed; right: 28px; bottom: 28px; z-index: 50;
-          height: 56px; padding: 0 18px 0 16px;
-          background: var(--accent);
-          color: #1a0c05;
-          border: none;
-          display: inline-flex; align-items: center; gap: 10px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-          letter-spacing: 0.14em; text-transform: uppercase;
+          position: fixed;
+          right: 24px;
+          bottom: 24px;
+          z-index: 50;
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px 0 12px;
+          height: 44px;
+          background: var(--brand);
+          color: #ffffff;
+          border: 1px solid var(--brand);
+          border-radius: var(--r-md);
+          font-size: 13.5px;
+          font-weight: 500;
+          letter-spacing: -0.005em;
           cursor: pointer;
-          box-shadow: 0 12px 40px -12px rgba(255, 107, 53, 0.7), 0 0 0 1px rgba(255, 107, 53, 0.4);
-          transition: transform 0.2s ease, box-shadow 0.2s;
+          box-shadow: var(--shadow-md);
+          transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
         }
         .aau-launcher:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 18px 50px -10px rgba(255, 107, 53, 0.85), 0 0 0 1px rgba(255, 107, 53, 0.5);
+          background: var(--brand-deep);
+          border-color: var(--brand-deep);
+          transform: translateY(-1px);
+          box-shadow: var(--shadow-lg);
         }
         .aau-lglyph {
-          width: 22px; height: 22px;
+          width: 24px; height: 24px;
           display: inline-flex; align-items: center; justify-content: center;
-          background: rgba(0, 0, 0, 0.18); border-radius: 50%;
+          background: rgba(255, 255, 255, 0.16);
+          border-radius: var(--r-sm);
+          flex-shrink: 0;
         }
+        .aau-llabel { line-height: 1; }
         .aau-tag {
-          font-size: 9px; padding: 3px 6px;
-          border: 1px solid rgba(0, 0, 0, 0.25);
-          color: rgba(0, 0, 0, 0.65);
-          background: rgba(255, 255, 255, 0.18);
-          letter-spacing: 0.14em;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          padding: 3px 6px;
+          background: rgba(255, 255, 255, 0.16);
+          color: rgba(255, 255, 255, 0.9);
+          border-radius: 999px;
         }
 
+        /* ── Modal scaffolding ────────────────────────────────────── */
         .aau-modal-root {
-          position: fixed; inset: 0; z-index: 1000;
+          position: fixed; inset: 0;
+          z-index: 1000;
           display: flex; align-items: center; justify-content: center;
           padding: 24px;
         }
         .aau-backdrop {
           position: absolute; inset: 0;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(4px);
+          background: rgba(11, 13, 18, 0.5);
+          backdrop-filter: blur(2px);
         }
         .aau-modal {
           position: relative; z-index: 1;
-          width: 100%; max-width: 380px;
+          width: 100%; max-width: 460px;
           max-height: calc(100vh - 48px);
           overflow: auto;
-          background: var(--panel);
-          border: 1px solid var(--line-2);
-          color: var(--ink);
-          box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 107, 53, 0.18);
-          font-family: 'IBM Plex Sans', sans-serif;
+          background: var(--bg-elev);
+          color: var(--text);
+          border: 1px solid var(--border);
+          border-radius: var(--r-lg);
+          box-shadow: var(--shadow-lg);
         }
-        .aau-root[data-theme="light"] .aau-modal {
-          box-shadow: 0 30px 80px -20px rgba(20, 18, 17, 0.18), 0 0 0 1px rgba(217, 83, 30, 0.18);
-        }
+
+        /* ── Modal head ───────────────────────────────────────────── */
         .aau-head {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 14px;
-          border-bottom: 1px solid var(--line);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 18px;
+          border-bottom: 1px solid var(--border);
         }
         .aau-brand {
-          display: flex; align-items: center; gap: 8px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-          color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase;
+          display: inline-flex; align-items: center; gap: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text);
+          letter-spacing: -0.005em;
         }
         .aau-glyph {
-          width: 18px; height: 18px;
+          width: 24px; height: 24px;
           display: inline-flex; align-items: center; justify-content: center;
-          border: 1px solid var(--accent);
-          color: var(--accent);
-          font-family: 'Bebas Neue', 'Antonio', sans-serif; font-size: 11px;
+          background: var(--brand-soft);
+          color: var(--brand);
+          border-radius: var(--r-sm);
         }
         .aau-close {
-          width: 22px; height: 22px;
-          background: transparent; border: 1px solid var(--line);
-          color: var(--ink-mute); cursor: pointer;
+          width: 28px; height: 28px;
           display: inline-flex; align-items: center; justify-content: center;
+          background: transparent;
+          border: 1px solid var(--border);
+          border-radius: var(--r-sm);
+          color: var(--text-mute);
+          cursor: pointer;
+          transition: color 0.15s, background 0.15s, border-color 0.15s;
         }
-        .aau-close:hover { color: var(--ink); border-color: var(--line-2); }
+        .aau-close:hover {
+          color: var(--text);
+          background: var(--bg-inset);
+          border-color: var(--border-strong);
+        }
 
-        .aau-body { padding: 16px 16px 18px; }
+        /* ── Modal body ───────────────────────────────────────────── */
+        .aau-body { padding: 18px 18px 20px; }
         .aau-eyebrow {
-          font-size: 9px; color: var(--accent);
-          letter-spacing: 0.16em; text-transform: uppercase;
-          margin: 0 0 4px;
+          margin: 0 0 6px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--brand);
         }
         .aau-title {
           margin: 0 0 6px;
-          font-family: 'Bebas Neue', 'Antonio', sans-serif;
-          font-size: 22px; line-height: 1.05; letter-spacing: 0.01em;
-          color: var(--ink);
+          font-size: 20px;
+          font-weight: 600;
+          line-height: 1.25;
+          letter-spacing: -0.02em;
+          color: var(--text);
         }
         .aau-lead {
-          margin: 0 0 12px;
-          font-size: 12px; line-height: 1.45;
-          color: var(--ink-dim);
+          margin: 0 0 14px;
+          font-size: 13.5px;
+          line-height: 1.45;
+          color: var(--text-soft);
         }
         .aau-list {
-          list-style: none; padding: 0; margin: 0 0 16px;
-          display: flex; flex-direction: column; gap: 4px;
+          list-style: none;
+          padding: 0;
+          margin: 0 0 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
         .aau-list li {
-          display: flex; gap: 8px; align-items: flex-start;
-          font-size: 12px; line-height: 1.45;
-          color: var(--ink-dim);
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          font-size: 13px;
+          line-height: 1.45;
+          color: var(--text);
         }
         .aau-check {
-          color: var(--accent);
           flex-shrink: 0;
-          margin-top: 3px;
+          margin-top: 4px;
+          color: var(--brand);
         }
-        .aau-list li span { color: var(--ink); }
+
+        /* ── Actions ─────────────────────────────────────────────── */
         .aau-actions {
-          display: flex; gap: 8px; align-items: center;
+          display: flex;
+          gap: 8px;
+          align-items: center;
         }
         .aau-cta {
           flex: 1;
-          background: var(--accent); color: #1a0c05;
+          display: inline-flex; align-items: center; justify-content: center;
           padding: 9px 14px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-          letter-spacing: 0.16em; text-transform: uppercase;
-          text-align: center;
+          background: var(--brand);
+          color: #ffffff;
+          border: 1px solid var(--brand);
+          border-radius: var(--r-sm);
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: -0.005em;
           text-decoration: none;
-          transition: background 0.15s;
+          transition: background 0.15s, border-color 0.15s;
         }
-        .aau-cta:hover { background: var(--accent-soft); }
+        .aau-cta:hover {
+          background: var(--brand-deep);
+          border-color: var(--brand-deep);
+        }
         .aau-secondary {
-          background: transparent;
-          border: 1px solid var(--line-2);
-          color: var(--ink-mute);
+          display: inline-flex; align-items: center; justify-content: center;
           padding: 9px 14px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-          letter-spacing: 0.16em; text-transform: uppercase;
+          background: var(--bg);
+          color: var(--text-soft);
+          border: 1px solid var(--border);
+          border-radius: var(--r-sm);
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: -0.005em;
           cursor: pointer;
-          transition: color 0.15s, border-color 0.15s;
+          transition: color 0.15s, background 0.15s, border-color 0.15s;
         }
-        .aau-secondary:hover { color: var(--ink); border-color: var(--line); }
+        .aau-secondary:hover {
+          color: var(--text);
+          background: var(--bg-inset);
+        }
 
+        /* ── Responsive ──────────────────────────────────────────── */
         @media (max-width: 720px) {
           .aau-launcher { right: 16px; bottom: 16px; }
+          .aau-llabel { display: none; }
           .aau-actions { flex-direction: column; align-items: stretch; }
         }
       `}</style>
