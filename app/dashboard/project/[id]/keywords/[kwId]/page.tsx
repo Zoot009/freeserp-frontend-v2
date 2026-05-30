@@ -1,0 +1,541 @@
+"use client"
+
+import { useEffect, useState, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import { useAuth } from "@/lib/auth"
+import { api, ApiError } from "@/lib/api"
+import { Icon } from "@/components/dashboard/icons"
+import { LineChart } from "@/components/dashboard/primitives"
+
+interface Competitor {
+  position: number
+  domain: string
+  url: string
+  title: string
+  snippet: string
+}
+
+interface LatestCheck {
+  position: number | null
+  url: string | null
+  change: number | null
+  previousPos: number | null
+  competitors: Competitor[] | null
+  monthlyTraffic: number | null
+  revenueLoss: number | null
+  status: string
+  checkedAt: string
+}
+
+interface HistoryEntry {
+  id: string
+  position: number | null
+  change: number | null
+  monthlyTraffic: number | null
+  revenueLoss: number | null
+  checkedAt: string
+}
+
+interface KeywordDetail {
+  id: string
+  keyword: string
+  location: string
+  device?: string
+  addedAt: string
+  project: { id: string; name: string; domain: string }
+  latestCheck: LatestCheck | null
+  history: HistoryEntry[]
+  // Effective status including an in-flight SerpTask: PENDING/PROCESSING while
+  // a check is running, COMPLETED/FAILED/null otherwise.
+  inFlightStatus?: string | null
+}
+
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n")
+  const blob = new Blob([csv], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// Backend stores `change = previousPos - position`, so the sign reads as:
+//   > 0 → position NUMBER went DOWN → ranking IMPROVED → green
+//   < 0 → position NUMBER went UP   → ranking DROPPED → red
+function ChangeCell({ change }: { change: number | null }) {
+  if (change == null || !Number.isFinite(change) || change === 0) {
+    return <span className="delta-cell flat" title="No previous check to compare against">—</span>
+  }
+  const improved = change > 0
+  const delta = Math.abs(change)
+  return (
+    <span
+      className={"delta-cell " + (improved ? "up" : "down")}
+      title={improved
+        ? `Ranking improved — moved up ${delta} position${delta === 1 ? "" : "s"}`
+        : `Ranking dropped — moved down ${delta} position${delta === 1 ? "" : "s"}`}
+    >
+      {improved ? <Icon.arrowUp /> : <Icon.arrowDown />}{delta}
+    </span>
+  )
+}
+
+type Tab = "overview" | "serp" | "history"
+
+export default function KeywordDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
+
+  // Project id and keyword id both come from the route path now —
+  // /dashboard/project/[id]/keywords/[kwId] — no query strings.
+  const projectId = params.id as string
+  const kwId = params.kwId as string
+
+  const [data, setData] = useState<KeywordDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [tab, setTab] = useState<Tab>("overview")
+  const [historyPage, setHistoryPage] = useState(1)
+  const [serpPage, setSerpPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push("/login")
+  }, [user, authLoading, router])
+
+  // Fetch keyword detail via the shared client — it carries the access token,
+  // refreshes it on 401, and runs in parallel with useAuth()'s /me round-trip.
+  const fetchDetail = useCallback(async (): Promise<KeywordDetail | null> => {
+    if (!kwId || !projectId) return null
+    try {
+      return await api.get<KeywordDetail>(`/api/projects/${projectId}/keywords/${kwId}/detail`)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.push("/login")
+        return null
+      }
+      throw err
+    }
+  }, [kwId, projectId, router])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchDetail()
+      .then((d) => { if (!cancelled && d) setData(d) })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load") })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [fetchDetail])
+
+  // Poll while a check is in flight so the page reflects status without manual
+  // refresh. Stops once the status is terminal.
+  useEffect(() => {
+    const s = data?.inFlightStatus
+    if (s !== "PENDING" && s !== "PROCESSING") return
+    const timer = setInterval(() => {
+      fetchDetail().then((d) => { if (d) setData(d) }).catch(() => undefined)
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [data?.inFlightStatus, fetchDetail])
+
+  if (loading) {
+    return (
+      <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
+        Loading keyword…
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="page" style={{ padding: 60, textAlign: "center" }}>
+        <div style={{ color: "var(--neg)", fontSize: 13, marginBottom: 12 }}>{error || "Keyword not found"}</div>
+        <button className="btn sm" onClick={() => router.back()}>← Go back</button>
+      </div>
+    )
+  }
+
+  const { keyword, location, device, addedAt, project, latestCheck, history } = data
+
+  const handleExportSERP = () => {
+    downloadCSV(`serp-${keyword.replace(/\s+/g, "_")}.csv`, [
+      ["Position", "Title", "Domain", "URL", "Snippet"],
+      ...(latestCheck?.competitors ?? []).map((c) => [
+        String(c.position), c.title, c.domain, c.url, c.snippet,
+      ]),
+    ])
+  }
+
+  const handleExportHistory = () => {
+    downloadCSV(`history-${keyword.replace(/\s+/g, "_")}.csv`, [
+      ["Date", "Position", "Change", "Monthly Traffic", "Revenue Loss"],
+      ...history.map((h) => [
+        new Date(h.checkedAt).toLocaleString(),
+        String(h.position ?? "N/A"),
+        String(h.change ?? "--"),
+        String(h.monthlyTraffic ?? "--"),
+        String(h.revenueLoss ?? "--"),
+      ]),
+    ])
+  }
+
+  const competitors = latestCheck?.competitors || []
+  const totalSerpPages = Math.ceil(competitors.length / ITEMS_PER_PAGE)
+  const startSerpIndex = (serpPage - 1) * ITEMS_PER_PAGE
+  const paginatedCompetitors = competitors.slice(startSerpIndex, startSerpIndex + ITEMS_PER_PAGE)
+
+  const totalHistoryPages = Math.ceil(history.length / ITEMS_PER_PAGE)
+  const startHistoryIndex = (historyPage - 1) * ITEMS_PER_PAGE
+  const paginatedHistory = history.slice(startHistoryIndex, startHistoryIndex + ITEMS_PER_PAGE)
+
+  // Build chart data from history. Sort oldest-first so the line reads
+  // left-to-right and reuse the dashboard's LineChart helper.
+  const chartData = history.length > 0
+    ? [...history]
+        .filter((h) => h.position != null)
+        .slice(0, 60)
+        .reverse()
+        .map((h, i) => ({ day: i, pos: h.position as number }))
+    : []
+
+  const inFlight = data.inFlightStatus === "PENDING" || data.inFlightStatus === "PROCESSING"
+
+  return (
+    <div className="page">
+      <button onClick={() => router.back()} className="kd-back" type="button">
+        ← Back
+      </button>
+
+      <div className="page-h" style={{ alignItems: "flex-start" }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="crumbs" style={{ marginBottom: 6, fontSize: 12 }}>
+            <Link href={`/dashboard/project/${project.id}/keywords`} style={{ color: "inherit" }}>
+              <span>{project.domain}</span>
+            </Link>
+            <span className="sep">/</span>
+            <Link href={`/dashboard/project/${project.id}/keywords`} style={{ color: "inherit" }}>
+              <span>Keywords</span>
+            </Link>
+            <span className="sep">/</span>
+            <span className="here" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {keyword}
+            </span>
+          </div>
+          <h1 style={{ wordBreak: "break-word" }}>{keyword}</h1>
+          <div className="sub">
+            {location.toUpperCase()} · {(device ?? "desktop").toUpperCase()} · Added{" "}
+            {new Date(addedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+            {inFlight && (
+              <>
+                {" · "}
+                <span style={{ color: "var(--brand)" }}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--brand)", marginRight: 6, animation: "shim 1.4s ease-in-out infinite" }} />
+                  Checking ranking…
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs">
+        <button className={"tab " + (tab === "overview" ? "active" : "")} onClick={() => setTab("overview")}>
+          Overview
+        </button>
+        <button className={"tab " + (tab === "serp" ? "active" : "")} onClick={() => setTab("serp")}>
+          SERP results {competitors.length > 0 && <span className="muted" style={{ marginLeft: 4 }}>({competitors.length})</span>}
+        </button>
+        <button className={"tab " + (tab === "history" ? "active" : "")} onClick={() => setTab("history")}>
+          History {history.length > 0 && <span className="muted" style={{ marginLeft: 4 }}>({history.length})</span>}
+        </button>
+      </div>
+
+      {tab === "overview" && (
+        <>
+          {/* STAT TILES */}
+          <div className="grid g-4" style={{ marginBottom: 14 }}>
+            <div className="stat">
+              <div className="lbl">Position</div>
+              <div className="val tabular">{latestCheck?.position != null ? `#${latestCheck.position}` : "100+"}</div>
+              <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                <ChangeCell change={latestCheck?.change ?? null} />
+                {latestCheck?.previousPos != null && (
+                  <span className="tiny muted">from #{latestCheck.previousPos}</span>
+                )}
+              </div>
+            </div>
+            <div className="stat">
+              <div className="lbl">Monthly traffic</div>
+              <div className="val tabular">
+                {latestCheck?.monthlyTraffic != null ? latestCheck.monthlyTraffic.toLocaleString() : "—"}
+              </div>
+              <span className="tiny muted">modelled from position × volume</span>
+            </div>
+            <div className="stat">
+              <div className="lbl">Last checked</div>
+              <div className="val" style={{ fontSize: 18 }}>
+                {latestCheck?.checkedAt
+                  ? new Date(latestCheck.checkedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
+                  : "Never"}
+              </div>
+              <span className="tiny muted">
+                {latestCheck?.checkedAt
+                  ? new Date(latestCheck.checkedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+                  : "Run a check from the project page"}
+              </span>
+            </div>
+            <div className="stat">
+              <div className="lbl">SERP features</div>
+              <div className="val" style={{ fontSize: 18 }}>{competitors.length}</div>
+              <span className="tiny muted">competitor pages ranked</span>
+            </div>
+          </div>
+
+          {/* Rank chart */}
+          {chartData.length > 1 && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="card-h">
+                <div>
+                  <div className="t">Rank history</div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>
+                    {chartData.length} check{chartData.length === 1 ? "" : "s"} · oldest to newest
+                  </div>
+                </div>
+              </div>
+              <LineChart
+                data={chartData}
+                invert
+                yFormat={(v) => "#" + Math.round(v)}
+                height={240}
+              />
+            </div>
+          )}
+
+          {/* Ranking URL */}
+          {latestCheck?.url && (
+            <div className="card">
+              <div className="card-h">
+                <div className="t">Ranking URL</div>
+                <a
+                  href={latestCheck.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn sm"
+                >
+                  Open <Icon.chevR />
+                </a>
+              </div>
+              <a
+                href={latestCheck.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "block",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 13,
+                  color: "var(--brand)",
+                  wordBreak: "break-all",
+                }}
+              >
+                {latestCheck.url}
+              </a>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "serp" && (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div
+            className="card-h"
+            style={{ padding: "16px 18px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}
+          >
+            <div>
+              <div className="t">SERP results</div>
+              <div className="tiny muted" style={{ marginTop: 2 }}>
+                {competitors.length > 0
+                  ? `Showing ${startSerpIndex + 1}–${Math.min(startSerpIndex + ITEMS_PER_PAGE, competitors.length)} of ${competitors.length}`
+                  : "Top ranking pages for this keyword"}
+              </div>
+            </div>
+            {competitors.length > 0 && (
+              <button className="btn sm" onClick={handleExportSERP}>
+                <Icon.download /> Export CSV
+              </button>
+            )}
+          </div>
+
+          {competitors.length > 0 ? (
+            <>
+              {paginatedCompetitors.map((c) => {
+                const normalizedProject = project.domain.replace(/^www\./, "").toLowerCase()
+                const normalizedResult = c.domain.replace(/^www\./, "").toLowerCase()
+                const isOwnSite =
+                  normalizedResult === normalizedProject || normalizedResult.endsWith(`.${normalizedProject}`)
+                // Build a breadcrumb-style URL like Google ("example.com › path › ›")
+                // from the raw URL. Stripping the protocol + splitting on `/`
+                // gives a short, decoded trail that reads cleanly.
+                let breadcrumb = c.url.replace(/^https?:\/\//, "")
+                try {
+                  const u = new URL(c.url)
+                  const parts = u.pathname.split("/").filter(Boolean).slice(0, 3)
+                  const decoded = parts.map((p) => {
+                    try { return decodeURIComponent(p) } catch { return p }
+                  })
+                  breadcrumb = decoded.length > 0
+                    ? `${u.hostname.replace(/^www\./, "")} › ${decoded.join(" › ")}`
+                    : u.hostname.replace(/^www\./, "")
+                } catch { /* keep the stripped fallback */ }
+
+                return (
+                  <div key={c.position + c.url} className={"serp-row " + (isOwnSite ? "mine" : "")}>
+                    <div className="rank">{c.position}.</div>
+                    <div className="body">
+                      <div className="url-line">
+                        <span className="fav" style={isOwnSite ? { background: "var(--brand)", color: "white" } : undefined}>
+                          {c.domain[0]?.toUpperCase() ?? "?"}
+                        </span>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {breadcrumb}
+                        </span>
+                        {isOwnSite && (
+                          <span className="chip brand" style={{ marginLeft: 4, fontSize: 10 }} title="Your site">
+                            Your site
+                          </span>
+                        )}
+                      </div>
+                      <a
+                        href={c.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="title"
+                        style={{
+                          display: "inline-block",
+                          // Brand-blue link styling for both themes — Google's
+                          // own #1a0dab doesn't carry over to dark mode, but
+                          // --brand swings light/dark via the theme tokens.
+                          color: "var(--brand)",
+                          textDecoration: "none",
+                          fontSize: 17,
+                          lineHeight: 1.3,
+                          marginBottom: 4,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                      >
+                        {c.title || c.url}
+                      </a>
+                      {c.snippet && (
+                        <div className="desc">
+                          {c.snippet}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {totalSerpPages > 1 && (
+                <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8, borderTop: "1px solid var(--border)" }}>
+                  <div className="tiny muted">Page {serpPage} of {totalSerpPages}</div>
+                  <div className="row" style={{ gap: 6 }}>
+                    <button className="btn sm" onClick={() => setSerpPage(1)} disabled={serpPage === 1}>First</button>
+                    <button className="btn sm" onClick={() => setSerpPage((p) => Math.max(1, p - 1))} disabled={serpPage === 1}>Prev</button>
+                    <button className="btn sm" onClick={() => setSerpPage((p) => Math.min(totalSerpPages, p + 1))} disabled={serpPage === totalSerpPages}>Next</button>
+                    <button className="btn sm" onClick={() => setSerpPage(totalSerpPages)} disabled={serpPage === totalSerpPages}>Last</button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
+              No SERP data yet. Run a check from the project page to populate this view.
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div
+            className="card-h"
+            style={{ padding: "16px 18px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}
+          >
+            <div>
+              <div className="t">Rank history</div>
+              <div className="tiny muted" style={{ marginTop: 2 }}>
+                Showing {history.length > 0 ? startHistoryIndex + 1 : 0}–{Math.min(startHistoryIndex + ITEMS_PER_PAGE, history.length)} of {history.length}
+              </div>
+            </div>
+            {history.length > 0 && (
+              <button className="btn sm" onClick={handleExportHistory}>
+                <Icon.download /> Export CSV
+              </button>
+            )}
+          </div>
+
+          {history.length > 0 ? (
+            <>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Position</th>
+                    <th>Δ</th>
+                    <th>Monthly traffic</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedHistory.map((h, i) => {
+                    const isLatest = i === 0 && historyPage === 1
+                    return (
+                      <tr key={h.id} style={isLatest ? { background: "var(--bg-sub)" } : undefined}>
+                        <td className="tabular tiny muted" style={{ whiteSpace: "nowrap" }}>
+                          {new Date(h.checkedAt).toLocaleString("en-IN", {
+                            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+                          })}
+                        </td>
+                        <td>
+                          {h.position != null ? (
+                            <span className={"pos-badge " + (h.position <= 3 ? "top3" : h.position <= 10 ? "top10" : "")}>
+                              {h.position}
+                            </span>
+                          ) : (
+                            <span className="chip" title="Not found in the top 100">100+</span>
+                          )}
+                        </td>
+                        <td><ChangeCell change={h.change} /></td>
+                        <td className="tabular">{h.monthlyTraffic?.toLocaleString() ?? "—"}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {totalHistoryPages > 1 && (
+                <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8 }}>
+                  <div className="tiny muted">Page {historyPage} of {totalHistoryPages}</div>
+                  <div className="row" style={{ gap: 6 }}>
+                    <button className="btn sm" onClick={() => setHistoryPage(1)} disabled={historyPage === 1}>First</button>
+                    <button className="btn sm" onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1}>Prev</button>
+                    <button className="btn sm" onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))} disabled={historyPage === totalHistoryPages}>Next</button>
+                    <button className="btn sm" onClick={() => setHistoryPage(totalHistoryPages)} disabled={historyPage === totalHistoryPages}>Last</button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
+              No rank history yet.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

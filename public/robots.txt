@@ -1,0 +1,14 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow admin and dashboard pages from crawling
+Disallow: /dashboard
+Disallow: /login
+Disallow: /signup
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+
+# Sitemap
+Sitemap: https://freeserp.com/sitemap.xml
