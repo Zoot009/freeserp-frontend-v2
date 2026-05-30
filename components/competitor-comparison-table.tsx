@@ -13,16 +13,16 @@ interface Props {
 
 export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomains = new Set() }: Props) {
   const rankStripe = (pos: number | null) => {
-    if (pos === null) return 'bg-border/40'
-    if (pos <= 3) return 'bg-emerald-500'
-    if (pos <= 10) return 'bg-yellow-500'
-    return 'bg-red-500'
+    if (pos === null) return 'bg-[color:var(--bg-inset)]'
+    if (pos <= 3) return 'bg-[color:var(--pos)]'
+    if (pos <= 10) return 'bg-[color:var(--warn)]'
+    return 'bg-[color:var(--neg)]'
   }
   const rankText = (pos: number | null) => {
-    if (pos === null) return 'text-muted-foreground'
-    if (pos <= 3) return 'text-emerald-500'
-    if (pos <= 10) return 'text-yellow-500'
-    return 'text-red-500'
+    if (pos === null) return 'text-[color:var(--text-mute)]'
+    if (pos <= 3) return 'text-[color:var(--pos)]'
+    if (pos <= 10) return 'text-[color:var(--warn)]'
+    return 'text-[color:var(--neg)]'
   }
 
   const [scoreBreakdownOpen, setScoreBreakdownOpen] = useState(false)
@@ -44,7 +44,10 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
   )
 
   return (
-              <div className="w-full overflow-x-auto border border-border/60 bg-card/20">
+              <div
+                className="w-full overflow-x-auto border border-[color:var(--border)] bg-[color:var(--bg-elev)]"
+                style={{ borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)' }}
+              >
                 <table className="w-full border-collapse table-fixed">
                   <colgroup>
                     <col style={{ width: '180px' }} />
@@ -55,20 +58,20 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                     <tr className="align-top">
 
                       {/* Corner */}
-                      <th className="border-r border-b border-border/40 bg-background p-5 text-left align-middle" />
+                      <th className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] p-5 text-left align-middle" />
 
                       {/* Your Business */}
-                      <th className="border-r border-b border-border/40 bg-background text-center p-0 align-top">
-                        <div className="h-0.5 w-full bg-accent" />
+                      <th className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
+                        <div className="h-[3px] w-full bg-[color:var(--brand)]" />
                         <div className="px-3 pt-3 pb-3">
-                          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-accent mb-1">Your Business</p>
-                          <p className="font-[var(--font-bebas)] text-lg tracking-tight text-foreground leading-none mb-1.5 truncate" title={analysis.yourDomain}>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--brand)] mb-1">Your Business</p>
+                          <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={analysis.yourDomain}>
                             {analysis.yourDomain}
                           </p>
-                          <p className={`font-[var(--font-bebas)] text-4xl leading-none ${rankText(analysis.yourPosition)}`}>
+                          <p className={`font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none ${rankText(analysis.yourPosition)}`}>
                             {analysis.yourPosition ? `#${analysis.yourPosition}` : '—'}
                           </p>
-                          <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                          <p className="text-[11px] text-[color:var(--text-mute)] mt-1">
                             {analysis.yourPosition ? 'SERP Position' : 'Not Ranked'}
                           </p>
                         </div>
@@ -79,26 +82,31 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                         const isFailed = comp.crawlMethod === 'failed' || comp.crawlMethod === 'minimal' || comp.wordCount === 0
                         const isRecrawling = recrawlingDomains.has(comp.domain)
                         return (
-                          <th key={i} className="border-r last:border-r-0 border-b border-border/40 bg-background text-center p-0 align-top">
-                            <div className={`h-0.5 w-full ${isFailed ? 'bg-red-400' : rankStripe(comp.position)}`} />
+                          <th key={i} className="border-r last:border-r-0 border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
+                            <div className={`h-[3px] w-full ${isFailed ? 'bg-[color:var(--neg)]' : rankStripe(comp.position)}`} />
                             <div className="px-3 pt-3 pb-3">
-                              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-1 opacity-0 select-none">·</p>
-                              <p className="font-[var(--font-bebas)] text-lg tracking-tight text-foreground leading-none mb-1.5 truncate" title={comp.domain}>
+                              {/* invisible spacer to keep header heights aligned with the "Your Business" cell */}
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1 opacity-0 select-none">·</p>
+                              <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={comp.domain}>
                                 {comp.domain}
                               </p>
                               {isFailed || isRecrawling ? (
                                 <>
-                                  <p className="font-[var(--font-bebas)] text-4xl leading-none text-red-400">—</p>
-                                  <p className="font-mono text-[10px] text-red-400/70 mt-0.5">Crawl Failed</p>
+                                  <p className="font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none text-[color:var(--neg)]">—</p>
+                                  <p className="text-[11px] text-[color:var(--neg)] mt-1">Crawl Failed</p>
                                   <div className="mt-2">
                                     {isRecrawling ? (
-                                      <span className="inline-block font-mono text-[9px] uppercase tracking-widest text-yellow-600 animate-pulse px-2 py-1 border border-yellow-400/30 bg-yellow-400/5">
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[color:var(--warn)] animate-pulse px-2 py-1 bg-[color:var(--warn-soft)]"
+                                        style={{ borderRadius: 'var(--r-sm)' }}
+                                      >
                                         Recrawling…
                                       </span>
                                     ) : (
                                       <button
                                         onClick={() => onRecrawl?.(comp.domain)}
-                                        className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 border border-accent/40 text-accent bg-accent/5 hover:bg-accent/15 transition-colors"
+                                        className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 border border-[color:var(--border)] text-[color:var(--text-soft)] bg-[color:var(--bg)] hover:bg-[color:var(--bg-inset)] hover:text-[color:var(--text)] transition-colors"
+                                        style={{ borderRadius: 'var(--r-sm)' }}
                                       >
                                         ↺ Recrawl
                                       </button>
@@ -107,10 +115,10 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 </>
                               ) : (
                                 <>
-                                  <p className={`font-[var(--font-bebas)] text-4xl leading-none ${rankText(comp.position)}`}>
+                                  <p className={`font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none ${rankText(comp.position)}`}>
                                     {comp.position ? `#${comp.position}` : '—'}
                                   </p>
-                                  <p className="font-mono text-[10px] text-muted-foreground mt-0.5">
+                                  <p className="text-[11px] text-[color:var(--text-mute)] mt-1">
                                     {comp.position ? 'SERP Position' : 'Not Ranked'}
                                   </p>
                                 </>
@@ -127,22 +135,25 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       const compCrawls = analysis.competitors.map(c => c.fullCrawlData)
 
                       const Cell = ({ children, highlight }: { children: React.ReactNode; highlight?: 'best' | 'worst' | 'neutral' }) => (
-                        <td className={`border-r last:border-r-0 border-b border-border/40 p-4 text-center align-middle ${highlight === 'best' ? 'bg-emerald-500/5' : highlight === 'worst' ? 'bg-red-500/5' : ''}`}>
+                        <td className={`border-r last:border-r-0 border-b border-[color:var(--border)] p-4 text-center align-middle ${highlight === 'best' ? 'bg-[color:var(--pos-soft)]' : highlight === 'worst' ? 'bg-[color:var(--neg-soft)]' : ''}`}>
                           {children}
                         </td>
                       )
 
                       const Label = ({ label, sub }: { label: string; sub?: string }) => (
-                        <td className="border-r border-b border-border/40 bg-background/50 p-4 align-middle">
-                          <div className="font-mono text-xs uppercase tracking-wider text-foreground/80">{label}</div>
-                          {sub && <div className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">{sub}</div>}
+                        <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] px-3.5 py-3 align-middle">
+                          <div className="text-[12px] font-medium text-[color:var(--text)]">{label}</div>
+                          {sub && <div className="text-[10.5px] text-[color:var(--text-mute)] mt-0.5">{sub}</div>}
                         </td>
                       )
 
                       const SectionRow = ({ title, colSpan }: { title: string; colSpan: number }) => (
                         <tr>
-                          <td colSpan={colSpan} className="border-b border-border/40 bg-accent/5 px-5 py-2">
-                            <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-accent">{title}</span>
+                          <td
+                            colSpan={colSpan}
+                            className="border-y border-[color:var(--border)] bg-[color:var(--bg-sub)] px-5 py-2.5"
+                          >
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--text-mute)]">{title}</span>
                           </td>
                         </tr>
                       )
@@ -190,12 +201,12 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
 
                       const fmt = (v: number | null, suffix = '') => v !== null && !isNaN(v) ? `${v.toLocaleString()}${suffix}` : '—'
                       const fmtBool = (v: boolean | null) =>
-                        v === null ? <span className="text-muted-foreground font-mono text-xs">—</span> :
-                        v ? <CheckCircle className="h-4 w-4 text-emerald-400 mx-auto" /> : <XCircle className="h-4 w-4 text-red-400 mx-auto" />
+                        v === null ? <span className="text-[color:var(--text-mute)] font-mono text-xs">—</span> :
+                        v ? <CheckCircle className="h-4 w-4 text-[color:var(--pos)] mx-auto" /> : <XCircle className="h-4 w-4 text-[color:var(--neg)] mx-auto" />
 
                       const NumCell = ({ value, highlight }: { value: number | null; highlight?: 'best' | 'worst' | 'neutral' }) => (
                         <Cell highlight={highlight}>
-                          <span className="font-mono text-base font-bold text-foreground">{fmt(value)}</span>
+                          <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(value)}</span>
                         </Cell>
                       )
 
@@ -208,17 +219,17 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','being','as','it','its','this','that','these','those','i','my','your','our','we','they','he','she','not','no','so','do','does','did','has','have','had','can','will','would','should','could','may','might','into','about','up','out'])
 
                       const TitleLenColor = (len: number | null) => {
-                        if (len === null) return 'text-muted-foreground'
-                        if (len >= 30 && len <= 60) return 'text-emerald-400'
-                        if (len >= 20 && len <= 70) return 'text-yellow-400'
-                        return 'text-red-400'
+                        if (len === null) return 'text-[color:var(--text-mute)]'
+                        if (len >= 30 && len <= 60) return 'text-[color:var(--pos)]'
+                        if (len >= 20 && len <= 70) return 'text-[color:var(--warn)]'
+                        return 'text-[color:var(--neg)]'
                       }
 
                       const DescLenColor = (len: number | null) => {
-                        if (len === null) return 'text-muted-foreground'
-                        if (len >= 120 && len <= 160) return 'text-emerald-400'
-                        if (len >= 70 && len <= 200) return 'text-yellow-400'
-                        return 'text-red-400'
+                        if (len === null) return 'text-[color:var(--text-mute)]'
+                        if (len >= 120 && len <= 160) return 'text-[color:var(--pos)]'
+                        if (len >= 70 && len <= 200) return 'text-[color:var(--warn)]'
+                        return 'text-[color:var(--neg)]'
                       }
 
                       const wc = rankNums(yourWordCount, compWordCounts)
@@ -316,27 +327,27 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       ] as const
 
                       const ScoreDetailCell = ({ score }: { score: SeoScoreBreakdown | null }) => (
-                        <td className="border-r last:border-r-0 border-b border-border/40 p-3 align-middle">
+                        <td className="border-r last:border-r-0 border-b border-[color:var(--border)] p-3 align-middle">
                           {score ? (
                             <div className="space-y-1">
                               {SCORE_CATEGORIES.map(({ key, label, max }) => {
                                 const val = score[key] as number
                                 const pct = max > 0 ? val / max : 0
-                                const barColor = pct >= 0.8 ? 'bg-emerald-400' : pct >= 0.5 ? 'bg-yellow-400' : 'bg-red-400'
-                                const textColor = pct >= 0.8 ? 'text-emerald-400' : pct >= 0.5 ? 'text-yellow-400' : 'text-red-400'
+                                const barColor = pct >= 0.8 ? 'bg-[color:var(--pos)]' : pct >= 0.5 ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--neg)]'
+                                const textColor = pct >= 0.8 ? 'text-[color:var(--pos)]' : pct >= 0.5 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'
                                 return (
                                   <div key={key} className="flex items-center gap-2">
-                                    <span className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground w-14 shrink-0 text-right">{label}</span>
-                                    <div className="flex-1 bg-border/30 rounded-full h-1 overflow-hidden">
+                                    <span className="text-[10px] font-medium text-[color:var(--text-mute)] w-14 shrink-0 text-right">{label}</span>
+                                    <div className="flex-1 bg-[color:var(--bg-inset)] rounded-full h-1 overflow-hidden">
                                       <div className={`h-1 rounded-full ${barColor}`} style={{ width: `${pct * 100}%` }} />
                                     </div>
-                                    <span className={`font-mono text-[9px] font-bold w-10 text-right ${textColor}`}>{val}/{max}</span>
+                                    <span className={`tabular-nums text-[11px] font-semibold w-12 text-right ${textColor}`}>{val}/{max}</span>
                                   </div>
                                 )
                               })}
                             </div>
                           ) : (
-                            <span className="font-mono text-sm text-muted-foreground">—</span>
+                            <span className="text-[14px] text-[color:var(--text-mute)]">—</span>
                           )}
                         </td>
                       )
@@ -347,59 +358,59 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           <SectionRow title="SEO Score" colSpan={totalCols} />
                           {/* Overall score row — click label to toggle breakdown */}
                           <tr>
-                            <td className="border-r border-b border-border/40 bg-background/50 p-4 align-middle">
+                            <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle">
                               <button
                                 onClick={() => setScoreBreakdownOpen(o => !o)}
-                                className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-foreground/80 hover:text-accent transition-colors"
+                                className="flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text)] hover:text-[color:var(--brand)] transition-colors"
                               >
                                 Overall Score
                                 {scoreBreakdownOpen
                                   ? <ChevronUp className="h-3 w-3" />
                                   : <ChevronDown className="h-3 w-3" />}
                               </button>
-                              <div className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">out of 100</div>
+                              <div className="text-[11px] text-[color:var(--text-mute)] mt-0.5">out of 100</div>
                             </td>
                             {/* your score */}
-                            <td className="border-r border-b border-border/40 p-4 text-center align-middle">
+                            <td className="border-r border-b border-[color:var(--border)] p-4 text-center align-middle">
                               {yourScore ? (
                                 <div>
-                                  <span className={`font-[var(--font-bebas)] text-5xl leading-none ${scoreColor(yourScore.total)}`}>
+                                  <span className={`font-sans font-semibold tabular-nums text-4xl tracking-tight leading-none ${scoreColor(yourScore.total)}`}>
                                     {yourScore.total}
                                   </span>
-                                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                                  <div className="mt-1 text-[11px] text-[color:var(--text-mute)]">
                                     {yourScore.grade} · {yourScore.label}
                                   </div>
-                                  <div className="mt-2 w-full bg-border/30 rounded-full h-1.5 overflow-hidden">
+                                  <div className="mt-2 w-full bg-[color:var(--bg-inset)] rounded-full h-1.5 overflow-hidden">
                                     <div className={`h-1.5 rounded-full ${scoreBarBg(yourScore.total)}`} style={{ width: `${yourScore.total}%` }} />
                                   </div>
                                 </div>
-                              ) : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                              ) : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                             </td>
                             {/* competitor scores */}
                             {analysis.competitors.map((_, i) => (
-                              <td key={i} className="border-r last:border-r-0 border-b border-border/40 p-4 text-center align-middle">
+                              <td key={i} className="border-r last:border-r-0 border-b border-[color:var(--border)] p-4 text-center align-middle">
                                 {compScores[i] ? (
                                   <div>
-                                    <span className={`font-[var(--font-bebas)] text-5xl leading-none ${scoreColor(compScores[i]!.total)}`}>
+                                    <span className={`font-sans font-semibold tabular-nums text-4xl tracking-tight leading-none ${scoreColor(compScores[i]!.total)}`}>
                                       {compScores[i]!.total}
                                     </span>
-                                    <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                                    <div className="mt-1 text-[11px] text-[color:var(--text-mute)]">
                                       {compScores[i]!.grade} · {compScores[i]!.label}
                                     </div>
-                                    <div className="mt-2 w-full bg-border/30 rounded-full h-1.5 overflow-hidden">
+                                    <div className="mt-2 w-full bg-[color:var(--bg-inset)] rounded-full h-1.5 overflow-hidden">
                                       <div className={`h-1.5 rounded-full ${scoreBarBg(compScores[i]!.total)}`} style={{ width: `${compScores[i]!.total}%` }} />
                                     </div>
                                   </div>
-                                ) : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                                ) : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                               </td>
                             ))}
                           </tr>
                           {/* Breakdown row — only rendered when open */}
                           {scoreBreakdownOpen && (
                             <tr>
-                              <td className="border-r border-b border-border/40 bg-background/50 p-4 align-middle">
-                                <div className="font-mono text-xs uppercase tracking-wider text-foreground/80">Score Breakdown</div>
-                                <div className="font-mono text-[10px] text-muted-foreground/60 mt-0.5">by category</div>
+                              <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle">
+                                <div className="text-[12px] font-medium text-[color:var(--text)]">Score Breakdown</div>
+                                <div className="text-[11px] text-[color:var(--text-mute)] mt-0.5">by category</div>
                               </td>
                               <ScoreDetailCell score={yourScore} />
                               {analysis.competitors.map((_, i) => (
@@ -425,8 +436,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5 mt-1">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -447,7 +458,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                             // keyword freq on just the path slug (not hostname)
                             const pathFreq = (url: string | null | undefined) => {
                               const path = getPath(url)
-                              return path ? urlFreq(path) : <span className="font-mono text-xs text-muted-foreground/40">homepage</span>
+                              return path ? urlFreq(path) : <span className="text-[12px] italic text-[color:var(--text-mute)]">homepage</span>
                             }
                             return (
                               <>
@@ -457,14 +468,14 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                   <Label label="Main Domain" />
                                   <Cell>
                                     {getHostname(analysis.yourUrl)
-                                      ? <span className="font-mono text-xs text-foreground/80">{getHostname(analysis.yourUrl)}</span>
-                                      : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                                      ? <span className="font-mono text-xs text-[color:var(--text-soft)]">{getHostname(analysis.yourUrl)}</span>
+                                      : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i}>
                                       {getHostname(comp.url)
-                                        ? <span className="font-mono text-xs text-foreground/80">{getHostname(comp.url)}</span>
-                                        : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                                        ? <span className="font-mono text-xs text-[color:var(--text-soft)]">{getHostname(comp.url)}</span>
+                                        : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                                     </Cell>
                                   ))}
                                 </tr>
@@ -480,18 +491,18 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                   <Label label="Ranking Page URL" />
                                   <Cell>
                                     {analysis.yourUrl
-                                      ? <a href={analysis.yourUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-accent hover:underline break-all line-clamp-2">
+                                      ? <a href={analysis.yourUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[color:var(--brand)] hover:underline break-all line-clamp-2">
                                           {analysis.yourUrl}
                                         </a>
-                                      : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                                      : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i}>
                                       {comp.url
-                                        ? <a href={comp.url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-accent hover:underline break-all line-clamp-2">
+                                        ? <a href={comp.url} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[color:var(--brand)] hover:underline break-all line-clamp-2">
                                             {comp.url}
                                           </a>
-                                        : <span className="font-mono text-sm text-muted-foreground">—</span>}
+                                        : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
                                     </Cell>
                                   ))}
                                 </tr>
@@ -523,13 +534,13 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                             }
                             const titleFreqRow = (title: string | null) => {
                               const freqs = countInTitle(title)
-                              if (freqs.length === 0) return <span className="font-mono text-[9px] text-muted-foreground">—</span>
+                              if (freqs.length === 0) return <span className="text-[11px] text-[color:var(--text-mute)]">—</span>
                               return (
                                 <div className="flex flex-col gap-0.5 mt-1">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -540,13 +551,13 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <tr>
                                   <Label label="Title Tag" sub={`30–60 chars ideal`} />
                                   <Cell>
-                                    <div className="font-mono text-xs text-foreground/90 text-left mb-1">{yourTitle ?? '—'}</div>
-                                    {yourTitleLen !== null && <span className={`font-mono text-[10px] font-bold ${TitleLenColor(yourTitleLen)}`}>{yourTitleLen} ch</span>}
+                                    <div className="font-sans text-[13px] text-[color:var(--text)] text-left mb-1.5 leading-snug">{yourTitle ?? '—'}</div>
+                                    {yourTitleLen !== null && <span className={`tabular-nums text-[11px] font-medium ${TitleLenColor(yourTitleLen)}`}>{yourTitleLen} ch</span>}
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i}>
-                                      <div className="font-mono text-xs text-foreground/90 text-left mb-1">{compCrawls[i]?.metaTags?.title ?? comp.title ?? '—'}</div>
-                                      {compTitleLens[i] !== null && <span className={`font-mono text-[10px] font-bold ${TitleLenColor(compTitleLens[i])}`}>{compTitleLens[i]} ch</span>}
+                                      <div className="font-sans text-[13px] text-[color:var(--text)] text-left mb-1.5 leading-snug">{compCrawls[i]?.metaTags?.title ?? comp.title ?? '—'}</div>
+                                      {compTitleLens[i] !== null && <span className={`tabular-nums text-[11px] font-medium ${TitleLenColor(compTitleLens[i])}`}>{compTitleLens[i]} ch</span>}
                                     </Cell>
                                   ))}
                                 </tr>
@@ -583,8 +594,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -595,13 +606,13 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <tr>
                                   <Label label="Meta Description" sub="120–160 chars ideal" />
                                   <Cell>
-                                    <div className="font-mono text-xs text-foreground/80 text-left mb-1">{yourDesc ?? '—'}</div>
-                                    {yourDescLen !== null && <span className={`font-mono text-[10px] font-bold ${DescLenColor(yourDescLen)}`}>{yourDescLen} ch</span>}
+                                    <div className="font-sans text-[12.5px] text-[color:var(--text-soft)] text-left mb-1.5 leading-snug">{yourDesc ?? '—'}</div>
+                                    {yourDescLen !== null && <span className={`tabular-nums text-[11px] font-medium ${DescLenColor(yourDescLen)}`}>{yourDescLen} ch</span>}
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i}>
-                                      <div className="font-mono text-xs text-foreground/80 text-left mb-1">{compCrawls[i]?.metaTags?.description ?? '—'}</div>
-                                      {compDescLens[i] !== null && <span className={`font-mono text-[10px] font-bold ${DescLenColor(compDescLens[i])}`}>{compDescLens[i]} ch</span>}
+                                      <div className="font-sans text-[12.5px] text-[color:var(--text-soft)] text-left mb-1.5 leading-snug">{compCrawls[i]?.metaTags?.description ?? '—'}</div>
+                                      {compDescLens[i] !== null && <span className={`tabular-nums text-[11px] font-medium ${DescLenColor(compDescLens[i])}`}>{compDescLens[i]} ch</span>}
                                     </Cell>
                                   ))}
                                 </tr>
@@ -642,8 +653,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -678,8 +689,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -690,15 +701,15 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <tr>
                                   <Label label="H1 Tags" sub="Ideally exactly 1" />
                                   <Cell highlight={h1r.highlight(yourH1, true)}>
-                                    <span className={`font-mono text-base font-bold ${yourH1 === 1 ? 'text-emerald-400' : yourH1 === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{fmt(yourH1)}</span>
-                                    {yourCrawl?.headings?.h1?.[0] && <div className="font-mono text-[11px] text-muted-foreground mt-1 break-words">{yourCrawl.headings.h1[0]}</div>}
+                                    <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourH1 === 1 ? 'text-[color:var(--pos)]' : yourH1 === 0 ? 'text-[color:var(--neg)]' : 'text-[color:var(--warn)]'}`}>{fmt(yourH1)}</span>
+                                    {yourCrawl?.headings?.h1?.[0] && <div className="text-[11.5px] text-[color:var(--text-mute)] mt-1 break-words italic">{yourCrawl.headings.h1[0]}</div>}
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => {
                                     const val = compH1s[i]
                                     return (
                                       <Cell key={i} highlight={h1r.highlight(val, true)}>
-                                        <span className={`font-mono text-base font-bold ${val === 1 ? 'text-emerald-400' : val === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{fmt(val)}</span>
-                                        {compCrawls[i]?.headings?.h1?.[0] && <div className="font-mono text-[11px] text-muted-foreground mt-1 break-words">{compCrawls[i]!.headings.h1[0]}</div>}
+                                        <span className={`font-sans font-semibold tabular-nums text-[15px] ${val === 1 ? 'text-[color:var(--pos)]' : val === 0 ? 'text-[color:var(--neg)]' : 'text-[color:var(--warn)]'}`}>{fmt(val)}</span>
+                                        {compCrawls[i]?.headings?.h1?.[0] && <div className="text-[11.5px] text-[color:var(--text-mute)] mt-1 break-words italic">{compCrawls[i]!.headings.h1[0]}</div>}
                                       </Cell>
                                     )
                                   })}
@@ -732,8 +743,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -744,11 +755,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <tr>
                                   <Label label="H2 Tags" />
                                   <Cell highlight={h2r.highlight(yourH2, true)}>
-                                    <span className="font-mono text-base font-bold text-foreground">{fmt(yourH2)}</span>
+                                    <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(yourH2)}</span>
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i} highlight={h2r.highlight(compH2s[i], true)}>
-                                      <span className="font-mono text-base font-bold text-foreground">{fmt(compH2s[i])}</span>
+                                      <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(compH2s[i])}</span>
                                     </Cell>
                                   ))}
                                 </tr>
@@ -781,8 +792,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>
@@ -793,11 +804,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <tr>
                                   <Label label="H3 Tags" />
                                   <Cell highlight={h3r.highlight(yourH3, true)}>
-                                    <span className="font-mono text-base font-bold text-foreground">{fmt(yourH3)}</span>
+                                    <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(yourH3)}</span>
                                   </Cell>
                                   {analysis.competitors.map((comp, i) => (
                                     <Cell key={i} highlight={h3r.highlight(compH3s[i], true)}>
-                                      <span className="font-mono text-base font-bold text-foreground">{fmt(compH3s[i])}</span>
+                                      <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(compH3s[i])}</span>
                                     </Cell>
                                   ))}
                                 </tr>
@@ -832,8 +843,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                     <div className="flex flex-col gap-0.5">
                                       {freqs.map(({ word, count }) => (
                                         <div key={word} className="flex items-center justify-between gap-3">
-                                          <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                          <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                          <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                          <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                         </div>
                                       ))}
                                     </div>
@@ -844,11 +855,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                     <tr>
                                       <Label label="H4 Tags" />
                                       <Cell highlight={h4r.highlight(yourH4, true)}>
-                                        <span className="font-mono text-base font-bold text-foreground">{fmt(yourH4)}</span>
+                                        <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(yourH4)}</span>
                                       </Cell>
                                       {analysis.competitors.map((comp, i) => (
                                         <Cell key={i} highlight={h4r.highlight(compH4s[i], true)}>
-                                          <span className="font-mono text-base font-bold text-foreground">{fmt(compH4s[i])}</span>
+                                          <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(compH4s[i])}</span>
                                         </Cell>
                                       ))}
                                     </tr>
@@ -886,8 +897,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                     <div className="flex flex-col gap-0.5">
                                       {freqs.map(({ word, count }) => (
                                         <div key={word} className="flex items-center justify-between gap-3">
-                                          <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                          <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                          <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                          <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                         </div>
                                       ))}
                                     </div>
@@ -898,11 +909,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                     <tr>
                                       <Label label="H5 Tags" />
                                       <Cell highlight={h5r.highlight(yourH5, true)}>
-                                        <span className="font-mono text-base font-bold text-foreground">{fmt(yourH5)}</span>
+                                        <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(yourH5)}</span>
                                       </Cell>
                                       {analysis.competitors.map((comp, i) => (
                                         <Cell key={i} highlight={h5r.highlight(compH5s[i], true)}>
-                                          <span className="font-mono text-base font-bold text-foreground">{fmt(compH5s[i])}</span>
+                                          <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{fmt(compH5s[i])}</span>
                                         </Cell>
                                       ))}
                                     </tr>
@@ -982,39 +993,39 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           {/* Lighthouse Scores — only shown when PSI data is available */}
                           {hasPsi && (() => {
                             const lhScore = (v: number | null) => v === null ? '—' : `${v}`
-                            const lhColor = (v: number | null) => v === null ? 'text-muted-foreground' : v >= 90 ? 'text-emerald-400' : v >= 50 ? 'text-yellow-400' : 'text-red-400'
+                            const lhColor = (v: number | null) => v === null ? 'text-[color:var(--text-mute)]' : v >= 90 ? 'text-[color:var(--pos)]' : v >= 50 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'
                             return (
                               <>
                                 <tr>
                                   <Label label="Performance Score" sub="0–100, higher is better" />
                                   <Cell highlight={perfScoreR.highlight(yourPerfScore, true)}>
-                                    <span className={`font-mono text-base font-bold ${lhColor(yourPerfScore)}`}>{lhScore(yourPerfScore)}</span>
+                                    <span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(yourPerfScore)}`}>{lhScore(yourPerfScore)}</span>
                                   </Cell>
                                   {analysis.competitors.map((_, i) => (
                                     <Cell key={i} highlight={perfScoreR.highlight(compPerfScore[i], true)}>
-                                      <span className={`font-mono text-base font-bold ${lhColor(compPerfScore[i])}`}>{lhScore(compPerfScore[i])}</span>
+                                      <span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(compPerfScore[i])}`}>{lhScore(compPerfScore[i])}</span>
                                     </Cell>
                                   ))}
                                 </tr>
                                 <tr>
                                   <Label label="SEO Score" sub="Lighthouse SEO audit" />
-                                  <Cell><span className={`font-mono text-base font-bold ${lhColor(yourSeoScore)}`}>{lhScore(yourSeoScore)}</span></Cell>
+                                  <Cell><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(yourSeoScore)}`}>{lhScore(yourSeoScore)}</span></Cell>
                                   {analysis.competitors.map((_, i) => (
-                                    <Cell key={i}><span className={`font-mono text-base font-bold ${lhColor(compSeoScore[i])}`}>{lhScore(compSeoScore[i])}</span></Cell>
+                                    <Cell key={i}><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(compSeoScore[i])}`}>{lhScore(compSeoScore[i])}</span></Cell>
                                   ))}
                                 </tr>
                                 <tr>
                                   <Label label="Accessibility Score" sub="Lighthouse a11y audit" />
-                                  <Cell><span className={`font-mono text-base font-bold ${lhColor(yourA11yScore)}`}>{lhScore(yourA11yScore)}</span></Cell>
+                                  <Cell><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(yourA11yScore)}`}>{lhScore(yourA11yScore)}</span></Cell>
                                   {analysis.competitors.map((_, i) => (
-                                    <Cell key={i}><span className={`font-mono text-base font-bold ${lhColor(compA11yScore[i])}`}>{lhScore(compA11yScore[i])}</span></Cell>
+                                    <Cell key={i}><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(compA11yScore[i])}`}>{lhScore(compA11yScore[i])}</span></Cell>
                                   ))}
                                 </tr>
                                 <tr>
                                   <Label label="Best Practices Score" sub="Lighthouse best practices" />
-                                  <Cell><span className={`font-mono text-base font-bold ${lhColor(yourBpScore)}`}>{lhScore(yourBpScore)}</span></Cell>
+                                  <Cell><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(yourBpScore)}`}>{lhScore(yourBpScore)}</span></Cell>
                                   {analysis.competitors.map((_, i) => (
-                                    <Cell key={i}><span className={`font-mono text-base font-bold ${lhColor(compBpScore[i])}`}>{lhScore(compBpScore[i])}</span></Cell>
+                                    <Cell key={i}><span className={`font-sans font-semibold tabular-nums text-[15px] ${lhColor(compBpScore[i])}`}>{lhScore(compBpScore[i])}</span></Cell>
                                   ))}
                                 </tr>
                               </>
@@ -1023,33 +1034,33 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           <tr>
                             <Label label="TTFB" sub="lower is better" />
                             <Cell highlight={ttfbR.highlight(yourTtfb, false)}>
-                              <span className={`font-mono text-base font-bold ${yourTtfb === null ? 'text-muted-foreground' : yourTtfb <= 200 ? 'text-emerald-400' : yourTtfb <= 600 ? 'text-yellow-400' : 'text-red-400'}`}>{yourTtfb !== null ? `${yourTtfb}ms` : '—'}</span>
+                              <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourTtfb === null ? 'text-[color:var(--text-mute)]' : yourTtfb <= 200 ? 'text-[color:var(--pos)]' : yourTtfb <= 600 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{yourTtfb !== null ? `${yourTtfb}ms` : '—'}</span>
                             </Cell>
                             {analysis.competitors.map((comp, i) => (
                               <Cell key={i} highlight={ttfbR.highlight(compTtfb[i], false)}>
-                                <span className={`font-mono text-base font-bold ${compTtfb[i] === null ? 'text-muted-foreground' : compTtfb[i]! <= 200 ? 'text-emerald-400' : compTtfb[i]! <= 600 ? 'text-yellow-400' : 'text-red-400'}`}>{compTtfb[i] !== null ? `${compTtfb[i]}ms` : '—'}</span>
+                                <span className={`font-sans font-semibold tabular-nums text-[15px] ${compTtfb[i] === null ? 'text-[color:var(--text-mute)]' : compTtfb[i]! <= 200 ? 'text-[color:var(--pos)]' : compTtfb[i]! <= 600 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{compTtfb[i] !== null ? `${compTtfb[i]}ms` : '—'}</span>
                               </Cell>
                             ))}
                           </tr>
                           <tr>
                             <Label label="FCP" sub="First Contentful Paint" />
                             <Cell highlight={fcpR.highlight(yourFcp, false)}>
-                              <span className={`font-mono text-base font-bold ${yourFcp === null ? 'text-muted-foreground' : yourFcp <= 1800 ? 'text-emerald-400' : yourFcp <= 3000 ? 'text-yellow-400' : 'text-red-400'}`}>{yourFcp !== null ? `${yourFcp}ms` : '—'}</span>
+                              <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourFcp === null ? 'text-[color:var(--text-mute)]' : yourFcp <= 1800 ? 'text-[color:var(--pos)]' : yourFcp <= 3000 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{yourFcp !== null ? `${yourFcp}ms` : '—'}</span>
                             </Cell>
                             {analysis.competitors.map((comp, i) => (
                               <Cell key={i} highlight={fcpR.highlight(compFcp[i], false)}>
-                                <span className={`font-mono text-base font-bold ${compFcp[i] === null ? 'text-muted-foreground' : compFcp[i]! <= 1800 ? 'text-emerald-400' : compFcp[i]! <= 3000 ? 'text-yellow-400' : 'text-red-400'}`}>{compFcp[i] !== null ? `${compFcp[i]}ms` : '—'}</span>
+                                <span className={`font-sans font-semibold tabular-nums text-[15px] ${compFcp[i] === null ? 'text-[color:var(--text-mute)]' : compFcp[i]! <= 1800 ? 'text-[color:var(--pos)]' : compFcp[i]! <= 3000 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{compFcp[i] !== null ? `${compFcp[i]}ms` : '—'}</span>
                               </Cell>
                             ))}
                           </tr>
                           <tr>
                             <Label label="LCP" sub="Largest Contentful Paint" />
                             <Cell highlight={lcpR.highlight(yourLcp, false)}>
-                              <span className={`font-mono text-base font-bold ${yourLcp === null ? 'text-muted-foreground' : yourLcp <= 2500 ? 'text-emerald-400' : yourLcp <= 4000 ? 'text-yellow-400' : 'text-red-400'}`}>{yourLcp !== null ? `${yourLcp}ms` : '—'}</span>
+                              <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourLcp === null ? 'text-[color:var(--text-mute)]' : yourLcp <= 2500 ? 'text-[color:var(--pos)]' : yourLcp <= 4000 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{yourLcp !== null ? `${yourLcp}ms` : '—'}</span>
                             </Cell>
                             {analysis.competitors.map((comp, i) => (
                               <Cell key={i} highlight={lcpR.highlight(compLcp[i], false)}>
-                                <span className={`font-mono text-base font-bold ${compLcp[i] === null ? 'text-muted-foreground' : compLcp[i]! <= 2500 ? 'text-emerald-400' : compLcp[i]! <= 4000 ? 'text-yellow-400' : 'text-red-400'}`}>{compLcp[i] !== null ? `${compLcp[i]}ms` : '—'}</span>
+                                <span className={`font-sans font-semibold tabular-nums text-[15px] ${compLcp[i] === null ? 'text-[color:var(--text-mute)]' : compLcp[i]! <= 2500 ? 'text-[color:var(--pos)]' : compLcp[i]! <= 4000 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{compLcp[i] !== null ? `${compLcp[i]}ms` : '—'}</span>
                               </Cell>
                             ))}
                           </tr>
@@ -1057,11 +1068,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                             <tr>
                               <Label label="TBT" sub="Total Blocking Time" />
                               <Cell highlight={tbtR.highlight(yourTbt, false)}>
-                                <span className={`font-mono text-base font-bold ${yourTbt === null ? 'text-muted-foreground' : yourTbt <= 200 ? 'text-emerald-400' : yourTbt <= 600 ? 'text-yellow-400' : 'text-red-400'}`}>{yourTbt !== null ? `${yourTbt}ms` : '—'}</span>
+                                <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourTbt === null ? 'text-[color:var(--text-mute)]' : yourTbt <= 200 ? 'text-[color:var(--pos)]' : yourTbt <= 600 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{yourTbt !== null ? `${yourTbt}ms` : '—'}</span>
                               </Cell>
                               {analysis.competitors.map((comp, i) => (
                                 <Cell key={i} highlight={tbtR.highlight(compTbt[i], false)}>
-                                  <span className={`font-mono text-base font-bold ${compTbt[i] === null ? 'text-muted-foreground' : compTbt[i]! <= 200 ? 'text-emerald-400' : compTbt[i]! <= 600 ? 'text-yellow-400' : 'text-red-400'}`}>{compTbt[i] !== null ? `${compTbt[i]}ms` : '—'}</span>
+                                  <span className={`font-sans font-semibold tabular-nums text-[15px] ${compTbt[i] === null ? 'text-[color:var(--text-mute)]' : compTbt[i]! <= 200 ? 'text-[color:var(--pos)]' : compTbt[i]! <= 600 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{compTbt[i] !== null ? `${compTbt[i]}ms` : '—'}</span>
                                 </Cell>
                               ))}
                             </tr>
@@ -1069,11 +1080,11 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           <tr>
                             <Label label="CLS" sub="Cumulative Layout Shift" />
                             <Cell>
-                              <span className={`font-mono text-base font-bold ${yourCls === null ? 'text-muted-foreground' : yourCls <= 0.1 ? 'text-emerald-400' : yourCls <= 0.25 ? 'text-yellow-400' : 'text-red-400'}`}>{yourCls !== null ? yourCls.toFixed(3) : '—'}</span>
+                              <span className={`font-sans font-semibold tabular-nums text-[15px] ${yourCls === null ? 'text-[color:var(--text-mute)]' : yourCls <= 0.1 ? 'text-[color:var(--pos)]' : yourCls <= 0.25 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{yourCls !== null ? yourCls.toFixed(3) : '—'}</span>
                             </Cell>
                             {analysis.competitors.map((comp, i) => (
                               <Cell key={i}>
-                                <span className={`font-mono text-base font-bold ${compCls[i] === null ? 'text-muted-foreground' : compCls[i]! <= 0.1 ? 'text-emerald-400' : compCls[i]! <= 0.25 ? 'text-yellow-400' : 'text-red-400'}`}>{compCls[i] !== null ? compCls[i]!.toFixed(3) : '—'}</span>
+                                <span className={`font-sans font-semibold tabular-nums text-[15px] ${compCls[i] === null ? 'text-[color:var(--text-mute)]' : compCls[i]! <= 0.1 ? 'text-[color:var(--pos)]' : compCls[i]! <= 0.25 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'}`}>{compCls[i] !== null ? compCls[i]!.toFixed(3) : '—'}</span>
                               </Cell>
                             ))}
                           </tr>
@@ -1124,8 +1135,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 <div className="flex flex-col gap-0.5">
                                   {freqs.map(({ word, count }) => (
                                     <div key={word} className="flex items-center justify-between gap-3">
-                                      <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">{word}</span>
-                                      <span className={`font-mono text-[11px] font-bold ${count > 0 ? 'text-accent' : 'text-muted-foreground/50'}`}>[{count}]</span>
+                                      <span className="text-[10.5px] font-medium text-[color:var(--text-mute)]">{word}</span>
+                                      <span className={`tabular-nums text-[11px] font-semibold ${count > 0 ? 'text-[color:var(--brand)]' : 'text-[color:var(--text-mute)]'}`}>[{count}]</span>
                                     </div>
                                   ))}
                                 </div>

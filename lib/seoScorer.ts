@@ -286,14 +286,17 @@ export function computeSeoScore(
   }
 }
 
+// Dashboard tokens (defined in app/dashboard.css) — keeps the comparison
+// table and any future score widgets visually consistent with the rest of
+// the SaaS dashboard.
 export function scoreColor(total: number): string {
-  if (total >= 80) return 'text-emerald-400'
-  if (total >= 60) return 'text-yellow-400'
-  return 'text-red-400'
+  if (total >= 80) return 'text-[color:var(--pos)]'
+  if (total >= 60) return 'text-[color:var(--warn)]'
+  return 'text-[color:var(--neg)]'
 }
 
 export function scoreBarBg(total: number): string {
-  if (total >= 80) return 'bg-emerald-400'
-  if (total >= 60) return 'bg-yellow-400'
-  return 'bg-red-400'
+  if (total >= 80) return 'bg-[color:var(--pos)]'
+  if (total >= 60) return 'bg-[color:var(--warn)]'
+  return 'bg-[color:var(--neg)]'
 }
