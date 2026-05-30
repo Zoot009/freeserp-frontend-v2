@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
 import { CheckCircle2 } from "lucide-react"
+import { http } from "@/lib/http"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -17,11 +18,11 @@ export default function BillingSuccessPage() {
     if (!token) return
     const id = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/payments/status`, {
+        const res = await http.get(`${API_URL}/api/payments/status`, {
           headers: { Authorization: `Bearer ${token}` },
         })
-        if (res.ok) {
-          const data = await res.json()
+        if (res.status >= 200 && res.status < 300) {
+          const data = res.data
           setPlan(data.plan)
           if (data.plan === "paid") clearInterval(id)
         }

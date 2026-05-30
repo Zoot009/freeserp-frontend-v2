@@ -12,6 +12,7 @@ import type {
   ChatMessagePostResponse,
 } from "@/types/competitor-analysis"
 import { renderChatMarkdown } from "@/lib/chat-md"
+import { http } from "@/lib/http"
 
 /**
  * AI Chat — floating launcher + expanding panel.
@@ -105,11 +106,11 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
   const loadSessions = useCallback(async (): Promise<ChatSessionSummary[]> => {
     setSessionsLoading(true)
     try {
-      const res = await fetch(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
-        credentials: "include",
+      const res = await http.get<ChatSessionsResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
+        withCredentials: true,
       })
-      if (!res.ok) throw new Error("Failed to load history")
-      const data: ChatSessionsResponse = await res.json()
+      if (res.status < 200 || res.status >= 300) throw new Error("Failed to load history")
+      const data = res.data
       setSessions(data.sessions)
       setTokensUsed(data.tokensUsed)
       setTokensCap(data.tokensCap)
@@ -123,11 +124,11 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
     setLoadingSession(true)
     setError("")
     try {
-      const res = await fetch(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
-        credentials: "include",
+      const res = await http.get<ChatSessionResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
+        withCredentials: true,
       })
-      if (!res.ok) throw new Error("Failed to load chat")
-      const data: ChatSessionResponse = await res.json()
+      if (res.status < 200 || res.status >= 300) throw new Error("Failed to load chat")
+      const data = res.data
       setCurrentSessionId(data.session.id)
       setMessages(data.messages)
       setTokensUsed(data.tokensUsed)
@@ -201,17 +202,14 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
       // Create the session lazily if this is a fresh chat
       let sessionId = currentSessionId
       if (!sessionId) {
-        const createRes = await fetch(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            category: selectedCategory,
-            problemTitle: activeProblem?.recommendation ?? null,
-          }),
+        const createRes = await http.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
+          category: selectedCategory,
+          problemTitle: activeProblem?.recommendation ?? null,
+        }, {
+          withCredentials: true,
         })
-        const createData = await createRes.json().catch(() => ({}))
-        if (!createRes.ok) {
+        const createData = createRes.data ?? {}
+        if (createRes.status < 200 || createRes.status >= 300) {
           setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id))
           setInput(userMessage)
           throw new Error(createData.error || "Failed to start chat session")
@@ -220,13 +218,12 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
         setCurrentSessionId(sessionId)
       }
 
-      const res = await fetch(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ message: userMessage }),
+      const res = await http.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}/messages`, {
+        message: userMessage,
+      }, {
+        withCredentials: true,
       })
-      const data = await res.json().catch(() => ({}))
+      const data = res.data ?? {}
 
       if (res.status === 429) {
         setTokensUsed(data.tokensUsed ?? tokensCap)
@@ -236,7 +233,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
         setInput(userMessage)
         return
       }
-      if (!res.ok) {
+      if (res.status < 200 || res.status >= 300) {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id))
         setInput(userMessage)
         throw new Error(data.error || "Failed to send message")
@@ -288,11 +285,10 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
 
   const deleteSession = async (sessionId: string) => {
     try {
-      const res = await fetch(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
-        method: "DELETE",
-        credentials: "include",
+      const res = await http.delete(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
+        withCredentials: true,
       })
-      if (!res.ok && res.status !== 204) throw new Error("Failed to delete chat")
+      if ((res.status < 200 || res.status >= 300) && res.status !== 204) throw new Error("Failed to delete chat")
       setSessions((prev) => prev.filter((s) => s.id !== sessionId))
       if (currentSessionId === sessionId) newChat()
     } catch (err) {

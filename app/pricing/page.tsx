@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Check, Sparkles, Zap, Globe2, Infinity as InfinityIcon } from "lucide-react"
 import gsap from "gsap"
+import { http } from "@/lib/http"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -64,10 +65,10 @@ export default function PricingPage() {
 
   useEffect(() => {
     if (!token) return
-    fetch(`${API_URL}/api/payments/status`, {
+    http.get(`${API_URL}/api/payments/status`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => (r.ok ? r.json() : null))
+      .then(r => (r.status >= 200 && r.status < 300 ? r.data : null))
       .then(d => d && setStatus(d))
       .catch(() => {})
   }, [token])
@@ -122,15 +123,14 @@ export default function PricingPage() {
     setError("")
     setCheckoutLoading(true)
     try {
-      const res = await fetch(`${API_URL}/api/payments/checkout`, {
-        method: "POST",
+      const res = await http.post(`${API_URL}/api/payments/checkout`, null, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "Failed to start checkout")
+      const data = res.data
+      if (res.status < 200 || res.status >= 300) throw new Error(data?.error || "Failed to start checkout")
       if (!data?.url) throw new Error("Checkout URL missing")
       window.location.href = data.url
     } catch (err) {

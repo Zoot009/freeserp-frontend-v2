@@ -3,6 +3,8 @@
 // the refresh token on 401. Designed to be called from React via hooks or
 // directly from server components.
 
+import axios, { type AxiosResponse } from "axios"
+
 const API_BASE =
   typeof window === "undefined"
     ? process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"
@@ -77,13 +79,10 @@ function buildUrl(path: string, query?: RequestInitWithJson["query"]): string {
   return path.startsWith("http") ? url.toString() : `${API_BASE}${url.pathname}${url.search}`
 }
 
-async function readError(res: Response): Promise<ApiError> {
-  let body: unknown
-  try {
-    body = await res.json()
-  } catch {
-    /* ignore */
-  }
+function readError(res: AxiosResponse): ApiError {
+  // axios has already parsed the body into `res.data` (an object for JSON
+  // responses, a string otherwise); tolerate both shapes.
+  const body = res.data
   const wrapped = (body as { error?: { code?: string; message?: string; details?: unknown } } | undefined)?.error
   const code = wrapped?.code ?? "http_error"
   const message = wrapped?.message ?? res.statusText ?? "Request failed"
@@ -94,14 +93,17 @@ async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      })
-      if (!res.ok) return null
-      const data = (await res.json()) as { accessToken?: string }
+      const res = await axios.post<{ accessToken?: string }>(
+        `${API_BASE}/api/auth/refresh`,
+        {},
+        {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+          validateStatus: () => true,
+        },
+      )
+      if (res.status < 200 || res.status >= 300) return null
+      const data = res.data
       if (data.accessToken) {
         setAccessToken(data.accessToken)
         return data.accessToken
@@ -118,7 +120,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInitWithJson = {}): Promise<T> {
   const { body, query, skipAuth, skipRefresh, headers, ...rest } = init
-  const buildHeaders = (token: string | null): HeadersInit => {
+  const buildHeaders = (token: string | null): Record<string, string> => {
     const h: Record<string, string> = {
       "Accept": "application/json",
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -128,31 +130,36 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
     return h
   }
 
-  const doFetch = async (token: string | null): Promise<Response> =>
-    fetch(buildUrl(path, query), {
-      ...rest,
-      credentials: "include",
+  // axios serializes an object `data` to JSON itself (Content-Type is set
+  // above), so we hand it the raw body rather than a pre-stringified string.
+  const doRequest = async (token: string | null): Promise<AxiosResponse> =>
+    axios.request({
+      url: buildUrl(path, query),
+      method: (rest.method as string | undefined) ?? "GET",
+      signal: rest.signal as AbortSignal | undefined,
+      withCredentials: true,
       headers: buildHeaders(token),
-      body: body === undefined ? undefined : JSON.stringify(body),
+      data: body === undefined ? undefined : body,
+      validateStatus: () => true,
     })
 
-  let res = await doFetch(skipAuth ? null : getAccessToken())
+  let res = await doRequest(skipAuth ? null : getAccessToken())
 
   if (res.status === 401 && !skipAuth && !skipRefresh) {
     const newToken = await refreshAccessToken()
     if (newToken) {
-      res = await doFetch(newToken)
+      res = await doRequest(newToken)
     } else {
       setAccessToken(null)
-      throw await readError(res)
+      throw readError(res)
     }
   }
 
-  if (!res.ok) throw await readError(res)
+  if (res.status < 200 || res.status >= 300) throw readError(res)
   if (res.status === 204) return undefined as T
-  const ct = res.headers.get("content-type") ?? ""
+  const ct = (res.headers["content-type"] as string | undefined) ?? ""
   if (!ct.includes("application/json")) return undefined as T
-  return (await res.json()) as T
+  return res.data as T
 }
 
 export const api = {

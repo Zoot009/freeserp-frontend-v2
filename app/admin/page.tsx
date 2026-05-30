@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
+import { http } from "@/lib/http"
 
 const API = process.env.NEXT_PUBLIC_API_URL || ""
 
@@ -109,8 +110,8 @@ export default function AdminPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`${API}/api/usage`, { credentials: "include" })
-        const data = await res.json()
+        const res = await http.get(`${API}/api/usage`, { withCredentials: true })
+        const data = res.data
         if (cancelled) return
         if (!data.isAdmin) {
           router.replace("/dashboard")
@@ -128,9 +129,9 @@ export default function AdminPage() {
 
   const loadOverview = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/admin/overview`, { credentials: "include" })
-      if (!res.ok) throw new Error("Failed to load overview")
-      const data: Overview = await res.json()
+      const res = await http.get<Overview>(`${API}/api/admin/overview`, { withCredentials: true })
+      if (res.status < 200 || res.status >= 300) throw new Error("Failed to load overview")
+      const data = res.data
       setOverview(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load overview")
@@ -147,9 +148,9 @@ export default function AdminPage() {
       if (toDate) params.set("to", toDate)
       if (opts.cursor) params.set("cursor", opts.cursor)
       params.set("limit", "50")
-      const res = await fetch(`${API}/api/admin/users?${params}`, { credentials: "include" })
-      if (!res.ok) throw new Error("Failed to load users")
-      const data: AdminUserListResponse = await res.json()
+      const res = await http.get<AdminUserListResponse>(`${API}/api/admin/users?${params}`, { withCredentials: true })
+      if (res.status < 200 || res.status >= 300) throw new Error("Failed to load users")
+      const data = res.data
       setUsers((prev) => (opts.append ? [...prev, ...data.users] : data.users))
       setNextCursor(data.nextCursor)
     } catch (err) {

@@ -12,6 +12,7 @@ import { AiChatPanel } from "@/components/ai-chat-panel"
 import { AskAnalystUpsell } from "@/components/ai-chat-upsell"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
+import { http } from "@/lib/http"
 
 function CompetitorAnalysisResultsContent() {
   const params = useParams()
@@ -81,16 +82,15 @@ function CompetitorAnalysisResultsContent() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-      const response = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
+        withCredentials: true,
       })
 
-      if (!response.ok) throw new Error("Failed to fetch analysis results")
+      if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch analysis results")
 
       // Backend wraps the payload as { analysis: {...} }; tolerate a bare
       // object too in case the envelope changes.
-      const data = await response.json()
+      const data = response.data
       const analysisData = data.analysis ?? data
       setAnalysis(analysisData)
 
@@ -124,11 +124,8 @@ function CompetitorAnalysisResultsContent() {
     setRecrawlingDomains((prev) => new Set(prev).add(domain))
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ domain }),
+      await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, { domain }, {
+        withCredentials: true,
       })
     } catch {
       setRecrawlingDomains((prev) => {
@@ -144,9 +141,9 @@ function CompetitorAnalysisResultsContent() {
     const interval = setInterval(async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-        const res = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}`, { credentials: "include" })
-        if (!res.ok) return
-        const data = await res.json()
+        const res = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, { withCredentials: true })
+        if (res.status < 200 || res.status >= 300) return
+        const data = res.data
         const analysisData = data.analysis ?? data
         setAnalysis(analysisData)
         const stillPending = [...recrawlingDomains].filter((dom) => {
@@ -228,12 +225,11 @@ function CompetitorAnalysisResultsContent() {
     if (linkGraphData) return linkGraphData
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
+        withCredentials: true,
       })
-      if (response.ok) {
-        const data = await response.json()
+      if (response.status >= 200 && response.status < 300) {
+        const data = response.data
         // Backend returns { ready, domains: [...] }; older callers expected an array.
         const domains = Array.isArray(data) ? data : (data?.domains || [])
         setLinkGraphData(domains)
@@ -286,12 +282,11 @@ function CompetitorAnalysisResultsContent() {
     setLinkGraphError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
+        withCredentials: true,
       })
-      if (!response.ok) throw new Error("Failed to fetch link graph")
-      const data = await response.json()
+      if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch link graph")
+      const data = response.data
       // Backend wraps the result as { ready, domains: [...] }. Tolerate both
       // shapes so the frontend keeps working during a rolling deploy.
       setLinkGraphData(Array.isArray(data) ? data : (data?.domains || []))
@@ -308,17 +303,14 @@ function CompetitorAnalysisResultsContent() {
     setAiPlanError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ forceRegenerate }),
+      const response = await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, { forceRegenerate }, {
+        withCredentials: true,
       })
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
+      if (response.status < 200 || response.status >= 300) {
+        const data = response.data ?? {}
         throw new Error(data.error || "Failed to generate AI plan")
       }
-      const data = await response.json()
+      const data = response.data
       setAiPlan(data)
       if (data.categories?.[0]) setSelectedAiCategory(data.categories[0].id)
     } catch (err) {

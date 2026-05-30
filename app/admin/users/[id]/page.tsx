@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
+import { http } from "@/lib/http"
 
 const API = process.env.NEXT_PUBLIC_API_URL || ""
 
@@ -91,8 +92,8 @@ export default function AdminUserDetailPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`${API}/api/usage`, { credentials: "include" })
-        const data = await res.json()
+        const res = await http.get(`${API}/api/usage`, { withCredentials: true })
+        const data = res.data
         if (cancelled) return
         if (!data.isAdmin) {
           router.replace("/dashboard")
@@ -112,14 +113,14 @@ export default function AdminUserDetailPage() {
     if (!userId) return
     setDetailLoading(true)
     try {
-      const res = await fetch(`${API}/api/admin/users/${userId}`, { credentials: "include" })
+      const res = await http.get<UserDetailResponse>(`${API}/api/admin/users/${userId}`, { withCredentials: true })
       if (res.status === 404) {
         setError("User not found")
         setDetail(null)
         return
       }
-      if (!res.ok) throw new Error("Failed to load user")
-      const data: UserDetailResponse = await res.json()
+      if (res.status < 200 || res.status >= 300) throw new Error("Failed to load user")
+      const data = res.data
       setDetail(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load user")

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
 import { ArrowLeft, ExternalLink, AlertCircle, ScanSearch, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
+import { http } from "@/lib/http"
 
 interface CrawlData {
   urlInfo: {
@@ -176,19 +177,16 @@ function SeoAuditContent() {
     setError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await fetch(`${apiUrl}/api/competitor-analysis/seo-audit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ url, keyword }),
+      const response = await http.post(`${apiUrl}/api/competitor-analysis/seo-audit`, { url, keyword }, {
+        withCredentials: true,
       })
 
-      if (!response.ok) {
-        const data = await response.json()
+      if (response.status < 200 || response.status >= 300) {
+        const data = response.data ?? {}
         throw new Error(data.error || "Failed to run SEO audit")
       }
 
-      const result = await response.json()
+      const result = response.data
       setCrawlData(result.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to run audit")

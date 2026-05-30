@@ -5,6 +5,7 @@ import { Check, Link as LinkIcon, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { http } from "@/lib/http"
 
 interface Props {
   analysisId: string
@@ -30,14 +31,11 @@ export function ShareReportDialog({ analysisId, keyword, isOpen, onClose }: Prop
     setError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const res = await fetch(`${apiUrl}/api/competitor-analysis/${analysisId}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ agencyName: agencyName.trim() }),
+      const res = await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/share`, { agencyName: agencyName.trim() }, {
+        withCredentials: true,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate link')
+      const data = res.data
+      if (res.status < 200 || res.status >= 300) throw new Error(data.error || 'Failed to generate link')
       setShareUrl(data.shareUrl)
       setStep('success')
     } catch (err) {

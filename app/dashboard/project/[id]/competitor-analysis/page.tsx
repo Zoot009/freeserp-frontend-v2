@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth"
 import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
 import { PosBadge } from "@/components/dashboard/primitives"
+import { http } from "@/lib/http"
 
 interface SerpCompetitor {
   position: number
@@ -87,13 +88,12 @@ function CompetitorAnalysisContent() {
       setLoadingSerpData(true)
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-        const response = await fetch(`${apiUrl}/api/projects/${projectId}/keywords/${keywordId}/detail`, {
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+        const response = await http.get(`${apiUrl}/api/projects/${projectId}/keywords/${keywordId}/detail`, {
+          withCredentials: true,
         })
 
-        if (response.ok) {
-          const data = await response.json()
+        if (response.status >= 200 && response.status < 300) {
+          const data = response.data
           // The detail endpoint includes the keyword's project so we can hydrate
           // the domain without an extra round-trip / query param.
           if (data.project?.domain) setDomain(data.project.domain)
@@ -151,25 +151,22 @@ function CompetitorAnalysisContent() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-      const response = await fetch(`${apiUrl}/api/competitor-analysis`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          yourDomain: domain,
-          keyword,
-          selectedDomains: selectedCompetitors,
-          projectId,
-          keywordId,
-        }),
+      const response = await http.post(`${apiUrl}/api/competitor-analysis`, {
+        yourDomain: domain,
+        keyword,
+        selectedDomains: selectedCompetitors,
+        projectId,
+        keywordId,
+      }, {
+        withCredentials: true,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
+      if (response.status < 200 || response.status >= 300) {
+        const errorData = response.data ?? {}
         throw new Error(errorData.error || "Failed to start competitor analysis")
       }
 
-      const { analysis } = await response.json()
+      const { analysis } = response.data
       const analysisId = analysis?.id ?? analysis?.analysisId
 
       // Tutorial step 6 → 7 (done)
