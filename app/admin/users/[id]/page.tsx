@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 const API = process.env.NEXT_PUBLIC_API_URL || ""
 
@@ -92,7 +92,7 @@ export default function AdminUserDetailPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await http.get(`${API}/api/usage`, { withCredentials: true })
+        const res = await axios.get(`${API}/api/usage`, { withCredentials: true })
         const data = res.data
         if (cancelled) return
         if (!data.isAdmin) {
@@ -113,7 +113,7 @@ export default function AdminUserDetailPage() {
     if (!userId) return
     setDetailLoading(true)
     try {
-      const res = await http.get<UserDetailResponse>(`${API}/api/admin/users/${userId}`, { withCredentials: true })
+      const res = await axios.get<UserDetailResponse>(`${API}/api/admin/users/${userId}`, { withCredentials: true })
       if (res.status === 404) {
         setError("User not found")
         setDetail(null)

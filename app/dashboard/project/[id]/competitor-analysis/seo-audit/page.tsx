@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
 import { ArrowLeft, ExternalLink, AlertCircle, ScanSearch, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
 import Link from "next/link"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 interface CrawlData {
   urlInfo: {
@@ -177,7 +177,7 @@ function SeoAuditContent() {
     setError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await http.post(`${apiUrl}/api/competitor-analysis/seo-audit`, { url, keyword }, {
+      const response = await axios.post(`${apiUrl}/api/competitor-analysis/seo-audit`, { url, keyword }, {
         withCredentials: true,
       })
 

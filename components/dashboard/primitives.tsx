@@ -285,12 +285,55 @@ export type KeywordRow = {
   trend?: number[]
 }
 
-function FeatChip({ f }: { f: string }) {
+// Backend SERP-feature flags (ProjectRankCheck.serpFeatures), as surfaced by the
+// projects API. All optional — only the features Google showed are present.
+export type SerpFeatures = {
+  featuredSnippet?: unknown
+  peopleAlsoAsk?: unknown[]
+  knowledgeGraph?: unknown
+  relatedSearches?: unknown[]
+  localPack?: boolean
+  imagePack?: boolean
+  videoPack?: boolean
+  aiOverview?: boolean
+}
+
+// One point of the 12-month search-volume history (ProjectKeyword.searchVolumeTrend).
+export type MonthlySearch = { year: number; month: number; searchVolume: number }
+
+// Map the backend serpFeatures object onto the chip codes FeatChip renders.
+// Ordered most-to-least prominent so the row reads consistently.
+export function serpFeaturesToChips(sf: SerpFeatures | null | undefined): string[] {
+  if (!sf || typeof sf !== "object") return []
+  const out: string[] = []
+  if (sf.aiOverview) out.push("AI")
+  if (sf.featuredSnippet) out.push("FS")
+  if (Array.isArray(sf.peopleAlsoAsk) && sf.peopleAlsoAsk.length) out.push("PAA")
+  if (sf.videoPack) out.push("VID")
+  if (sf.imagePack) out.push("IMG")
+  if (sf.localPack) out.push("LOCAL")
+  if (sf.knowledgeGraph) out.push("KG")
+  return out
+}
+
+// Flatten searchVolumeTrend rows to the plain number[] a Sparkline consumes.
+// Returns [] for missing/empty/malformed input so callers render the dash.
+export function trendToSparkline(trend: MonthlySearch[] | null | undefined): number[] {
+  if (!Array.isArray(trend)) return []
+  return trend
+    .filter((p) => p && typeof p.searchVolume === "number")
+    .map((p) => p.searchVolume)
+}
+
+export function FeatChip({ f }: { f: string }) {
   const map: Record<string, { label: string; title: string }> = {
     AI: { label: "AI", title: "AI Overview" },
+    FS: { label: "FS", title: "Featured snippet" },
     PAA: { label: "PAA", title: "People also ask" },
     VID: { label: "Vid", title: "Video carousel" },
     IMG: { label: "Img", title: "Image pack" },
+    LOCAL: { label: "Local", title: "Local pack" },
+    KG: { label: "KG", title: "Knowledge graph" },
     SHOP: { label: "Shop", title: "Shopping" },
     NEWS: { label: "News", title: "News" },
   }
@@ -334,7 +377,9 @@ export function KeywordTable({
             </td>
             <td>
               {k.trend && k.trend.length > 0 ? (
-                <Sparkline data={k.trend} invert />
+                // Search-volume history — higher is up, so no invert (unlike a
+                // position trend, where a lower number is better).
+                <Sparkline data={k.trend} />
               ) : <span className="tiny muted">—</span>}
             </td>
           </tr>

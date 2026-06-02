@@ -9,7 +9,17 @@ import { api, ApiError } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
 import { Icon } from "@/components/dashboard/icons"
-import { PosBadge } from "@/components/dashboard/primitives"
+import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
+import { ReportModal } from "@/components/dashboard/report-modal"
+import {
+  PosBadge,
+  Sparkline,
+  FeatChip,
+  serpFeaturesToChips,
+  trendToSparkline,
+  type SerpFeatures,
+  type MonthlySearch,
+} from "@/components/dashboard/primitives"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -35,6 +45,8 @@ interface Keyword {
   url: string | null
   monthlyTraffic: number | null
   searchVolume: number | null
+  serpFeatures: SerpFeatures | null
+  searchVolumeTrend: MonthlySearch[] | null
   status: string | null
   checkedAt: string | null
   latestAnalysisId: string | null
@@ -313,6 +325,8 @@ export default function ProjectKeywordsPage() {
   const [updatingFrequency, setUpdatingFrequency] = useState(false)
   const [tempFrequency, setTempFrequency] = useState<number | null>(null)
   const [showFrequencyModal, setShowFrequencyModal] = useState(false)
+  const [showAlerts, setShowAlerts] = useState(false)
+  const [showReport, setShowReport] = useState(false)
   const [pausing, setPausing] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
@@ -696,6 +710,26 @@ export default function ProjectKeywordsPage() {
             <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
+            {plan === "paid" && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowAlerts(true)}
+                title="Configure rank-change alerts for this project"
+              >
+                <Icon.bell /> Alerts
+              </button>
+            )}
+            {plan === "paid" && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowReport(true)}
+                title="Generate a shareable rank report (link + PDF)"
+              >
+                Report
+              </button>
+            )}
             {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
               <select
                 value={project.checkFrequency}
@@ -883,6 +917,8 @@ export default function ProjectKeywordsPage() {
                   <SortHeader label="7D" k="d7" sort={sort} onClick={clickSort} />
                   <SortHeader label="Volume" k="vol" sort={sort} onClick={clickSort} />
                   <SortHeader label="Traffic" k="traffic" sort={sort} onClick={clickSort} />
+                  <th>SERP</th>
+                  <th>Trend</th>
                   <th>URL</th>
                   <th>Location</th>
                   <SortHeader label="Last checked" k="checkedAt" sort={sort} onClick={clickSort} />
@@ -923,6 +959,29 @@ export default function ProjectKeywordsPage() {
                       <td><ChangeChip change={kw.d7} /></td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
                       <td className="tabular">{kw.monthlyTraffic != null ? kw.monthlyTraffic.toLocaleString() : "—"}</td>
+                      <td>
+                        {(() => {
+                          const feats = serpFeaturesToChips(kw.serpFeatures)
+                          return feats.length > 0 ? (
+                            <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+                              {feats.map((f) => <FeatChip key={f} f={f} />)}
+                            </div>
+                          ) : (
+                            <span className="tiny muted">—</span>
+                          )
+                        })()}
+                      </td>
+                      <td>
+                        {(() => {
+                          const spark = trendToSparkline(kw.searchVolumeTrend)
+                          // Search-volume history — higher is up, so no invert.
+                          return spark.length > 0 ? (
+                            <Sparkline data={spark} />
+                          ) : (
+                            <span className="tiny muted">—</span>
+                          )
+                        })()}
+                      </td>
                       <td style={{ maxWidth: 180 }}>
                         {kw.url ? (
                           <a
@@ -1274,6 +1333,10 @@ export default function ProjectKeywordsPage() {
           </div>
         )
       })()}
+
+      {showAlerts && <AlertSettingsModal projectId={project.id} onClose={() => setShowAlerts(false)} />}
+
+      {showReport && <ReportModal projectId={project.id} onClose={() => setShowReport(false)} />}
 
       {showFrequencyModal && tempFrequency && (
         <div className="modal-bg" onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }}>

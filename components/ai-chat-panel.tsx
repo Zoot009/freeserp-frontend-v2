@@ -12,7 +12,7 @@ import type {
   ChatMessagePostResponse,
 } from "@/types/competitor-analysis"
 import { renderChatMarkdown } from "@/lib/chat-md"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 /**
  * AI Chat — floating launcher + expanding panel.
@@ -106,7 +106,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
   const loadSessions = useCallback(async (): Promise<ChatSessionSummary[]> => {
     setSessionsLoading(true)
     try {
-      const res = await http.get<ChatSessionsResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
+      const res = await axios.get<ChatSessionsResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
         withCredentials: true,
       })
       if (res.status < 200 || res.status >= 300) throw new Error("Failed to load history")
@@ -124,7 +124,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
     setLoadingSession(true)
     setError("")
     try {
-      const res = await http.get<ChatSessionResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
+      const res = await axios.get<ChatSessionResponse>(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
         withCredentials: true,
       })
       if (res.status < 200 || res.status >= 300) throw new Error("Failed to load chat")
@@ -202,7 +202,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
       // Create the session lazily if this is a fresh chat
       let sessionId = currentSessionId
       if (!sessionId) {
-        const createRes = await http.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
+        const createRes = await axios.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions`, {
           category: selectedCategory,
           problemTitle: activeProblem?.recommendation ?? null,
         }, {
@@ -218,7 +218,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
         setCurrentSessionId(sessionId)
       }
 
-      const res = await http.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}/messages`, {
+      const res = await axios.post(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}/messages`, {
         message: userMessage,
       }, {
         withCredentials: true,
@@ -285,7 +285,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
 
   const deleteSession = async (sessionId: string) => {
     try {
-      const res = await http.delete(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
+      const res = await axios.delete(`${apiBase()}/api/competitor-analysis/${analysisId}/chat/sessions/${sessionId}`, {
         withCredentials: true,
       })
       if ((res.status < 200 || res.status >= 300) && res.status !== 204) throw new Error("Failed to delete chat")

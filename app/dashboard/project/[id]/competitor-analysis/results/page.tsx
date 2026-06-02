@@ -12,7 +12,7 @@ import { AiChatPanel } from "@/components/ai-chat-panel"
 import { AskAnalystUpsell } from "@/components/ai-chat-upsell"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 function CompetitorAnalysisResultsContent() {
   const params = useParams()
@@ -82,7 +82,7 @@ function CompetitorAnalysisResultsContent() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
+      const response = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
         withCredentials: true,
       })
 
@@ -124,7 +124,7 @@ function CompetitorAnalysisResultsContent() {
     setRecrawlingDomains((prev) => new Set(prev).add(domain))
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, { domain }, {
+      await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, { domain }, {
         withCredentials: true,
       })
     } catch {
@@ -141,7 +141,7 @@ function CompetitorAnalysisResultsContent() {
     const interval = setInterval(async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-        const res = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, { withCredentials: true })
+        const res = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, { withCredentials: true })
         if (res.status < 200 || res.status >= 300) return
         const data = res.data
         const analysisData = data.analysis ?? data
@@ -225,7 +225,7 @@ function CompetitorAnalysisResultsContent() {
     if (linkGraphData) return linkGraphData
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
+      const response = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
         withCredentials: true,
       })
       if (response.status >= 200 && response.status < 300) {
@@ -282,7 +282,7 @@ function CompetitorAnalysisResultsContent() {
     setLinkGraphError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await http.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
+      const response = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}/link-graph`, {
         withCredentials: true,
       })
       if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch link graph")
@@ -303,7 +303,7 @@ function CompetitorAnalysisResultsContent() {
     setAiPlanError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, { forceRegenerate }, {
+      const response = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, { forceRegenerate }, {
         withCredentials: true,
       })
       if (response.status < 200 || response.status >= 300) {

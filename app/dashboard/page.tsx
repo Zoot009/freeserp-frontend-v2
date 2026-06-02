@@ -12,8 +12,12 @@ import {
   Legend,
   KeywordTable,
   ActivityFeed,
+  serpFeaturesToChips,
+  trendToSparkline,
   type KeywordRow,
   type ActivityItem,
+  type SerpFeatures,
+  type MonthlySearch,
 } from "@/components/dashboard/primitives"
 
 // Rows on the dashboard need a projectId alongside the keyword id so that
@@ -39,6 +43,8 @@ type Keyword = {
   url: string | null
   monthlyTraffic: number | null
   searchVolume: number | null
+  serpFeatures: SerpFeatures | null
+  searchVolumeTrend: MonthlySearch[] | null
 }
 
 type ProjectDetail = {
@@ -46,19 +52,6 @@ type ProjectDetail = {
   name: string
   domain: string
   keywords: Keyword[]
-}
-
-function deriveTrend(seed: number, current: number | null): number[] {
-  if (current == null) return []
-  const out: number[] = []
-  let p = current + 4
-  for (let i = 0; i < 14; i++) {
-    const wobble = Math.sin((seed + i) * 0.7) * 1.6 + (Math.random() - 0.5) * 1.4
-    p = Math.max(1, Math.min(60, p + wobble * 0.4 - 0.18))
-    out.push(Math.round(p))
-  }
-  out[out.length - 1] = current
-  return out
 }
 
 function buildRankHistory(avgPos: number): { day: number; pos: number }[] {
@@ -105,8 +98,8 @@ export default function DashboardOverviewPage() {
               prev,
               vol: k.searchVolume ?? 0,
               url: k.url,
-              feat: [],
-              trend: deriveTrend(k.id.charCodeAt(0) + k.id.length, pos),
+              feat: serpFeaturesToChips(k.serpFeatures),
+              trend: trendToSparkline(k.searchVolumeTrend),
               // Carry the parent project's id so a row click can build the
               // project-scoped detail URL (the keyword id alone wouldn't be
               // enough now that the route is /project/[id]/keywords/[kwId]).

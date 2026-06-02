@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
-import { type KeywordRow } from "@/components/dashboard/primitives"
+import {
+  FeatChip,
+  serpFeaturesToChips,
+  trendToSparkline,
+  type KeywordRow,
+  type SerpFeatures,
+  type MonthlySearch,
+} from "@/components/dashboard/primitives"
 
 type ProjectSummary = {
   id: string
@@ -27,6 +34,8 @@ type Keyword = {
   searchVolume: number | null
   status: string | null
   checkedAt: string | null
+  serpFeatures: SerpFeatures | null
+  searchVolumeTrend: MonthlySearch[] | null
 }
 
 type ProjectDetail = {
@@ -41,24 +50,6 @@ type EnrichedRow = KeywordRow & {
   projectDomain: string
   location: string | null
   traffic: number | null
-}
-
-// Deterministic position-history trend so a page rerender doesn't reshuffle
-// every sparkline. Seeded by keyword id so each row is unique-but-stable.
-function trendFor(seed: string, current: number | null): number[] {
-  if (current == null) return []
-  let s = 0
-  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0
-  const out: number[] = []
-  let p = current + 4
-  for (let i = 0; i < 14; i++) {
-    s = (s * 1103515245 + 12345) >>> 0
-    const r = (s % 1000) / 1000
-    p = Math.max(1, Math.min(100, p + (r - 0.5) * 3 + Math.sin(i * 0.7) * 1.6 - 0.18))
-    out.push(Math.round(p))
-  }
-  out[out.length - 1] = current
-  return out
 }
 
 export default function KeywordsListPage() {
@@ -101,8 +92,8 @@ export default function KeywordsListPage() {
               prev,
               vol: k.searchVolume ?? 0,
               url: k.url,
-              feat: [],
-              trend: trendFor(k.id, pos),
+              feat: serpFeaturesToChips(k.serpFeatures),
+              trend: trendToSparkline(k.searchVolumeTrend),
               projectId: detail.id,
               projectDomain: detail.domain,
               location: k.location,
@@ -282,6 +273,7 @@ export default function KeywordsListPage() {
                 <SortHeader label="Volume" k="vol" sort={sort} onClick={click} />
                 <SortHeader label="Traffic" k="traffic" sort={sort} onClick={click} />
                 <th>Project</th>
+                <th>SERP</th>
                 <th>Trend</th>
               </tr>
             </thead>
@@ -332,6 +324,15 @@ export default function KeywordsListPage() {
                   <td className="tabular">{r.traffic != null ? r.traffic.toLocaleString() : "—"}</td>
                   <td>
                     <span className="chip">{r.projectDomain}</span>
+                  </td>
+                  <td>
+                    {r.feat && r.feat.length > 0 ? (
+                      <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+                        {r.feat.map((f) => <FeatChip key={f} f={f} />)}
+                      </div>
+                    ) : (
+                      <span className="tiny muted">—</span>
+                    )}
                   </td>
                   <td>
                     {r.trend && r.trend.length > 0 ? (
@@ -395,8 +396,8 @@ function MiniSpark({ data }: { data: number[] }) {
   const range = max - min || 1
   const pts = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w
-    // Invert so lower position number renders higher on the chart.
-    const y = ((v - min) / range) * (h - 4) + 2
+    // Search-volume history: higher volume renders higher on the chart.
+    const y = (1 - (v - min) / range) * (h - 4) + 2
     return [x, y]
   })
   const path = pts.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ")

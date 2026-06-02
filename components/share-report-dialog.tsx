@@ -5,7 +5,7 @@ import { Check, Link as LinkIcon, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 interface Props {
   analysisId: string
@@ -31,7 +31,7 @@ export function ShareReportDialog({ analysisId, keyword, isOpen, onClose }: Prop
     setError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const res = await http.post(`${apiUrl}/api/competitor-analysis/${analysisId}/share`, { agencyName: agencyName.trim() }, {
+      const res = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/share`, { agencyName: agencyName.trim() }, {
         withCredentials: true,
       })
       const data = res.data

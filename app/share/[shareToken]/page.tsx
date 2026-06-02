@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { ShareReportView } from "@/components/share-report-view"
 import type { AnalysisData } from "@/types/competitor-analysis"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 interface SharePageData extends AnalysisData {
   agencyName: string
@@ -11,7 +11,7 @@ interface SharePageData extends AnalysisData {
 async function fetchSharedReport(shareToken: string): Promise<SharePageData | null> {
   const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
   try {
-    const res = await http.get<SharePageData>(`${backendUrl}/api/share/${shareToken}`)
+    const res = await axios.get<SharePageData>(`${backendUrl}/api/share/${shareToken}`)
     if (res.status < 200 || res.status >= 300) return null
     return res.data
   } catch {

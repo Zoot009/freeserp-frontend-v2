@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Check, Sparkles, Zap, Globe2, Infinity as InfinityIcon } from "lucide-react"
 import gsap from "gsap"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
+import { LocationPicker } from "@/components/location-picker"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -50,7 +51,7 @@ const FAQ = [
   },
   {
     q: "Can I cancel anytime?",
-    a: "Yes. Manage or cancel from the Dodo Payments customer portal — your access continues until the end of the paid period.",
+    a: "Yes. Manage or cancel from your payment provider's customer portal (Razorpay in India, Stripe elsewhere) — your access continues until the end of the paid period.",
   },
 ]
 
@@ -60,12 +61,15 @@ export default function PricingPage() {
   const [status, setStatus] = useState<Status | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState("")
+  // Billing country: India is charged in INR via Razorpay; everyone else in USD via Stripe.
+  const [country, setCountry] = useState("in")
+  const isIndia = country.toLowerCase() === "in"
 
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!token) return
-    http.get(`${API_URL}/api/payments/status`, {
+    axios.get(`${API_URL}/api/payments/status`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => (r.status >= 200 && r.status < 300 ? r.data : null))
@@ -123,7 +127,7 @@ export default function PricingPage() {
     setError("")
     setCheckoutLoading(true)
     try {
-      const res = await http.post(`${API_URL}/api/payments/checkout`, null, {
+      const res = await axios.post(`${API_URL}/api/payments/checkout`, { country: country.toUpperCase() }, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -259,7 +263,9 @@ export default function PricingPage() {
               </h2>
               <p className="mt-4 text-sm text-blue-100">
                 Billed monthly via{" "}
-                <span className="font-semibold text-white">Dodo Payments</span>
+                <span className="font-semibold text-white">
+                  {isIndia ? "Razorpay" : "Stripe"}
+                </span>
               </p>
               <p className="mt-2 text-sm text-blue-100/80">
                 Live pricing shown at checkout.
@@ -275,6 +281,22 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
+
+              {!isPaid && (
+                <div className="mb-4 rounded-2xl bg-white/10 ring-1 ring-white/20 p-3">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-blue-100 mb-2">
+                    Billing country
+                  </label>
+                  <div className="overflow-hidden rounded-xl bg-white">
+                    <LocationPicker value={country} onChange={setCountry} showFlags variant="default" />
+                  </div>
+                  <p className="mt-2 text-xs text-blue-100/80">
+                    {isIndia
+                      ? "Charged in ₹ INR via Razorpay."
+                      : "Charged in $ USD via Stripe."}
+                  </p>
+                </div>
+              )}
 
               {loading ? (
                 <button
@@ -321,7 +343,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-10 text-center text-sm text-slate-500">
-          Daily limits reset at midnight IST. Cancel anytime from your Dodo customer portal.
+          Daily limits reset at midnight IST. Cancel anytime from your payment provider's customer portal.
         </p>
       </section>
 

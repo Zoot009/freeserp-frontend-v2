@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Icon } from "./icons"
+import { NotificationBell } from "./notification-bell"
 
 // Static path → breadcrumb map. The `crumbsFor` fallback below appends "…"
 // for any unrecognised sub-path, so deep routes like
@@ -14,6 +15,7 @@ const CRUMBS: Record<string, string[]> = {
   "/dashboard/projects": ["Workspace", "Projects"],
   "/dashboard/project": ["Workspace", "Projects", "Project"],
   "/dashboard/keywords": ["Workspace", "Keywords"],
+  "/dashboard/serp-checker": ["Tools", "SERP Checker"],
   "/dashboard/reports": ["Tools", "Reports"],
   "/dashboard/alerts": ["Tools", "Alerts"],
   "/dashboard/billing": ["Tools", "Settings"],
@@ -59,10 +61,7 @@ export function Topbar() {
       >
         {isDark ? <Icon.sun /> : <Icon.moon />}
       </button>
-      <button className="icon-btn" title="Notifications" aria-label="Notifications">
-        <Icon.bell />
-        <span className="dot" />
-      </button>
+      <NotificationBell />
     </div>
   )
 }

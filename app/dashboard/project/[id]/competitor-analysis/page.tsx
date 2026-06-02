@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth"
 import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
 import { PosBadge } from "@/components/dashboard/primitives"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 interface SerpCompetitor {
   position: number
@@ -88,7 +88,7 @@ function CompetitorAnalysisContent() {
       setLoadingSerpData(true)
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-        const response = await http.get(`${apiUrl}/api/projects/${projectId}/keywords/${keywordId}/detail`, {
+        const response = await axios.get(`${apiUrl}/api/projects/${projectId}/keywords/${keywordId}/detail`, {
           withCredentials: true,
         })
 
@@ -151,7 +151,7 @@ function CompetitorAnalysisContent() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-      const response = await http.post(`${apiUrl}/api/competitor-analysis`, {
+      const response = await axios.post(`${apiUrl}/api/competitor-analysis`, {
         yourDomain: domain,
         keyword,
         selectedDomains: selectedCompetitors,

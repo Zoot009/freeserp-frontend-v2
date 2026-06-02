@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { AnimatedNoise } from "@/components/animated-noise"
 import { CheckCircle2 } from "lucide-react"
-import { http } from "@/lib/http"
+import axios from "@/lib/axios"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -13,12 +13,13 @@ export default function BillingSuccessPage() {
   const [plan, setPlan] = useState<string | null>(null)
   const [attempts, setAttempts] = useState(0)
 
-  // Poll briefly — Dodo's webhook may arrive a moment after the redirect.
+  // Poll briefly — the payment provider's webhook (Stripe or Razorpay) may
+  // arrive a moment after the redirect back from the hosted checkout page.
   useEffect(() => {
     if (!token) return
     const id = setInterval(async () => {
       try {
-        const res = await http.get(`${API_URL}/api/payments/status`, {
+        const res = await axios.get(`${API_URL}/api/payments/status`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (res.status >= 200 && res.status < 300) {
