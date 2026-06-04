@@ -12,6 +12,10 @@ const API_BASE =
 
 const ACCESS_TOKEN_KEY = "freeserp:access_token"
 
+// Hard ceiling on any single request so a hung connection can never leave the
+// app stuck on a loading screen — axios has no default timeout.
+const REQUEST_TIMEOUT_MS = 20_000
+
 let inMemoryAccessToken: string | null = null
 let refreshPromise: Promise<string | null> | null = null
 
@@ -100,6 +104,7 @@ async function refreshAccessToken(): Promise<string | null> {
           withCredentials: true,
           headers: { "Content-Type": "application/json" },
           validateStatus: () => true,
+          timeout: REQUEST_TIMEOUT_MS,
         },
       )
       if (res.status < 200 || res.status >= 300) return null
@@ -140,6 +145,7 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
       withCredentials: true,
       headers: buildHeaders(token),
       data: body === undefined ? undefined : body,
+      timeout: REQUEST_TIMEOUT_MS,
       validateStatus: () => true,
     })
 

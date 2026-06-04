@@ -5,6 +5,7 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Icon } from "./icons"
 import { NotificationBell } from "./notification-bell"
+import { UsageMeter } from "./usage-meter"
 
 // Static path → breadcrumb map. The `crumbsFor` fallback below appends "…"
 // for any unrecognised sub-path, so deep routes like
@@ -15,7 +16,7 @@ const CRUMBS: Record<string, string[]> = {
   "/dashboard/projects": ["Workspace", "Projects"],
   "/dashboard/project": ["Workspace", "Projects", "Project"],
   "/dashboard/keywords": ["Workspace", "Keywords"],
-  "/dashboard/serp-checker": ["Tools", "SERP Checker"],
+  "/dashboard/serp-checker": ["Tools", "Quick Serp"],
   "/dashboard/reports": ["Tools", "Reports"],
   "/dashboard/alerts": ["Tools", "Alerts"],
   "/dashboard/billing": ["Tools", "Settings"],
@@ -53,6 +54,7 @@ export function Topbar() {
         <span className="ic"><Icon.search /></span>
         <input placeholder="Search keywords, projects, competitors…" />
       </div>
+      <UsageMeter />
       <button
         className="icon-btn"
         title="Toggle theme"

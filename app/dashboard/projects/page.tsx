@@ -185,15 +185,7 @@ function ProjectsList({
           </div>
         </div>
         <div className="row">
-          {usage && (
-            <span
-              className={"chip " + (usage.dailyRemaining === 0 ? "neg" : usage.plan === "paid" ? "pos" : "")}
-              title={`${usage.plan === "paid" ? "Paid" : "Free"} plan — ${usage.dailyUsed}/${usage.dailyLimit} rank checks used today`}
-              style={{ fontSize: 12 }}
-            >
-              {usage.dailyUsed}/{usage.dailyLimit} · {usage.plan === "paid" ? "Daily (Paid)" : "Daily (Free)"}
-            </span>
-          )}
+          {/* Daily-checks chip moved to the navbar (UsageMeter). */}
           {usage?.isAdmin && (
             <Link href="/admin"><button className="btn sm">Admin</button></Link>
           )}

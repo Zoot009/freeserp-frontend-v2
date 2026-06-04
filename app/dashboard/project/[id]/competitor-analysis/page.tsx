@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
-import { PosBadge } from "@/components/dashboard/primitives"
+import { Favicon } from "@/components/favicon"
 import axios from "@/lib/axios"
 
 interface SerpCompetitor {
@@ -24,6 +24,10 @@ function domainColor(domain: string): string {
   let h = 0
   for (let i = 0; i < domain.length; i++) h = (h * 31 + domain.charCodeAt(i)) >>> 0
   return palette[h % palette.length]
+}
+
+function hostOf(domain: string): string {
+  return domain.toLowerCase().replace(/^www\./, "")
 }
 
 // Build a Google-style "host › path › to › page" breadcrumb from a URL.
@@ -291,37 +295,22 @@ function CompetitorAnalysisContent() {
             </div>
           </div>
         ) : (
-          <div>
+          <div className="cmp-list">
             {serpCompetitors.map((c) => {
               const isOwnSite = isOwn(c.domain, domain)
               const isSelected = selectedSerpDomains.has(c.domain)
               const breadcrumb = breadcrumbFor(c.url)
               const swatch = isOwnSite ? "var(--brand)" : domainColor(c.domain)
-              const rowStyle: React.CSSProperties = {
-                padding: "14px 16px",
-                gap: 14,
-                display: "flex",
-                alignItems: "flex-start",
-                borderBottom: "1px solid var(--border)",
-                cursor: isOwnSite ? "not-allowed" : "pointer",
-                background: isSelected
-                  ? "var(--brand-soft)"
-                  : isOwnSite
-                    ? "var(--bg-sub)"
-                    : "transparent",
-                opacity: isOwnSite ? 0.75 : 1,
-                transition: "background 0.12s",
-              }
               return (
                 <div
                   key={c.url + c.position}
-                  className={"serp-row " + (isOwnSite ? "mine" : "")}
-                  style={rowStyle}
+                  className={"cmp-card" + (isSelected ? " selected" : "") + (isOwnSite ? " mine" : "")}
                   onClick={() => !isOwnSite && toggleSerpDomain(c.domain)}
                   role="button"
                   tabIndex={isOwnSite ? -1 : 0}
                   aria-disabled={isOwnSite}
                   aria-pressed={isSelected}
+                  aria-label={`Select ${c.domain}`}
                   onKeyDown={(e) => {
                     if (isOwnSite) return
                     if (e.key === "Enter" || e.key === " ") {
@@ -330,56 +319,76 @@ function CompetitorAnalysisContent() {
                     }
                   }}
                 >
-                  <div
-                    className="rank"
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: 36, flexShrink: 0 }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={isOwnSite}
-                      onChange={() => toggleSerpDomain(c.domain)}
-                      aria-label={`Select ${c.domain}`}
-                      style={{ width: 16, height: 16, cursor: isOwnSite ? "not-allowed" : "pointer" }}
-                    />
-                    <PosBadge pos={c.position} />
-                  </div>
+                  <span className={"cmp-check" + (isSelected ? " on" : "")} aria-hidden>
+                    {isSelected && <Icon.check size={13} />}
+                  </span>
                   <div className="body" style={{ flex: 1, minWidth: 0 }}>
-                    <div className="url-line">
-                      <span className="fav" style={{ background: swatch, color: "white" }}>
-                        {c.domain[0]?.toUpperCase() ?? "?"}
-                      </span>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {breadcrumb}
-                      </span>
+                    <div className="url-line" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-sans)" }}>
+                      <Favicon domain={c.domain} fallbackColor={swatch} />
+                      <div style={{ minWidth: 0, lineHeight: 1.25 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {hostOf(c.domain)}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "var(--text-mute)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {breadcrumb}
+                          </span>
+                          {/* The only clickable redirect — keeps the (large) row safe to click for selection. */}
+                          <a
+                            href={c.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="cmp-open"
+                            title="Open page in a new tab"
+                            aria-label={`Open ${hostOf(c.domain)} in a new tab`}
+                            style={{ display: "inline-flex", flexShrink: 0, color: "var(--text-mute)" }}
+                          >
+                            <Icon.external size={12} />
+                          </a>
+                        </div>
+                      </div>
                       {isOwnSite && (
                         <span className="chip brand" style={{ marginLeft: 4, fontSize: 10 }} title="Your site">
                           Your site
                         </span>
                       )}
                     </div>
-                    <a
-                      href={c.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+                    {/* Title is plain text (not a link) so clicking it just selects the
+                        competitor — only the icon above redirects. */}
+                    <div
                       className="title"
                       style={{
-                        display: "inline-block",
                         color: "var(--brand)",
-                        textDecoration: "none",
                         fontSize: 16,
                         lineHeight: 1.3,
                         marginBottom: 4,
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
-                      onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
                     >
                       {c.title || c.url}
-                    </a>
+                    </div>
                     {c.snippet && <div className="desc">{c.snippet}</div>}
                   </div>
+                  {/* Ranking position, right-aligned like a Google result rank. */}
+                  <span className={"cmp-rank" + (c.position <= 3 ? " top" : "")} title={`Ranks #${c.position}`}>
+                    #{c.position}
+                  </span>
                 </div>
               )
             })}

@@ -70,6 +70,30 @@ export const Icon = {
       <path d="M1.5 7H12.5M7 1.5C8.5 3.5 9.25 5.25 9.25 7C9.25 8.75 8.5 10.5 7 12.5M7 1.5C5.5 3.5 4.75 5.25 4.75 7C4.75 8.75 5.5 10.5 7 12.5" stroke="currentColor" strokeWidth="1.4" />
     </svg>
   ),
+  external: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M6.5 3H3.5C2.67 3 2 3.67 2 4.5V12.5C2 13.33 2.67 14 3.5 14H11.5C12.33 14 13 13.33 13 12.5V9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M9.5 2.5H13.5V6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13.5 2.5L7 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ),
+  check: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  monitor: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.5 14H10.5M8 11V14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ),
+  smartphone: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <rect x="4" y="1.5" width="8" height="13" rx="1.6" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M6.75 12.25H9.25" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ),
   arrowUp: () => (
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
       <path d="M5.5 9V2M5.5 2L2.5 5M5.5 2L8.5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

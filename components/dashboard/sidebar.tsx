@@ -20,7 +20,7 @@ const WORKSPACE: NavEntry[] = [
 ]
 
 const TOOLS: NavEntry[] = [
-  { href: "/dashboard/serp-checker", label: "SERP Checker", icon: Icon.zap },
+  { href: "/dashboard/serp-checker", label: "Quick Serp", icon: Icon.zap },
   { href: "/dashboard/reports", label: "Reports", icon: Icon.chart },
   { href: "/dashboard/alerts", label: "Alerts", icon: Icon.bell },
   { href: "/dashboard/billing", label: "Settings", icon: Icon.settings },
@@ -63,9 +63,9 @@ export function Sidebar() {
     .slice(0, 2)
     .toUpperCase()
 
-  const planLabel = user
-    ? user.plan === "pro" ? "Pro plan" : "Free plan"
-    : "Guest"
+  // Backend plan values are "free" | "paid" (a paid user is shown as "Pro").
+  const isPaid = user?.plan === "paid"
+  const planLabel = user ? (isPaid ? "Pro plan" : "Free plan") : "Guest"
 
   return (
     <aside className="sidebar">
@@ -86,7 +86,7 @@ export function Sidebar() {
 
       <div className="sb-spacer" />
 
-      {user?.plan !== "pro" && (
+      {!isPaid && (
         <div className="sb-upgrade">
           <div className="title"><Icon.spark size={12} /> Upgrade to Pro</div>
           <div className="desc">Unlimited keywords, daily updates, API access.</div>

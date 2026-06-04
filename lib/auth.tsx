@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { api, getAccessToken, setAccessToken, subscribeToToken } from "@/lib/api"
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react"
+import { api, ApiError, getAccessToken, setAccessToken, subscribeToToken } from "@/lib/api"
 
 interface User {
   id: string
@@ -51,28 +51,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(getAccessToken())
   const [loading, setLoading] = useState(true)
 
+  // Mirror `loading` into a ref so the pageshow listener can read it without
+  // re-subscribing on every change.
+  const loadingRef = useRef(loading)
+  useEffect(() => {
+    loadingRef.current = loading
+  }, [loading])
+
   useEffect(() => subscribeToToken((t) => setToken(t)), [])
 
-  useEffect(() => {
-    let cancelled = false
-    api
-      .get<{ user: User }>("/api/auth/me")
-      .then(({ user }) => {
-        if (!cancelled) setUser(user)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setUser(null)
-          setAccessToken(null)
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
+  // Resolve the current session from /api/auth/me. Only an actual 401 clears the
+  // token — a timeout or network blip leaves it intact so the session can recover
+  // on the next attempt rather than silently logging the user out.
+  const checkAuth = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { user } = await api.get<{ user: User }>("/api/auth/me")
+      setUser(user)
+    } catch (err) {
+      setUser(null)
+      if (err instanceof ApiError && err.status === 401) setAccessToken(null)
+    } finally {
+      setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    void checkAuth()
+  }, [checkAuth])
+
+  // Back/forward bfcache restores a frozen page — if the initial /api/auth/me was
+  // still in flight when the page was cached, its promise never settles and the
+  // app sits on "Loading…" forever (a reload fixes it). Re-run the check when the
+  // page is restored from bfcache while still loading.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && loadingRef.current) void checkAuth()
+    }
+    window.addEventListener("pageshow", onPageShow)
+    return () => window.removeEventListener("pageshow", onPageShow)
+  }, [checkAuth])
 
   const handleAuth = (res: AuthResponse) => {
     setAccessToken(res.accessToken)

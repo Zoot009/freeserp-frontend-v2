@@ -4,83 +4,127 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Custom editorial design tokens — monochrome with orange accent.
- * Light mode was previously near-pure-white (bg 0.97) which felt harsh
- * indoors and washed out the orange. Dropped to a "calmer paper" tone
- * (~0.93) so surfaces have more body. Card / muted / border tracked down
- * proportionally to keep the same relative contrast between layers, and
- * muted-foreground darkened a touch so secondary text still reads well
- * against the dimmer background. Dark mode is unchanged.
+/* FreeSerp design tokens — calm, technical SaaS aesthetic with an
+ * electric-blue accent (#2D5BFF), hairline surfaces, and rounded radii.
+ * This is the global counterpart to the dashboard's `.fs-app` tokens in
+ * dashboard.css — both now follow the FreeSerp Theme Guide.
+ *
+ * Mapping note: this codebase uses `--accent` as the *brand* color
+ * (text-accent / bg-accent appear hundreds of times), so accent = electric
+ * blue. `--primary` stays the near-black "ink" surface, which matches the
+ * guide's black top-level CTA. The guide's own semantic names (brand,
+ * pos/neg/warn, elevated/inset/subtle) are exposed below for new code.
  */
 :root {
-  --background: oklch(0.93 0 0);
-  --foreground: oklch(0.10 0 0);
-  --card: oklch(0.89 0 0);
-  --card-foreground: oklch(0.10 0 0);
-  --popover: oklch(0.91 0 0);
-  --popover-foreground: oklch(0.10 0 0);
-  --primary: oklch(0.10 0 0);
-  --primary-foreground: oklch(0.93 0 0);
-  --secondary: oklch(0.84 0 0);
-  --secondary-foreground: oklch(0.20 0 0);
-  --muted: oklch(0.80 0 0);
-  --muted-foreground: oklch(0.40 0 0);
-  --accent: oklch(0.7 0.2 45);
-  --accent-foreground: oklch(0.10 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.74 0 0);
-  --input: oklch(0.84 0 0);
-  --ring: oklch(0.7 0.2 45);
-  --radius: 0rem;
-  --grid-line: oklch(0.76 0 0);
-  --sidebar: oklch(0.89 0 0);
-  --sidebar-foreground: oklch(0.10 0 0);
-  --sidebar-primary: oklch(0.7 0.2 45);
-  --sidebar-primary-foreground: oklch(0.10 0 0);
-  --sidebar-accent: oklch(0.84 0 0);
-  --sidebar-accent-foreground: oklch(0.10 0 0);
-  --sidebar-border: oklch(0.74 0 0);
-  --sidebar-ring: oklch(0.7 0.2 45);
+  --background: #f7f8fa; /* bg-sub — page canvas behind cards */
+  --foreground: #0b0d12; /* text */
+  --card: #ffffff; /* bg-elev */
+  --card-foreground: #0b0d12;
+  --popover: #ffffff;
+  --popover-foreground: #0b0d12;
+  --primary: #0b0d12; /* ink — black top-level CTA */
+  --primary-foreground: #ffffff;
+  --secondary: #f2f4f7; /* bg-inset */
+  --secondary-foreground: #0b0d12;
+  --muted: #f2f4f7; /* bg-inset */
+  --muted-foreground: #4b5363; /* text-soft */
+  --accent: #2d5bff; /* brand — electric blue */
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626; /* neg */
+  --destructive-foreground: #ffffff;
+  --border: #e7e9ee;
+  --input: #e7e9ee;
+  --ring: #2d5bff;
+  --radius: 0.75rem; /* sm 8 / md 10 / lg 12 / xl 16 */
+  --grid-line: #e7e9ee;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b0d12;
+  --sidebar-primary: #2d5bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2ff; /* brand-soft — active nav fill */
+  --sidebar-accent-foreground: #2d5bff;
+  --sidebar-border: #e7e9ee;
+  --sidebar-ring: #2d5bff;
+
+  /* Guide semantic tokens (exposed as Tailwind utilities below) */
+  --brand: #2d5bff;
+  --brand-soft: #eef2ff;
+  --brand-deep: #1e40d8;
+  --pos: #16a34a;
+  --pos-soft: #e8f7ee;
+  --neg: #dc2626;
+  --neg-soft: #fcebeb;
+  --warn: #c28b00;
+  --warn-soft: #fbf3dc;
+  --subtle: #f7f8fa; /* bg-sub */
+  --elevated: #ffffff; /* bg-elev */
+  --inset: #f2f4f7; /* bg-inset */
 }
 
 .dark {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.1 0 0);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.95 0 0);
-  --primary-foreground: oklch(0.08 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.85 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.7 0.2 45);
-  --accent-foreground: oklch(0.08 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.2 0 0);
-  --ring: oklch(0.7 0.2 45);
-  --radius: 0rem;
-  --grid-line: oklch(0.2 0 0);
-  --sidebar: oklch(0.1 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.7 0.2 45);
-  --sidebar-primary-foreground: oklch(0.08 0 0);
-  --sidebar-accent: oklch(0.15 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.25 0 0);
-  --sidebar-ring: oklch(0.7 0.2 45);
+  --background: #0b0d12;
+  --foreground: #f4f5f7;
+  --card: #14181f; /* bg-elev */
+  --card-foreground: #f4f5f7;
+  --popover: #14181f;
+  --popover-foreground: #f4f5f7;
+  --primary: #f4f5f7; /* ink inverts to white */
+  --primary-foreground: #0b0d12;
+  --secondary: #181c24; /* bg-inset */
+  --secondary-foreground: #f4f5f7;
+  --muted: #181c24;
+  --muted-foreground: #b7bdc8; /* text-soft */
+  --accent: #5b7dff; /* brand */
+  --accent-foreground: #0b0d12;
+  --destructive: #f87171; /* neg */
+  --destructive-foreground: #0b0d12;
+  --border: #232934;
+  --input: #232934;
+  --ring: #5b7dff;
+  --radius: 0.75rem;
+  --grid-line: #232934;
+  --sidebar: #0b0d12;
+  --sidebar-foreground: #f4f5f7;
+  --sidebar-primary: #5b7dff;
+  --sidebar-primary-foreground: #0b0d12;
+  --sidebar-accent: #1a2249; /* brand-soft */
+  --sidebar-accent-foreground: #5b7dff;
+  --sidebar-border: #232934;
+  --sidebar-ring: #5b7dff;
+
+  --brand: #5b7dff;
+  --brand-soft: #1a2249;
+  --brand-deep: #8aa2ff;
+  --pos: #4ade80;
+  --pos-soft: #102a1a;
+  --neg: #f87171;
+  --neg-soft: #2a1313;
+  --warn: #f4c04f;
+  --warn-soft: #2a2210;
+  --subtle: #11141b; /* bg-sub */
+  --elevated: #14181f; /* bg-elev */
+  --inset: #181c24; /* bg-inset */
 }
 
 @theme inline {
-  /* Updated font-sans and font-mono to use IBM Plex */
-  --font-sans: "IBM Plex Sans", "IBM Plex Sans Fallback", sans-serif;
-  --font-mono: "IBM Plex Mono", "IBM Plex Mono Fallback", monospace;
+  /* Geist for everything, Geist Mono for figures & code (per Theme Guide).
+   * The --font-geist-* vars are injected by next/font in app/layout.tsx. */
+  --font-sans: var(--font-geist-sans), "Geist", "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-display: "Bebas Neue", "Bebas Neue Fallback", sans-serif;
+  /* Guide semantic colors → Tailwind utilities (bg-brand, text-pos, …) */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-deep: var(--brand-deep);
+  --color-pos: var(--pos);
+  --color-pos-soft: var(--pos-soft);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-elevated: var(--elevated);
+  --color-inset: var(--inset);
+  --color-subtle: var(--subtle);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -199,8 +243,8 @@
 
 /* Custom selection color */
 ::selection {
-  background: oklch(0.7 0.2 45);
-  color: oklch(0.08 0 0);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 /* Custom brutalist checkbox styling */
@@ -215,7 +259,7 @@ input[type="checkbox"].brutalist-checkbox {
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
-  border-radius: 0;
+  border-radius: 4px;
 }
 
 input[type="checkbox"].brutalist-checkbox:hover {

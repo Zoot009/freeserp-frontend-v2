@@ -6,7 +6,8 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
-import { LineChart } from "@/components/dashboard/primitives"
+import { LineChart, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import { Favicon } from "@/components/favicon"
 
 interface Competitor {
   position: number
@@ -44,6 +45,8 @@ interface KeywordDetail {
   device?: string
   addedAt: string
   project: { id: string; name: string; domain: string }
+  searchVolume?: number | null
+  searchVolumeTrend?: MonthlySearch[] | null
   latestCheck: LatestCheck | null
   history: HistoryEntry[]
   // Effective status including an in-flight SerpTask: PENDING/PROCESSING while
@@ -81,6 +84,20 @@ function ChangeCell({ change }: { change: number | null }) {
       {improved ? <Icon.arrowUp /> : <Icon.arrowDown />}{delta}
     </span>
   )
+}
+
+// Position delta vs the most recent check at least `days` old. History is sorted
+// newest-first; `change` is `pastPos - currentPos` so >0 = improved (matches the
+// backend convention used by ChangeCell).
+function deltaOver(
+  history: { position: number | null; checkedAt: string }[],
+  current: number | null,
+  days: number,
+): number | null {
+  if (current == null) return null
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  const past = history.find((h) => h.position != null && new Date(h.checkedAt).getTime() <= cutoff)
+  return past?.position != null ? past.position - current : null
 }
 
 type Tab = "overview" | "serp" | "history"
@@ -160,6 +177,12 @@ export default function KeywordDetailPage() {
   }
 
   const { keyword, location, device, addedAt, project, latestCheck, history } = data
+
+  // 1-day / 7-day position movement + the search-volume trend — these used to be
+  // table columns; they now live here on the detail page.
+  const d1 = deltaOver(history, latestCheck?.position ?? null, 1)
+  const d7 = deltaOver(history, latestCheck?.position ?? null, 7)
+  const volTrend = trendToSparkline(data.searchVolumeTrend ?? null)
 
   const handleExportSERP = () => {
     downloadCSV(`serp-${keyword.replace(/\s+/g, "_")}.csv`, [
@@ -270,6 +293,27 @@ export default function KeywordDetailPage() {
               </div>
             </div>
             <div className="stat">
+              <div className="lbl">1-day change</div>
+              <div className="val" style={{ fontSize: 18 }}><ChangeCell change={d1} /></div>
+              <span className="tiny muted">vs ~24 hours ago</span>
+            </div>
+            <div className="stat">
+              <div className="lbl">7-day change</div>
+              <div className="val" style={{ fontSize: 18 }}><ChangeCell change={d7} /></div>
+              <span className="tiny muted">vs ~7 days ago</span>
+            </div>
+            <div className="stat">
+              <div className="lbl">Search volume</div>
+              <div className="val tabular">
+                {data.searchVolume != null ? data.searchVolume.toLocaleString() : "—"}
+              </div>
+              {volTrend.length > 0 ? (
+                <div style={{ marginTop: 4 }}><Sparkline data={volTrend} /></div>
+              ) : (
+                <span className="tiny muted">/mo · trend builds over time</span>
+              )}
+            </div>
+            <div className="stat">
               <div className="lbl">Monthly traffic</div>
               <div className="val tabular">
                 {latestCheck?.monthlyTraffic != null ? latestCheck.monthlyTraffic.toLocaleString() : "—"}
@@ -372,6 +416,7 @@ export default function KeywordDetailPage() {
 
           {competitors.length > 0 ? (
             <>
+              <div className="cmp-list">
               {paginatedCompetitors.map((c) => {
                 const normalizedProject = project.domain.replace(/^www\./, "").toLowerCase()
                 const normalizedResult = c.domain.replace(/^www\./, "").toLowerCase()
@@ -392,17 +437,37 @@ export default function KeywordDetailPage() {
                     : u.hostname.replace(/^www\./, "")
                 } catch { /* keep the stripped fallback */ }
 
+                const host = c.domain.replace(/^www\./, "").toLowerCase()
                 return (
-                  <div key={c.position + c.url} className={"serp-row " + (isOwnSite ? "mine" : "")}>
-                    <div className="rank">{c.position}.</div>
+                  <div
+                    key={c.position + c.url}
+                    className="cmp-card static"
+                    style={isOwnSite ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : undefined}
+                  >
                     <div className="body">
-                      <div className="url-line">
-                        <span className="fav" style={isOwnSite ? { background: "var(--brand)", color: "white" } : undefined}>
-                          {c.domain[0]?.toUpperCase() ?? "?"}
-                        </span>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {breadcrumb}
-                        </span>
+                      <div className="url-line" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-sans)" }}>
+                        <Favicon domain={c.domain} fallbackColor={isOwnSite ? "var(--brand)" : undefined} />
+                        <div style={{ minWidth: 0, lineHeight: 1.25 }}>
+                          <div style={{ fontSize: 13, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {host}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                            <span style={{ fontSize: 12, color: "var(--text-mute)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {breadcrumb}
+                            </span>
+                            <a
+                              href={c.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="cmp-open"
+                              title="Open page in a new tab"
+                              aria-label={`Open ${host} in a new tab`}
+                              style={{ display: "inline-flex", flexShrink: 0, color: "var(--text-mute)" }}
+                            >
+                              <Icon.external size={12} />
+                            </a>
+                          </div>
+                        </div>
                         {isOwnSite && (
                           <span className="chip brand" style={{ marginLeft: 4, fontSize: 10 }} title="Your site">
                             Your site
@@ -416,12 +481,9 @@ export default function KeywordDetailPage() {
                         className="title"
                         style={{
                           display: "inline-block",
-                          // Brand-blue link styling for both themes — Google's
-                          // own #1a0dab doesn't carry over to dark mode, but
-                          // --brand swings light/dark via the theme tokens.
                           color: "var(--brand)",
                           textDecoration: "none",
-                          fontSize: 17,
+                          fontSize: 16,
                           lineHeight: 1.3,
                           marginBottom: 4,
                         }}
@@ -430,15 +492,15 @@ export default function KeywordDetailPage() {
                       >
                         {c.title || c.url}
                       </a>
-                      {c.snippet && (
-                        <div className="desc">
-                          {c.snippet}
-                        </div>
-                      )}
+                      {c.snippet && <div className="desc">{c.snippet}</div>}
                     </div>
+                    <span className={"cmp-rank" + (c.position <= 3 ? " top" : "")} title={`Ranks #${c.position}`}>
+                      #{c.position}
+                    </span>
                   </div>
                 )
               })}
+              </div>
 
               {totalSerpPages > 1 && (
                 <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8, borderTop: "1px solid var(--border)" }}>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS, flagFor } from "@/lib/locations"
 import { Icon } from "@/components/dashboard/icons"
@@ -39,6 +39,44 @@ type CheckResponse = {
   aiOverview: { present: boolean; sources: number; cited: boolean } | null
 }
 
+type CheckStatus = "PROCESSING" | "COMPLETED" | "FAILED"
+
+// Row in the "previous searches" list (summary shape from GET /api/serp-check).
+type HistoryItem = {
+  id: string
+  keyword: string
+  domain: string | null
+  country: string
+  device: "desktop" | "mobile"
+  status: CheckStatus
+  position: number | null
+  createdAt: string
+}
+
+// Full row from GET /api/serp-check/:id — `result` is the CheckResponse once done.
+type CheckRow = {
+  id: string
+  status: CheckStatus
+  result: CheckResponse | null
+  error: string | null
+  keyword: string
+  createdAt: string
+}
+
+// Daily-quota cost of one live SERP lookup. Keep in sync with the backend's
+// LIVE_SERP_CHECK_UNITS (default 4).
+const LIVE_CHECK_COST = 4
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+}
+
 function fmtVolume(v: number | null): string {
   if (v == null) return "—"
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1) + "M"
@@ -52,25 +90,104 @@ export default function SerpCheckerPage() {
   const [country, setCountry] = useState("us")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
 
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CheckResponse | null>(null)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [history, setHistory] = useState<HistoryItem[]>([])
 
-  const canSubmit = keyword.trim().length > 0 && !loading
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  async function runCheck(e?: React.FormEvent) {
-    e?.preventDefault()
-    if (!canSubmit) return
-    setLoading(true)
-    setError(null)
+  // A check is "in progress" while the POST is in flight or a row is PROCESSING.
+  const processing = submitting || processingId != null
+  const canSubmit = keyword.trim().length > 0 && !processing
+
+  const loadHistory = useCallback(async (): Promise<HistoryItem[]> => {
     try {
-      const res = await api.post<CheckResponse>("/api/check", {
+      const { items } = await api.get<{ items: HistoryItem[] }>("/api/serp-check")
+      setHistory(items)
+      return items
+    } catch {
+      return []
+    }
+  }, [])
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [])
+
+  // Poll a PROCESSING check until it terminates, then surface the result/error.
+  const pollCheck = useCallback(
+    (id: string) => {
+      stopPolling()
+      setProcessingId(id)
+      const tick = async () => {
+        try {
+          const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${id}`)
+          if (check.status === "COMPLETED" || check.status === "FAILED") {
+            stopPolling()
+            setProcessingId(null)
+            if (check.status === "COMPLETED" && check.result) setResult(check.result)
+            if (check.status === "FAILED") setError(check.error || "The check failed. Please try again.")
+            void loadHistory()
+            window.dispatchEvent(new Event("usage:refresh"))
+          }
+        } catch {
+          /* transient — keep polling */
+        }
+      }
+      void tick()
+      pollRef.current = setInterval(() => void tick(), 2000)
+    },
+    [loadHistory, stopPolling],
+  )
+
+  // On mount: load previous searches and resume any in-flight check so a page
+  // reload doesn't lose a running lookup.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const items = await loadHistory()
+      if (cancelled) return
+      const inFlight = items.find((i) => i.status === "PROCESSING")
+      if (inFlight) pollCheck(inFlight.id)
+    })()
+    return () => {
+      cancelled = true
+      stopPolling()
+    }
+  }, [loadHistory, pollCheck, stopPolling])
+
+  // Submitting the form opens the confirmation step — the actual check (which
+  // spends 4 daily checks) only runs once the user confirms.
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canSubmit) return
+    setError(null)
+    setShowConfirm(true)
+  }
+
+  async function runCheck() {
+    setShowConfirm(false)
+    if (keyword.trim().length === 0 || processing) return
+    setError(null)
+    setResult(null)
+    setSubmitting(true)
+    try {
+      const { id } = await api.post<{ id: string; status: CheckStatus }>("/api/serp-check", {
         keyword: keyword.trim(),
         domain: domain.trim() || undefined,
         country,
         device,
       })
-      setResult(res)
+      // Quota is reserved when the check is created — refresh the navbar meter.
+      window.dispatchEvent(new Event("usage:refresh"))
+      void loadHistory()
+      pollCheck(id)
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -80,9 +197,33 @@ export default function SerpCheckerPage() {
             : "Something went wrong. Please try again."
       setError(msg)
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
+
+  // Open a past search's full result (or resume polling if still processing).
+  const openHistory = useCallback(
+    async (item: HistoryItem) => {
+      if (item.status === "PROCESSING") {
+        pollCheck(item.id)
+        return
+      }
+      if (item.status === "FAILED") {
+        setError("That check failed — try running it again.")
+        return
+      }
+      try {
+        const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${item.id}`)
+        if (check.result) {
+          setResult(check.result)
+          setError(null)
+        }
+      } catch {
+        setError("Couldn't load that result.")
+      }
+    },
+    [pollCheck],
+  )
 
   function exportReport() {
     if (!result) return
@@ -101,8 +242,8 @@ export default function SerpCheckerPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow"><span className="spark"><Icon.plus /></span> ONE-OFF CHECK</div>
-          <h1>SERP Checker</h1>
+          <div className="eyebrow"><span className="spark"><Icon.zap /></span> QUICK SERP</div>
+          <h1>Quick Serp</h1>
           <div className="sub">Run an unbiased Google query from a clean server. Top 100, depersonalized.</div>
         </div>
         <div className="row">
@@ -113,7 +254,7 @@ export default function SerpCheckerPage() {
       </div>
 
       {/* Query form */}
-      <form className="card" onSubmit={runCheck} style={{ marginBottom: 16 }}>
+      <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
         <div className="grid g-2" style={{ marginBottom: 14 }}>
           <Field label="Domain">
             <input
@@ -152,11 +293,11 @@ export default function SerpCheckerPage() {
                   key={d}
                   type="button"
                   className={device === d ? "active" : ""}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}
                   onClick={() => setDevice(d)}
                 >
-                  {d === "desktop" ? <Icon.dash /> : <Icon.globe />}
-                  {d.charAt(0).toUpperCase() + d.slice(1)}
+                  {d === "desktop" ? <Icon.monitor size={15} /> : <Icon.smartphone size={15} />}
+                  {d === "desktop" ? "Desktop" : "Mobile"}
                 </button>
               ))}
             </div>
@@ -164,10 +305,10 @@ export default function SerpCheckerPage() {
         </div>
 
         <button type="submit" className="btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={!canSubmit}>
-          {loading ? <><Icon.refresh /> Checking…</> : <><Icon.zap /> Check Rankings</>}
+          {processing ? <><Icon.refresh /> Checking…</> : <><Icon.zap /> Check Rankings</>}
         </button>
         <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
-          Free · No signup · ~10 seconds
+          Live Google query · uses 4 checks · ~10 seconds
         </div>
 
         {error && (
@@ -187,10 +328,11 @@ export default function SerpCheckerPage() {
         )}
       </form>
 
-      {/* Loading skeleton */}
-      {loading && !result && (
+      {/* Processing state — survives reloads (resumed from history on mount). */}
+      {processing && !result && (
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          Querying Google for “{keyword.trim()}”…
+          <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span>
+          Querying Google{keyword.trim() ? ` for “${keyword.trim()}”` : ""}… you can leave this page and come back.
         </div>
       )}
 
@@ -367,6 +509,92 @@ export default function SerpCheckerPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Previous searches */}
+      {history.length > 0 && (
+        <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
+          <div className="card-h" style={{ padding: "14px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
+            <div className="b">Previous searches</div>
+            <span className="tiny muted">{history.length} recent</span>
+          </div>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {history.map((h) => (
+              <li key={h.id}>
+                <button
+                  type="button"
+                  onClick={() => void openHistory(h)}
+                  disabled={h.status === "PROCESSING"}
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    textAlign: "left",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    border: "none",
+                    borderBottom: "1px solid var(--border)",
+                    background: "transparent",
+                    cursor: h.status === "PROCESSING" ? "default" : "pointer",
+                  }}
+                >
+                  <span style={{ flexShrink: 0, color: "var(--text-mute)" }}>
+                    {h.device === "mobile" ? <Icon.smartphone size={15} /> : <Icon.monitor size={15} />}
+                  </span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span className="b" style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {h.keyword}
+                    </span>
+                    <span className="tiny muted">
+                      {h.country.toUpperCase()}
+                      {h.domain ? ` · ${h.domain}` : ""} · {relativeTime(h.createdAt)}
+                    </span>
+                  </span>
+                  <span style={{ flexShrink: 0 }}>
+                    {h.status === "PROCESSING" ? (
+                      <span className="tiny" style={{ color: "var(--brand)" }}>Checking…</span>
+                    ) : h.status === "FAILED" ? (
+                      <span className="tiny" style={{ color: "var(--neg)" }}>Failed</span>
+                    ) : (
+                      <span className={"pos-badge " + (h.position == null ? "" : h.position <= 3 ? "top3" : h.position <= 10 ? "top10" : "")}>
+                        {h.position == null ? "100+" : `#${h.position}`}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Confirmation — warn that a live check spends daily checks. */}
+      {showConfirm && (
+        <div className="modal-bg" onClick={() => setShowConfirm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
+                  <span className="spark"><Icon.zap /></span> CONFIRM CHECK
+                </div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This uses {LIVE_CHECK_COST} checks</div>
+              </div>
+              <button onClick={() => setShowConfirm(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+            </div>
+            <div className="modal-b">
+              <div className="tiny muted">
+                Running a live SERP lookup for <strong>“{keyword.trim()}”</strong> queries Google in real time and
+                will consume <strong>{LIVE_CHECK_COST} of your daily checks</strong>. This can’t be undone.
+              </div>
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setShowConfirm(false)}>Cancel</button>
+              <button className="btn primary" onClick={() => void runCheck()}>
+                <Icon.zap /> Use {LIVE_CHECK_COST} checks
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

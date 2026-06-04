@@ -8,15 +8,14 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
+import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import {
   PosBadge,
-  Sparkline,
   FeatChip,
   serpFeaturesToChips,
-  trendToSparkline,
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
@@ -76,28 +75,6 @@ function projectColor(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   return palette[h % palette.length]
-}
-
-function ChangeChip({ change }: { change: number | null }) {
-  // `== null` catches both null and undefined; reject non-finite values
-  // (NaN/Infinity) so a malformed payload renders the dash, never "NaN".
-  if (change == null || !Number.isFinite(change) || change === 0) {
-    return <span className="delta-cell flat" title="No previous check to compare against">—</span>
-  }
-  // Backend stores `change = previousPos - position`, so > 0 means the
-  // position NUMBER went DOWN → ranking IMPROVED → green ↓.
-  const improved = change > 0
-  const delta = Math.abs(change)
-  return (
-    <span
-      className={"delta-cell " + (improved ? "up" : "down")}
-      title={improved
-        ? `Ranking improved — moved up ${delta} position${delta === 1 ? "" : "s"}`
-        : `Ranking dropped — moved down ${delta} position${delta === 1 ? "" : "s"}`}
-    >
-      {improved ? <Icon.arrowUp /> : <Icon.arrowDown />}{delta}
-    </span>
-  )
 }
 
 function StatusDot({ status }: { status: string | null }) {
@@ -620,12 +597,7 @@ export default function ProjectKeywordsPage() {
             ← All projects
           </Link>
           <div className="row" style={{ marginBottom: 8 }}>
-            <span
-              className="fav"
-              style={{ background: color, color: "white", width: 36, height: 36, fontSize: 15, borderRadius: 10 }}
-            >
-              {project.domain[0]?.toUpperCase() ?? "?"}
-            </span>
+            <Favicon domain={project.domain} size={36} fallbackColor={color} />
             <div style={{ minWidth: 0 }}>
               <h1 style={{ margin: 0 }}>{project.name}</h1>
               <div className="tiny muted mono">{project.domain}</div>
@@ -633,14 +605,8 @@ export default function ProjectKeywordsPage() {
           </div>
           <div className="sub">
             {project.keywords.length} keyword{project.keywords.length !== 1 ? "s" : ""} tracked
-            {usage && (
-              <>
-                {" · "}
-                <span title={`${usage.plan === "paid" ? "Paid" : "Free"} plan — ${usage.dailyUsed}/${usage.dailyLimit} rank checks used today`}>
-                  {usage.dailyUsed}/{usage.dailyLimit} checks today
-                </span>
-              </>
-            )}
+              {/* Daily-checks counter now lives in the navbar (UsageMeter). The
+                `usage` fetch is kept — it still drives the paid-feature gating below. */}
           </div>
         </div>
         <div className="col" style={{ alignItems: "flex-end", gap: 10 }}>
@@ -720,7 +686,7 @@ export default function ProjectKeywordsPage() {
                 <Icon.bell /> Alerts
               </button>
             )}
-            {plan === "paid" && (
+            {/* {plan === "paid" && (
               <button
                 type="button"
                 className="btn"
@@ -729,7 +695,7 @@ export default function ProjectKeywordsPage() {
               >
                 Report
               </button>
-            )}
+            )} */}
             {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
               <select
                 value={project.checkFrequency}
@@ -749,10 +715,19 @@ export default function ProjectKeywordsPage() {
               data-tutorial="run-check-btn"
               type="button"
               onClick={handleRunCheck}
-              disabled={checking || project.keywords.length === 0}
+              // Block while a check is already running for this project — each
+              // check costs us money, so don't let the button be spammed.
+              disabled={checking || project.keywords.length === 0 || pendingCount > 0}
+              title={pendingCount > 0 ? "A check is already running for this project" : undefined}
               className="btn primary"
             >
-              {checking ? "Checking…" : selectedKeywords.size > 0 ? `Check ${selectedKeywords.size} selected` : "Run check"}
+              {checking
+                ? "Checking…"
+                : pendingCount > 0
+                  ? "Check in progress…"
+                  : selectedKeywords.size > 0
+                    ? `Check ${selectedKeywords.size} selected`
+                    : "Run check"}
             </button>
             {selectedKeywords.size > 0 && (
               <button
@@ -913,12 +888,9 @@ export default function ProjectKeywordsPage() {
                   </th>
                   <SortHeader label="Keyword" k="kw" sort={sort} onClick={clickSort} />
                   <SortHeader label="Position" k="pos" sort={sort} onClick={clickSort} />
-                  <SortHeader label="1D" k="d1" sort={sort} onClick={clickSort} />
-                  <SortHeader label="7D" k="d7" sort={sort} onClick={clickSort} />
                   <SortHeader label="Volume" k="vol" sort={sort} onClick={clickSort} />
                   <SortHeader label="Traffic" k="traffic" sort={sort} onClick={clickSort} />
                   <th>SERP</th>
-                  <th>Trend</th>
                   <th>URL</th>
                   <th>Location</th>
                   <SortHeader label="Last checked" k="checkedAt" sort={sort} onClick={clickSort} />
@@ -934,8 +906,13 @@ export default function ProjectKeywordsPage() {
                   if (isActive) rowStyle.background = "var(--warn-soft)"
                   else if (isSelected) rowStyle.background = "var(--brand-soft)"
                   return (
-                    <tr key={kw.id} style={rowStyle}>
-                      <td>
+                    <tr
+                      key={kw.id}
+                      style={{ ...rowStyle, cursor: "pointer" }}
+                      onClick={() => router.push(`/dashboard/project/${project.id}/keywords/${kw.id}`)}
+                      title="View keyword details"
+                    >
+                      <td onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -955,8 +932,6 @@ export default function ProjectKeywordsPage() {
                           </span>
                         )}
                       </td>
-                      <td><ChangeChip change={kw.d1} /></td>
-                      <td><ChangeChip change={kw.d7} /></td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
                       <td className="tabular">{kw.monthlyTraffic != null ? kw.monthlyTraffic.toLocaleString() : "—"}</td>
                       <td>
@@ -966,17 +941,6 @@ export default function ProjectKeywordsPage() {
                             <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
                               {feats.map((f) => <FeatChip key={f} f={f} />)}
                             </div>
-                          ) : (
-                            <span className="tiny muted">—</span>
-                          )
-                        })()}
-                      </td>
-                      <td>
-                        {(() => {
-                          const spark = trendToSparkline(kw.searchVolumeTrend)
-                          // Search-volume history — higher is up, so no invert.
-                          return spark.length > 0 ? (
-                            <Sparkline data={spark} />
                           ) : (
                             <span className="tiny muted">—</span>
                           )
@@ -1014,7 +978,7 @@ export default function ProjectKeywordsPage() {
                           : "Never"}
                       </td>
                       <td><StatusDot status={kw.status} /></td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
                           {(kw.position === null || kw.position > 1) && (
                             <button

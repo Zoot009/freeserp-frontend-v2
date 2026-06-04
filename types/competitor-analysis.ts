@@ -200,6 +200,7 @@ export interface AnalysisData {
   aiPlan?: AiPlan | null
   access?: {
     plan: 'free' | 'paid' | string
+    partial?: boolean
     chatEnabled: boolean
     aiPlanRestricted: boolean
     lockedCategoryIds: string[]

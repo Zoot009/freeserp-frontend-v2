@@ -54,16 +54,20 @@ type ProjectDetail = {
   keywords: Keyword[]
 }
 
-function buildRankHistory(avgPos: number): { day: number; pos: number }[] {
-  const out: { day: number; pos: number }[] = []
-  let p = avgPos + 5
-  for (let i = 0; i < 30; i++) {
-    const drift = Math.sin(i / 6) * 1.2 + (Math.random() - 0.55) * 1.6
-    p = Math.max(1, Math.min(60, p + drift * 0.3 - 0.05))
-    out.push({ day: i, pos: Math.round(p) })
+type OverviewRange = "24h" | "7d" | "30d" | "90d"
+
+type OverviewResponse = {
+  range: OverviewRange
+  stats: {
+    totalKeywords: number
+    ranked: number
+    avgPosition: number | null
+    inTop3: number
+    inTop10: number
+    inTop30: number
+    outside30: number
   }
-  out[out.length - 1].pos = Math.round(avgPos)
-  return out
+  history: { t: string; avgPos: number }[]
 }
 
 export default function DashboardOverviewPage() {
@@ -72,7 +76,23 @@ export default function DashboardOverviewPage() {
   const [keywords, setKeywords] = useState<EnrichedRow[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [range, setRange] = useState<"24h" | "7d" | "30d" | "90d">("7d")
+  const [range, setRange] = useState<OverviewRange>("7d")
+  const [overview, setOverview] = useState<OverviewResponse | null>(null)
+
+  // Real aggregate stats + average-position history across ALL projects, served
+  // by GET /api/overview. Refetches whenever the range toggle changes.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await api.get<OverviewResponse>(`/api/overview?range=${range}`)
+        if (!cancelled) setOverview(data)
+      } catch {
+        if (!cancelled) setOverview(null)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [range])
 
   useEffect(() => {
     let cancelled = false
@@ -119,17 +139,24 @@ export default function DashboardOverviewPage() {
     return () => { cancelled = true }
   }, [])
 
-  const totalKeywords = keywords.length
-  const positions = keywords.map((k) => k.pos).filter((p): p is number => p != null && Number.isFinite(p))
-  const avgPos = positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0
-  const inTop10 = positions.filter((p) => p <= 10).length
-  const inTop3 = positions.filter((p) => p <= 3).length
+  // Headline stats come from the real aggregate endpoint (all projects, not the
+  // first 3, and no synthetic data). estTraffic stays modelled from the loaded
+  // keyword volumes — it's clearly labelled "modelled".
+  const stats = overview?.stats
+  const totalKeywords = stats?.totalKeywords ?? 0
+  const ranked = stats?.ranked ?? 0
+  const avgPos = stats?.avgPosition ?? 0
+  const inTop10 = stats?.inTop10 ?? 0
+  const inTop3 = stats?.inTop3 ?? 0
+  const inTop30 = stats?.inTop30 ?? 0
+  const outside30 = stats?.outside30 ?? 0
   const estTraffic = keywords.reduce((sum, k) => {
     const t = k.pos != null && k.pos <= 30 ? Math.max(0, Math.round(k.vol * (0.32 / k.pos))) : 0
     return sum + t
   }, 0)
 
-  const rankHistory = avgPos > 0 ? buildRankHistory(avgPos) : []
+  // Real average-position trend for the selected range (one point per bucket).
+  const rankHistory = (overview?.history ?? []).map((h) => ({ pos: h.avgPos }))
 
   // Latest movements: keywords sorted by absolute delta desc
   const latestMovements = [...keywords]
@@ -171,7 +198,6 @@ export default function DashboardOverviewPage() {
               <button key={r} className={r === range ? "active" : ""} onClick={() => setRange(r)}>{r}</button>
             ))}
           </div>
-          <button className="btn"><Icon.download /> Export</button>
           <Link href="/dashboard/projects"><button className="btn primary"><Icon.plus /> New project</button></Link>
         </div>
       </div>
@@ -187,8 +213,7 @@ export default function DashboardOverviewPage() {
         <StatTile
           lbl="Average position"
           val={avgPos ? avgPos.toFixed(1) : "—"}
-          delta={positions.length ? `${positions.length} ranked` : "no data"}
-          up={positions.length > 0 && avgPos < 20}
+          tip={ranked ? `${ranked} ranked` : "no data"}
         />
         <StatTile
           lbl="Est. monthly traffic"
@@ -199,9 +224,7 @@ export default function DashboardOverviewPage() {
         <StatTile
           lbl="In top 10"
           val={inTop10.toString()}
-          delta={totalKeywords ? `${Math.round((inTop10 / totalKeywords) * 100)}%` : "—"}
-          tip={`${inTop3} in top 3`}
-          up={inTop10 > 0}
+          tip={totalKeywords ? `${Math.round((inTop10 / totalKeywords) * 100)}% of keywords · ${inTop3} in top 3` : `${inTop3} in top 3`}
         />
       </div>
 
@@ -211,18 +234,17 @@ export default function DashboardOverviewPage() {
           <div className="card-h">
             <div>
               <div className="t">Analytics</div>
-              <div className="tiny muted" style={{ marginTop: 2 }}>Average position across all tracked keywords</div>
+              <div className="tiny muted" style={{ marginTop: 2 }}>Average position across all tracked keywords · last {range}</div>
             </div>
             <div className="row tiny muted">
-              <span className="row" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--brand)" }} />This period</span>
-              <span className="row" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--text-mute)", opacity: 0.4 }} />Previous</span>
+              <span className="row" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--brand)" }} />Avg position</span>
             </div>
           </div>
           {rankHistory.length > 0 ? (
             <LineChart data={rankHistory} invert yFormat={(v) => "#" + Math.round(v)} height={240} />
           ) : (
             <div style={{ height: 240, display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-              {loaded ? "No ranking data yet — add a project and keywords to populate this chart." : "Loading…"}
+              {overview === null ? "Loading…" : "No ranking data in this range yet — run a check to populate this chart."}
             </div>
           )}
         </div>
@@ -237,8 +259,8 @@ export default function DashboardOverviewPage() {
           <Legend
             items={[
               { color: "var(--brand)", label: "In top 10", count: inTop10 },
-              { color: "var(--bg-inset)", label: "In top 30", count: positions.filter((p) => p > 10 && p <= 30).length, dark: true },
-              { color: "var(--border-strong)", label: "Outside top 30", count: positions.filter((p) => p > 30).length },
+              { color: "var(--bg-inset)", label: "In top 30", count: inTop30, dark: true },
+              { color: "var(--border-strong)", label: "Outside top 30", count: outside30 },
             ]}
           />
         </div>
@@ -252,7 +274,6 @@ export default function DashboardOverviewPage() {
             <div className="tiny muted" style={{ marginTop: 2 }}>Biggest position changes in the last 24 hours</div>
           </div>
           <div className="row">
-            <button className="btn sm"><Icon.filter /> Filter</button>
             <Link href="/dashboard/keywords"><button className="btn sm">View all <Icon.chevR /></button></Link>
           </div>
         </div>

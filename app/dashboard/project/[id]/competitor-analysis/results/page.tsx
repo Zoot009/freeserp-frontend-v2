@@ -13,6 +13,7 @@ import { AskAnalystUpsell } from "@/components/ai-chat-upsell"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
 import axios from "@/lib/axios"
+import { toast } from "sonner"
 
 function CompetitorAnalysisResultsContent() {
   const params = useParams()
@@ -42,6 +43,9 @@ function CompetitorAnalysisResultsContent() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  // Fire the "analysis ready" alert exactly once; request notification permission once.
+  const alertedRef = useRef(false)
+  const notifReqRef = useRef(false)
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -104,6 +108,39 @@ function CompetitorAnalysisResultsContent() {
       // comparison view can render while Stage 2 streams in the background.
       const mainReady = !!analysisData?.stages?.main?.ready || analysisData.status === "COMPLETED"
       if (mainReady) setLoading(false)
+
+      // Alert once, the moment results become usable. A desktop notification
+      // fires too if the user switched tabs during the (multi-minute) wait.
+      if (mainReady && !alertedRef.current) {
+        alertedRef.current = true
+        const kw = keyword || analysisData.keyword || "your keyword"
+        toast.success("Competitor analysis ready", { description: kw })
+        if (
+          typeof document !== "undefined" &&
+          document.hidden &&
+          typeof Notification !== "undefined" &&
+          Notification.permission === "granted"
+        ) {
+          try {
+            new Notification("Analysis ready", { body: `${kw} — your competitor analysis is ready to view` })
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      // While still processing, request desktop-notification permission once so
+      // we can alert even if the user leaves the tab during the wait.
+      if (
+        (analysisData.status === "PENDING" || analysisData.status === "PROCESSING") &&
+        !mainReady &&
+        !notifReqRef.current &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "default"
+      ) {
+        notifReqRef.current = true
+        void Notification.requestPermission().catch(() => undefined)
+      }
 
       // Polling cadence: 2s while Stage 1 isn't ready (user is staring at a
       // spinner), 4s after — Stage 2 only flips per-row status flags and the
@@ -329,6 +366,10 @@ function CompetitorAnalysisResultsContent() {
   }
 
   const internalReady = !!analysis?.stages?.internal?.ready || analysis?.status === "COMPLETED"
+  // The AI plan is generated right after the main-page crawl (Phase 1), independent
+  // of the slower internal-link crawl (Phase 2) — so it's available as soon as the
+  // main stage is ready. Gate the AI tab on this, NOT on internalReady.
+  const aiReady = !!analysis?.stages?.main?.ready || analysis?.status === "COMPLETED"
 
   return (
     <div className="page">
@@ -423,6 +464,10 @@ function CompetitorAnalysisResultsContent() {
       {loading && (
         <div className="card" style={{ padding: 32, marginBottom: 14 }}>
           <div className="col" style={{ alignItems: "center", gap: 18 }}>
+            {/* Animated pulsing rings around a spinning icon. */}
+            <div className="ca-loader" aria-hidden>
+              <span className="ca-loader-icon spin"><Icon.spark /></span>
+            </div>
             <div className="eyebrow" style={{ justifyContent: "center" }}>
               <span className="spark"><Icon.spark /></span> ANALYSIS IN PROGRESS
             </div>
@@ -430,9 +475,44 @@ function CompetitorAnalysisResultsContent() {
               {analysis?.status === "PROCESSING" ? "Crawling competitor pages…" : "Starting analysis…"}
             </div>
             <div className="tiny muted" style={{ maxWidth: 420, textAlign: "center" }}>
-              This may take a few moments while we analyze each website. You can leave this
-              tab open — we'll update progress live.
+              This may take a few minutes while we analyze each website. You can leave this
+              tab — we&apos;ll notify you when it&apos;s ready.
             </div>
+
+            {/* Staged checklist — shows what's happening and what's next. */}
+            {(() => {
+              const mainDone = !!analysis?.stages?.main?.ready || analysis?.status === "COMPLETED"
+              const internalDone = !!analysis?.stages?.internal?.ready || analysis?.status === "COMPLETED"
+              const steps: { label: string; done: boolean; active: boolean }[] = [
+                { label: "Crawling competitor pages", done: mainDone, active: !mainDone },
+                { label: "Generating AI plan", done: mainDone, active: false },
+                { label: "Mapping internal links", done: internalDone, active: mainDone && !internalDone },
+              ]
+              return (
+                <div className="col" style={{ gap: 8, width: "100%", maxWidth: 340 }}>
+                  {steps.map((s) => (
+                    <div key={s.label} className="row" style={{ gap: 10, alignItems: "center" }}>
+                      <span
+                        style={{
+                          width: 16,
+                          height: 16,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          color: s.done ? "var(--pos)" : s.active ? "var(--brand)" : "var(--text-mute)",
+                        }}
+                      >
+                        {s.done ? <Icon.check /> : s.active ? <span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> : <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", opacity: 0.5 }} />}
+                      </span>
+                      <span className="tiny" style={{ color: s.done ? "var(--text)" : s.active ? "var(--text)" : "var(--text-mute)", fontWeight: s.active ? 600 : 400 }}>
+                        {s.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             {(() => {
               const progress = analysis?.progress
@@ -613,6 +693,37 @@ function CompetitorAnalysisResultsContent() {
           the user sees only the failure banner. */}
       {analysis && analysis.status !== "FAILED" && (analysis.stages?.main?.ready || analysis.status === "COMPLETED") && (
         <>
+          {/* Partial-analysis notice — free users get one full analysis/day. */}
+          {analysis.access?.partial && (
+            <div
+              className="card tight"
+              style={{
+                marginBottom: 14,
+                borderColor: "var(--brand)",
+                background: "var(--brand-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div className="row" style={{ gap: 10, alignItems: "flex-start", minWidth: 0 }}>
+                <span style={{ color: "var(--brand)", flexShrink: 0, marginTop: 1 }}><Icon.spark /></span>
+                <div style={{ minWidth: 0 }}>
+                  <div className="b" style={{ fontSize: 13 }}>Partial analysis</div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>
+                    You&apos;ve used today&apos;s full competitor analysis. This one shows the audit summary,
+                    On-Page SEO, and the full comparison — internal links and the rest of the AI plan are limited.
+                    Upgrade for unlimited full analyses.
+                  </div>
+                </div>
+              </div>
+              <Link href="/pricing" style={{ flexShrink: 0 }}>
+                <button className="btn primary sm">Upgrade</button>
+              </Link>
+            </div>
+          )}
           <div className="tabs">
             <button
               className={"tab " + (activeResultTab === "comparison" ? "active" : "")}
@@ -633,16 +744,16 @@ function CompetitorAnalysisResultsContent() {
             <button
               className={"tab " + (activeResultTab === "ai-plan" ? "active" : "")}
               onClick={() => {
-                if (!internalReady) return
+                if (!aiReady) return
                 setActiveResultTab("ai-plan")
                 if (!aiPlan && !aiPlanLoading) fetchAiPlan()
               }}
-              disabled={!internalReady}
-              title={!internalReady ? "Available once internal-link analysis completes" : undefined}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, opacity: internalReady ? 1 : 0.4, cursor: internalReady ? "pointer" : "not-allowed" }}
+              disabled={!aiReady}
+              title={!aiReady ? "Available once the main-page analysis completes" : undefined}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, opacity: aiReady ? 1 : 0.4, cursor: aiReady ? "pointer" : "not-allowed" }}
             >
               <Icon.ai /> AI plan
-              {!internalReady && (
+              {!aiReady && (
                 <span className="tiny muted" style={{ textTransform: "none", letterSpacing: 0, fontSize: 10 }}>
                   (soon)
                 </span>

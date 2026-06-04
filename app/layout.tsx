@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { IBM_Plex_Sans, IBM_Plex_Mono, Bebas_Neue } from "next/font/google"
+import { Bebas_Neue } from "next/font/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -13,16 +13,6 @@ import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
 import "./globals.css"
 
-const ibmPlexSans = IBM_Plex_Sans({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-ibm-plex-sans",
-})
-const ibmPlexMono = IBM_Plex_Mono({
-  weight: ["400", "500"],
-  subsets: ["latin"],
-  variable: "--font-ibm-plex-mono",
-})
 const bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], variable: "--font-bebas" })
 
 export const metadata: Metadata = {
@@ -86,7 +76,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${ibmPlexSans.variable} ${bebasNeue.variable} ${ibmPlexMono.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
+        className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >
         <a href="#main-content" className="skip-to-content">
           Skip to content
