@@ -6,8 +6,10 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
-import { LineChart, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
+
+type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
 
 interface Competitor {
   position: number
@@ -113,6 +115,7 @@ export default function KeywordDetailPage() {
   const kwId = params.kwId as string
 
   const [data, setData] = useState<KeywordDetail | null>(null)
+  const [usage, setUsage] = useState<UsageInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [tab, setTab] = useState<Tab>("overview")
@@ -123,6 +126,12 @@ export default function KeywordDetailPage() {
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
   }, [user, authLoading, router])
+
+  // Drives the not-found cap shown for this keyword (free → "20+", paid → "100+").
+  useEffect(() => {
+    if (authLoading || !user) return
+    api.get<UsageInfo>("/api/usage").then(setUsage).catch(() => undefined)
+  }, [authLoading, user])
 
   // Fetch keyword detail via the shared client — it carries the access token,
   // refreshes it on 401, and runs in parallel with useAuth()'s /me round-trip.
@@ -226,6 +235,7 @@ export default function KeywordDetailPage() {
     : []
 
   const inFlight = data.inFlightStatus === "PENDING" || data.inFlightStatus === "PROCESSING"
+  const plan = usage?.plan
 
   return (
     <div className="page">
@@ -284,7 +294,13 @@ export default function KeywordDetailPage() {
           <div className="grid g-4" style={{ marginBottom: 14 }}>
             <div className="stat">
               <div className="lbl">Position</div>
-              <div className="val tabular">{latestCheck?.position != null ? `#${latestCheck.position}` : "100+"}</div>
+              <div className="val tabular">
+                {inFlight
+                  ? "—"
+                  : latestCheck?.position != null
+                    ? `#${latestCheck.position}`
+                    : `${plan === "free" ? 20 : 100}+`}
+              </div>
               <div className="row" style={{ gap: 8, alignItems: "center" }}>
                 <ChangeCell change={latestCheck?.change ?? null} />
                 {latestCheck?.previousPos != null && (
@@ -563,13 +579,7 @@ export default function KeywordDetailPage() {
                           })}
                         </td>
                         <td>
-                          {h.position != null ? (
-                            <span className={"pos-badge " + (h.position <= 3 ? "top3" : h.position <= 10 ? "top10" : "")}>
-                              {h.position}
-                            </span>
-                          ) : (
-                            <span className="chip" title="Not found in the top 100">100+</span>
-                          )}
+                          <PosCell position={h.position} plan={plan} />
                         </td>
                         <td><ChangeCell change={h.change} /></td>
                         <td className="tabular">{h.monthlyTraffic?.toLocaleString() ?? "—"}</td>

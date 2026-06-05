@@ -54,6 +54,38 @@ export function PosBadge({ pos }: { pos: number | null | undefined }) {
   return <span className={"pos-badge " + cls}>{pos}</span>
 }
 
+// Renders a tracked keyword's position with the three states it can be in:
+//   processing  → "—" (takes priority; a stale null must not read as "20+")
+//   ranked      → the numeric PosBadge
+//   not found   → "{cap}+", where cap is the user's scan depth (free 20, paid 100)
+// Plan defaults to the paid cap (100) when unknown/loading so paid users never
+// flash "20+" before /api/usage resolves.
+export function PosCell({
+  position,
+  processing = false,
+  plan,
+}: {
+  position: number | null | undefined
+  processing?: boolean
+  plan?: string | null
+}) {
+  if (processing) {
+    return <span className="pos-badge" style={{ color: "var(--text-mute)" }}>—</span>
+  }
+  if (position != null && Number.isFinite(position)) {
+    return <PosBadge pos={position} />
+  }
+  const cap = plan === "free" ? 20 : 100
+  return (
+    <span
+      className="chip"
+      title={`Not found in the top ${cap} results — ranking deeper than our scan reaches`}
+    >
+      {cap}+
+    </span>
+  )
+}
+
 export function DeltaCell({ from, to }: { from: number | null | undefined; to: number | null | undefined }) {
   if (from == null || to == null) return <span className="delta-cell flat">—</span>
   const diff = from - to

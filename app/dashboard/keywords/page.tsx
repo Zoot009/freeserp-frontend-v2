@@ -6,12 +6,15 @@ import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import {
   FeatChip,
+  PosCell,
   serpFeaturesToChips,
   trendToSparkline,
   type KeywordRow,
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
+
+type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
 
 type ProjectSummary = {
   id: string
@@ -50,12 +53,14 @@ type EnrichedRow = KeywordRow & {
   projectDomain: string
   location: string | null
   traffic: number | null
+  status: string | null
 }
 
 export default function KeywordsListPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [rows, setRows] = useState<EnrichedRow[]>([])
+  const [usage, setUsage] = useState<UsageInfo | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,6 +103,7 @@ export default function KeywordsListPage() {
               projectDomain: detail.domain,
               location: k.location,
               traffic: k.monthlyTraffic,
+              status: k.status,
             })
           }
         }
@@ -111,6 +117,11 @@ export default function KeywordsListPage() {
       }
     })()
     return () => { cancelled = true }
+  }, [])
+
+  // Drives the not-found cap shown per row (free → "20+", paid → "100+").
+  useEffect(() => {
+    api.get<UsageInfo>("/api/usage").then(setUsage).catch(() => undefined)
   }, [])
 
   const filtered = useMemo(() => {
@@ -291,11 +302,11 @@ export default function KeywordsListPage() {
                     )}
                   </td>
                   <td>
-                    {r.pos != null ? (
-                      <span className={"pos-badge " + (r.pos <= 3 ? "top3" : r.pos <= 10 ? "top10" : "")}>{r.pos}</span>
-                    ) : (
-                      <span className="chip" title="Not found in the top 100">100+</span>
-                    )}
+                    <PosCell
+                      position={r.pos}
+                      processing={r.status === "PENDING" || r.status === "PROCESSING"}
+                      plan={usage?.plan}
+                    />
                   </td>
                   <td>
                     {r.prev != null && r.pos != null && r.prev !== r.pos ? (

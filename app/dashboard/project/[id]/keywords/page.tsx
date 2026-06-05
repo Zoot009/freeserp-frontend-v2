@@ -13,7 +13,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import {
-  PosBadge,
+  PosCell,
   FeatChip,
   serpFeaturesToChips,
   type SerpFeatures,
@@ -924,13 +924,7 @@ export default function ProjectKeywordsPage() {
                         <span className="kw">{kw.keyword}</span>
                       </td>
                       <td>
-                        {kw.position !== null ? (
-                          <PosBadge pos={kw.position} />
-                        ) : (
-                          <span className="chip" title="Not found in the top 100 results — ranking deeper than our scan reaches">
-                            100+
-                          </span>
-                        )}
+                        <PosCell position={kw.position} processing={isActive} plan={plan} />
                       </td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
                       <td className="tabular">{kw.monthlyTraffic != null ? kw.monthlyTraffic.toLocaleString() : "—"}</td>
