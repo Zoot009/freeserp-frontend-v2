@@ -25,10 +25,10 @@ export const metadata: Metadata = {
   publisher: "FreeSERP",
   robots: {
     index: true,
-    follow: true,
+    follow: false,
     googleBot: {
       index: true,
-      follow: true,
+      follow: false,
       'max-image-preview': 'large',
       'max-snippet': -1,
     },

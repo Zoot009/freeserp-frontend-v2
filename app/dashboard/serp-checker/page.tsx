@@ -376,7 +376,7 @@ export default function SerpCheckerPage() {
                 style={{ justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid var(--border)" }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <div className="b">Top 10 results for “{result.keyword}”</div>
+                  <div className="b">Top {result.results.length} results for “{result.keyword}”</div>
                   <div className="tiny muted mono" style={{ marginTop: 2 }}>
                     google.com · {result.country.toUpperCase()} · {result.device}
                   </div>
@@ -419,7 +419,7 @@ export default function SerpCheckerPage() {
                 </div>
               ) : (
                 <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                  {result.results.slice(0, 10).map((r) => {
+                  {result.results.map((r) => {
                     const mine =
                       result.domain != null &&
                       (r.domain === result.domain || r.domain.endsWith(`.${result.domain}`))

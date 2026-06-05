@@ -17,7 +17,6 @@ const CRUMBS: Record<string, string[]> = {
   "/dashboard/project": ["Workspace", "Projects", "Project"],
   "/dashboard/keywords": ["Workspace", "Keywords"],
   "/dashboard/serp-checker": ["Tools", "Quick Serp"],
-  "/dashboard/reports": ["Tools", "Reports"],
   "/dashboard/alerts": ["Tools", "Alerts"],
   "/dashboard/billing": ["Tools", "Settings"],
 }

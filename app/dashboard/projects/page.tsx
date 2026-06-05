@@ -389,7 +389,7 @@ function ProjectsList({
 // ───── Page wrapper ────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
-  const { user, token, loading, refreshUser } = useAuth()
+  const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
   const { startTutorial, isActive: tutorialActive, advanceFromStep } = useTutorial()
 
@@ -418,8 +418,13 @@ export default function ProjectsPage() {
     if (!tutorialActive && !isTutorialDone()) startTutorial()
   }, [user, loading, tutorialActive, startTutorial])
 
+  // Don't gate these on the React `token` state — it can lag behind the
+  // actual session (the api client owns the token via getAccessToken() and
+  // refreshes on 401). The `user?.emailVerified` gate on the callers already
+  // guarantees an authenticated session. Gating on the lagging token state
+  // previously let loadProjects early-return *before* its finally, leaving
+  // the page stuck on "Loading projects…" forever.
   const loadProjects = useCallback(async () => {
-    if (!token) return
     setProjectsLoading(true)
     try {
       const data = await api.get<ProjectSummary[]>("/api/projects")
@@ -429,15 +434,14 @@ export default function ProjectsPage() {
       // interval doesn't surface an unhandledRejection.
       console.error("Failed to load projects:", err)
     } finally { setProjectsLoading(false) }
-  }, [token])
+  }, [])
 
   const loadUsage = useCallback(async () => {
-    if (!token) return
     try {
       const data = await api.get<UsageInfo>("/api/usage")
       if (data && typeof data.dailyLimit === "number") setUsage(data)
     } catch {}
-  }, [token])
+  }, [])
 
   useEffect(() => {
     if (user?.emailVerified) { void loadProjects(); void loadUsage() }
@@ -445,13 +449,13 @@ export default function ProjectsPage() {
 
   // Auto-refresh projects list every 10 seconds to keep statuses fresh.
   useEffect(() => {
-    if (!user?.emailVerified || !token) return
+    if (!user?.emailVerified) return
     const interval = setInterval(() => {
       void loadProjects()
       void loadUsage()
     }, 10000)
     return () => clearInterval(interval)
-  }, [user, token, loadProjects, loadUsage])
+  }, [user, loadProjects, loadUsage])
 
   if (loading || !user) {
     return (

@@ -21,7 +21,6 @@ const WORKSPACE: NavEntry[] = [
 
 const TOOLS: NavEntry[] = [
   { href: "/dashboard/serp-checker", label: "Quick Serp", icon: Icon.zap },
-  { href: "/dashboard/reports", label: "Reports", icon: Icon.chart },
   { href: "/dashboard/alerts", label: "Alerts", icon: Icon.bell },
   { href: "/dashboard/billing", label: "Settings", icon: Icon.settings },
 ]
