@@ -25,10 +25,10 @@ const TOOLS: NavEntry[] = [
   { href: "/dashboard/billing", label: "Settings", icon: Icon.settings },
 ]
 
-function NavLink({ entry, active }: { entry: NavEntry; active: boolean }) {
+function NavLink({ entry, active, onNavigate }: { entry: NavEntry; active: boolean; onNavigate?: () => void }) {
   const I = entry.icon
   return (
-    <Link href={entry.href} className={"sb-item " + (active ? "active" : "")}>
+    <Link href={entry.href} className={"sb-item " + (active ? "active" : "")} onClick={onNavigate}>
       <I />
       {entry.label}
       {entry.badge != null && <span className="badge">{entry.badge}</span>}
@@ -41,12 +41,19 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/")
 }
 
-export function Sidebar() {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname() || ""
   const router = useRouter()
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+
+  // Close the mobile drawer whenever the route changes (covers nav-link clicks,
+  // browser back, and programmatic navigation).
+  useEffect(() => {
+    onClose?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -67,7 +74,7 @@ export function Sidebar() {
   const planLabel = user ? (isPaid ? "Pro plan" : "Free plan") : "Guest"
 
   return (
-    <aside className="sidebar">
+    <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="sb-brand">
         <span className="spark"><Icon.spark size={16} /></span>
         FreeSerp
@@ -75,12 +82,12 @@ export function Sidebar() {
 
       <div className="sb-section">Workspace</div>
       {WORKSPACE.map((n) => (
-        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} />
+        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} onNavigate={onClose} />
       ))}
 
       <div className="sb-section">Tools</div>
       {TOOLS.map((n) => (
-        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} />
+        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} onNavigate={onClose} />
       ))}
 
       <div className="sb-spacer" />

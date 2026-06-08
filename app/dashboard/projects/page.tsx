@@ -131,6 +131,50 @@ function AddProjectModal({
   )
 }
 
+// ───── Upgrade plan modal ──────────────────────────────────────────────────
+
+function UpgradeModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fs-app">
+      <div className="modal-bg" onClick={onClose}>
+        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+          <div className="modal-h">
+            <div>
+              <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> UPGRADE</div>
+              <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Unlock unlimited projects</div>
+            </div>
+            <button type="button" onClick={onClose} className="icon-btn" aria-label="Close"><Icon.close /></button>
+          </div>
+          <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="tiny muted" style={{ lineHeight: 1.6 }}>
+              You&apos;ve reached the {FREE_PROJECTS_LIMIT}-project limit on the Free plan. Upgrade to a paid plan
+              to track unlimited domains, run automated scheduled checks, and lift your daily check limits.
+            </div>
+            <div
+              className="card tight"
+              style={{ borderColor: "var(--brand)", background: "var(--brand-soft)", display: "flex", flexDirection: "column", gap: 8 }}
+            >
+              {[
+                "Unlimited projects",
+                "Automated scheduled rank checks",
+                "Higher daily check limits",
+              ].map((f) => (
+                <div key={f} className="row" style={{ gap: 8, color: "var(--brand)", fontSize: 13 }}>
+                  <Icon.check /> <span style={{ color: "var(--text)" }}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="modal-f">
+            <button type="button" className="btn" onClick={onClose}>Not now</button>
+            <Link href="/pricing"><button type="button" className="btn primary">Upgrade plan</button></Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ───── Projects list ───────────────────────────────────────────────────────
 
 function ProjectsList({
@@ -139,6 +183,7 @@ function ProjectsList({
   plan,
   usage,
   onAdd,
+  onUpgrade,
   onOpen,
   onStartTour,
 }: {
@@ -147,6 +192,7 @@ function ProjectsList({
   plan?: string
   usage: UsageInfo | null
   onAdd: () => void
+  onUpgrade: () => void
   onOpen: (id: string) => void
   onStartTour: () => void
 }) {
@@ -156,7 +202,9 @@ function ProjectsList({
   // see the project-cap notice flash before usage resolves.
   const isFree = plan === "free"
   const isAtProjectLimit = isFree && projects.length >= FREE_PROJECTS_LIMIT
-  const addDisabled = isAtProjectLimit
+  // The New-project button stays enabled even at the free limit — clicking it
+  // opens the upgrade popup instead of the create-project modal.
+  const handleAdd = isAtProjectLimit ? onUpgrade : onAdd
   const addTitle = isAtProjectLimit
     ? `Free plan: ${FREE_PROJECTS_LIMIT} project limit reached. Upgrade for unlimited projects.`
     : "Create a new project"
@@ -196,42 +244,14 @@ function ProjectsList({
           </div>
           <button
             data-tutorial="new-project-btn"
-            onClick={onAdd}
-            disabled={addDisabled}
+            onClick={handleAdd}
             title={addTitle}
-            className={"btn " + (addDisabled ? "" : "primary")}
-            style={addDisabled ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+            className="btn primary"
           >
             <Icon.plus /> New project
           </button>
         </div>
       </div>
-
-      {/* Free-plan project-cap notice */}
-      {isAtProjectLimit && (
-        <div
-          className="card tight"
-          style={{
-            marginBottom: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            borderColor: "var(--brand)",
-            background: "var(--brand-soft)",
-          }}
-        >
-          <div>
-            <div className="b" style={{ color: "var(--brand)", fontSize: 13 }}>
-              Free plan · {FREE_PROJECTS_LIMIT} project limit reached
-            </div>
-            <div className="tiny muted" style={{ marginTop: 2 }}>
-              Delete your existing project to make a new one, or upgrade for unlimited projects.
-            </div>
-          </div>
-          <Link href="/pricing"><button className="btn primary sm">Upgrade</button></Link>
-        </div>
-      )}
 
       {loading ? (
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
@@ -317,28 +337,29 @@ function ProjectsList({
               </button>
             )
           })}
-          {!isAtProjectLimit && (
-            <button
-              onClick={onAdd}
-              className="card"
-              style={{
-                display: "grid",
-                placeItems: "center",
-                padding: 40,
-                border: "1px dashed var(--border-strong)",
-                background: "transparent",
-                color: "var(--text-mute)",
-                cursor: "pointer",
-              }}
-            >
-              <Icon.plus />
-              <span className="b" style={{ marginTop: 8, color: "var(--text)" }}>New project</span>
-              <span className="tiny muted" style={{ marginTop: 4 }}>Track a new domain</span>
-            </button>
-          )}
+          <button
+            onClick={handleAdd}
+            className="card"
+            style={{
+              display: "grid",
+              placeItems: "center",
+              padding: 40,
+              border: "1px dashed var(--border-strong)",
+              background: "transparent",
+              color: "var(--text-mute)",
+              cursor: "pointer",
+            }}
+          >
+            <Icon.plus />
+            <span className="b" style={{ marginTop: 8, color: "var(--text)" }}>New project</span>
+            <span className="tiny muted" style={{ marginTop: 4 }}>
+              {isAtProjectLimit ? "Upgrade to track more" : "Track a new domain"}
+            </span>
+          </button>
         </div>
       ) : (
         <div data-tutorial="projects-area" className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="tbl-scroll">
           <table className="tbl">
             <thead>
               <tr>
@@ -380,6 +401,7 @@ function ProjectsList({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -396,6 +418,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [showAddProject, setShowAddProject] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const [usage, setUsage] = useState<UsageInfo | null>(null)
 
   // Auto-refresh user data every 30 seconds so plan/usage stays fresh.
@@ -473,9 +496,12 @@ export default function ProjectsPage() {
         plan={usage?.plan}
         usage={usage}
         onAdd={() => setShowAddProject(true)}
+        onUpgrade={() => setShowUpgrade(true)}
         onOpen={(id) => router.push(`/dashboard/project/${id}/keywords`)}
         onStartTour={startTutorial}
       />
+
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {showAddProject && (
         <AddProjectModal

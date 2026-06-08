@@ -8,8 +8,8 @@ import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 
 // Keep in sync with the backend workers plan (planLimits / seed) and the pricing page.
-const SEARCHES_PER_WORKER = 75
-const PRICE_PER_WORKER_USD = 5
+const SEARCHES_PER_WORKER = 15
+const PRICE_PER_WORKER_USD = 1
 const MAX_WORKERS = 50
 
 interface Usage {
@@ -187,7 +187,7 @@ export default function BillingPage() {
           <div className="card-h">
             <div>
               <div className="t">{isPaid ? "Workers" : "Your plan"}</div>
-              <div className="tiny muted">{isPaid ? "Each worker adds 75 checks/day for $5/mo" : "Upgrade to scale your daily checks"}</div>
+              <div className="tiny muted">{isPaid ? "Each worker adds 15 checks/day for $1/mo" : "Upgrade to scale your daily checks"}</div>
             </div>
           </div>
 
@@ -308,6 +308,7 @@ export default function BillingPage() {
         {payments.length === 0 ? (
           <div style={{ padding: 32, textAlign: "center" }} className="tiny muted">No payments yet.</div>
         ) : (
+          <div className="tbl-scroll">
           <table className="tbl">
             <thead>
               <tr>
@@ -330,6 +331,7 @@ export default function BillingPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

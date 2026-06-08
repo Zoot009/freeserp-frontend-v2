@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { useGoogleLogin } from "@react-oauth/google"
 import gsap from "gsap"
+import Image from "next/image"
 
 export default function LoginPage() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -112,8 +113,8 @@ export default function LoginPage() {
         {/* Top bar */}
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-sm shadow-sm transition-transform group-hover:scale-105">
-              F
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
+              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
             </span>
             <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
               FreeSERP

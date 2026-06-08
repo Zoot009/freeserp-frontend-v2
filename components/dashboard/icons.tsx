@@ -134,6 +134,11 @@ export const Icon = {
       <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   ),
+  menu: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M2 4H14M2 8H14M2 12H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
   dots: () => (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <circle cx="3" cy="7" r="1.2" fill="currentColor" />

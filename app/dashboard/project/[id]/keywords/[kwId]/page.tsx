@@ -559,6 +559,7 @@ export default function KeywordDetailPage() {
 
           {history.length > 0 ? (
             <>
+              <div className="tbl-scroll">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -588,6 +589,7 @@ export default function KeywordDetailPage() {
                   })}
                 </tbody>
               </table>
+              </div>
 
               {totalHistoryPages > 1 && (
                 <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8 }}>

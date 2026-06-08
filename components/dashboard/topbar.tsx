@@ -31,7 +31,7 @@ function crumbsFor(pathname: string): string[] {
   return ["Workspace"]
 }
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname() || "/dashboard"
   const crumbs = crumbsFor(pathname)
   const { theme, setTheme, resolvedTheme } = useTheme()
@@ -41,6 +41,13 @@ export function Topbar() {
 
   return (
     <div className="topbar">
+      <button
+        className="icon-btn topbar-hamburger"
+        onClick={onMenuClick}
+        aria-label="Open navigation"
+      >
+        <Icon.menu />
+      </button>
       <div className="crumbs">
         {crumbs.map((c, i) => (
           <span key={i} className={i === crumbs.length - 1 ? "here" : ""}>

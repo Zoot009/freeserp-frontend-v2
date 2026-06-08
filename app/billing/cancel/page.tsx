@@ -1,34 +1,53 @@
 "use client"
 
-import { AnimatedNoise } from "@/components/animated-noise"
+import Link from "next/link"
 import { XCircle } from "lucide-react"
 
 export default function BillingCancelPage() {
   return (
-    <main className="relative min-h-screen overflow-x-hidden flex items-center justify-center">
-      <AnimatedNoise opacity={0.025} />
-      <div className="grid-bg fixed inset-0 opacity-15 pointer-events-none" aria-hidden="true" />
+    <main
+      className="fs-app"
+      style={{ minHeight: "100vh", background: "var(--bg-sub)", display: "grid", placeItems: "center", padding: 24 }}
+    >
+      <div
+        className="card"
+        style={{ width: "100%", maxWidth: 440, padding: 36, textAlign: "center" }}
+      >
+        {/* Icon badge */}
+        <span
+          style={{
+            display: "grid",
+            placeItems: "center",
+            width: 56,
+            height: 56,
+            margin: "0 auto 20px",
+            borderRadius: 999,
+            background: "var(--warn-soft)",
+            color: "var(--warn)",
+          }}
+        >
+          <XCircle size={28} strokeWidth={1.75} />
+        </span>
 
-      <div className="relative z-10 max-w-md mx-auto px-6 text-center">
-        <XCircle className="mx-auto h-12 w-12 text-muted-foreground mb-6" />
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Payment</span>
-        <h1 className="mt-2 font-[var(--font-bebas)] text-5xl tracking-tight">CHECKOUT CANCELED</h1>
-        <p className="mt-4 font-mono text-sm text-muted-foreground">
-          No charges were made. You can try again any time.
+        <span className="eyebrow" style={{ justifyContent: "center" }}>
+          <span className="spark">◆</span> Payment
+        </span>
+
+        <h1 style={{ margin: "10px 0 0", fontSize: 30, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+          Checkout canceled
+        </h1>
+
+        <p className="muted" style={{ marginTop: 12, fontSize: 14, lineHeight: 1.5, maxWidth: 360, marginInline: "auto" }}>
+          No charges were made. You can pick a plan and try again whenever you&apos;re ready.
         </p>
-        <div className="mt-8 flex gap-3 justify-center">
-          <a
-            href="/pricing"
-            className="bg-accent text-accent-foreground px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-accent/80 transition-colors"
-          >
-            Back to Pricing
-          </a>
-          <a
-            href="/dashboard"
-            className="border border-border/40 px-6 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Dashboard
-          </a>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
+          <Link href="/pricing" className="btn primary">
+            Back to pricing
+          </Link>
+          <Link href="/dashboard" className="btn">
+            Go to dashboard
+          </Link>
         </div>
       </div>
     </main>

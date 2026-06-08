@@ -31,6 +31,11 @@
   --r-lg: 16px;
   --r-xl: 22px;
 
+  /* Horizontal padding of .page — shared by the negative-margin classes
+     (.halo / .kd-header / .kd-tabs) so they stay in lockstep. Overridden on
+     phones in the responsive block at the bottom of this file. */
+  --page-pad: 28px;
+
   --shadow-sm: 0 1px 2px rgba(11,13,18,0.04);
   --shadow-md: 0 6px 24px -8px rgba(11,13,18,0.08), 0 2px 4px rgba(11,13,18,0.04);
   --shadow-lg: 0 24px 60px -24px rgba(11,13,18,0.18);
@@ -244,7 +249,7 @@
 .fs-app .btn.sm { padding: 5px 10px; font-size: 12px; }
 /* === PAGE === */
 .fs-app .page {
-  padding: 28px 28px 60px;
+  padding: 28px var(--page-pad) 60px;
   max-width: 1400px;
   width: 100%;
 }
@@ -601,8 +606,8 @@
     radial-gradient(ellipse 800px 220px at 50% 0%, rgba(45,91,255,0.12), transparent 70%),
     var(--bg);
   border-bottom: 1px solid var(--border);
-  margin: -28px -28px 24px;
-  padding: 40px 28px 30px;
+  margin: -28px calc(-1 * var(--page-pad)) 24px;
+  padding: 40px var(--page-pad) 30px;
 }
 .dark .fs-app .halo {
   background:
@@ -647,10 +652,10 @@
 }
 .fs-app .kd-back:hover { color: var(--text); }
 .fs-app .kd-header {
-  padding: 32px 28px 0;
+  padding: 32px var(--page-pad) 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  margin: -28px -28px 0;
+  margin: -28px calc(-1 * var(--page-pad)) 0;
 }
 .fs-app .kd-header .inner {
   display: flex; align-items: flex-end; justify-content: space-between;
@@ -668,10 +673,10 @@
 .fs-app .kd-header .kwlabel b { color: var(--text); font-weight: 500; }
 .fs-app .kd-tabs {
   display: flex; gap: 0;
-  padding: 0 28px;
+  padding: 0 var(--page-pad);
   background: var(--bg-sub);
   border-bottom: 1px solid var(--border);
-  margin: 0 -28px 28px;
+  margin: 0 calc(-1 * var(--page-pad)) 28px;
 }
 .fs-app .kd-tab {
   display: flex; align-items: center; gap: 6px;
@@ -1310,3 +1315,110 @@
    result lists (keyword detail) where rows aren't selectable. */
 .fs-app .cmp-card.static { cursor: default; }
 .fs-app .cmp-card.static:hover { transform: none; box-shadow: none; border-color: var(--border); }
+
+/* ============================================================
+   RESPONSIVE — desktop-first overrides
+   The whole stylesheet above is desktop-first with fixed grids; these
+   max-width media queries collapse it down for tablet (1024), the
+   drawer/topbar switch (768), and phones (640). Mobile-only chrome
+   (drawer overlay, hamburger) is declared display:none here by default
+   and revealed inside the 768px query.
+   ============================================================ */
+
+/* Horizontal-scroll wrapper for wide .tbl tables (keep overflow-x ONLY so the
+   sticky <th top:0> still anchors to the viewport, not this box). */
+.fs-app .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fs-app .tbl-scroll .tbl { min-width: 680px; }
+
+/* Mobile chrome — hidden on desktop, shown at <=768px. */
+.fs-app .sb-overlay { display: none; }
+.fs-app .topbar-hamburger { display: none; }
+
+/* ---- Tablet (<=1024px): 4-col grids drop to 2 ---- */
+@media (max-width: 1024px) {
+  .fs-app .g-4 { grid-template-columns: repeat(2, 1fr); }
+  .fs-app .lg-stats { grid-template-columns: repeat(2, 1fr); }
+  .fs-app .g-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---- Drawer + single-column layout (<=768px) ---- */
+@media (max-width: 768px) {
+  /* Layout collapses to one column; sidebar leaves the flow and slides in. */
+  .fs-app .app { grid-template-columns: 1fr; }
+  .fs-app .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    height: 100vh; height: 100dvh;
+    width: 264px; max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    z-index: 60;
+  }
+  .fs-app .sidebar.open { transform: translateX(0); }
+  .fs-app .sb-overlay[data-open="true"] {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(11, 13, 18, 0.45);
+    z-index: 55;
+  }
+
+  /* Topbar: reveal hamburger, drop the placeholder search, tighten. */
+  .fs-app .topbar-hamburger { display: grid; }
+  .fs-app .topbar { padding: 10px 14px; gap: 8px; }
+  .fs-app .topbar .search { display: none; }
+  .fs-app .crumbs { margin-right: auto; }
+
+  /* Remaining multi-column grids stack. */
+  .fs-app .g-2 { grid-template-columns: 1fr; }
+  .fs-app .g-21 { grid-template-columns: 1fr; }
+  .fs-app .g-12 { grid-template-columns: 1fr; }
+  .fs-app .ap-grid { grid-template-columns: 1fr; }
+  .fs-app .ap-cats { position: static; top: auto; }
+
+  /* Internal-links graph: stack the three columns; the absolute SVG connector
+     lines only make sense in the 3-col layout, so hide them. */
+  .fs-app .lg-cols { grid-template-columns: 1fr; }
+  .fs-app .lg-graph { min-height: auto; }
+  .fs-app .lg-graph-inner { min-height: 0; }
+  .fs-app .lg-svg { display: none; }
+  .fs-app .lg-col.out .col-h { float: none; }
+  .fs-app .lg-col.out .pages { align-items: flex-start; }
+  .fs-app .lg-center { padding-top: 0; }
+
+  /* Tab strips scroll horizontally instead of wrapping/overflowing. */
+  .fs-app .tabs,
+  .fs-app .kd-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+}
+
+/* ---- Phone (<=640px): final single column, tighter padding, sheets ---- */
+@media (max-width: 640px) {
+  .fs-app { --page-pad: 16px; }
+
+  .fs-app .page { padding: 16px var(--page-pad) 48px; }
+  .fs-app .page-h h1 { font-size: 22px; }
+  .fs-app .kd-header { padding: 20px var(--page-pad) 0; }
+  .fs-app .kd-header h1 { font-size: 24px; }
+  .fs-app .halo { padding: 28px var(--page-pad) 22px; }
+
+  /* Everything still 2-up drops to a single column. */
+  .fs-app .g-4 { grid-template-columns: 1fr; }
+  .fs-app .g-3 { grid-template-columns: 1fr; }
+  .fs-app .lg-stats { grid-template-columns: 1fr; }
+
+  /* Modal becomes a near-full-screen sheet with a scrollable body so the
+     footer can't get pushed off-screen. */
+  .fs-app .modal-bg { padding: 12px; }
+  .fs-app .modal {
+    max-width: 100%;
+    max-height: calc(100dvh - 24px);
+    display: flex; flex-direction: column;
+  }
+  .fs-app .modal-h, .fs-app .modal-f { padding: 14px 16px; }
+  .fs-app .modal-b { padding: 16px; overflow-y: auto; }
+
+  /* Chat panel spans the viewport with gutters instead of overflowing. */
+  .fs-app .chatpanel {
+    right: 12px; left: 12px; bottom: 12px;
+    width: auto; max-height: 70dvh;
+  }
+  .fs-app .chatbtn { right: 16px; bottom: 16px; }
+}

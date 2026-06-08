@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AnimatedNoise } from "@/components/animated-noise"
-import { ScrambleTextOnHover } from "@/components/scramble-text"
+import Image from "next/image"
 import { useAuth } from "@/lib/auth"
 import gsap from "gsap"
 
 const RESEND_COOLDOWN = 60
 
 export default function VerifyEmailPage() {
-  const { user, token, loading, verifyEmail, resendVerify } = useAuth()
+  const { user, token, loading, verifyEmail, resendVerify, logout } = useAuth()
   const router = useRouter()
   const containerRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const asideRef = useRef<HTMLElement>(null)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [digits, setDigits] = useState(["", "", "", "", "", ""])
   const [submitting, setSubmitting] = useState(false)
@@ -27,11 +28,51 @@ export default function VerifyEmailPage() {
     if (!loading && user?.emailVerified) router.push("/dashboard")
   }, [user, token, loading, router])
 
-  // Entrance animation
+  // Entrance animation — mirrors the login page
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current || !formRef.current) return
     const ctx = gsap.context(() => {
-      gsap.fromTo(containerRef.current, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" })
+      gsap.fromTo(
+        containerRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+      )
+      const fields = formRef.current?.querySelectorAll(".field-row")
+      if (fields) {
+        gsap.fromTo(
+          fields,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: "power3.out", delay: 0.2 },
+        )
+      }
+      if (asideRef.current) {
+        gsap.fromTo(
+          asideRef.current.querySelector(".aside-headline"),
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", delay: 0.1 },
+        )
+        gsap.fromTo(
+          asideRef.current.querySelector(".aside-subtitle"),
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: 0.3 },
+        )
+        const items = asideRef.current.querySelectorAll(".aside-item")
+        if (items.length) {
+          gsap.fromTo(
+            items,
+            { opacity: 0, x: -16 },
+            { opacity: 1, x: 0, duration: 0.5, stagger: 0.08, ease: "power3.out", delay: 0.45 },
+          )
+        }
+        const stats = asideRef.current.querySelectorAll(".aside-stat")
+        if (stats.length) {
+          gsap.fromTo(
+            stats,
+            { opacity: 0, y: 12 },
+            { opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: "power3.out", delay: 0.8 },
+          )
+        }
+      }
     })
     return () => ctx.revert()
   }, [])
@@ -118,122 +159,199 @@ export default function VerifyEmailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="h-4 w-4 rounded-full border border-accent/50 border-t-accent animate-spin" />
+      <main className="min-h-screen bg-white flex items-center justify-center">
+        <div className="h-5 w-5 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
       </main>
     )
   }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center px-6">
-      <AnimatedNoise opacity={0.03} />
-      <div className="grid-bg fixed inset-0 opacity-30" aria-hidden="true" />
-
-      {/* Wordmark */}
-      <div className="fixed top-6 left-6 z-50">
-        <Link href="/" className="font-[var(--font-bebas)] text-2xl tracking-widest text-foreground hover:text-accent transition-colors duration-200">
-          FREE SERP
-        </Link>
-      </div>
-
-      {/* Corner tag */}
-      <div className="fixed bottom-8 right-8">
-        <div className="border border-border px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          Email Verification
-        </div>
-      </div>
-
-      <div ref={containerRef} className="relative z-10 w-full max-w-md">
-        {/* Header */}
-        <div className="mb-10">
-          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Step 2 of 2</span>
-          <h1 className="mt-3 font-[var(--font-bebas)] text-6xl md:text-7xl tracking-tight leading-none">
-            CHECK YOUR<br />EMAIL
-          </h1>
-          <p className="mt-4 font-mono text-xs text-muted-foreground leading-relaxed">
-            We sent a 6-digit code to{" "}
-            <span className="text-foreground">{user?.email ?? "your email"}</span>.
-            Enter it below to verify your account.
+    <main className="min-h-screen bg-white text-slate-900 grid lg:grid-cols-2">
+      {/* Left — Verify form */}
+      <section className="relative flex flex-col px-6 sm:px-10 lg:px-16 py-8" id="main-content">
+        {/* Top bar */}
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
+              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
+            </span>
+            <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+              FreeSERP
+            </span>
+          </Link>
+          <p className="text-sm text-slate-500">
+            Wrong account?{" "}
+            {/* Must end the current unverified session first, or the login page
+                bounces straight back here (user is still authenticated). */}
+            <button
+              type="button"
+              onClick={() => { logout(); router.push("/login") }}
+              className="text-blue-600 font-medium hover:text-blue-700"
+            >
+              Switch
+            </button>
           </p>
         </div>
 
-        <div className="w-full h-px bg-border/40 mb-10" />
+        {/* Form area */}
+        <div ref={containerRef} className="flex-1 flex items-center justify-center mt-10 lg:mt-0">
+          <div className="w-full max-w-md">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              <span className="text-blue-500">★</span> Step 2 of 2
+            </span>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+              Check your email
+            </h1>
+            <p className="mt-2 text-slate-500">
+              We sent a 6-digit code to{" "}
+              <span className="font-medium text-slate-900">{user?.email ?? "your email"}</span>.
+              Enter it below to verify your account.
+            </p>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* OTP boxes */}
-          <div className="flex gap-3 justify-between" onPaste={handlePaste}>
-            {digits.map((d, i) => (
-              <input
-                key={i}
-                ref={(el) => { inputRefs.current[i] = el }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={d}
-                onChange={(e) => handleChange(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                disabled={submitting || !!success}
-                className={`w-12 h-14 text-center bg-card border font-[var(--font-bebas)] text-3xl tracking-widest focus:outline-none transition-colors duration-200
-                  ${error ? "border-red-500/60" : d ? "border-accent" : "border-border/50"}
-                  ${submitting || success ? "opacity-50" : ""}
-                  focus:border-accent`}
-                aria-label={`Digit ${i + 1}`}
-              />
-            ))}
+            <form ref={formRef} onSubmit={handleSubmit} className="mt-8 space-y-5">
+              {/* OTP boxes */}
+              <div className="field-row space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Verification code
+                </label>
+                <div className="flex gap-2 sm:gap-3" onPaste={handlePaste}>
+                  {digits.map((d, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { inputRefs.current[i] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={i === 0 ? "one-time-code" : "off"}
+                      maxLength={1}
+                      value={d}
+                      onChange={(e) => handleChange(i, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(i, e)}
+                      disabled={submitting || !!success}
+                      className={`h-14 w-full rounded-2xl border bg-white text-center text-2xl font-bold text-slate-900 focus:outline-none focus:ring-4 transition-all duration-200
+                        ${error
+                          ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                          : d
+                            ? "border-blue-500 ring-2 ring-blue-100"
+                            : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"}
+                        ${submitting || success ? "opacity-60" : ""}`}
+                      aria-label={`Digit ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="field-row rounded-2xl border border-red-200 bg-red-50 px-4 py-3 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
+              {/* Success */}
+              {success && (
+                <div className="field-row flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 animate-in fade-in slide-in-from-top-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <p className="text-sm text-green-700">{success}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <div className="field-row pt-1">
+                <button
+                  type="submit"
+                  disabled={submitting || !!success || otp.length < 6}
+                  className="w-full rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-md transition-all duration-200"
+                >
+                  {submitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                      Verifying...
+                    </span>
+                  ) : (
+                    "Verify email"
+                  )}
+                </button>
+              </div>
+
+              {/* Resend */}
+              <p className="field-row text-sm text-slate-500">
+                Didn&apos;t get a code?{" "}
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={cooldown > 0}
+                  className="font-medium text-blue-600 hover:text-blue-700 disabled:text-slate-400"
+                >
+                  {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+                </button>
+              </p>
+            </form>
           </div>
+        </div>
+      </section>
 
-          {/* Error / success */}
-          {error && (
-            <div className="border border-red-500/30 bg-red-500/5 px-4 py-3">
-              <p className="font-mono text-[11px] text-red-400">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="border border-accent/30 bg-accent/5 px-4 py-3 flex items-center gap-2">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent" />
-              </svg>
-              <p className="font-mono text-[11px] text-accent">{success}</p>
-            </div>
-          )}
+      {/* Right — Marketing panel */}
+      <aside ref={asideRef} className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-linear-to-br from-blue-600 via-blue-600 to-blue-700 text-white px-12 py-12 rounded-l-[2.5rem]">
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-20"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+        {/* Drifting glow */}
+        <div className="auth-blob absolute -top-32 -right-32 h-96 w-96 rounded-full bg-blue-400 blur-3xl" aria-hidden="true" />
+        <div className="auth-blob-alt absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-blue-800 blur-3xl" aria-hidden="true" />
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={submitting || !!success || otp.length < 6}
-            className="w-full bg-accent text-accent-foreground px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-accent/80 disabled:opacity-40 transition-all duration-200"
-          >
-            {submitting ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-accent-foreground/50 border-t-accent-foreground animate-spin" />
-                Verifying...
-              </span>
-            ) : (
-              <ScrambleTextOnHover text="Verify Email" as="span" duration={0.5} />
-            )}
-          </button>
-        </form>
-
-        {/* Resend */}
-        <div className="mt-8 flex items-center gap-3">
-          <span className="font-mono text-[11px] text-muted-foreground">Didn&apos;t get a code?</span>
-          <button
-            onClick={handleResend}
-            disabled={cooldown > 0}
-            className="font-mono text-[11px] text-foreground hover:text-accent disabled:text-muted-foreground/50 transition-colors duration-200 underline underline-offset-4"
-          >
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-          </button>
+        <div className="relative z-10">
+          <h2 className="aside-headline text-4xl xl:text-5xl font-bold leading-tight tracking-tight">
+            One last step.<br />You&apos;re almost in.
+          </h2>
+          <p className="aside-subtitle mt-4 text-blue-100 max-w-md">
+            Verify your email to unlock real-time keyword tracking across 190+ countries — completely free.
+          </p>
         </div>
 
-        {/* Wrong account */}
-        <p className="mt-4 font-mono text-[11px] text-muted-foreground">
-          Wrong account?{" "}
-          <Link href="/login" className="text-foreground hover:text-accent transition-colors underline underline-offset-4">
-            Sign in with a different email
-          </Link>
-        </p>
-      </div>
+        <div className="relative z-10 space-y-8">
+          <ul className="space-y-3">
+            {[
+              "Real-time SERP position tracking",
+              "Competitor analysis & insights",
+              "190+ countries & languages",
+              "Free forever — no card required",
+            ].map((item) => (
+              <li key={item} className="aside-item flex items-center gap-3 text-blue-50">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/30">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                <span className="text-sm">{item}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="grid grid-cols-3 gap-6 pt-6 border-t border-white/20">
+            <div className="aside-stat">
+              <p className="text-2xl font-bold">190+</p>
+              <p className="text-xs text-blue-100 mt-1">Countries tracked</p>
+            </div>
+            <div className="aside-stat">
+              <p className="text-2xl font-bold">100%</p>
+              <p className="text-xs text-blue-100 mt-1">Free, always</p>
+            </div>
+            <div className="aside-stat">
+              <p className="text-2xl font-bold">Real-time</p>
+              <p className="text-xs text-blue-100 mt-1">SERP data</p>
+            </div>
+          </div>
+        </div>
+      </aside>
     </main>
   )
 }

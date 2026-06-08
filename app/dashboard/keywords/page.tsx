@@ -274,6 +274,7 @@ export default function KeywordsListPage() {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="tbl-scroll">
           <table className="tbl">
             <thead>
               <tr>
@@ -356,6 +357,7 @@ export default function KeywordsListPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

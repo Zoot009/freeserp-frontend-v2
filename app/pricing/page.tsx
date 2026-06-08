@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
-import { LocationPicker } from "@/components/location-picker"
 import axios from "@/lib/axios"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -17,14 +16,14 @@ interface Status {
   workerCount?: number
 }
 
-// Serprobot-style worker pricing: 1 worker = 75 searches/day for $5/month. Capacity and
+// Serprobot-style worker pricing: 1 worker = 15 searches/day for $1/month. Capacity and
 // price scale linearly with the number of workers.
-const SEARCHES_PER_WORKER = 75
-const PRICE_PER_WORKER_USD = 5
+const SEARCHES_PER_WORKER = 15
+const PRICE_PER_WORKER_USD = 1
 const MAX_WORKERS = 50
 
 const FREE_FEATURES = [
-  "15 rank checks / day",
+  "5 rank checks / day",
   "Manual checks only",
   "1 full AI analysis / day",
   "Internal link analysis: your site + 1 competitor",
@@ -51,15 +50,15 @@ const FAQ = [
   },
   {
     q: "Do unused checks roll over?",
-    a: "No — daily limits reset at midnight IST. Each worker adds 75 rank checks/day; add more workers any time to scale your daily capacity.",
+    a: "No — daily limits reset at midnight IST. Each worker adds 15 rank checks/day; add more workers any time to scale your daily capacity.",
   },
   {
     q: "What is a worker?",
-    a: "A worker is a unit of daily search capacity: 1 worker = 75 rank checks/day for $5/month. Need more? Add workers — 3 workers = 225 checks/day for $15/month. You can change your worker count anytime and we prorate the difference.",
+    a: "A worker is a unit of daily search capacity: 1 worker = 15 rank checks/day for $1/month. Need more? Add workers — 3 workers = 45 checks/day for $3/month. You can change your worker count anytime and we prorate the difference.",
   },
   {
     q: "Can I cancel anytime?",
-    a: "Yes. Manage or cancel from your payment provider's customer portal (Razorpay in India, Stripe elsewhere) — your access continues until the end of the paid period.",
+    a: "Yes. Manage or cancel from your payment provider's customer portal — your access continues until the end of the paid period.",
   },
 ]
 
@@ -89,10 +88,7 @@ export default function PricingPage() {
   const [status, setStatus] = useState<Status | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState("")
-  // Billing country: India is charged in INR via Razorpay; everyone else in USD via Stripe.
-  const [country, setCountry] = useState("in")
-  const isIndia = country.toLowerCase() === "in"
-  // Number of workers to purchase (1 worker = 75 searches/day = $5/mo).
+  // Number of workers to purchase (1 worker = 15 searches/day = $1/mo).
   const [workers, setWorkers] = useState(1)
   const searchesPerDay = workers * SEARCHES_PER_WORKER
   const monthlyUsd = workers * PRICE_PER_WORKER_USD
@@ -116,7 +112,7 @@ export default function PricingPage() {
     try {
       const res = await axios.post(
         `${API_URL}/api/payments/checkout`,
-        { country: country.toUpperCase(), workerCount: workers },
+        { workerCount: workers },
         { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
       )
       const data = res.data
@@ -184,7 +180,7 @@ export default function PricingPage() {
           <span className="eyebrow" style={{ justifyContent: "center" }}>
             <span className="spark">◆</span> Pricing
           </span>
-          <h1 style={{ margin: 0, fontSize: 38, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(28px, 7vw, 38px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
             Simple plans. <span style={{ color: "var(--brand)" }}>No surprises.</span>
           </h1>
           <p className="muted" style={{ marginTop: 12, fontSize: 14, maxWidth: 520, marginInline: "auto" }}>
@@ -198,7 +194,7 @@ export default function PricingPage() {
           <div className="card" style={{ padding: 28, display: "flex", flexDirection: "column" }}>
             <span >Free</span>
             <div style={{ marginTop: 18, display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>$0</span>
+              <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>$0</span>
               <span className="muted" style={{ fontSize: 13 }}>/month</span>
             </div>
             <p className="tiny muted" style={{ marginTop: 6 }}>Forever. No card, no trial.</p>
@@ -230,9 +226,9 @@ export default function PricingPage() {
               <span className="chip brand" style={{ fontWeight: 600 }}>Recommended</span>
             </div>
 
-            {/* Price scales with worker count: $5/worker, 75 searches/day per worker. */}
+            {/* Price scales with worker count: $1/worker, 15 searches/day per worker. */}
             <div style={{ marginTop: 18, display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>${monthlyUsd}</span>
+              <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>${monthlyUsd}</span>
               <span className="muted" style={{ fontSize: 13 }}>/month</span>
             </div>
             <p className="tiny muted" style={{ marginTop: 6 }}>
@@ -293,8 +289,7 @@ export default function PricingPage() {
                 </button>
               </div>
               <p className="tiny muted" style={{ marginTop: 10 }}>
-                Billed monthly via <span style={{ color: "var(--text)", fontWeight: 600 }}>{isIndia ? "Razorpay" : "Stripe"}</span>
-                {isIndia ? " — charged in ₹ INR at checkout." : "."}
+                Billed monthly via <span style={{ color: "var(--text)", fontWeight: 600 }}>Stripe</span>.
               </p>
             </div>
 
@@ -306,13 +301,6 @@ export default function PricingPage() {
                 </li>
               ))}
             </ul>
-
-            {!isPaid && (
-              <div className="field" style={{ marginTop: 18 }}>
-                <label>Billing country</label>
-                <LocationPicker value={country} onChange={setCountry} showFlags variant="default" />
-              </div>
-            )}
 
             {loading ? (
               <button className="btn primary" disabled style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: 0.7 }}>

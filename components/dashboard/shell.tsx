@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Sidebar } from "./sidebar"
@@ -9,6 +9,7 @@ import { Topbar } from "./topbar"
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [navOpen, setNavOpen] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.push("/login")
@@ -28,9 +29,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="fs-app">
       <div className="app">
-        <Sidebar />
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+        <div
+          className="sb-overlay"
+          data-open={navOpen}
+          onClick={() => setNavOpen(false)}
+          aria-hidden="true"
+        />
         <div className="main">
-          <Topbar />
+          <Topbar onMenuClick={() => setNavOpen(true)} />
           {children}
         </div>
       </div>

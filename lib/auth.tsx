@@ -125,9 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }, [])
 
-  // Email verification is not part of v2's MVP scope. Pages that import these
-  // still work; the call returns a friendly error if the backend route is
-  // missing.
+  // New signups start unverified; the backend gates the core app until the
+  // user confirms the 6-digit OTP we email them. On success it clears the
+  // verifyOtp and flips emailVerified, lifting the gate for the existing session.
   const verifyEmail = useCallback(async (otp: string) => {
     await api.post("/api/auth/verify-email", { otp })
     setUser((prev) => (prev ? { ...prev, emailVerified: true } : prev))

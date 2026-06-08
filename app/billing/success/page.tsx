@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useAuth } from "@/lib/auth"
-import { AnimatedNoise } from "@/components/animated-noise"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Loader2 } from "lucide-react"
 import axios from "@/lib/axios"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -33,30 +33,62 @@ export default function BillingSuccessPage() {
     return () => clearInterval(id)
   }, [token])
 
-  const stillSyncing = plan !== "paid" && attempts < 15
+  const isPaid = plan === "paid"
+  const stillSyncing = !isPaid && attempts < 15
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden flex items-center justify-center">
-      <AnimatedNoise opacity={0.025} />
-      <div className="grid-bg fixed inset-0 opacity-15 pointer-events-none" aria-hidden="true" />
+    <main
+      className="fs-app"
+      style={{ minHeight: "100vh", background: "var(--bg-sub)", display: "grid", placeItems: "center", padding: 24 }}
+    >
+      <div
+        className="card"
+        style={{ width: "100%", maxWidth: 440, padding: 36, textAlign: "center" }}
+      >
+        {/* Icon badge — positive once active, neutral-pending while syncing */}
+        <span
+          style={{
+            display: "grid",
+            placeItems: "center",
+            width: 56,
+            height: 56,
+            margin: "0 auto 20px",
+            borderRadius: 999,
+            background: stillSyncing ? "var(--brand-soft)" : "var(--pos-soft)",
+            color: stillSyncing ? "var(--brand)" : "var(--pos)",
+          }}
+        >
+          {stillSyncing ? (
+            <Loader2 size={28} strokeWidth={1.75} className="animate-spin" />
+          ) : (
+            <CheckCircle2 size={28} strokeWidth={1.75} />
+          )}
+        </span>
 
-      <div className="relative z-10 max-w-md mx-auto px-6 text-center">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500 mb-6" />
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Payment</span>
-        <h1 className="mt-2 font-[var(--font-bebas)] text-5xl tracking-tight">THANK YOU</h1>
-        <p className="mt-4 font-mono text-sm text-muted-foreground">
-          {plan === "paid"
-            ? "Your paid plan is active. Daily limit is now 75 rank checks."
+        <span className="eyebrow" style={{ justifyContent: "center" }}>
+          <span className="spark">◆</span> Payment
+        </span>
+
+        <h1 style={{ margin: "10px 0 0", fontSize: 30, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+          {isPaid ? "You're all set" : stillSyncing ? "Finalizing…" : "Thank you"}
+        </h1>
+
+        <p className="muted" style={{ marginTop: 12, fontSize: 14, lineHeight: 1.5, maxWidth: 360, marginInline: "auto" }}>
+          {isPaid
+            ? "Your paid plan is active — your daily rank-check limit has increased."
             : stillSyncing
               ? "Finalizing your subscription… this usually takes a few seconds."
               : "We received your payment. If your plan hasn't updated within a minute, refresh this page or check your dashboard."}
         </p>
-        <a
-          href="/dashboard"
-          className="mt-8 inline-block bg-accent text-accent-foreground px-6 py-3 font-mono text-xs uppercase tracking-widest hover:bg-accent/80 transition-colors"
-        >
-          Go to Dashboard
-        </a>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
+          <Link href="/dashboard" className="btn primary">
+            Go to dashboard
+          </Link>
+          <Link href="/dashboard/billing" className="btn">
+            View billing
+          </Link>
+        </div>
       </div>
     </main>
   )
