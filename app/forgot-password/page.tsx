@@ -117,7 +117,7 @@ export default function ForgotPasswordPage() {
 
             {sent ? (
               /* Success state */
-              <div ref={formRef} className="mt-8 space-y-5">
+              <div className="mt-8 space-y-5">
                 <div className="field-row rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
