@@ -120,6 +120,7 @@ export function NotificationBell() {
             right: 0,
             top: "calc(100% + 8px)",
             width: 340,
+            maxWidth: "calc(100vw - 24px)",
             maxHeight: 440,
             overflowY: "auto",
             padding: 0,

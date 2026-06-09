@@ -84,7 +84,7 @@ export function UsageMeter() {
         <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {usage.dailyUsed}/{usage.dailyLimit}
         </span>{" "}
-        <span className="muted">checks today</span>
+        <span className="muted usage-suffix">checks today</span>
       </span>
     </div>
   )

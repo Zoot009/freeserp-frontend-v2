@@ -268,6 +268,12 @@
   font-size: 13.5px;
   margin-top: 4px;
 }
+/* Project keywords header: title block + right-aligned action stack on desktop.
+   Collapses to a single column on mobile (see <=768px) so the action buttons
+   sit left-aligned below the title instead of floating detached on the right. */
+.fs-app .kd-proj-h { align-items: flex-start; }
+.fs-app .kd-proj-actions { align-items: flex-end; gap: 10px; }
+.fs-app .kd-proj-btns { flex-wrap: wrap; justify-content: flex-end; }
 .fs-app .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   color: var(--brand);
@@ -1387,11 +1393,24 @@
   /* Tab strips scroll horizontally instead of wrapping/overflowing. */
   .fs-app .tabs,
   .fs-app .kd-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+
+  /* Project keywords header stacks: actions go full-width below the title and
+     left-align so "Delete project" no longer wraps onto its own detached row. */
+  .fs-app .kd-proj-h { flex-direction: column; align-items: stretch; }
+  .fs-app .kd-proj-actions { align-items: stretch; width: 100%; }
+  .fs-app .kd-proj-actions .card { min-width: 0; }
+  .fs-app .kd-proj-btns { justify-content: flex-start; }
 }
 
 /* ---- Phone (<=640px): final single column, tighter padding, sheets ---- */
 @media (max-width: 640px) {
   .fs-app { --page-pad: 16px; }
+
+  /* Topbar: collapse breadcrumbs to the current page only (the trail is
+     redundant with the drawer nav) and drop the usage chip's wordy suffix. */
+  .fs-app .crumbs > span:not(.here) { display: none; }
+  .fs-app .crumbs > span.here .sep { display: none; }
+  .fs-app .usage-suffix { display: none; }
 
   .fs-app .page { padding: 16px var(--page-pad) 48px; }
   .fs-app .page-h h1 { font-size: 22px; }
