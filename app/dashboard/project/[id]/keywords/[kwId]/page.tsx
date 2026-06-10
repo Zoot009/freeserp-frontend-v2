@@ -9,8 +9,6 @@ import { Icon } from "@/components/dashboard/icons"
 import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
-
 interface Competitor {
   position: number
   domain: string
@@ -115,7 +113,6 @@ export default function KeywordDetailPage() {
   const kwId = params.kwId as string
 
   const [data, setData] = useState<KeywordDetail | null>(null)
-  const [usage, setUsage] = useState<UsageInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [tab, setTab] = useState<Tab>("overview")
@@ -126,12 +123,6 @@ export default function KeywordDetailPage() {
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
   }, [user, authLoading, router])
-
-  // Drives the not-found cap shown for this keyword (free → "20+", paid → "100+").
-  useEffect(() => {
-    if (authLoading || !user) return
-    api.get<UsageInfo>("/api/usage").then(setUsage).catch(() => undefined)
-  }, [authLoading, user])
 
   // Fetch keyword detail via the shared client — it carries the access token,
   // refreshes it on 401, and runs in parallel with useAuth()'s /me round-trip.
@@ -235,7 +226,6 @@ export default function KeywordDetailPage() {
     : []
 
   const inFlight = data.inFlightStatus === "PENDING" || data.inFlightStatus === "PROCESSING"
-  const plan = usage?.plan
 
   return (
     <div className="page">
@@ -299,7 +289,7 @@ export default function KeywordDetailPage() {
                   ? "—"
                   : latestCheck?.position != null
                     ? `#${latestCheck.position}`
-                    : `${plan === "free" ? 20 : 100}+`}
+                    : "100+"}
               </div>
               <div className="row" style={{ gap: 8, alignItems: "center" }}>
                 <ChangeCell change={latestCheck?.change ?? null} />
@@ -580,7 +570,7 @@ export default function KeywordDetailPage() {
                           })}
                         </td>
                         <td>
-                          <PosCell position={h.position} plan={plan} />
+                          <PosCell position={h.position} />
                         </td>
                         <td><ChangeCell change={h.change} /></td>
                         <td className="tabular">{h.monthlyTraffic?.toLocaleString() ?? "—"}</td>

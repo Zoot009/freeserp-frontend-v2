@@ -55,19 +55,16 @@ export function PosBadge({ pos }: { pos: number | null | undefined }) {
 }
 
 // Renders a tracked keyword's position with the three states it can be in:
-//   processing  → "—" (takes priority; a stale null must not read as "20+")
+//   processing  → "—" (takes priority; a stale null must not read as "100+")
 //   ranked      → the numeric PosBadge
-//   not found   → "{cap}+", where cap is the user's scan depth (free 20, paid 100)
-// Plan defaults to the paid cap (100) when unknown/loading so paid users never
-// flash "20+" before /api/usage resolves.
+//   not found   → "100+" — every plan now crawls the full top 100, so a null
+//                 position means the keyword ranks deeper than 100.
 export function PosCell({
   position,
   processing = false,
-  plan,
 }: {
   position: number | null | undefined
   processing?: boolean
-  plan?: string | null
 }) {
   if (processing) {
     return <span className="pos-badge" style={{ color: "var(--text-mute)" }}>—</span>
@@ -75,13 +72,12 @@ export function PosCell({
   if (position != null && Number.isFinite(position)) {
     return <PosBadge pos={position} />
   }
-  const cap = plan === "free" ? 20 : 100
   return (
     <span
       className="chip"
-      title={`Not found in the top ${cap} results — ranking deeper than our scan reaches`}
+      title="Not found in the top 100 results — ranking deeper than our scan reaches"
     >
-      {cap}+
+      100+
     </span>
   )
 }

@@ -16,16 +16,9 @@ import { flagFor } from "@/lib/locations"
 import {
   PosCell,
   DeltaCell,
-  LineChart,
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
-
-type OverviewRange = "24h" | "7d" | "30d" | "90d"
-type ProjectOverview = {
-  range: OverviewRange
-  history: { t: string; traffic: number; pages: number }[]
-}
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -45,6 +38,8 @@ interface Keyword {
   location: string
   addedAt: string
   position: number | null
+  // First (oldest) rank ever recorded for this keyword — drives the "First check" column.
+  firstPosition: number | null
   // Position deltas over the 1/7-day windows (positive = rank improved).
   d1: number | null
   d7: number | null
@@ -73,7 +68,7 @@ interface ProjectDetail {
 
 type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
 
-type SortKey = "kw" | "pos" | "d1" | "d7" | "vol" | "traffic" | "checkedAt"
+type SortKey = "kw" | "pos" | "d1" | "d7" | "vol" | "checkedAt"
 
 // ───── Helpers ─────────────────────────────────────────────────────────────
 
@@ -93,22 +88,20 @@ function StatusDot({ status }: { status: string | null }) {
   }
   const color = colorMap[status ?? ""] ?? "var(--text-mute)"
   const pulse = status === "PENDING" || status === "PROCESSING"
+  // Minimal: just the colored dot; the status label lives in the tooltip.
   return (
-    <span className="row" style={{ gap: 6 }}>
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: color,
-          flexShrink: 0,
-          animation: pulse ? "shim 1.4s ease-in-out infinite" : undefined,
-        }}
-      />
-      <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
-        {status ?? "NONE"}
-      </span>
-    </span>
+    <span
+      title={status ?? "NONE"}
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: color,
+        flexShrink: 0,
+        animation: pulse ? "shim 1.4s ease-in-out infinite" : undefined,
+      }}
+    />
   )
 }
 
@@ -292,8 +285,6 @@ export default function ProjectKeywordsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [usage, setUsage] = useState<UsageInfo | null>(null)
-  const [overview, setOverview] = useState<ProjectOverview | null>(null)
-  const [chartRange, setChartRange] = useState<OverviewRange>("30d")
 
   // Action state
   const [checking, setChecking] = useState(false)
@@ -350,21 +341,6 @@ export default function ProjectKeywordsPage() {
   }, [projectId, router])
 
   useEffect(() => { void load() }, [load])
-
-  // Per-project aggregate charts (Estimated traffic + Pages over time).
-  useEffect(() => {
-    if (!token || !user?.emailVerified) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const data = await api.get<ProjectOverview>(`/api/projects/${projectId}/overview?range=${chartRange}`)
-        if (!cancelled) setOverview(data)
-      } catch {
-        if (!cancelled) setOverview(null)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [projectId, chartRange, token, user?.emailVerified])
 
   // Load usage info — drives the daily-checks counter shown in the header.
   useEffect(() => {
@@ -542,17 +518,15 @@ export default function ProjectKeywordsPage() {
 
   // Project stats — drives the stat tiles in the header.
   const stats = useMemo(() => {
-    if (!project) return { total: 0, avgPos: 0, top3: 0, top10: 0, traffic: 0 }
+    if (!project) return { total: 0, avgPos: 0, top3: 0, top10: 0 }
     const positions = project.keywords
       .map((k) => k.position)
       .filter((p): p is number => p != null && Number.isFinite(p))
-    const traffic = project.keywords.reduce((sum, k) => sum + (k.monthlyTraffic ?? 0), 0)
     return {
       total: project.keywords.length,
       avgPos: positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0,
       top3: positions.filter((p) => p <= 3).length,
       top10: positions.filter((p) => p <= 10).length,
-      traffic,
     }
   }, [project])
 
@@ -580,7 +554,6 @@ export default function ProjectKeywordsPage() {
         d1: (k) => k.d1 ?? 0,
         d7: (k) => k.d7 ?? 0,
         vol: (k) => k.searchVolume ?? 0,
-        traffic: (k) => k.monthlyTraffic ?? 0,
       }
       const fn = map[sort.key as Exclude<SortKey, "kw" | "checkedAt">]
       return (fn(a) - fn(b)) * dir
@@ -777,7 +750,7 @@ export default function ProjectKeywordsPage() {
       </div>
 
       {/* Stat tiles */}
-      <div className="grid g-4" style={{ marginBottom: 14 }}>
+      <div className="grid g-3" style={{ marginBottom: 14 }}>
         <div className="stat">
           <div className="lbl">Keywords tracked</div>
           <div className="val tabular">{stats.total.toLocaleString()}</div>
@@ -799,57 +772,7 @@ export default function ProjectKeywordsPage() {
             {stats.total ? `${Math.round((stats.top10 / stats.total) * 100)}%` : "—"}
           </span>
         </div>
-        <div className="stat">
-          <div className="lbl">Est. monthly traffic</div>
-          <div className="val tabular">{stats.traffic ? stats.traffic.toLocaleString() : "—"}</div>
-          <span className="tiny muted">from latest checks</span>
-        </div>
       </div>
-
-      {/* Over-time charts (Estimated traffic + Pages) */}
-      {project.keywords.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div className="filter-row" style={{ justifyContent: "flex-end", marginBottom: 10 }}>
-            <div className="pill-toggle" style={{ width: "fit-content" }}>
-              {(["24h", "7d", "30d", "90d"] as const).map((r) => (
-                <button key={r} className={r === chartRange ? "active" : ""} onClick={() => setChartRange(r)}>{r}</button>
-              ))}
-            </div>
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-            <div className="card">
-              <div className="card-h">
-                <div>
-                  <div className="t">Estimated traffic</div>
-                  <div className="tiny muted" style={{ marginTop: 2 }}>Modelled monthly clicks · last {chartRange}</div>
-                </div>
-              </div>
-              {overview && overview.history.length > 0 ? (
-                <LineChart data={overview.history.map((h) => ({ value: h.traffic }))} yFormat={(v) => Math.round(v).toLocaleString()} height={220} />
-              ) : (
-                <div style={{ height: 220, display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-                  {overview === null ? "Loading…" : "No data in this range yet — run a check to populate this chart."}
-                </div>
-              )}
-            </div>
-            <div className="card">
-              <div className="card-h">
-                <div>
-                  <div className="t">Ranking pages</div>
-                  <div className="tiny muted" style={{ marginTop: 2 }}>Distinct pages in the SERP · last {chartRange}</div>
-                </div>
-              </div>
-              {overview && overview.history.length > 0 ? (
-                <LineChart data={overview.history.map((h) => ({ value: h.pages }))} yFormat={(v) => String(Math.round(v))} height={220} />
-              ) : (
-                <div style={{ height: 220, display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-                  {overview === null ? "Loading…" : "No data in this range yet — run a check to populate this chart."}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {error && (
         <div
@@ -957,12 +880,10 @@ export default function ProjectKeywordsPage() {
                   </th>
                   <SortHeader label="Keyword" k="kw" sort={sort} onClick={clickSort} />
                   <SortHeader label="Position" k="pos" sort={sort} onClick={clickSort} />
+                  <th style={{ whiteSpace: "nowrap" }}>First check</th>
                   <SortHeader label="Volume" k="vol" sort={sort} onClick={clickSort} />
-                  <SortHeader label="Traffic" k="traffic" sort={sort} onClick={clickSort} />
                   <th>URL</th>
-                  <th>Location</th>
                   <SortHeader label="Last checked" k="checkedAt" sort={sort} onClick={clickSort} />
-                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -989,19 +910,29 @@ export default function ProjectKeywordsPage() {
                         />
                       </td>
                       <td>
-                        <span className="kw">{kw.keyword}</span>
+                        <span className="row" style={{ gap: 8, alignItems: "center" }}>
+                          <span
+                            title={kw.location?.toUpperCase()}
+                            style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+                          >
+                            {flagFor(kw.location)}
+                          </span>
+                          <span className="kw">{kw.keyword}</span>
+                        </span>
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <PosCell position={kw.position} processing={isActive} plan={plan} />
+                          <PosCell position={kw.position} processing={isActive} />
                           <DeltaCell
                             from={kw.position != null && kw.d1 != null ? kw.position + kw.d1 : null}
                             to={kw.position}
                           />
                         </div>
                       </td>
+                      <td>
+                        <PosCell position={kw.firstPosition} />
+                      </td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
-                      <td className="tabular">{kw.monthlyTraffic != null ? kw.monthlyTraffic.toLocaleString() : "—"}</td>
                       <td style={{ maxWidth: 180 }}>
                         {kw.url ? (
                           <a
@@ -1023,24 +954,20 @@ export default function ProjectKeywordsPage() {
                           <span className="tiny muted" title="No URL — keyword is ranking deeper than the top 100">—</span>
                         )}
                       </td>
-                      <td>
-                        <span
-                          title={kw.location?.toUpperCase()}
-                          style={{ fontSize: 18, lineHeight: 1 }}
-                        >
-                          {flagFor(kw.location)}
+                      <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
+                        <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                          <span>
+                            {kw.checkedAt
+                              ? new Date(kw.checkedAt).toLocaleDateString("en-IN", {
+                                  day: "2-digit", month: "short", year: "numeric",
+                                })
+                              : "Never"}
+                          </span>
+                          <StatusDot status={kw.status} />
                         </span>
                       </td>
-                      <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
-                        {kw.checkedAt
-                          ? new Date(kw.checkedAt).toLocaleString("en-IN", {
-                              day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-                            })
-                          : "Never"}
-                      </td>
-                      <td><StatusDot status={kw.status} /></td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                        <div className="row" style={{ gap: 6, justifyContent: "flex-start" }}>
                           {(kw.position === null || kw.position > 1) && (
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
@@ -1050,10 +977,24 @@ export default function ProjectKeywordsPage() {
                                   `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
                                 )
                               }}
-                              className="btn primary sm"
-                              style={{ whiteSpace: "nowrap" }}
+                              className="btn primary sm rank-cta"
+                              style={{ whiteSpace: "nowrap", gap: 6 }}
+                              title={
+                                kw.position != null
+                                  ? `Improve this keyword from #${kw.position} to #1`
+                                  : "Get this keyword ranking on page 1"
+                              }
                             >
-                              Improve ranking?
+                              Rank
+                              {kw.position != null ? (
+                                <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                  #{kw.position}
+                                  <span className="rank-arrow" style={{ opacity: 0.7, fontSize: "0.9em" }}>→</span>
+                                  <span style={{ fontWeight: 700 }}>#1</span>
+                                </span>
+                              ) : (
+                                "Rank on page 1"
+                              )}
                             </button>
                           )}
                           {kw.latestAnalysisId && (

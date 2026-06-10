@@ -14,8 +14,6 @@ import {
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
-
 type ProjectSummary = {
   id: string
   name: string
@@ -60,7 +58,6 @@ export default function KeywordsListPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [rows, setRows] = useState<EnrichedRow[]>([])
-  const [usage, setUsage] = useState<UsageInfo | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,11 +114,6 @@ export default function KeywordsListPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [])
-
-  // Drives the not-found cap shown per row (free → "20+", paid → "100+").
-  useEffect(() => {
-    api.get<UsageInfo>("/api/usage").then(setUsage).catch(() => undefined)
   }, [])
 
   const filtered = useMemo(() => {
@@ -306,7 +298,6 @@ export default function KeywordsListPage() {
                     <PosCell
                       position={r.pos}
                       processing={r.status === "PENDING" || r.status === "PROCESSING"}
-                      plan={usage?.plan}
                     />
                   </td>
                   <td>
