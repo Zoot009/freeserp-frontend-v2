@@ -1,36 +1,36 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "./icons"
 
 type NavEntry = {
   href: string
-  label: string
+  labelKey: string
   icon: (props: { size?: number }) => React.JSX.Element
   badge?: number | string
 }
 
 const WORKSPACE: NavEntry[] = [
-  { href: "/dashboard", label: "Overview", icon: Icon.dash },
-  { href: "/dashboard/projects", label: "Projects", icon: Icon.folder },
-  { href: "/dashboard/keywords", label: "Keywords", icon: Icon.key },
+  { href: "/dashboard", labelKey: "overview", icon: Icon.dash },
+  { href: "/dashboard/projects", labelKey: "projects", icon: Icon.folder },
+  { href: "/dashboard/keywords", labelKey: "keywords", icon: Icon.key },
 ]
 
 const TOOLS: NavEntry[] = [
-  { href: "/dashboard/serp-checker", label: "Quick Serp", icon: Icon.zap },
-  { href: "/dashboard/alerts", label: "Alerts", icon: Icon.bell },
-  { href: "/dashboard/billing", label: "Settings", icon: Icon.settings },
+  { href: "/dashboard/serp-checker", labelKey: "quickSerp", icon: Icon.zap },
+  { href: "/dashboard/alerts", labelKey: "alerts", icon: Icon.bell },
+  { href: "/dashboard/billing", labelKey: "settings", icon: Icon.settings },
 ]
 
-function NavLink({ entry, active, onNavigate }: { entry: NavEntry; active: boolean; onNavigate?: () => void }) {
+function NavLink({ entry, label, active, onNavigate }: { entry: NavEntry; label: string; active: boolean; onNavigate?: () => void }) {
   const I = entry.icon
   return (
     <Link href={entry.href} className={"sb-item " + (active ? "active" : "")} onClick={onNavigate}>
       <I />
-      {entry.label}
+      {label}
       {entry.badge != null && <span className="badge">{entry.badge}</span>}
     </Link>
   )
@@ -44,6 +44,7 @@ function isActive(href: string, pathname: string) {
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname() || ""
   const router = useRouter()
+  const t = useTranslations("dashboardNav")
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -71,7 +72,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
   // Backend plan values are "free" | "paid" (a paid user is shown as "Pro").
   const isPaid = user?.plan === "paid"
-  const planLabel = user ? (isPaid ? "Pro plan" : "Free plan") : "Guest"
+  const planLabel = user ? (isPaid ? t("proPlan") : t("freePlan")) : t("guest")
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
@@ -80,23 +81,23 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         FreeSerp
       </div>
 
-      <div className="sb-section">Workspace</div>
+      <div className="sb-section">{t("workspace")}</div>
       {WORKSPACE.map((n) => (
-        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} onNavigate={onClose} />
+        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} />
       ))}
 
-      <div className="sb-section">Tools</div>
+      <div className="sb-section">{t("tools")}</div>
       {TOOLS.map((n) => (
-        <NavLink key={n.href} entry={n} active={isActive(n.href, pathname)} onNavigate={onClose} />
+        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} />
       ))}
 
       <div className="sb-spacer" />
 
       {!isPaid && (
         <div className="sb-upgrade">
-          <div className="title"><Icon.spark size={12} /> Upgrade to Pro</div>
-          <div className="desc">Unlimited keywords, daily updates, API access.</div>
-          <Link href="/pricing"><button>See plans</button></Link>
+          <div className="title"><Icon.spark size={12} /> {t("upgradeToPro")}</div>
+          <div className="desc">{t("upgradeDesc")}</div>
+          <Link href="/pricing"><button>{t("seePlans")}</button></Link>
         </div>
       )}
 
@@ -104,13 +105,13 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         <div className="avatar">{initials}</div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user?.name || user?.email?.split("@")[0] || "Guest"}
+            {user?.name || user?.email?.split("@")[0] || t("guest")}
           </div>
           <div className="plan">{planLabel}</div>
         </div>
         <button
           type="button"
-          aria-label="Account menu"
+          aria-label={t("accountMenu")}
           onClick={() => setMenuOpen((o) => !o)}
           style={{
             background: "transparent",
@@ -159,7 +160,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
                   cursor: "pointer",
                 }}
               >
-                <Icon.settings /> Settings
+                <Icon.settings /> {t("settings")}
               </button>
             </Link>
             {user?.email && (
@@ -201,7 +202,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
                 cursor: "pointer",
               }}
             >
-              Sign out
+              {t("signOut")}
             </button>
           </div>
         )}

@@ -1,5 +1,11 @@
 import type { CrawlData } from "@/types/competitor-analysis"
 
+// NOTE: this scorer is mirrored on the backend at
+// freeserp-backend/src/modules/competitor-analysis/lib/pageScore.ts, which
+// computes and persists the keyword's ranking-page score for the keywords
+// dashboard. Any change to the scoring logic here must be mirrored there, or the
+// dashboard's "Page Score" and this table's "Overall Score" will disagree.
+
 const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','being','as','it','its','this','that','these','those','i','my','your','our','we','they','he','she','not','no','so','do','does','did','has','have','had','can','will','would','should','could','may','might','into','about','up','out'])
 
 export interface SeoScoreBreakdown {
@@ -258,9 +264,15 @@ export function computeSeoScore(
   //   page-level Playwright crawl so the rest of CWV stays comparable.
   const psiMissing = !psi?.scores
   const tbtMissing = (psi?.vitals?.tbt ?? null) === null
+  // When linkAnalysis is withheld (free-tier locked competitor) or never
+  // captured, exclude the Links (12) + Anchors (5) buckets so the page isn't
+  // unfairly penalized for data it doesn't have — mirrors the PSI handling.
+  // A present-but-empty linkAnalysis is a real zero-links signal and stays in.
+  const linkDataMissing = !crawlData?.linkAnalysis
   let denom = RAW_MAX
   if (psiMissing) denom -= 15
   if (tbtMissing) denom -= 2
+  if (linkDataMissing) denom -= 17
 
   const total = Math.min(100, Math.round((rawScore / denom) * 100))
   const { grade, label } = gradeFromTotal(total)

@@ -1,50 +1,58 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { usePathname } from "@/i18n/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { AddWorkersModal } from "./add-workers-modal"
 import { Icon } from "./icons"
 import { NotificationBell } from "./notification-bell"
 import { UsageMeter } from "./usage-meter"
 
-// Static path → breadcrumb map. The `crumbsFor` fallback below appends "…"
-// for any unrecognised sub-path, so deep routes like
+// Static path → breadcrumb map, keyed by translation-key tuples. The `crumbsFor`
+// fallback below appends "…" for any unrecognised sub-path, so deep routes like
 // /dashboard/project/<id>/competitor-analysis/results just need their parent
-// prefix registered here.
-const CRUMBS: Record<string, string[]> = {
-  "/dashboard": ["Workspace", "Overview"],
-  "/dashboard/projects": ["Workspace", "Projects"],
-  "/dashboard/project": ["Workspace", "Projects", "Project"],
-  "/dashboard/keywords": ["Workspace", "Keywords"],
-  "/dashboard/serp-checker": ["Tools", "Quick Serp"],
-  "/dashboard/alerts": ["Tools", "Alerts"],
-  "/dashboard/billing": ["Tools", "Settings"],
+// prefix registered here. `usePathname` from @/i18n/navigation is locale-agnostic,
+// so these keys match regardless of the active locale prefix.
+const CRUMB_KEYS: Record<string, string[]> = {
+  "/dashboard": ["workspace", "overview"],
+  "/dashboard/projects": ["workspace", "projects"],
+  "/dashboard/project": ["workspace", "projects", "project"],
+  "/dashboard/keywords": ["workspace", "keywords"],
+  "/dashboard/serp-checker": ["tools", "quickSerp"],
+  "/dashboard/alerts": ["tools", "alerts"],
+  "/dashboard/billing": ["tools", "settings"],
 }
 
-function crumbsFor(pathname: string): string[] {
-  const direct = CRUMBS[pathname]
-  if (direct) return direct
-  const matched = Object.keys(CRUMBS)
+function crumbKeysFor(pathname: string): { keys: string[]; ellipsis: boolean } {
+  const direct = CRUMB_KEYS[pathname]
+  if (direct) return { keys: direct, ellipsis: false }
+  const matched = Object.keys(CRUMB_KEYS)
     .filter((p) => pathname.startsWith(p + "/") || pathname === p)
     .sort((a, b) => b.length - a.length)[0]
-  if (matched) return [...CRUMBS[matched], "…"]
-  return ["Workspace"]
+  if (matched) return { keys: CRUMB_KEYS[matched], ellipsis: true }
+  return { keys: ["workspace"], ellipsis: false }
 }
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname() || "/dashboard"
-  const crumbs = crumbsFor(pathname)
+  const tNav = useTranslations("dashboardNav")
+  const t = useTranslations("topbar")
+  const { keys, ellipsis } = crumbKeysFor(pathname)
+  const crumbs = [...keys.map((k) => tNav(k)), ...(ellipsis ? ["…"] : [])]
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark")
+  const [showWorkers, setShowWorkers] = useState(false)
 
   return (
     <div className="topbar">
       <button
         className="icon-btn topbar-hamburger"
         onClick={onMenuClick}
-        aria-label="Open navigation"
+        aria-label={t("openNav")}
       >
         <Icon.menu />
       </button>
@@ -58,18 +66,29 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
       <div className="search">
         <span className="ic"><Icon.search /></span>
-        <input placeholder="Search keywords, projects, competitors…" />
+        <input placeholder={t("searchPlaceholder")} />
       </div>
       <UsageMeter />
       <button
+        className="btn primary topbar-workers"
+        onClick={() => setShowWorkers(true)}
+        title={t("buyMoreRankChecks")}
+        aria-label={t("addWorkers")}
+      >
+        <Icon.users />
+        <span className="topbar-workers-label">{t("addWorkers")}</span>
+      </button>
+      <button
         className="icon-btn"
-        title="Toggle theme"
+        title={t("toggleTheme")}
         onClick={() => setTheme(isDark ? "light" : "dark")}
-        aria-label="Toggle theme"
+        aria-label={t("toggleTheme")}
       >
         {isDark ? <Icon.sun /> : <Icon.moon />}
       </button>
+      <LanguageSwitcher />
       <NotificationBell />
+      {showWorkers && <AddWorkersModal onClose={() => setShowWorkers(false)} />}
     </div>
   )
 }

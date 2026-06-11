@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { useTranslations } from "next-intl"
+import { Link } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
 
 interface UsageInfo {
@@ -18,6 +19,7 @@ interface UsageInfo {
 const POLL_MS = 60_000
 
 export function UsageMeter() {
+  const t = useTranslations("usageMeter")
   const [usage, setUsage] = useState<UsageInfo | null>(null)
 
   useEffect(() => {
@@ -49,12 +51,17 @@ export function UsageMeter() {
   const isPaid = usage.plan === "paid"
   const exhausted = usage.dailyRemaining <= 0
   const countColor = exhausted ? "var(--neg)" : "var(--text)"
-  const workerSuffix = isPaid && usage.workerCount ? ` (${usage.workerCount} ${usage.workerCount === 1 ? "worker" : "workers"})` : ""
+  const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
 
   const chip = (
     <div
       className="row"
-      title={`${isPaid ? "Pro" : "Free"} plan${workerSuffix} — ${usage.dailyUsed}/${usage.dailyLimit} rank checks used today`}
+      title={t("chipTitle", {
+        plan: isPaid ? t("planPro") : t("planFree"),
+        workerSuffix,
+        used: usage.dailyUsed,
+        limit: usage.dailyLimit,
+      })}
       style={{
         gap: 8,
         height: 36,
@@ -78,17 +85,17 @@ export function UsageMeter() {
           border: isPaid ? "none" : "1px solid var(--border)",
         }}
       >
-        {isPaid ? "Pro" : "Free"}
+        {isPaid ? t("planPro") : t("planFree")}
       </span>
       <span className="tiny" style={{ color: countColor }}>
         <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {usage.dailyUsed}/{usage.dailyLimit}
         </span>{" "}
-        <span className="muted usage-suffix">checks today</span>
+        <span className="muted usage-suffix">{t("checksToday")}</span>
       </span>
     </div>
   )
 
   // Free users: the chip doubles as an upgrade entry point.
-  return isPaid ? chip : <Link href="/pricing" aria-label="Daily checks — upgrade for more">{chip}</Link>
+  return isPaid ? chip : <Link href="/pricing" aria-label={t("upgradeAria")}>{chip}</Link>
 }

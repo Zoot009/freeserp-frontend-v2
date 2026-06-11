@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Icon } from "./icons"
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,7 @@ export function PosCell({
   position: number | null | undefined
   processing?: boolean
 }) {
+  const t = useTranslations("dashPrimitives")
   if (processing) {
     return <span className="pos-badge" style={{ color: "var(--text-mute)" }}>—</span>
   }
@@ -75,7 +77,7 @@ export function PosCell({
   return (
     <span
       className="chip"
-      title="Not found in the top 100 results — ranking deeper than our scan reaches"
+      title={t("notFoundTitle")}
     >
       100+
     </span>
@@ -354,16 +356,17 @@ export function trendToSparkline(trend: MonthlySearch[] | null | undefined): num
 }
 
 export function FeatChip({ f }: { f: string }) {
+  const t = useTranslations("dashPrimitives")
   const map: Record<string, { label: string; title: string }> = {
-    AI: { label: "AI", title: "AI Overview" },
-    FS: { label: "FS", title: "Featured snippet" },
-    PAA: { label: "PAA", title: "People also ask" },
-    VID: { label: "Vid", title: "Video carousel" },
-    IMG: { label: "Img", title: "Image pack" },
-    LOCAL: { label: "Local", title: "Local pack" },
-    KG: { label: "KG", title: "Knowledge graph" },
-    SHOP: { label: "Shop", title: "Shopping" },
-    NEWS: { label: "News", title: "News" },
+    AI: { label: "AI", title: t("feat.AI") },
+    FS: { label: "FS", title: t("feat.FS") },
+    PAA: { label: "PAA", title: t("feat.PAA") },
+    VID: { label: "Vid", title: t("feat.VID") },
+    IMG: { label: "Img", title: t("feat.IMG") },
+    LOCAL: { label: "Local", title: t("feat.LOCAL") },
+    KG: { label: "KG", title: t("feat.KG") },
+    SHOP: { label: "Shop", title: t("feat.SHOP") },
+    NEWS: { label: "News", title: t("feat.NEWS") },
   }
   const m = map[f] || { label: f, title: f }
   return <span className="chip outline" title={m.title}>{m.label}</span>
@@ -376,16 +379,17 @@ export function KeywordTable({
   rows: KeywordRow[]
   onRow?: (k: KeywordRow) => void
 }) {
+  const t = useTranslations("dashPrimitives")
   return (
     <table className="tbl">
       <thead>
         <tr>
-          <th>Keyword</th>
-          <th>Position</th>
+          <th>{t("table.keyword")}</th>
+          <th>{t("table.position")}</th>
           <th>Δ</th>
-          <th>Volume</th>
+          <th>{t("table.volume")}</th>
           <th>SERP</th>
-          <th>Trend</th>
+          <th>{t("table.trend")}</th>
         </tr>
       </thead>
       <tbody>

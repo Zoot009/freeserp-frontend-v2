@@ -10,10 +10,15 @@ export function Favicon({
   domain,
   size = 26,
   fallbackColor,
+  bare = false,
 }: {
   domain: string
   size?: number
   fallbackColor?: string
+  // When true, the loaded favicon renders on its own with no rounded
+  // container background or border (the image fills the box). The coloured
+  // initial fallback still shows its background since it needs the contrast.
+  bare?: boolean
 }) {
   const [failed, setFailed] = useState(false)
   const clean = domain.toLowerCase().replace(/^www\./, "")
@@ -46,9 +51,9 @@ export function Favicon({
     )
   }
 
-  const inner = Math.round(size * 0.62)
+  const inner = bare ? size : Math.round(size * 0.62)
   return (
-    <span style={{ ...box, background: "var(--bg-inset)", border: "1px solid var(--border)" }}>
+    <span style={bare ? box : { ...box, background: "var(--bg-inset)", border: "1px solid var(--border)" }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(clean)}`}

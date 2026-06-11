@@ -1423,6 +1423,8 @@
   .fs-app .crumbs > span:not(.here) { display: none; }
   .fs-app .crumbs > span.here .sep { display: none; }
   .fs-app .usage-suffix { display: none; }
+  /* "Add workers" collapses to an icon-only button to save room. */
+  .fs-app .topbar-workers-label { display: none; }
 
   .fs-app .page { padding: 16px var(--page-pad) 48px; }
   .fs-app .page-h h1 { font-size: 22px; }

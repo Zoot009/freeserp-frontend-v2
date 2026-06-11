@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { useRouter } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
 import { Icon } from "./icons"
 
@@ -17,18 +18,19 @@ interface Notification {
 
 const POLL_MS = 60_000
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return t("justNow")
+  if (mins < 60) return t("minutesAgo", { count: mins })
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return t("hoursAgo", { count: hrs })
   const days = Math.floor(hrs / 24)
-  return `${days}d ago`
+  return t("daysAgo", { count: days })
 }
 
 export function NotificationBell() {
+  const t = useTranslations("notifications")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [unread, setUnread] = useState(0)
@@ -107,7 +109,7 @@ export function NotificationBell() {
 
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
-      <button className="icon-btn" title="Notifications" aria-label="Notifications" onClick={toggle}>
+      <button className="icon-btn" title={t("title")} aria-label={t("title")} onClick={toggle}>
         <Icon.bell />
         {unread > 0 && <span className="dot" />}
       </button>
@@ -132,22 +134,22 @@ export function NotificationBell() {
             className="row"
             style={{ justifyContent: "space-between", padding: "12px 14px", borderBottom: "1px solid var(--border)" }}
           >
-            <span className="b" style={{ fontSize: 13 }}>Notifications</span>
+            <span className="b" style={{ fontSize: 13 }}>{t("title")}</span>
             {unread > 0 && (
               <button
                 onClick={markAllRead}
                 type="button"
                 style={{ background: "transparent", border: "none", color: "var(--brand)", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
               >
-                Mark all read
+                {t("markAllRead")}
               </button>
             )}
           </div>
 
           {loading ? (
-            <div className="tiny muted" style={{ padding: 16 }}>Loading…</div>
+            <div className="tiny muted" style={{ padding: 16 }}>{t("loading")}</div>
           ) : items.length === 0 ? (
-            <div className="tiny muted" style={{ padding: 16, textAlign: "center" }}>No notifications yet.</div>
+            <div className="tiny muted" style={{ padding: 16, textAlign: "center" }}>{t("empty")}</div>
           ) : (
             <>
               {items.map((n) => (
@@ -168,7 +170,7 @@ export function NotificationBell() {
                 >
                   <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
                     <span className="b" style={{ fontSize: 12.5 }}>{n.title}</span>
-                    <span className="tiny muted" style={{ flexShrink: 0 }}>{relativeTime(n.createdAt)}</span>
+                    <span className="tiny muted" style={{ flexShrink: 0 }}>{relativeTime(n.createdAt, t)}</span>
                   </div>
                   <div className="tiny muted" style={{ marginTop: 2 }}>{n.body}</div>
                 </button>
@@ -188,7 +190,7 @@ export function NotificationBell() {
                   fontWeight: 600,
                 }}
               >
-                View all alerts
+                {t("viewAllAlerts")}
               </button>
             </>
           )}

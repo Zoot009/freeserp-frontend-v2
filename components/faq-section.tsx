@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useEffect } from "react"
+import { useTranslations } from "next-intl"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
@@ -12,30 +13,11 @@ import {
 
 gsap.registerPlugin(ScrollTrigger)
 
-const faqs = [
-  {
-    question: "What are SERPs?",
-    answer: "SERPs (Search Engine Results Pages) are the pages displayed by Google after a user searches for a query. They include organic results, ads, and SERP features."
-  },
-  {
-    question: "What is SERP analysis?",
-    answer: "SERP analysis is the process of analyzing search results for a keyword to understand ranking difficulty, competitors, and available SERP features."
-  },
-  {
-    question: "How do I do SERP analysis?",
-    answer: "To perform SERP analysis, search your target keyword, review the top-ranking pages, analyze content quality, and identify SERP features like snippets or FAQs."
-  },
-  {
-    question: "How do I analyze SERP features?",
-    answer: "You can analyze SERP features by checking which elements appear in search results, such as featured snippets, image packs, or local results."
-  },
-  {
-    question: "How do I check SERP ranking?",
-    answer: "You can check SERP ranking by using a SERP checker tool to see where your website appears for a specific keyword."
-  }
-]
+type Faq = { question: string; answer: string }
 
 export function FaqSection() {
+  const t = useTranslations("faq")
+  const faqs = t.raw("items") as Faq[]
   const sectionRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
   const accordionRef = useRef<HTMLDivElement>(null)
@@ -85,10 +67,10 @@ export function FaqSection() {
       <div className="max-w-4xl mx-auto">
         {/* Section header */}
         <div ref={headerRef} className="mb-16 text-center">
-          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Frequently Asked</span>
-          <h2 className="mt-4 font-[var(--font-bebas)] text-5xl md:text-7xl tracking-tight">FAQ</h2>
+          <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">{t("eyebrow")}</span>
+          <h2 className="mt-4 font-[var(--font-bebas)] text-5xl md:text-7xl tracking-tight">{t("heading")}</h2>
           <p className="mt-4 mx-auto max-w-2xl font-mono text-sm text-muted-foreground leading-relaxed">
-            Common questions about SERP checking, analysis, and ranking.
+            {t("subtitle")}
           </p>
         </div>
 
