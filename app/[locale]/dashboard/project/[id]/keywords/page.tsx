@@ -890,6 +890,9 @@ export default function ProjectKeywordsPage() {
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
+          <div className="tiny muted spacer">
+            Showing {filtered.length} of {scoped.length}
+          </div>
           <div className="pill-toggle" style={{ width: "fit-content" }}>
             {(["desktop", "mobile"] as const).map((d) => (
               <button
@@ -903,9 +906,6 @@ export default function ProjectKeywordsPage() {
                 {d === "desktop" ? "Desktop" : "Mobile"} ({deviceCounts[d]})
               </button>
             ))}
-          </div>
-          <div className="tiny muted spacer">
-            Showing {filtered.length} of {scoped.length}
           </div>
         </div>
       )}
