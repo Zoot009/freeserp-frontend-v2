@@ -36,6 +36,7 @@ interface Keyword {
   id: string
   keyword: string
   location: string
+  device: string | null
   addedAt: string
   position: number | null
   // First (oldest) rank ever recorded for this keyword — drives the "First check" column.
@@ -349,6 +350,11 @@ export default function ProjectKeywordsPage() {
   // Filter + sort state
   const [filter, setFilter] = useState("")
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "pos", dir: "asc" })
+  // Device view — keywords are tracked separately per device, so the table
+  // shows one device at a time. Defaults to desktop; auto-flips to mobile once
+  // (on first load) if the project only has mobile keywords.
+  const [deviceTab, setDeviceTab] = useState<"desktop" | "mobile">("desktop")
+  const deviceTabInit = useRef(false)
 
   // Auth gate
   useEffect(() => {
@@ -377,6 +383,16 @@ export default function ProjectKeywordsPage() {
   }, [projectId, router])
 
   useEffect(() => { void load() }, [load])
+
+  // On first load, if every keyword is mobile, open on the Mobile tab so the
+  // table isn't empty. Runs once — the user's manual tab choice wins after.
+  useEffect(() => {
+    if (deviceTabInit.current || !project) return
+    deviceTabInit.current = true
+    const hasDesktop = project.keywords.some((k) => k.device !== "mobile")
+    const hasMobile = project.keywords.some((k) => k.device === "mobile")
+    if (!hasDesktop && hasMobile) setDeviceTab("mobile")
+  }, [project])
 
   // Load usage info — drives the daily-checks counter shown in the header.
   useEffect(() => {
@@ -457,9 +473,9 @@ export default function ProjectKeywordsPage() {
   }
 
   const handleSelectAll = () => {
-    if (!project) return
-    if (selectedKeywords.size === project.keywords.length) setSelectedKeywords(new Set())
-    else setSelectedKeywords(new Set(project.keywords.map((kw) => kw.id)))
+    const visibleIds = filtered.map((kw) => kw.id)
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedKeywords.has(id))
+    setSelectedKeywords(allSelected ? new Set() : new Set(visibleIds))
   }
 
   const handleToggleKeyword = (kwId: string) => {
@@ -552,24 +568,38 @@ export default function ProjectKeywordsPage() {
 
   const pendingCount = (statusCounts["PENDING"] || 0) + (statusCounts["PROCESSING"] || 0)
 
-  // Project stats — drives the stat tiles in the header.
+  // Keyword count per device — drives the labels on the Desktop/Mobile tabs.
+  // Legacy rows with a null device are treated as desktop.
+  const deviceCounts = useMemo(() => {
+    const c = { desktop: 0, mobile: 0 }
+    project?.keywords.forEach((k) => { k.device === "mobile" ? c.mobile++ : c.desktop++ })
+    return c
+  }, [project])
+
+  // Keywords for the active device tab. Stats + table both scope to this so the
+  // whole view reflects the selected device.
+  const scoped = useMemo(
+    () => (project?.keywords ?? []).filter((k) => (k.device === "mobile" ? "mobile" : "desktop") === deviceTab),
+    [project, deviceTab],
+  )
+
+  // Project stats — drives the stat tiles in the header (scoped to the device tab).
   const stats = useMemo(() => {
-    if (!project) return { total: 0, avgPos: 0, top3: 0, top10: 0 }
-    const positions = project.keywords
+    const positions = scoped
       .map((k) => k.position)
       .filter((p): p is number => p != null && Number.isFinite(p))
     return {
-      total: project.keywords.length,
+      total: scoped.length,
       avgPos: positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0,
       top3: positions.filter((p) => p <= 3).length,
       top10: positions.filter((p) => p <= 10).length,
     }
-  }, [project])
+  }, [scoped])
 
   // Filter + sort the keyword list.
   const filtered = useMemo(() => {
     if (!project) return []
-    let rows = project.keywords
+    let rows = scoped
     if (filter.trim()) {
       const needle = filter.toLowerCase()
       rows = rows.filter((r) =>
@@ -597,7 +627,7 @@ export default function ProjectKeywordsPage() {
       return (fn(a) - fn(b)) * dir
     })
     return rows
-  }, [project, filter, sort])
+  }, [project, scoped, filter, sort])
 
   const clickSort = (k: SortKey) =>
     setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === "asc" ? "desc" : "asc") : k === "kw" ? "asc" : "desc" }))
@@ -860,8 +890,22 @@ export default function ProjectKeywordsPage() {
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
+          <div className="pill-toggle" style={{ width: "fit-content" }}>
+            {(["desktop", "mobile"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={deviceTab === d ? "active" : ""}
+                onClick={() => setDeviceTab(d)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                {d === "desktop" ? <Icon.monitor /> : <Icon.smartphone />}
+                {d === "desktop" ? "Desktop" : "Mobile"} ({deviceCounts[d]})
+              </button>
+            ))}
+          </div>
           <div className="tiny muted spacer">
-            Showing {filtered.length} of {project.keywords.length}
+            Showing {filtered.length} of {scoped.length}
           </div>
         </div>
       )}
@@ -900,7 +944,9 @@ export default function ProjectKeywordsPage() {
             fontSize: 13,
           }}
         >
-          No keywords match “{filter}”.
+          {filter.trim()
+            ? `No keywords match “${filter}”.`
+            : `No ${deviceTab} keywords yet — add some, or switch to ${deviceTab === "desktop" ? "Mobile" : "Desktop"}.`}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -911,7 +957,7 @@ export default function ProjectKeywordsPage() {
                   <th style={{ width: 40 }}>
                     <input
                       type="checkbox"
-                      checked={project.keywords.length > 0 && selectedKeywords.size === project.keywords.length}
+                      checked={filtered.length > 0 && filtered.every((kw) => selectedKeywords.has(kw.id))}
                       onChange={handleSelectAll}
                       title="Select all keywords"
                     />
