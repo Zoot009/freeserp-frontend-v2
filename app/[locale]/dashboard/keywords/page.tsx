@@ -28,6 +28,7 @@ type Keyword = {
   id: string
   keyword: string
   location: string | null
+  device: string | null
   position: number | null
   d1: number | null
   d7: number | null
@@ -51,6 +52,7 @@ type EnrichedRow = KeywordRow & {
   projectId: string
   projectDomain: string
   location: string | null
+  device: string | null
   traffic: number | null
   status: string | null
 }
@@ -101,6 +103,7 @@ export default function KeywordsListPage() {
               projectId: detail.id,
               projectDomain: detail.domain,
               location: k.location,
+              device: k.device,
               traffic: k.monthlyTraffic,
               status: k.status,
             })
@@ -121,6 +124,7 @@ export default function KeywordsListPage() {
   const filtered = useMemo(() => {
     let out = rows
     if (projectFilter !== "all") out = out.filter((r) => r.projectId === projectFilter)
+    if (deviceFilter !== "all") out = out.filter((r) => (r.device ?? "desktop") === deviceFilter)
     if (filter.trim()) {
       const needle = filter.toLowerCase()
       out = out.filter((r) => r.kw.toLowerCase().includes(needle))
@@ -147,7 +151,7 @@ export default function KeywordsListPage() {
       return sort.dir === "asc" ? av - bv : bv - av
     })
     return out
-  }, [rows, filter, projectFilter, sort])
+  }, [rows, filter, projectFilter, deviceFilter, sort])
 
   const positions = filtered.map((r) => r.pos).filter((p): p is number => p != null && Number.isFinite(p))
   const avgPos = positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0
@@ -292,8 +296,18 @@ export default function KeywordsListPage() {
                 >
                   <td>
                     <div className="kw">{r.kw}</div>
-                    {r.location && (
-                      <div className="tiny muted mono" style={{ marginTop: 2, textTransform: "uppercase" }}>{r.location}</div>
+                    {(r.location || r.device) && (
+                      <div className="row tiny muted" style={{ marginTop: 2, gap: 6, alignItems: "center" }}>
+                        {r.location && (
+                          <span className="mono" style={{ textTransform: "uppercase" }}>{r.location}</span>
+                        )}
+                        {r.device && (
+                          <span className="row" style={{ gap: 3, alignItems: "center" }}>
+                            {(r.device === "mobile" ? <Icon.smartphone /> : <Icon.monitor />)}
+                            {r.device === "mobile" ? t("deviceMobile") : t("deviceDesktop")}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td>
