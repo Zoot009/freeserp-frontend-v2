@@ -293,7 +293,9 @@
    }
   ],
   "choosePlan": "Choisissez votre forfait",
-  "tierChecks": "{checks, number} vérifications/jour"
+  "tierChecks": "{checks, number} vérifications/jour",
+  "fewerChecks": "Moins de vérifications",
+  "moreChecks": "Plus de vérifications"
  },
  "dashboardNav": {
   "workspace": "Espace de travail",

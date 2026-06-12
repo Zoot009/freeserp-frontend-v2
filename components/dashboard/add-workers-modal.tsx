@@ -4,27 +4,13 @@ import { useEffect, useState } from "react"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { Icon } from "@/components/dashboard/icons"
-
-// Keep in sync with the backend workers plan, the pricing page, and the billing
-// page (app/dashboard/billing/page.tsx).
-const SEARCHES_PER_WORKER = 15
-const PRICE_PER_WORKER_USD = 1
-const MAX_WORKERS = 50
+import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
 
 // Subset of GET /api/usage we need here (same shape the billing page reads).
 interface Usage {
   plan: "free" | "paid" | string
   workerCount: number
   perWorkerDailyChecks: number
-}
-
-const stepBtn: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  padding: 0,
-  justifyContent: "center",
-  fontSize: 20,
-  fontWeight: 600,
 }
 
 export function AddWorkersModal({ onClose }: { onClose: () => void }) {
@@ -106,43 +92,36 @@ export function AddWorkersModal({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               <p className="tiny muted" style={{ margin: 0 }}>
-                Each worker adds {perWorker} rank checks/day for ${PRICE_PER_WORKER_USD}/mo. Change anytime — we prorate the difference.
+                Each $1/mo adds {perWorker} rank checks/day. Pick a plan — change anytime, we prorate the difference.
               </p>
 
-              <div className="row" style={{ gap: 10, justifyContent: "center" }}>
-                <button
-                  type="button"
-                  aria-label="Remove a worker"
-                  className="btn"
-                  onClick={() => setWorkers((w) => Math.max(1, w - 1))}
-                  disabled={workers <= 1 || busy}
-                  style={stepBtn}
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_WORKERS}
-                  value={workers}
-                  disabled={busy}
-                  onChange={(e) => {
-                    const n = parseInt(e.target.value, 10)
-                    setWorkers(Number.isNaN(n) ? 1 : Math.min(MAX_WORKERS, Math.max(1, n)))
-                  }}
-                  className="input"
-                  style={{ width: 90, textAlign: "center", fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
-                />
-                <button
-                  type="button"
-                  aria-label="Add a worker"
-                  className="btn"
-                  onClick={() => setWorkers((w) => Math.min(MAX_WORKERS, w + 1))}
-                  disabled={workers >= MAX_WORKERS || busy}
-                  style={stepBtn}
-                >
-                  +
-                </button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {TIERS.map((tier) => {
+                  const active = tier.workers === workers
+                  return (
+                    <button
+                      key={tier.usd}
+                      type="button"
+                      aria-pressed={active}
+                      className="btn"
+                      onClick={() => setWorkers(tier.workers)}
+                      disabled={busy}
+                      style={{
+                        flexDirection: "column",
+                        gap: 2,
+                        padding: "9px 4px",
+                        height: "auto",
+                        borderColor: active ? "var(--brand)" : "var(--border)",
+                        background: active ? "var(--brand-soft)" : "var(--bg-elev)",
+                        color: active ? "var(--brand)" : "var(--text)",
+                        boxShadow: active ? "inset 0 0 0 1px var(--brand)" : "none",
+                      }}
+                    >
+                      <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${tier.usd}</span>
+                      <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>{tier.checks.toLocaleString()}/day</span>
+                    </button>
+                  )
+                })}
               </div>
 
               <p className="tiny muted" style={{ margin: 0, textAlign: "center" }}>

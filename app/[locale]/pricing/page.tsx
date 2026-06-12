@@ -53,10 +53,15 @@ export default function PricingPage() {
   const [status, setStatus] = useState<Status | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState("")
-  // Number of workers to purchase (1 worker = 15 searches/day = $1/mo).
-  const [workers, setWorkers] = useState(1)
-  const searchesPerDay = workers * SEARCHES_PER_WORKER
-  const monthlyUsd = workers * PRICE_PER_WORKER_USD
+  // Fixed pricing tiers stepped through with −/+ (no custom amounts). The selected
+  // tier drives the worker quantity, price, and daily checks shown on the card.
+  const [tierIndex, setTierIndex] = useState(0)
+  const tier = TIERS[tierIndex]
+  const workers = tier.workers
+  const searchesPerDay = tier.checks
+  const monthlyUsd = tier.usd
+  const atMin = tierIndex <= 0
+  const atMax = tierIndex >= TIERS.length - 1
 
   useEffect(() => {
     if (!token) return
@@ -94,6 +99,16 @@ export default function PricingPage() {
   const isPaid =
     status?.plan === "paid" &&
     (!status.planExpiresAt || new Date(status.planExpiresAt).getTime() > Date.now())
+
+  const stepBtnStyle: React.CSSProperties = {
+    width: 46,
+    height: 46,
+    padding: 0,
+    justifyContent: "center",
+    fontSize: 22,
+    fontWeight: 600,
+    flexShrink: 0,
+  }
 
   return (
     <main className="fs-app" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
@@ -216,34 +231,73 @@ export default function PricingPage() {
                   {t("perWorkerEach", { searches: SEARCHES_PER_WORKER, price: PRICE_PER_WORKER_USD })}
                 </span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                {TIERS.map(tier => {
-                  const active = tier.workers === workers
-                  return (
-                    <button
-                      key={tier.usd}
-                      type="button"
-                      aria-pressed={active}
-                      className="btn"
-                      onClick={() => setWorkers(tier.workers)}
-                      style={{
-                        flexDirection: "column",
-                        gap: 2,
-                        padding: "10px 4px",
-                        height: "auto",
-                        borderColor: active ? "var(--brand)" : "var(--border)",
-                        background: active ? "var(--brand-soft)" : "var(--bg-elev)",
-                        color: active ? "var(--brand)" : "var(--text)",
-                        boxShadow: active ? "inset 0 0 0 1px var(--brand)" : "none",
-                      }}
-                    >
-                      <span style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${tier.usd}</span>
-                      <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        {t("tierChecks", { checks: tier.checks })}
-                      </span>
-                    </button>
-                  )
-                })}
+              {/* Incremental stepper — −/+ move between the fixed tiers */}
+              <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
+                <button
+                  type="button"
+                  aria-label={t("fewerChecks")}
+                  className="btn"
+                  onClick={() => setTierIndex(i => Math.max(0, i - 1))}
+                  disabled={atMin}
+                  style={stepBtnStyle}
+                >
+                  −
+                </button>
+                <div
+                  style={{
+                    flex: 1,
+                    display: "grid",
+                    placeItems: "center",
+                    gap: 2,
+                    padding: "6px 4px",
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--bg-elev)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <span style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+                    {t("tierChecks", { checks: searchesPerDay })}
+                  </span>
+                  <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    ${monthlyUsd}{t("perMonth")}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label={t("moreChecks")}
+                  className="btn"
+                  onClick={() => setTierIndex(i => Math.min(TIERS.length - 1, i + 1))}
+                  disabled={atMax}
+                  style={stepBtnStyle}
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Tier scale — click a segment to jump straight to that tier */}
+              <div className="row" style={{ gap: 4, marginTop: 12 }}>
+                {TIERS.map((tt, i) => (
+                  <button
+                    key={tt.usd}
+                    type="button"
+                    aria-label={`$${tt.usd}`}
+                    aria-pressed={i === tierIndex}
+                    onClick={() => setTierIndex(i)}
+                    style={{
+                      flex: 1,
+                      height: 6,
+                      padding: 0,
+                      border: "none",
+                      cursor: "pointer",
+                      borderRadius: 3,
+                      background: i <= tierIndex ? "var(--brand)" : "var(--border)",
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="row between" style={{ marginTop: 6 }}>
+                <span className="tiny muted">${TIERS[0].usd}</span>
+                <span className="tiny muted">${TIERS[TIERS.length - 1].usd}</span>
               </div>
               <p className="tiny muted" style={{ marginTop: 10 }}>
                 {t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}

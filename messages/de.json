@@ -293,7 +293,9 @@
    }
   ],
   "choosePlan": "Wähle deinen Plan",
-  "tierChecks": "{checks, number} Checks/Tag"
+  "tierChecks": "{checks, number} Checks/Tag",
+  "fewerChecks": "Weniger Checks",
+  "moreChecks": "Mehr Checks"
  },
  "dashboardNav": {
   "workspace": "Arbeitsbereich",

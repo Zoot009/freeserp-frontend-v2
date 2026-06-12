@@ -293,7 +293,9 @@
    }
   ],
   "choosePlan": "Elige tu plan",
-  "tierChecks": "{checks, number} comprobaciones/día"
+  "tierChecks": "{checks, number} comprobaciones/día",
+  "fewerChecks": "Menos comprobaciones",
+  "moreChecks": "Más comprobaciones"
  },
  "dashboardNav": {
   "workspace": "Espacio de trabajo",
