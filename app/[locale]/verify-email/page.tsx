@@ -27,7 +27,7 @@ export default function VerifyEmailPage() {
   // Redirect if already verified or not logged in
   useEffect(() => {
     if (!loading && !user && !token) router.push("/login")
-    if (!loading && user?.emailVerified) router.push("/dashboard")
+    if (!loading && user?.emailVerified) router.push("/dashboard/projects")
   }, [user, token, loading, router])
 
   // Entrance animation — mirrors the login page
@@ -128,7 +128,7 @@ export default function VerifyEmailPage() {
     try {
       await verifyEmail(otp)
       setSuccess(t("successVerified"))
-      setTimeout(() => router.push("/dashboard"), 1200)
+      setTimeout(() => router.push("/dashboard/projects"), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       // Clear digits on wrong OTP

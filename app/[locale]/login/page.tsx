@@ -25,7 +25,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/dashboard")
+      router.push("/dashboard/projects")
     }
   }, [user, authLoading, router])
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
       setError("")
       try {
         await loginWithGoogle(access_token)
-        router.push("/dashboard")
+        router.push("/dashboard/projects")
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
       } finally {
@@ -100,7 +100,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { emailVerified } = await login({ email, password })
-      router.push(emailVerified ? "/dashboard" : "/verify-email")
+      router.push(emailVerified ? "/dashboard/projects" : "/verify-email")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorInvalidCredentials"))
     } finally {

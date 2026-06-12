@@ -39,7 +39,7 @@ function SignupForm() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/dashboard")
+      router.push("/dashboard/projects")
     }
   }, [user, authLoading, router])
 
@@ -50,7 +50,7 @@ function SignupForm() {
       setError("")
       try {
         await loginWithGoogle(access_token)
-        router.push("/dashboard")
+        router.push("/dashboard/projects")
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
       } finally {
