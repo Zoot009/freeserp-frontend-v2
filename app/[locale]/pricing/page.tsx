@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth"
 import axios from "@/lib/axios"
+import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -16,12 +17,6 @@ interface Status {
   subscriptionId: string | null
   workerCount?: number
 }
-
-// Serprobot-style worker pricing: 1 worker = 15 searches/day for $1/month. Capacity and
-// price scale linearly with the number of workers.
-const SEARCHES_PER_WORKER = 15
-const PRICE_PER_WORKER_USD = 1
-const MAX_WORKERS = 50
 
 const Check = () => (
   <span
@@ -99,15 +94,6 @@ export default function PricingPage() {
   const isPaid =
     status?.plan === "paid" &&
     (!status.planExpiresAt || new Date(status.planExpiresAt).getTime() > Date.now())
-
-  const stepBtnStyle: React.CSSProperties = {
-    width: 44,
-    height: 44,
-    padding: 0,
-    justifyContent: "center",
-    fontSize: 20,
-    fontWeight: 600,
-  }
 
   return (
     <main className="fs-app" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
@@ -212,7 +198,7 @@ export default function PricingPage() {
               })}
             </p>
 
-            {/* Worker quantity stepper */}
+            {/* Fixed pricing tiers — pick an amount (no custom values) */}
             <div
               style={{
                 marginTop: 20,
@@ -224,45 +210,40 @@ export default function PricingPage() {
             >
               <div className="row between" style={{ marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-mute)" }}>
-                  {t("workers")}
+                  {t("choosePlan")}
                 </span>
                 <span className="tiny muted">
                   {t("perWorkerEach", { searches: SEARCHES_PER_WORKER, price: PRICE_PER_WORKER_USD })}
                 </span>
               </div>
-              <div className="row" style={{ gap: 10 }}>
-                <button
-                  type="button"
-                  aria-label={t("removeWorker")}
-                  className="btn"
-                  onClick={() => setWorkers(w => Math.max(1, w - 1))}
-                  disabled={workers <= 1}
-                  style={stepBtnStyle}
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_WORKERS}
-                  value={workers}
-                  onChange={e => {
-                    const n = parseInt(e.target.value, 10)
-                    setWorkers(Number.isNaN(n) ? 1 : Math.min(MAX_WORKERS, Math.max(1, n)))
-                  }}
-                  className="input"
-                  style={{ textAlign: "center", fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
-                />
-                <button
-                  type="button"
-                  aria-label={t("addWorker")}
-                  className="btn"
-                  onClick={() => setWorkers(w => Math.min(MAX_WORKERS, w + 1))}
-                  disabled={workers >= MAX_WORKERS}
-                  style={stepBtnStyle}
-                >
-                  +
-                </button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {TIERS.map(tier => {
+                  const active = tier.workers === workers
+                  return (
+                    <button
+                      key={tier.usd}
+                      type="button"
+                      aria-pressed={active}
+                      className="btn"
+                      onClick={() => setWorkers(tier.workers)}
+                      style={{
+                        flexDirection: "column",
+                        gap: 2,
+                        padding: "10px 4px",
+                        height: "auto",
+                        borderColor: active ? "var(--brand)" : "var(--border)",
+                        background: active ? "var(--brand-soft)" : "var(--bg-elev)",
+                        color: active ? "var(--brand)" : "var(--text)",
+                        boxShadow: active ? "inset 0 0 0 1px var(--brand)" : "none",
+                      }}
+                    >
+                      <span style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${tier.usd}</span>
+                      <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        {t("tierChecks", { checks: tier.checks })}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
               <p className="tiny muted" style={{ marginTop: 10 }}>
                 {t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}

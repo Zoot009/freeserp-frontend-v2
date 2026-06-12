@@ -375,7 +375,11 @@ export default function ProjectKeywordsPage() {
         router.replace("/dashboard/projects")
         return null
       }
-      setError(err instanceof Error ? err.message : "Failed to load project")
+      // Background polls (silent) must not surface an error banner: the page
+      // already shows data, so a transient network blip during polling would
+      // otherwise flash a scary "Network Error". Fail quietly and let the next
+      // poll retry. Only the initial (non-silent) load reports a load failure.
+      if (!silent) setError(err instanceof Error ? err.message : "Failed to load project")
       return null
     } finally {
       if (!silent) setLoading(false)
@@ -967,7 +971,7 @@ export default function ProjectKeywordsPage() {
                   <th style={{ whiteSpace: "nowrap" }}>First check</th>
                   <SortHeader label="Volume" k="vol" sort={sort} onClick={clickSort} />
                   <th>URL</th>
-                  <SortHeader label="Page score" k="score" sort={sort} onClick={clickSort} />
+                  <SortHeader label="Keyword score" k="score" sort={sort} onClick={clickSort} />
                   <SortHeader label="Last checked" k="checkedAt" sort={sort} onClick={clickSort} />
                   <th>Actions</th>
                 </tr>

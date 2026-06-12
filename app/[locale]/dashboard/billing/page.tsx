@@ -8,11 +8,7 @@ import { api, ApiError, getAccessToken } from "@/lib/api"
 import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
-
-// Keep in sync with the backend workers plan (planLimits / seed) and the pricing page.
-const SEARCHES_PER_WORKER = 15
-const PRICE_PER_WORKER_USD = 1
-const MAX_WORKERS = 50
+import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
 
 interface Usage {
   plan: "free" | "paid" | string
@@ -249,22 +245,33 @@ export default function BillingPage() {
             </div>
           ) : (
             <div>
-              <div className="row" style={{ gap: 10 }}>
-                <button className="btn" onClick={() => setWorkers(w => Math.max(1, w - 1))} disabled={workers <= 1 || saving} style={stepBtn} aria-label={t("removeWorker")}>−</button>
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_WORKERS}
-                  value={workers}
-                  disabled={saving}
-                  onChange={e => {
-                    const n = parseInt(e.target.value, 10)
-                    setWorkers(Number.isNaN(n) ? 1 : Math.min(MAX_WORKERS, Math.max(1, n)))
-                  }}
-                  className="input"
-                  style={{ width: 80, textAlign: "center", fontSize: 18, fontWeight: 600 }}
-                />
-                <button className="btn" onClick={() => setWorkers(w => Math.min(MAX_WORKERS, w + 1))} disabled={workers >= MAX_WORKERS || saving} style={stepBtn} aria-label={t("addWorker")}>+</button>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {TIERS.map(tier => {
+                  const active = tier.workers === workers
+                  return (
+                    <button
+                      key={tier.usd}
+                      type="button"
+                      aria-pressed={active}
+                      className="btn"
+                      onClick={() => setWorkers(tier.workers)}
+                      disabled={saving}
+                      style={{
+                        flexDirection: "column",
+                        gap: 2,
+                        padding: "9px 4px",
+                        height: "auto",
+                        borderColor: active ? "var(--brand)" : "var(--border)",
+                        background: active ? "var(--brand-soft)" : "var(--bg-elev)",
+                        color: active ? "var(--brand)" : "var(--text)",
+                        boxShadow: active ? "inset 0 0 0 1px var(--brand)" : "none",
+                      }}
+                    >
+                      <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${tier.usd}</span>
+                      <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>{t("tierChecks", { checks: tier.checks })}</span>
+                    </button>
+                  )
+                })}
               </div>
               <p className="tiny muted" style={{ marginTop: 12 }}>
                 {t.rich("workerSummary", {
@@ -420,13 +427,4 @@ export default function BillingPage() {
       />
     </div>
   )
-}
-
-const stepBtn: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  padding: 0,
-  justifyContent: "center",
-  fontSize: 20,
-  fontWeight: 600,
 }

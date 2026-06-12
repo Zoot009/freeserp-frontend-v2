@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
-import { useTutorial, isTutorialDone } from "@/lib/tutorial"
+import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
 import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
@@ -419,7 +419,7 @@ export default function ProjectsPage() {
   const t = useTranslations("dashProjects")
   const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
-  const { startTutorial, isActive: tutorialActive, advanceFromStep } = useTutorial()
+  const { startTutorial, advanceFromStep } = useTutorial()
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
@@ -438,14 +438,6 @@ export default function ProjectsPage() {
     if (!loading && !user) router.push("/login")
     if (!loading && user && !user.emailVerified) router.push("/verify-email")
   }, [user, loading, router])
-
-  // Auto-start the tutorial for new users.
-  // Guard with tutorialActive so a user-object reference change (e.g. from the
-  // 30-second auto-refresh) can't restart it while it's in progress.
-  useEffect(() => {
-    if (!user || loading) return
-    if (!tutorialActive && !isTutorialDone()) startTutorial()
-  }, [user, loading, tutorialActive, startTutorial])
 
   // Don't gate these on the React `token` state — it can lag behind the
   // actual session (the api client owns the token via getAccessToken() and
