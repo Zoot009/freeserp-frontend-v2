@@ -701,6 +701,7 @@
   "chipTitle": "Plan {plan}{workerSuffix} — {used}/{limit} comprobaciones de posición usadas hoy",
   "checksToday": "comprobaciones hoy",
   "addWorkers": "Agregar workers",
+  "buy": "Comprar",
   "buyMore": "Comprar más comprobaciones de ranking"
  },
  "dashSearchConsole": {

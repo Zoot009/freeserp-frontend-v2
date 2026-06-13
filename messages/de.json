@@ -701,6 +701,7 @@
   "chipTitle": "{plan}-Tarif{workerSuffix} — {used}/{limit} Ranking-Prüfungen heute verwendet",
   "checksToday": "Prüfungen heute",
   "addWorkers": "Worker hinzufügen",
+  "buy": "Kaufen",
   "buyMore": "Mehr Rank-Checks kaufen"
  },
  "dashSearchConsole": {

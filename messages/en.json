@@ -701,6 +701,7 @@
   "chipTitle": "{plan} plan{workerSuffix} — {used}/{limit} rank checks used today",
   "checksToday": "checks today",
   "addWorkers": "Add workers",
+  "buy": "Buy",
   "buyMore": "Buy more rank checks"
  },
  "dashSearchConsole": {

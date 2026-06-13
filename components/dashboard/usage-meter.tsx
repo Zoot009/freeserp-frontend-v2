@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api, getAccessToken } from "@/lib/api"
 import { AddWorkersModal } from "./add-workers-modal"
-import { Icon } from "./icons"
 
 interface UsageInfo {
   plan: string
@@ -15,7 +14,7 @@ interface UsageInfo {
 }
 
 // Daily rank-check quota + plan, shown in the navbar. The whole chip is a single
-// "buy more" control: a trailing + opens the workers modal — "Buy more rank
+// "buy more" control: a trailing "Buy" opens the workers modal — "Buy more rank
 // checks" for free users, "Add workers" (scale) for paid. Refreshes on a slow
 // interval so the counter tracks checks triggered elsewhere in the app.
 const POLL_MS = 60_000
@@ -112,14 +111,17 @@ export function UsageMeter() {
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 22,
             height: 22,
+            padding: "0 9px",
             borderRadius: 6,
             color: "var(--brand)",
             background: "var(--brand-soft)",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.02em",
           }}
         >
-          <Icon.plus />
+          {t("buy")}
         </span>
       </button>
       {showWorkers && <AddWorkersModal onClose={() => setShowWorkers(false)} />}

@@ -701,6 +701,7 @@
   "chipTitle": "Forfait {plan}{workerSuffix} — {used}/{limit} vérifications de position utilisées aujourd'hui",
   "checksToday": "vérifications aujourd'hui",
   "addWorkers": "Ajouter des workers",
+  "buy": "Acheter",
   "buyMore": "Acheter plus de vérifications de classement"
  },
  "dashSearchConsole": {
