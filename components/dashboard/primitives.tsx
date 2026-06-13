@@ -69,7 +69,25 @@ export function PosCell({
 }) {
   const t = useTranslations("dashPrimitives")
   if (processing) {
-    return <span className="pos-badge" style={{ color: "var(--text-mute)" }}>—</span>
+    // A check is in flight (newly added or re-checked keyword). Show a spinner
+    // instead of a bare "—" so users can tell the ranking is still loading.
+    return (
+      <span className="pos-badge" role="status" title={t("processingTitle")} aria-label={t("processingTitle")}>
+        <span
+          className="spin"
+          aria-hidden
+          style={{
+            display: "block",
+            width: 14,
+            height: 14,
+            borderRadius: "50%",
+            border: "2px solid var(--border-strong)",
+            borderTopColor: "var(--brand)",
+            boxSizing: "border-box",
+          }}
+        />
+      </span>
+    )
   }
   if (position != null && Number.isFinite(position)) {
     return <PosBadge pos={position} />

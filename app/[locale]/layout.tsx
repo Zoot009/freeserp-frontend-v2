@@ -5,6 +5,7 @@ import { Bebas_Neue } from "next/font/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
+import Script from "next/script"
 import { GoogleOAuthProvider } from "@react-oauth/google"
 import { hasLocale, NextIntlClientProvider } from "next-intl"
 import { getTranslations, setRequestLocale } from "next-intl/server"
@@ -117,24 +118,17 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <head>
-        {/* Blocking script — sets dark class before first paint, eliminates flash */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'light';document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);}catch(e){}})()`,
-          }}
-        />
-        {/* Google Tag Manager */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MG3XS6F6');`,
-          }}
-        />
-        {/* End Google Tag Manager */}
-      </head>
       <body
         className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >
+        {/* Google Tag Manager — loaded via next/script. A raw inline <script> in
+            the document tree triggers React 19's "scripts inside React components
+            are never executed when rendering on the client" error on fresh loads
+            (e.g. opening a shared report link). Theme flash is handled by
+            next-themes (ThemeProvider), so no manual pre-paint script is needed. */}
+        <Script id="gtm" strategy="afterInteractive">
+          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MG3XS6F6');`}
+        </Script>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe

@@ -319,8 +319,6 @@
  "topbar": {
   "openNav": "Abrir navegación",
   "searchPlaceholder": "Buscar palabras clave, proyectos, competidores…",
-  "addWorkers": "Agregar workers",
-  "buyMoreRankChecks": "Comprar más comprobaciones de ranking",
   "toggleTheme": "Cambiar tema"
  },
  "confirmDialog": {
@@ -517,6 +515,7 @@
  },
  "dashPrimitives": {
   "notFoundTitle": "No encontrado en los 100 primeros resultados — posicionado más allá del alcance de nuestro análisis",
+  "processingTitle": "Comprobando posición…",
   "feat": {
    "AI": "Vista general de IA",
    "FS": "Fragmento destacado",
@@ -701,7 +700,8 @@
   "workerSuffix": "({count, plural, one {# trabajador} other {# trabajadores}})",
   "chipTitle": "Plan {plan}{workerSuffix} — {used}/{limit} comprobaciones de posición usadas hoy",
   "checksToday": "comprobaciones hoy",
-  "upgradeAria": "Comprobaciones diarias — mejora tu plan para obtener más"
+  "addWorkers": "Agregar workers",
+  "buyMore": "Comprar más comprobaciones de ranking"
  },
  "dashSearchConsole": {
   "backToProject": "Volver al proyecto",

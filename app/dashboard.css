@@ -217,6 +217,9 @@
   position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
   color: var(--text-mute);
 }
+/* Usage chip doubles as the "buy more checks / add workers" control. */
+.fs-app .usage-pill { transition: border-color .15s, background .15s; }
+.fs-app .usage-pill:hover { border-color: var(--brand); }
 .fs-app .icon-btn {
   width: 34px; height: 34px;
   display: grid; place-items: center;
@@ -528,6 +531,34 @@
   display: flex; gap: 8px; justify-content: flex-end;
   background: var(--bg-sub);
 }
+
+/* === Add-workers / pricing modal ===
+   Mirrors the "Workers" card on the standalone pricing page (price headline,
+   tier stepper + segment scale, feature list) inside the .modal shell, with a
+   floating × to dismiss. The card content itself is styled inline to match. */
+.fs-app .aw-modal { position: relative; max-width: 460px; animation: aw-pop .18s ease-out; }
+.fs-app .aw-close {
+  position: absolute; top: 14px; right: 14px; z-index: 1;
+  display: grid; place-items: center;
+  width: 30px; height: 30px;
+  border: none; border-radius: 8px;
+  background: transparent; color: var(--text-mute);
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.fs-app .aw-close:hover { background: var(--bg-inset); color: var(--text); }
+
+.fs-app .aw-body { padding: 28px; }
+.fs-app .aw-loading { padding: 48px 0; text-align: center; }
+
+@keyframes aw-pop {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .aw-modal { animation: none; }
+}
+
 /* SERP card list */
 .fs-app .serp-row {
   display: flex; gap: 14px;
@@ -1423,11 +1454,13 @@
   .fs-app .crumbs > span:not(.here) { display: none; }
   .fs-app .crumbs > span.here .sep { display: none; }
   .fs-app .usage-suffix { display: none; }
-  /* "Add workers" collapses to an icon-only button to save room. */
-  .fs-app .topbar-workers-label { display: none; }
 
   .fs-app .page { padding: 16px var(--page-pad) 48px; }
   .fs-app .page-h h1 { font-size: 22px; }
+  /* Stack the page header so the action row (view toggle, "New project", etc.)
+     drops below the title and wraps, instead of overflowing into it. */
+  .fs-app .page-h { flex-direction: column; align-items: stretch; gap: 12px; }
+  .fs-app .page-h > .row { flex-wrap: wrap; }
   .fs-app .kd-header { padding: 20px var(--page-pad) 0; }
   .fs-app .kd-header h1 { font-size: 24px; }
   .fs-app .halo { padding: 28px var(--page-pad) 22px; }
@@ -1447,6 +1480,7 @@
   }
   .fs-app .modal-h, .fs-app .modal-f { padding: 14px 16px; }
   .fs-app .modal-b { padding: 16px; overflow-y: auto; }
+  .fs-app .aw-body { padding: 26px 18px 18px; overflow-y: auto; }
 
   /* Chat panel spans the viewport with gutters instead of overflowing. */
   .fs-app .chatpanel {

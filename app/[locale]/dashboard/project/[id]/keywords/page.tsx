@@ -13,6 +13,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
+import type { SeoScoreBreakdown } from "@/lib/seoScorer"
 import {
   PosCell,
   DeltaCell,
@@ -113,16 +114,49 @@ function StatusDot({ status }: { status: string | null }) {
 
 // Page-audit score badge. Same color buckets as the competitor-analysis
 // comparison table (≥80 good, ≥60 fair, else poor) so the two surfaces agree.
-function ScoreBadge({ score, grade, label }: { score: number | null; grade: string | null; label: string | null }) {
+// Score breakdown — fetched on demand when a score badge is clicked. The
+// 12-category detail lives in the keyword's pageScoreData (not on the list row).
+interface ScoreInfo {
+  pageScore: number | null
+  pageScoreGrade: string | null
+  pageScoreLabel: string | null
+  pageScoreUrl: string | null
+  pageScoreAt: string | null
+  breakdown: SeoScoreBreakdown | null
+}
+
+// Category labels + maxes, mirroring components/competitor-comparison-table.tsx
+// (which mirrors lib/seoScorer.ts). Keep these three in sync.
+const SCORE_CATEGORIES: { key: keyof SeoScoreBreakdown; label: string; max: number }[] = [
+  { key: "url", label: "URL", max: 5 },
+  { key: "title", label: "Title", max: 10 },
+  { key: "meta", label: "Meta", max: 8 },
+  { key: "content", label: "Content", max: 12 },
+  { key: "headings", label: "Headings", max: 10 },
+  { key: "images", label: "Images", max: 5 },
+  { key: "schema", label: "Schema", max: 5 },
+  { key: "structure", label: "Structure", max: 6 },
+  { key: "lighthouse", label: "Lighthouse", max: 15 },
+  { key: "cwv", label: "CWV", max: 10 },
+  { key: "links", label: "Links", max: 12 },
+  { key: "anchors", label: "Anchors", max: 5 },
+]
+
+function ScoreBadge({ score, grade, label, onClick }: { score: number | null; grade: string | null; label: string | null; onClick?: () => void }) {
   if (score == null) {
     return <span className="tiny muted" title="Run a competitor analysis to score this ranking page">—</span>
   }
   const color = score >= 80 ? "var(--pos)" : score >= 60 ? "var(--warn)" : "var(--neg)"
   const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
+  const clickable = !!onClick
   return (
     <span
-      title={`Page audit score${label ? ` — ${label}` : ""}`}
+      title={`Page audit score${label ? ` — ${label}` : ""}${clickable ? " — click for breakdown" : ""}`}
       className="tabular"
+      onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClick!() } } : undefined}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -134,6 +168,7 @@ function ScoreBadge({ score, grade, label }: { score: number | null; grade: stri
         fontWeight: 600,
         fontSize: 12,
         lineHeight: 1.4,
+        cursor: clickable ? "pointer" : "default",
       }}
     >
       {score}
@@ -187,7 +222,7 @@ function AddKeywordsModal({
   currentCount: number
   plan?: string
   onClose: () => void
-  onAdded: () => void
+  onAdded: (device: "desktop" | "mobile") => void
 }) {
   const [raw, setRaw] = useState("")
   const [location, setLocation] = useState("in")
@@ -219,7 +254,7 @@ function AddKeywordsModal({
     setError(""); setLoading(true)
     try {
       await api.post(`/api/projects/${projectId}/keywords`, { keywords: lines.map((k) => ({ keyword: k, location, device })) })
-      onAdded()
+      onAdded(device)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
     } finally { setLoading(false) }
@@ -346,6 +381,10 @@ export default function ProjectKeywordsPage() {
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
   const [historyItems, setHistoryItems] = useState<{ id: string; status: string; createdAt: string; completedAt: string | null }[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  // Page-score breakdown modal — null id = closed. Breakdown is fetched on open.
+  const [scoreKeywordId, setScoreKeywordId] = useState<string | null>(null)
+  const [scoreInfo, setScoreInfo] = useState<ScoreInfo | null>(null)
+  const [scoreLoading, setScoreLoading] = useState(false)
 
   // Filter + sort state
   const [filter, setFilter] = useState("")
@@ -397,6 +436,23 @@ export default function ProjectKeywordsPage() {
     const hasMobile = project.keywords.some((k) => k.device === "mobile")
     if (!hasDesktop && hasMobile) setDeviceTab("mobile")
   }, [project])
+
+  // Open the score-breakdown modal for a keyword and fetch its detail on demand
+  // (mirrors the analysis-history modal). The header falls back to the row's
+  // score while the breakdown loads.
+  const openScore = async (kwId: string) => {
+    setScoreKeywordId(kwId)
+    setScoreInfo(null)
+    setScoreLoading(true)
+    try {
+      const data = await api.get<ScoreInfo>(`/api/projects/${projectId}/keywords/${kwId}/score`)
+      setScoreInfo(data)
+    } catch {
+      /* leave the breakdown empty on failure — the header still shows the score */
+    } finally {
+      setScoreLoading(false)
+    }
+  }
 
   // Load usage info — drives the daily-checks counter shown in the header.
   useEffect(() => {
@@ -745,6 +801,13 @@ export default function ProjectKeywordsPage() {
             <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
+            <Link
+              href={`/dashboard/project/${project.id}/search-console`}
+              className="btn"
+              title="View Google Search Console performance for this project"
+            >
+              Search Console
+            </Link>
             {plan === "paid" && (
               <button
                 type="button"
@@ -1044,7 +1107,12 @@ export default function ProjectKeywordsPage() {
                         )}
                       </td>
                       <td>
-                        <ScoreBadge score={kw.pageScore} grade={kw.pageScoreGrade} label={kw.pageScoreLabel} />
+                        <ScoreBadge
+                          score={kw.pageScore}
+                          grade={kw.pageScoreGrade}
+                          label={kw.pageScoreLabel}
+                          onClick={() => openScore(kw.id)}
+                        />
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -1254,7 +1322,7 @@ export default function ProjectKeywordsPage() {
           currentCount={project.keywords.length}
           plan={plan}
           onClose={() => setShowAddKw(false)}
-          onAdded={() => { setShowAddKw(false); void load(); advanceFromStep(2) }}
+          onAdded={(device) => { setShowAddKw(false); setDeviceTab(device); void load(); advanceFromStep(2) }}
         />,
         document.body
       )}
@@ -1318,6 +1386,87 @@ export default function ProjectKeywordsPage() {
           </div>
         </div>
       )}
+
+      {scoreKeywordId && (() => {
+        const kw = project.keywords.find((k) => k.id === scoreKeywordId)
+        const total = scoreInfo?.pageScore ?? kw?.pageScore ?? null
+        const grade = scoreInfo?.pageScoreGrade ?? kw?.pageScoreGrade ?? null
+        const label = scoreInfo?.pageScoreLabel ?? kw?.pageScoreLabel ?? null
+        const bd = scoreInfo?.breakdown ?? null
+        const color = total == null ? "var(--text-mute)" : total >= 80 ? "var(--pos)" : total >= 60 ? "var(--warn)" : "var(--neg)"
+        const soft = total == null ? "var(--bg-inset)" : total >= 80 ? "var(--pos-soft)" : total >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
+        return (
+          <div className="modal-bg" onClick={() => setScoreKeywordId(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+              <div className="modal-h">
+                <div>
+                  <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> PAGE SCORE</div>
+                  <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Score breakdown</div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>{kw?.keyword}</div>
+                </div>
+                <button onClick={() => setScoreKeywordId(null)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+              </div>
+              <div className="modal-b" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                <div className="row between" style={{ alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <span className="tabular" style={{ fontSize: 34, fontWeight: 700, color, lineHeight: 1 }}>{total ?? "—"}</span>
+                    <span className="tiny muted" style={{ marginLeft: 6 }}>/ 100</span>
+                    {scoreInfo?.pageScoreUrl && (
+                      <a
+                        href={scoreInfo.pageScoreUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="url tiny"
+                        style={{ display: "block", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      >
+                        {scoreInfo.pageScoreUrl.replace(/^https?:\/\//, "")}
+                      </a>
+                    )}
+                    {scoreInfo?.pageScoreAt && (
+                      <div className="tiny muted" style={{ marginTop: 2 }}>
+                        Scored {new Date(scoreInfo.pageScoreAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      </div>
+                    )}
+                  </div>
+                  {(grade || label) && (
+                    <span className="tabular" style={{ flexShrink: 0, padding: "4px 10px", borderRadius: "var(--r-sm)", background: soft, color, fontWeight: 600, fontSize: 12, whiteSpace: "nowrap" }}>
+                      {grade}{grade && label ? " · " : ""}{label}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ height: 1, background: "var(--border)", margin: "16px 0" }} />
+
+                {scoreLoading ? (
+                  <div style={{ padding: 32, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>Loading…</div>
+                ) : bd ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {SCORE_CATEGORIES.map(({ key, label: catLabel, max }) => {
+                      const val = Number(bd[key] ?? 0)
+                      const pct = max > 0 ? Math.max(0, Math.min(1, val / max)) : 0
+                      const c = pct >= 0.8 ? "var(--pos)" : pct >= 0.5 ? "var(--warn)" : "var(--neg)"
+                      const shown = Number.isInteger(val) ? val : Math.round(val * 10) / 10
+                      return (
+                        <div key={key} className="row" style={{ gap: 10, alignItems: "center" }}>
+                          <span className="tiny muted" style={{ width: 76, flexShrink: 0 }}>{catLabel}</span>
+                          <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct * 100}%`, background: c, borderRadius: 999 }} />
+                          </div>
+                          <span className="tabular tiny" style={{ width: 46, flexShrink: 0, textAlign: "right", fontWeight: 600, color: c }}>{shown}/{max}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="tiny muted" style={{ padding: 24, textAlign: "center" }}>
+                    No detailed breakdown is stored for this score. Re-run a competitor analysis for this keyword to compute one.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {confirmDelete && (
         <div className="modal-bg" onClick={() => setConfirmDelete(false)}>

@@ -319,8 +319,6 @@
  "topbar": {
   "openNav": "Navigation öffnen",
   "searchPlaceholder": "Keywords, Projekte, Wettbewerber suchen…",
-  "addWorkers": "Worker hinzufügen",
-  "buyMoreRankChecks": "Mehr Rank-Checks kaufen",
   "toggleTheme": "Thema wechseln"
  },
  "confirmDialog": {
@@ -517,6 +515,7 @@
  },
  "dashPrimitives": {
   "notFoundTitle": "Nicht in den Top-100-Ergebnissen gefunden — platziert jenseits der Reichweite unseres Scans",
+  "processingTitle": "Ranking wird geprüft…",
   "feat": {
    "AI": "KI-Übersicht",
    "FS": "Hervorgehobenes Snippet",
@@ -701,7 +700,8 @@
   "workerSuffix": "({count, plural, one {# Worker} other {# Worker}})",
   "chipTitle": "{plan}-Tarif{workerSuffix} — {used}/{limit} Ranking-Prüfungen heute verwendet",
   "checksToday": "Prüfungen heute",
-  "upgradeAria": "Tägliche Prüfungen — Upgrade für mehr"
+  "addWorkers": "Worker hinzufügen",
+  "buyMore": "Mehr Rank-Checks kaufen"
  },
  "dashSearchConsole": {
   "backToProject": "Zurück zum Projekt",

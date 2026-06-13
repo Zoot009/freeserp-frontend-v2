@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { Link } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
+import { AddWorkersModal } from "./add-workers-modal"
+import { Icon } from "./icons"
 
 interface UsageInfo {
   plan: string
@@ -13,14 +14,16 @@ interface UsageInfo {
   dailyRemaining: number
 }
 
-// Daily rank-check quota + plan, shown in the navbar. Free users get a clickable
-// chip linking to pricing; paid users see a static chip. Refreshes on a slow
+// Daily rank-check quota + plan, shown in the navbar. The whole chip is a single
+// "buy more" control: a trailing + opens the workers modal — "Buy more rank
+// checks" for free users, "Add workers" (scale) for paid. Refreshes on a slow
 // interval so the counter tracks checks triggered elsewhere in the app.
 const POLL_MS = 60_000
 
 export function UsageMeter() {
   const t = useTranslations("usageMeter")
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+  const [showWorkers, setShowWorkers] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -52,50 +55,74 @@ export function UsageMeter() {
   const exhausted = usage.dailyRemaining <= 0
   const countColor = exhausted ? "var(--neg)" : "var(--text)"
   const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
+  const buyLabel = isPaid ? t("addWorkers") : t("buyMore")
 
-  const chip = (
-    <div
-      className="row"
-      title={t("chipTitle", {
-        plan: isPaid ? t("planPro") : t("planFree"),
-        workerSuffix,
-        used: usage.dailyUsed,
-        limit: usage.dailyLimit,
-      })}
-      style={{
-        gap: 8,
-        height: 36,
-        padding: "0 10px",
-        borderRadius: 8,
-        border: "1px solid var(--border)",
-        background: "var(--bg-inset, transparent)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <span
+  return (
+    <>
+      <button
+        type="button"
+        className="usage-pill"
+        onClick={() => setShowWorkers(true)}
+        aria-label={buyLabel}
+        title={t("chipTitle", {
+          plan: isPaid ? t("planPro") : t("planFree"),
+          workerSuffix,
+          used: usage.dailyUsed,
+          limit: usage.dailyLimit,
+        })}
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          padding: "2px 6px",
-          borderRadius: 5,
-          color: isPaid ? "var(--brand)" : "var(--text-mute)",
-          background: isPaid ? "var(--brand-soft)" : "var(--bg-inset, transparent)",
-          border: isPaid ? "none" : "1px solid var(--border)",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          height: 36,
+          padding: "0 6px 0 10px",
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          background: "var(--bg-inset, transparent)",
+          whiteSpace: "nowrap",
+          cursor: "pointer",
+          font: "inherit",
+          color: "inherit",
         }}
       >
-        {isPaid ? t("planPro") : t("planFree")}
-      </span>
-      <span className="tiny" style={{ color: countColor }}>
-        <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-          {usage.dailyUsed}/{usage.dailyLimit}
-        </span>{" "}
-        <span className="muted usage-suffix">{t("checksToday")}</span>
-      </span>
-    </div>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            padding: "2px 6px",
+            borderRadius: 5,
+            color: isPaid ? "var(--brand)" : "var(--text-mute)",
+            background: isPaid ? "var(--brand-soft)" : "var(--bg-inset, transparent)",
+            border: isPaid ? "none" : "1px solid var(--border)",
+          }}
+        >
+          {isPaid ? t("planPro") : t("planFree")}
+        </span>
+        <span className="tiny" style={{ color: countColor }}>
+          <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {usage.dailyUsed}/{usage.dailyLimit}
+          </span>{" "}
+          <span className="muted usage-suffix">{t("checksToday")}</span>
+        </span>
+        <span
+          aria-hidden
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            color: "var(--brand)",
+            background: "var(--brand-soft)",
+          }}
+        >
+          <Icon.plus />
+        </span>
+      </button>
+      {showWorkers && <AddWorkersModal onClose={() => setShowWorkers(false)} />}
+    </>
   )
-
-  // Free users: the chip doubles as an upgrade entry point.
-  return isPaid ? chip : <Link href="/pricing" aria-label={t("upgradeAria")}>{chip}</Link>
 }

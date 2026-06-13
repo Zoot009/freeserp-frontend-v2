@@ -319,8 +319,6 @@
  "topbar": {
   "openNav": "Open navigation",
   "searchPlaceholder": "Search keywords, projects, competitors…",
-  "addWorkers": "Add workers",
-  "buyMoreRankChecks": "Buy more rank checks",
   "toggleTheme": "Toggle theme"
  },
  "confirmDialog": {
@@ -517,6 +515,7 @@
  },
  "dashPrimitives": {
   "notFoundTitle": "Not found in the top 100 results — ranking deeper than our scan reaches",
+  "processingTitle": "Checking ranking…",
   "feat": {
    "AI": "AI Overview",
    "FS": "Featured snippet",
@@ -701,7 +700,8 @@
   "workerSuffix": "({count, plural, one {# worker} other {# workers}})",
   "chipTitle": "{plan} plan{workerSuffix} — {used}/{limit} rank checks used today",
   "checksToday": "checks today",
-  "upgradeAria": "Daily checks — upgrade for more"
+  "addWorkers": "Add workers",
+  "buyMore": "Buy more rank checks"
  },
  "dashSearchConsole": {
   "backToProject": "Back to project",

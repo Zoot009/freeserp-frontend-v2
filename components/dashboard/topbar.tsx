@@ -5,7 +5,6 @@ import { usePathname } from "@/i18n/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { LanguageSwitcher } from "@/components/language-switcher"
-import { AddWorkersModal } from "./add-workers-modal"
 import { Icon } from "./icons"
 import { NotificationBell } from "./notification-bell"
 import { UsageMeter } from "./usage-meter"
@@ -45,7 +44,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark")
-  const [showWorkers, setShowWorkers] = useState(false)
 
   return (
     <div className="topbar">
@@ -70,15 +68,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
       <UsageMeter />
       <button
-        className="btn primary topbar-workers"
-        onClick={() => setShowWorkers(true)}
-        title={t("buyMoreRankChecks")}
-        aria-label={t("addWorkers")}
-      >
-        <Icon.users />
-        <span className="topbar-workers-label">{t("addWorkers")}</span>
-      </button>
-      <button
         className="icon-btn"
         title={t("toggleTheme")}
         onClick={() => setTheme(isDark ? "light" : "dark")}
@@ -88,7 +77,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </button>
       <LanguageSwitcher />
       <NotificationBell />
-      {showWorkers && <AddWorkersModal onClose={() => setShowWorkers(false)} />}
     </div>
   )
 }

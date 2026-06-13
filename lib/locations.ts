@@ -1,4 +1,4 @@
-// v2 backend supports a curated set of 30 markets via DataForSEO location_code.
+// v2 backend supports a curated set of markets via DataForSEO location_code.
 // Mapping must stay in sync with backend-v2/src/modules/serp/dataforseo.mapper.ts.
 
 export type Location = { code: string; name: string }
@@ -44,6 +44,50 @@ export const ALL_LOCATIONS: Location[] = [
   { code: "ar", name: "Argentina" },
   { code: "cl", name: "Chile" },
   { code: "ph", name: "Philippines" },
+  // ── Extended markets — keep in sync with backend SUPPORTED_LOCATIONS ────────
+  // Europe
+  { code: "at", name: "Austria" },
+  { code: "bg", name: "Bulgaria" },
+  { code: "hr", name: "Croatia" },
+  { code: "cz", name: "Czechia" },
+  { code: "gr", name: "Greece" },
+  { code: "hu", name: "Hungary" },
+  { code: "ro", name: "Romania" },
+  { code: "sk", name: "Slovakia" },
+  { code: "ua", name: "Ukraine" },
+  // Asia-Pacific
+  { code: "bd", name: "Bangladesh" },
+  { code: "hk", name: "Hong Kong" },
+  { code: "id", name: "Indonesia" },
+  { code: "my", name: "Malaysia" },
+  { code: "pk", name: "Pakistan" },
+  { code: "kr", name: "South Korea" },
+  { code: "lk", name: "Sri Lanka" },
+  { code: "tw", name: "Taiwan" },
+  { code: "th", name: "Thailand" },
+  { code: "vn", name: "Vietnam" },
+  // Latin America
+  { code: "co", name: "Colombia" },
+  { code: "cr", name: "Costa Rica" },
+  { code: "do", name: "Dominican Republic" },
+  { code: "ec", name: "Ecuador" },
+  { code: "gt", name: "Guatemala" },
+  { code: "pe", name: "Peru" },
+  { code: "uy", name: "Uruguay" },
+  { code: "ve", name: "Venezuela" },
+  // Middle East & Africa
+  { code: "bh", name: "Bahrain" },
+  { code: "eg", name: "Egypt" },
+  { code: "gh", name: "Ghana" },
+  { code: "il", name: "Israel" },
+  { code: "jo", name: "Jordan" },
+  { code: "ke", name: "Kenya" },
+  { code: "kw", name: "Kuwait" },
+  { code: "ma", name: "Morocco" },
+  { code: "ng", name: "Nigeria" },
+  { code: "om", name: "Oman" },
+  { code: "qa", name: "Qatar" },
+  { code: "sa", name: "Saudi Arabia" },
 ]
 
 const supported = new Set(ALL_LOCATIONS.map((l) => l.code))

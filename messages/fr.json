@@ -319,8 +319,6 @@
  "topbar": {
   "openNav": "Ouvrir la navigation",
   "searchPlaceholder": "Rechercher des mots-clés, projets, concurrents…",
-  "addWorkers": "Ajouter des workers",
-  "buyMoreRankChecks": "Acheter plus de vérifications de classement",
   "toggleTheme": "Changer de thème"
  },
  "confirmDialog": {
@@ -517,6 +515,7 @@
  },
  "dashPrimitives": {
   "notFoundTitle": "Introuvable dans les 100 premiers résultats — classé au-delà de la portée de notre analyse",
+  "processingTitle": "Vérification du classement…",
   "feat": {
    "AI": "Aperçu IA",
    "FS": "Extrait optimisé",
@@ -701,7 +700,8 @@
   "workerSuffix": "({count, plural, one {# agent} other {# agents}})",
   "chipTitle": "Forfait {plan}{workerSuffix} — {used}/{limit} vérifications de position utilisées aujourd'hui",
   "checksToday": "vérifications aujourd'hui",
-  "upgradeAria": "Vérifications quotidiennes — passez à un forfait supérieur pour en obtenir plus"
+  "addWorkers": "Ajouter des workers",
+  "buyMore": "Acheter plus de vérifications de classement"
  },
  "dashSearchConsole": {
   "backToProject": "Retour au projet",
