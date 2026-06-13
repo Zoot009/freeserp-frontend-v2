@@ -77,7 +77,11 @@ export function AddWorkersModal({ onClose }: { onClose: () => void }) {
   }, [])
 
   const isPaid = usage?.plan === "paid"
-  const perWorker = usage?.perWorkerDailyChecks ?? SEARCHES_PER_WORKER
+  // Pricing is fixed at $1/worker = SEARCHES_PER_WORKER checks/day, matching the
+  // standalone pricing page. Don't use usage.perWorkerDailyChecks here — for a
+  // free viewer that's their (smaller) free daily limit, which would understate
+  // what buying workers actually grants.
+  const perWorker = SEARCHES_PER_WORKER
   const workers = PRICING_TIERS[tierIndex]
   const searchesPerDay = workers * perWorker
   const monthlyUsd = workers * PRICE_PER_WORKER_USD
@@ -200,7 +204,7 @@ export function AddWorkersModal({ onClose }: { onClose: () => void }) {
                     disabled={busy || atMax}
                     style={stepBtnStyle}
                   >
-                    +
+                    Buy
                   </button>
                 </div>
 
