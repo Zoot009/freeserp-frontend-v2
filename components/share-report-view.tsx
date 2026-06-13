@@ -97,7 +97,7 @@ export function ShareReportView({ data }: Props) {
         </button>
       </header>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 64px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "clamp(20px, 4vw, 28px) clamp(14px, 4vw, 24px) 64px" }}>
         {/* Page header */}
         <div className="page-h" style={{ alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}>

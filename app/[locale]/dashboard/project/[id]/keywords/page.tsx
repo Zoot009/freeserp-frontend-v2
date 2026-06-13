@@ -13,7 +13,6 @@ import { Icon } from "@/components/dashboard/icons"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
-import type { SeoScoreBreakdown } from "@/lib/seoScorer"
 import {
   PosCell,
   DeltaCell,
@@ -114,32 +113,39 @@ function StatusDot({ status }: { status: string | null }) {
 
 // Page-audit score badge. Same color buckets as the competitor-analysis
 // comparison table (≥80 good, ≥60 fair, else poor) so the two surfaces agree.
-// Score breakdown — fetched on demand when a score badge is clicked. The
-// 12-category detail lives in the keyword's pageScoreData (not on the list row).
+// Keyword Page Score breakdown — fetched on demand when a score badge is
+// clicked. Density-focused, scored over 5 fields (URL/Title/Meta/Content/
+// Headings) by the backend (pageScore.ts); the detail lives in pageScoreData.
+// This is intentionally decoupled from lib/seoScorer.ts (the 12-factor
+// competitor-comparison scorer) — don't re-sync them.
+interface KeywordScoreBreakdown {
+  url: number
+  title: number
+  meta: number
+  content: number
+  headings: number
+  density: number // measured content keyword density %
+  total: number
+  grade: string
+  label: string
+}
+
 interface ScoreInfo {
   pageScore: number | null
   pageScoreGrade: string | null
   pageScoreLabel: string | null
   pageScoreUrl: string | null
   pageScoreAt: string | null
-  breakdown: SeoScoreBreakdown | null
+  breakdown: KeywordScoreBreakdown | null
 }
 
-// Category labels + maxes, mirroring components/competitor-comparison-table.tsx
-// (which mirrors lib/seoScorer.ts). Keep these three in sync.
-const SCORE_CATEGORIES: { key: keyof SeoScoreBreakdown; label: string; max: number }[] = [
-  { key: "url", label: "URL", max: 5 },
-  { key: "title", label: "Title", max: 10 },
-  { key: "meta", label: "Meta", max: 8 },
-  { key: "content", label: "Content", max: 12 },
-  { key: "headings", label: "Headings", max: 10 },
-  { key: "images", label: "Images", max: 5 },
-  { key: "schema", label: "Schema", max: 5 },
-  { key: "structure", label: "Structure", max: 6 },
-  { key: "lighthouse", label: "Lighthouse", max: 15 },
-  { key: "cwv", label: "CWV", max: 10 },
-  { key: "links", label: "Links", max: 12 },
-  { key: "anchors", label: "Anchors", max: 5 },
+// Field labels + maxes — must match the weighting in the backend pageScore.ts.
+const SCORE_CATEGORIES: { key: keyof KeywordScoreBreakdown; label: string; max: number }[] = [
+  { key: "url", label: "URL", max: 15 },
+  { key: "title", label: "Title", max: 15 },
+  { key: "meta", label: "Meta", max: 15 },
+  { key: "content", label: "Content", max: 40 },
+  { key: "headings", label: "Headings", max: 15 },
 ]
 
 function ScoreBadge({ score, grade, label, onClick }: { score: number | null; grade: string | null; label: string | null; onClick?: () => void }) {
@@ -1393,6 +1399,12 @@ export default function ProjectKeywordsPage() {
         const grade = scoreInfo?.pageScoreGrade ?? kw?.pageScoreGrade ?? null
         const label = scoreInfo?.pageScoreLabel ?? kw?.pageScoreLabel ?? null
         const bd = scoreInfo?.breakdown ?? null
+        const density = bd?.density ?? null
+        const densityBand = density == null ? null
+          : density < 0.5 ? { label: "Sparse", color: "var(--warn)" }
+          : density <= 2.5 ? { label: "Healthy", color: "var(--pos)" }
+          : density <= 3.5 ? { label: "High", color: "var(--warn)" }
+          : { label: "Stuffed", color: "var(--neg)" }
         const color = total == null ? "var(--text-mute)" : total >= 80 ? "var(--pos)" : total >= 60 ? "var(--warn)" : "var(--neg)"
         const soft = total == null ? "var(--bg-inset)" : total >= 80 ? "var(--pos-soft)" : total >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
         return (
@@ -1411,6 +1423,13 @@ export default function ProjectKeywordsPage() {
                   <div style={{ minWidth: 0 }}>
                     <span className="tabular" style={{ fontSize: 34, fontWeight: 700, color, lineHeight: 1 }}>{total ?? "—"}</span>
                     <span className="tiny muted" style={{ marginLeft: 6 }}>/ 100</span>
+                    {densityBand && (
+                      <div className="tiny" style={{ marginTop: 8 }}>
+                        <span className="muted">Keyword density </span>
+                        <span className="tabular" style={{ fontWeight: 700, color: densityBand.color }}>{density}%</span>
+                        <span style={{ color: densityBand.color, fontWeight: 600 }}> · {densityBand.label}</span>
+                      </div>
+                    )}
                     {scoreInfo?.pageScoreUrl && (
                       <a
                         href={scoreInfo.pageScoreUrl}

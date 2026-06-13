@@ -46,24 +46,29 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
   return (
               <div
                 className="w-full overflow-x-auto border border-[color:var(--border)] bg-[color:var(--bg-elev)]"
-                style={{ borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)' }}
+                style={{ borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
               >
-                <table className="w-full border-collapse table-fixed">
+                {/* min-width keeps columns readable on small screens — the table
+                    scrolls horizontally with the metric-label column pinned. */}
+                <table
+                  className="w-full border-collapse table-fixed"
+                  style={{ minWidth: `${(analysis.competitors.length + 2) * 150}px` }}
+                >
                   <colgroup>
-                    <col style={{ width: '180px' }} />
+                    <col className="w-[128px] sm:w-[180px]" />
                     <col />
                     {analysis.competitors.map((_, i) => <col key={i} />)}
                   </colgroup>
                   <thead>
                     <tr className="align-top">
 
-                      {/* Corner */}
-                      <th className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] p-5 text-left align-middle" />
+                      {/* Corner — pinned with the label column */}
+                      <th className="sticky left-0 z-[3] border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] p-2.5 sm:p-5 text-left align-middle shadow-[2px_0_4px_-2px_rgba(11,13,18,0.12)]" />
 
                       {/* Your Business */}
                       <th className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
                         <div className="h-[3px] w-full bg-[color:var(--brand)]" />
-                        <div className="px-3 pt-3 pb-3">
+                        <div className="px-2 pt-2.5 pb-2.5 sm:px-3 sm:pt-3 sm:pb-3">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--brand)] mb-1">Your Business</p>
                           <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={analysis.yourDomain}>
                             {analysis.yourDomain}
@@ -84,7 +89,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                         return (
                           <th key={i} className="border-r last:border-r-0 border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
                             <div className={`h-[3px] w-full ${isFailed ? 'bg-[color:var(--neg)]' : rankStripe(comp.position)}`} />
-                            <div className="px-3 pt-3 pb-3">
+                            <div className="px-2 pt-2.5 pb-2.5 sm:px-3 sm:pt-3 sm:pb-3">
                               {/* invisible spacer to keep header heights aligned with the "Your Business" cell */}
                               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1 opacity-0 select-none">·</p>
                               <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={comp.domain}>
@@ -135,15 +140,15 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       const compCrawls = analysis.competitors.map(c => c.fullCrawlData)
 
                       const Cell = ({ children, highlight }: { children: React.ReactNode; highlight?: 'best' | 'worst' | 'neutral' }) => (
-                        <td className={`border-r last:border-r-0 border-b border-[color:var(--border)] p-4 text-center align-middle ${highlight === 'best' ? 'bg-[color:var(--pos-soft)]' : highlight === 'worst' ? 'bg-[color:var(--neg-soft)]' : ''}`}>
+                        <td className={`border-r last:border-r-0 border-b border-[color:var(--border)] p-2.5 sm:p-4 text-center align-middle ${highlight === 'best' ? 'bg-[color:var(--pos-soft)]' : highlight === 'worst' ? 'bg-[color:var(--neg-soft)]' : ''}`}>
                           {children}
                         </td>
                       )
 
                       const Label = ({ label, sub }: { label: string; sub?: string }) => (
-                        <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] px-3.5 py-3 align-middle">
-                          <div className="text-[12px] font-medium text-[color:var(--text)]">{label}</div>
-                          {sub && <div className="text-[10.5px] text-[color:var(--text-mute)] mt-0.5">{sub}</div>}
+                        <td className="sticky left-0 z-[2] border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] px-2.5 py-2.5 sm:px-3.5 sm:py-3 align-middle shadow-[2px_0_4px_-2px_rgba(11,13,18,0.12)]">
+                          <div className="text-[11.5px] sm:text-[12px] font-medium text-[color:var(--text)]">{label}</div>
+                          {sub && <div className="text-[10px] sm:text-[10.5px] text-[color:var(--text-mute)] mt-0.5">{sub}</div>}
                         </td>
                       )
 
@@ -151,9 +156,10 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                         <tr>
                           <td
                             colSpan={colSpan}
-                            className="border-y border-[color:var(--border)] bg-[color:var(--bg-sub)] px-5 py-2.5"
+                            className="border-y border-[color:var(--border)] bg-[color:var(--bg-sub)] px-3 sm:px-5 py-2.5"
                           >
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--text-mute)]">{title}</span>
+                            {/* Pinned left so the section title stays visible while scrolling. */}
+                            <span className="sticky left-3 sm:left-5 inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--text-mute)]">{title}</span>
                           </td>
                         </tr>
                       )
@@ -327,7 +333,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       ] as const
 
                       const ScoreDetailCell = ({ score }: { score: SeoScoreBreakdown | null }) => (
-                        <td className="border-r last:border-r-0 border-b border-[color:var(--border)] p-3 align-middle">
+                        <td className="border-r last:border-r-0 border-b border-[color:var(--border)] p-1.5 sm:p-3 align-middle">
                           {score ? (
                             <div className="space-y-1">
                               {SCORE_CATEGORIES.map(({ key, label, max }) => {
@@ -336,12 +342,12 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 const barColor = pct >= 0.8 ? 'bg-[color:var(--pos)]' : pct >= 0.5 ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--neg)]'
                                 const textColor = pct >= 0.8 ? 'text-[color:var(--pos)]' : pct >= 0.5 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'
                                 return (
-                                  <div key={key} className="flex items-center gap-2">
-                                    <span className="text-[10px] font-medium text-[color:var(--text-mute)] w-14 shrink-0 text-right">{label}</span>
-                                    <div className="flex-1 bg-[color:var(--bg-inset)] rounded-full h-1 overflow-hidden">
+                                  <div key={key} className="flex items-center gap-1.5 sm:gap-2">
+                                    <span className="text-[10px] font-medium text-[color:var(--text-mute)] w-9 sm:w-14 shrink-0 text-right">{label}</span>
+                                    <div className="flex-1 min-w-[16px] bg-[color:var(--bg-inset)] rounded-full h-1 overflow-hidden">
                                       <div className={`h-1 rounded-full ${barColor}`} style={{ width: `${pct * 100}%` }} />
                                     </div>
-                                    <span className={`tabular-nums text-[11px] font-semibold w-12 text-right ${textColor}`}>{val}/{max}</span>
+                                    <span className={`tabular-nums text-[10px] sm:text-[11px] font-semibold w-9 sm:w-12 text-right ${textColor}`}>{val}/{max}</span>
                                   </div>
                                 )
                               })}
