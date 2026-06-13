@@ -242,12 +242,12 @@ function AddKeywordsModal({
   // undefined (still loading) shouldn't surface paywall copy.
   const isFree = plan === "free"
   const remaining = isFree ? Math.max(0, FREE_KEYWORDS_PER_PROJECT_LIMIT - currentCount) : Infinity
-  const pendingLines = raw.split("\n").map((l) => l.trim()).filter(Boolean)
+  const pendingLines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
   const wouldOverflow = isFree && pendingLines.length > remaining
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean)
+    const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
     if (isFree && lines.length > remaining) {
       setError(
@@ -282,7 +282,7 @@ function AddKeywordsModal({
               <div className="field">
                 <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
                   <label style={{ margin: 0 }}>
-                    Keywords <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>(one per line)</span>
+                    Keywords <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>(one per line or comma-separated)</span>
                   </label>
                   <span
                     className="tiny"
@@ -297,7 +297,7 @@ function AddKeywordsModal({
                   ref={taRef}
                   required
                   rows={6}
-                  placeholder={"seo tools\nbest keyword research\nfree serp checker"}
+                  placeholder={"seo tools, keyword research\nfree serp checker"}
                   value={raw}
                   onChange={(e) => setRaw(e.target.value)}
                   className="input"
@@ -807,6 +807,8 @@ export default function ProjectKeywordsPage() {
             <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
+            {/* Search Console — temporarily hidden (feature paused). Restore by
+                uncommenting; the /search-console route still exists.
             <Link
               href={`/dashboard/project/${project.id}/search-console`}
               className="btn"
@@ -814,6 +816,7 @@ export default function ProjectKeywordsPage() {
             >
               Search Console
             </Link>
+            */}
             {plan === "paid" && (
               <button
                 type="button"
@@ -1413,7 +1416,7 @@ export default function ProjectKeywordsPage() {
               <div className="modal-h">
                 <div>
                   <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> PAGE SCORE</div>
-                  <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Score breakdown</div>
+                  <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Keyword score</div>
                   <div className="tiny muted" style={{ marginTop: 2 }}>{kw?.keyword}</div>
                 </div>
                 <button onClick={() => setScoreKeywordId(null)} className="icon-btn" aria-label="Close"><Icon.close /></button>

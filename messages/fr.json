@@ -543,7 +543,7 @@
   "projectNamePlaceholder": "Mon site web",
   "domainLabel": "Domaine",
   "domainPlaceholder": "exemple.com",
-  "domainHint": "Sans https:// — p. ex. exemple.com",
+  "domainHint": "Avec ou sans https:// — p. ex. exemple.com",
   "checkFrequencyLabel": "Fréquence de vérification",
   "freqEvery1Hour": "Toutes les heures",
   "freqEvery6Hours": "Toutes les 6 heures",
