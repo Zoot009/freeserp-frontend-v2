@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
+import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
@@ -191,6 +192,8 @@ function ProjectsList({
   onUpgrade,
   onOpen,
   onStartTour,
+  favoriteIds,
+  favReady,
 }: {
   projects: ProjectSummary[]
   loading: boolean
@@ -200,6 +203,8 @@ function ProjectsList({
   onUpgrade: () => void
   onOpen: (id: string) => void
   onStartTour: () => void
+  favoriteIds: Set<string>
+  favReady: boolean
 }) {
   const t = useTranslations("dashProjects")
   const [view, setView] = useState<"grid" | "list">("grid")
@@ -294,9 +299,12 @@ function ProjectsList({
           {projects.map((p) => {
             const color = projectColor(p.id)
             return (
-              <button
+              <div
                 key={p.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpen(p.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(p.id) } }}
                 className="card"
                 style={{
                   cursor: "pointer",
@@ -327,6 +335,9 @@ function ProjectsList({
                     </div>
                   </div>
                   <span className={"chip " + (p.isPaused ? "warn" : "pos")}>{p.isPaused ? t("statusPaused") : t("statusActive")}</span>
+                  <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                    <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
+                  </div>
                 </div>
                 <div className="grid g-2" style={{ marginBottom: 14, gap: 10 }}>
                   <div>
@@ -341,7 +352,7 @@ function ProjectsList({
                   </div>
                 </div>
                 {renderSpark(p.trend, color, 260, 32)}
-              </button>
+              </div>
             )
           })}
           <button
@@ -375,6 +386,7 @@ function ProjectsList({
                 <th>{t("colStatus")}</th>
                 <th>{t("colCreated")}</th>
                 <th>{t("colTrend")}</th>
+                <th aria-hidden style={{ width: 36 }}></th>
                 <th></th>
               </tr>
             </thead>
@@ -400,6 +412,9 @@ function ProjectsList({
                       {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                     </td>
                     <td>{renderSpark(p.trend, color)}</td>
+                    <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }}>
+                      <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
+                    </td>
                     <td className="right"><Icon.chevR /></td>
                   </tr>
                 )
@@ -426,6 +441,9 @@ export default function ProjectsPage() {
   const [showAddProject, setShowAddProject] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+  // Project favorites, cross-referenced once so each card's star starts correct.
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [favReady, setFavReady] = useState(false)
 
   // Auto-refresh user data every 30 seconds so plan/usage stays fresh.
   useEffect(() => {
@@ -468,6 +486,21 @@ export default function ProjectsPage() {
     if (user?.emailVerified) { void loadProjects(); void loadUsage() }
   }, [user, loadProjects, loadUsage])
 
+  // Load the user's project favorites once the session is verified.
+  useEffect(() => {
+    if (!user?.emailVerified) return
+    let cancelled = false
+    api
+      .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=project")
+      .then((r) => {
+        if (cancelled) return
+        setFavoriteIds(new Set((r.favorites ?? []).map((f) => f.entity.id)))
+        setFavReady(true)
+      })
+      .catch(() => { if (!cancelled) setFavReady(true) })
+    return () => { cancelled = true }
+  }, [user])
+
   // Auto-refresh projects list every 10 seconds to keep statuses fresh.
   useEffect(() => {
     if (!user?.emailVerified) return
@@ -497,6 +530,8 @@ export default function ProjectsPage() {
         onUpgrade={() => setShowUpgrade(true)}
         onOpen={(id) => router.push(`/dashboard/project/${id}/keywords`)}
         onStartTour={startTutorial}
+        favoriteIds={favoriteIds}
+        favReady={favReady}
       />
 
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}

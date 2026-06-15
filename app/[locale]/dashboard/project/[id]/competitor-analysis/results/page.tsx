@@ -4,7 +4,9 @@ import React, { useState, useEffect, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
+import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { InternalLinkGraph } from "@/components/internal-link-graph"
 import { CompetitorComparisonTable } from "@/components/competitor-comparison-table"
 import { ShareReportDialog } from "@/components/share-report-dialog"
@@ -41,6 +43,10 @@ function CompetitorAnalysisResultsContent() {
   const [selectedAiCategory, setSelectedAiCategory] = useState<string | null>(null)
   const [chatScope, setChatScope] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  // Favorite state for this analysis. caFavReady flips once the cross-reference
+  // fetch resolves so the star can remount with the correct initial value.
+  const [caFavorited, setCaFavorited] = useState(false)
+  const [caFavReady, setCaFavReady] = useState(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
   // Fire the "analysis ready" alert exactly once; request notification permission once.
@@ -63,6 +69,25 @@ function CompetitorAnalysisResultsContent() {
   useEffect(() => {
     setChatScope(selectedAiCategory)
   }, [selectedAiCategory])
+
+  // Cross-reference whether this analysis is already favorited, so the header
+  // star renders in the right state. The single header star is visible across
+  // all tabs (Comparison / Link Graph / AI Plan), so it doubles as the AI-plan
+  // favorite — favoriting the report covers its AI plan (one favorite per report).
+  useEffect(() => {
+    if (!analysisId) return
+    let cancelled = false
+    api
+      .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=competitor_analysis")
+      .then((r) => {
+        if (cancelled) return
+        const set = new Set((r.favorites ?? []).map((f) => f.entity.id))
+        setCaFavorited(set.has(analysisId))
+        setCaFavReady(true)
+      })
+      .catch(() => { if (!cancelled) setCaFavReady(true) })
+    return () => { cancelled = true }
+  }, [analysisId])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -392,6 +417,16 @@ function CompetitorAnalysisResultsContent() {
           </div>
         </div>
         <div className="row" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {analysis && analysisId && (
+            <FavoriteButton
+              key={`cafav-${caFavReady}`}
+              entityType="competitor_analysis"
+              entityId={analysisId}
+              initial={caFavorited}
+              size={18}
+              onChange={setCaFavorited}
+            />
+          )}
           {analysis && analysis.status === "COMPLETED" && (
             <>
               <div ref={exportMenuRef} style={{ position: "relative" }}>
@@ -863,6 +898,22 @@ function CompetitorAnalysisResultsContent() {
                     </div>
                     <p>{aiPlan.summary}</p>
                   </div>
+
+                  {aiPlan.strengths && aiPlan.strengths.length > 0 && (
+                    <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: "var(--r-md)", background: "var(--pos-soft)" }}>
+                      <div className="row" style={{ gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pos)" }}>
+                        <Icon.check /> {"What's working well"}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                        {aiPlan.strengths.map((s, i) => (
+                          <div key={i} className="row" style={{ gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--text)" }}>
+                            <span style={{ color: "var(--pos)", flexShrink: 0, marginTop: 2, display: "inline-flex" }}><Icon.check /></span>
+                            <span>{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Categories sidebar + tasks layout */}
                   <div className="ap-grid">

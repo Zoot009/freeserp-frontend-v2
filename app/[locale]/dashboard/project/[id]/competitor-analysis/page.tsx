@@ -82,6 +82,10 @@ function CompetitorAnalysisContent() {
   // bare domain — the URL is what gets crawled, so picking "whatsmyserp.com ›
   // serp-check" must analyze /serp-check, not the home page.
   const [selectedSerpUrls, setSelectedSerpUrls] = useState<Set<string>>(new Set())
+  // Primary ranking target (defaults to the tracked keyword) + optional secondary
+  // keywords — confirmed before launch and sent as AI-plan context.
+  const [primaryKeyword, setPrimaryKeyword] = useState(keyword)
+  const [secondaryKeywords, setSecondaryKeywords] = useState("")
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -153,6 +157,10 @@ function CompetitorAnalysisContent() {
       setError("Please select exactly 3 competitors from the SERP results.")
       return
     }
+    if (!primaryKeyword.trim()) {
+      setError("Please confirm the page's primary keyword before analyzing.")
+      return
+    }
 
     setIsAnalyzing(true)
     try {
@@ -161,6 +169,8 @@ function CompetitorAnalysisContent() {
       const response = await axios.post(`${apiUrl}/api/competitor-analysis`, {
         yourDomain: domain,
         keyword,
+        primaryKeyword: primaryKeyword.trim(),
+        secondaryKeywords: secondaryKeywords.split(",").map((s) => s.trim()).filter(Boolean),
         // Full ranking-page URLs (not bare domains) so the worker crawls the
         // exact page that ranks, e.g. /serp-check rather than the home page.
         competitorUrls: selectedCompetitors,
@@ -231,7 +241,7 @@ function CompetitorAnalysisContent() {
             type="button"
             data-tutorial="analyze-btn"
             onClick={handleAnalyze}
-            disabled={isAnalyzing || selectedSerpUrls.size !== 3 || serpCompetitors.length === 0}
+            disabled={isAnalyzing || selectedSerpUrls.size !== 3 || serpCompetitors.length === 0 || !primaryKeyword.trim()}
             className="btn primary"
           >
             {isAnalyzing ? (
@@ -262,6 +272,44 @@ function CompetitorAnalysisContent() {
               Target keyword
             </div>
             <div className="b" style={{ fontSize: 14, marginTop: 4 }}>{keyword || "—"}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirm primary / secondary keywords — required, sent as AI-plan context */}
+      <div className="card tight" style={{ marginBottom: 14 }}>
+        <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10, marginBottom: 8 }}>
+          Confirm your keywords
+        </div>
+        <div className="tiny muted" style={{ marginBottom: 12, maxWidth: 660, lineHeight: 1.5 }}>
+          The analysis is prioritized by your page’s real ranking goal. What is the page’s
+          primary keyword (the main keyword you want it to rank for)? Add any secondary keywords
+          it also targets.
+        </div>
+        <div className="grid g-2" style={{ gap: 14 }}>
+          <div>
+            <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
+              Primary keyword <span style={{ color: "var(--neg)" }}>*</span>
+            </label>
+            <input
+              className="input"
+              type="text"
+              value={primaryKeyword}
+              onChange={(e) => setPrimaryKeyword(e.target.value)}
+              placeholder="e.g. best running shoes"
+            />
+          </div>
+          <div>
+            <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
+              Secondary keyword(s) <span style={{ opacity: 0.7 }}>— optional, comma-separated</span>
+            </label>
+            <input
+              className="input"
+              type="text"
+              value={secondaryKeywords}
+              onChange={(e) => setSecondaryKeywords(e.target.value)}
+              placeholder="e.g. lightweight running shoes, trail running shoes"
+            />
           </div>
         </div>
       </div>

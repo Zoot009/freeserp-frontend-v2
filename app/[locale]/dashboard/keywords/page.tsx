@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import {
   FeatChip,
   PosCell,
@@ -62,6 +63,7 @@ export default function KeywordsListPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [rows, setRows] = useState<EnrichedRow[]>([])
+  const [favKw, setFavKw] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,6 +82,14 @@ export default function KeywordsListPage() {
         const list = await api.get<ProjectSummary[]>("/api/projects")
         if (cancelled) return
         setProjects(list)
+
+        // Cross-reference the user's keyword favorites so each row's star renders
+        // in the correct state from first mount. Lightweight and best-effort —
+        // an empty set just means every star starts hollow.
+        const favPromise = api
+          .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=keyword")
+          .then((r) => new Set((r.favorites ?? []).map((f) => f.entity.id)))
+          .catch(() => new Set<string>())
 
         const details = await Promise.all(
           list.map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
@@ -109,7 +119,9 @@ export default function KeywordsListPage() {
             })
           }
         }
+        const favSet = await favPromise
         if (cancelled) return
+        setFavKw(favSet)
         setRows(acc)
       } catch (e) {
         const msg = e instanceof Error ? e.message : t("errorLoad")
@@ -276,6 +288,7 @@ export default function KeywordsListPage() {
           <table className="tbl">
             <thead>
               <tr>
+                <th aria-hidden style={{ width: 36 }}></th>
                 <SortHeader label={t("colKeyword")} k="kw" sort={sort} onClick={click} />
                 <SortHeader label={t("colPosition")} k="pos" sort={sort} onClick={click} />
                 <SortHeader label="Δ" k="delta" sort={sort} onClick={click} />
@@ -294,6 +307,9 @@ export default function KeywordsListPage() {
                   onClick={() => router.push(`/dashboard/project/${r.projectId}/keywords/${r.id}`)}
                   style={{ cursor: "pointer" }}
                 >
+                  <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }}>
+                    <FavoriteButton entityType="keyword" entityId={r.id!} initial={favKw.has(r.id!)} />
+                  </td>
                   <td>
                     <div className="kw">{r.kw}</div>
                     {(r.location || r.device) && (

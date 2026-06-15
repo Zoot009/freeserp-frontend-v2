@@ -162,4 +162,14 @@ export const Icon = {
       <path d="M5.5 1L6.5 4L9.5 5L6.5 6L5.5 9L4.5 6L1.5 5L4.5 4L5.5 1Z" fill="currentColor" />
     </svg>
   ),
+  star: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M8 1.75L9.85 5.6L14 6.2L11 9.2L11.7 13.4L8 11.4L4.3 13.4L5 9.2L2 6.2L6.15 5.6L8 1.75Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  ),
+  starFilled: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M8 1.75L9.85 5.6L14 6.2L11 9.2L11.7 13.4L8 11.4L4.3 13.4L5 9.2L2 6.2L6.15 5.6L8 1.75Z" fill="currentColor" />
+    </svg>
+  ),
 }

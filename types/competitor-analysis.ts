@@ -117,6 +117,7 @@ export interface AiCategory {
 
 export interface AiPlan {
   summary: string
+  strengths?: string[]
   categories: AiCategory[]
   free?: boolean
   lockedCategories?: Array<{ id: string; name: string; taskCount: number }>

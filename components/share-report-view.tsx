@@ -146,6 +146,22 @@ export function ShareReportView({ data }: Props) {
                 <p>{aiPlan.summary}</p>
               </div>
 
+              {aiPlan.strengths && aiPlan.strengths.length > 0 && (
+                <div style={{ marginTop: 14, padding: "14px 16px", borderRadius: "var(--r-md)", background: "var(--pos-soft)" }}>
+                  <div className="row" style={{ gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pos)" }}>
+                    <Icon.check /> {"What's working well"}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {aiPlan.strengths.map((s, i) => (
+                      <div key={i} className="row" style={{ gap: 8, alignItems: "flex-start", fontSize: 13, color: "var(--text)" }}>
+                        <span style={{ color: "var(--pos)", flexShrink: 0, marginTop: 2, display: "inline-flex" }}><Icon.check /></span>
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Categories sidebar + task detail */}
               <div className="ap-grid">
                 <div className="ap-cats">

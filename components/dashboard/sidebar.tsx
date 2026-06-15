@@ -17,6 +17,7 @@ const WORKSPACE: NavEntry[] = [
   { href: "/dashboard", labelKey: "overview", icon: Icon.dash },
   { href: "/dashboard/projects", labelKey: "projects", icon: Icon.folder },
   { href: "/dashboard/keywords", labelKey: "keywords", icon: Icon.key },
+  { href: "/dashboard/favorites", labelKey: "favorites", icon: Icon.starFilled },
 ]
 
 const TOOLS: NavEntry[] = [
