@@ -677,6 +677,13 @@
 .fs-app .avstack > *:first-child { margin-left: 0; }
 /* Empty / loading shimmer */
 @keyframes shim { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+.fs-app .skeleton {
+  background: linear-gradient(90deg, var(--bg-inset) 25%, var(--bg-sub) 37%, var(--bg-inset) 63%);
+  background-size: 400px 100%;
+  animation: shim 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) { .fs-app .skeleton { animation: none; } }
 /* utility */
 .fs-app .row { display: flex; align-items: center; gap: 8px; }
 .fs-app .col { display: flex; flex-direction: column; gap: 8px; }

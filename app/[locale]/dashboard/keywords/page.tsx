@@ -40,6 +40,7 @@ type Keyword = {
   checkedAt: string | null
   serpFeatures: SerpFeatures | null
   searchVolumeTrend: MonthlySearch[] | null
+  trend5: "winning" | "losing" | "neutral"
 }
 
 type ProjectDetail = {
@@ -56,6 +57,7 @@ type EnrichedRow = KeywordRow & {
   device: string | null
   traffic: number | null
   status: string | null
+  trend5: "winning" | "losing" | "neutral"
 }
 
 export default function KeywordsListPage() {
@@ -70,6 +72,7 @@ export default function KeywordsListPage() {
   const [filter, setFilter] = useState("")
   const [projectFilter, setProjectFilter] = useState<string>("all")
   const [deviceFilter, setDeviceFilter] = useState<"all" | "desktop" | "mobile">("all")
+  const [trendFilter, setTrendFilter] = useState<"all" | "winning" | "losing">("all")
   const [sort, setSort] = useState<{ key: "kw" | "pos" | "vol" | "traffic" | "delta"; dir: "asc" | "desc" }>({
     key: "vol",
     dir: "desc",
@@ -116,6 +119,7 @@ export default function KeywordsListPage() {
               device: k.device,
               traffic: k.monthlyTraffic,
               status: k.status,
+              trend5: k.trend5 ?? "neutral",
             })
           }
         }
@@ -137,6 +141,7 @@ export default function KeywordsListPage() {
     let out = rows
     if (projectFilter !== "all") out = out.filter((r) => r.projectId === projectFilter)
     if (deviceFilter !== "all") out = out.filter((r) => (r.device ?? "desktop") === deviceFilter)
+    if (trendFilter !== "all") out = out.filter((r) => r.trend5 === trendFilter)
     if (filter.trim()) {
       const needle = filter.toLowerCase()
       out = out.filter((r) => r.kw.toLowerCase().includes(needle))
@@ -163,7 +168,7 @@ export default function KeywordsListPage() {
       return sort.dir === "asc" ? av - bv : bv - av
     })
     return out
-  }, [rows, filter, projectFilter, deviceFilter, sort])
+  }, [rows, filter, projectFilter, deviceFilter, trendFilter, sort])
 
   const positions = filtered.map((r) => r.pos).filter((p): p is number => p != null && Number.isFinite(p))
   const avgPos = positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0
@@ -241,6 +246,18 @@ export default function KeywordsListPage() {
           ))}
         </div>
         <button className="btn sm" disabled title={t("moreFiltersTitle")}><Icon.filter /> {t("moreFilters")}</button>
+        {/* Trend filter pushed to the far right of the bar. */}
+        <div className="pill-toggle" style={{ marginLeft: "auto" }}>
+          {(["all", "winning", "losing"] as const).map((tr) => (
+            <button key={tr} className={trendFilter === tr ? "active" : ""} onClick={() => setTrendFilter(tr)}>
+              {tr === "all" ? t("trendAll") : tr === "winning" ? (
+                <><Icon.arrowUp /> {t("trendWinning")}</>
+              ) : (
+                <><Icon.arrowDown /> {t("trendLosing")}</>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Summary chips */}
