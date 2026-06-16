@@ -10,6 +10,7 @@ import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
+import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
@@ -391,6 +392,11 @@ export default function ProjectKeywordsPage() {
   const [scoreKeywordId, setScoreKeywordId] = useState<string | null>(null)
   const [scoreInfo, setScoreInfo] = useState<ScoreInfo | null>(null)
   const [scoreLoading, setScoreLoading] = useState(false)
+  // Keyword favorites for this user, cross-referenced once so each row's star
+  // starts in the right state. favReady flips when the fetch resolves so the
+  // star remounts with the correct initial value.
+  const [favKw, setFavKw] = useState<Set<string>>(new Set())
+  const [favReady, setFavReady] = useState(false)
 
   // Filter + sort state
   const [filter, setFilter] = useState("")
@@ -466,6 +472,20 @@ export default function ProjectKeywordsPage() {
     api.get<UsageInfo>("/api/usage")
       .then((data) => { if (data && typeof data.dailyLimit === "number") setUsage(data) })
       .catch(() => undefined)
+  }, [token, user?.emailVerified])
+
+  // Load the user's keyword favorites once, to seed each row's star state.
+  useEffect(() => {
+    if (!token || !user?.emailVerified) return
+    let cancelled = false
+    api.get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=keyword")
+      .then((r) => {
+        if (cancelled) return
+        setFavKw(new Set((r.favorites ?? []).map((f) => f.entity.id)))
+        setFavReady(true)
+      })
+      .catch(() => { if (!cancelled) setFavReady(true) })
+    return () => { cancelled = true }
   }, [token, user?.emailVerified])
 
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
@@ -1137,6 +1157,14 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="row" style={{ gap: 6, justifyContent: "flex-start" }}>
+                          <FavoriteButton
+                            key={`kf-${kw.id}-${favReady}`}
+                            entityType="keyword"
+                            entityId={kw.id}
+                            initial={favKw.has(kw.id)}
+                            size={15}
+                            style={{ width: 28, height: 28 }}
+                          />
                           {(kw.position === null || kw.position > 1) && (
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}

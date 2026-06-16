@@ -13,6 +13,7 @@ export function FavoriteButton({
   size = 16,
   title,
   onChange,
+  style,
 }: {
   entityType: FavoriteEntityType
   entityId: string
@@ -23,6 +24,9 @@ export function FavoriteButton({
   // Fires with the new favorited state after an optimistic toggle (and again on
   // rollback if the request fails), so parents can update local lists in place.
   onChange?: (favorited: boolean) => void
+  // Optional style overrides merged onto the button (e.g. to match sibling
+  // icon-button sizing).
+  style?: React.CSSProperties
 }) {
   const [fav, setFav] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -60,7 +64,7 @@ export function FavoriteButton({
       aria-label={label}
       title={label}
       onClick={toggle}
-      style={{ color: fav ? "var(--brand)" : "var(--text-mute)" }}
+      style={{ color: fav ? "var(--brand)" : "var(--text-mute)", ...style }}
     >
       {fav ? <Icon.starFilled size={size} /> : <Icon.star size={size} />}
     </button>
