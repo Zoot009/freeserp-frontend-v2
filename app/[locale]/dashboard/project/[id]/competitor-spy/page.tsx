@@ -607,9 +607,9 @@ export default function CompetitorSpyPage() {
           </button>
         </div>
       ) : (
-        <div className="grid g-21">
+        <div className="grid g-12">
           {/* Competitor list */}
-          <div className="card" style={{ padding: 0, overflow: "hidden", alignSelf: "start" }}>
+          <div className="card" style={{ padding: 0, overflow: "hidden", alignSelf: "start", minWidth: 0 }}>
             <div className="card-h" style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
               <span className="t">All competitors</span>
               <button type="button" className="icon-btn" onClick={() => setShowAdd(true)} aria-label="Add competitor">
@@ -653,7 +653,7 @@ export default function CompetitorSpyPage() {
           </div>
 
           {/* Detail panel */}
-          <div className="card" style={{ alignSelf: "start" }}>
+          <div className="card" style={{ alignSelf: "start", minWidth: 0 }}>
             {detail ? (
               <CompetitorDetail
                 detail={detail}
@@ -755,10 +755,16 @@ function CompetitorDetail({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="tabs">
+      {/* Tabs — nowrap + scroll so labels keep one line and the strip never
+          changes height between tabs. */}
+      <div className="tabs" style={{ overflowX: "auto" }}>
         {tabs.map((t) => (
-          <button key={t.key} className={"tab " + (tab === t.key ? "active" : "")} onClick={() => setTab(t.key)}>
+          <button
+            key={t.key}
+            className={"tab " + (tab === t.key ? "active" : "")}
+            onClick={() => setTab(t.key)}
+            style={{ whiteSpace: "nowrap" }}
+          >
             {t.label} <span className="muted">({t.count})</span>
           </button>
         ))}
