@@ -14,6 +14,7 @@ export function StatTile({
   up,
   down,
   tip,
+  icon,
 }: {
   lbl: string
   val: React.ReactNode
@@ -21,11 +22,12 @@ export function StatTile({
   up?: boolean
   down?: boolean
   tip?: React.ReactNode
+  icon?: React.ReactNode
 }) {
   const cls = up ? "up" : down ? "down" : "flat"
   return (
     <div className="stat">
-      <div className="lbl">{lbl}</div>
+      <div className="lbl">{icon}{lbl}</div>
       <div className="val tabular">{val}</div>
       {(delta || tip) && (
         <div className="row" style={{ gap: 8, alignItems: "center" }}>

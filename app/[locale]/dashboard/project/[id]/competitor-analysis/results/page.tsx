@@ -41,6 +41,11 @@ function CompetitorAnalysisResultsContent() {
   const [selectedAiCategory, setSelectedAiCategory] = useState<string | null>(null)
   const [chatScope, setChatScope] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  // AI-plan keyword popup — captures the page's primary/secondary keywords, then
+  // generates the plan on demand.
+  const [showAiKwModal, setShowAiKwModal] = useState(false)
+  const [aiPrimaryKw, setAiPrimaryKw] = useState("")
+  const [aiSecondaryKw, setAiSecondaryKw] = useState("")
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
   // Fire the "analysis ready" alert exactly once; request notification permission once.
@@ -334,13 +339,17 @@ function CompetitorAnalysisResultsContent() {
     }
   }
 
-  const fetchAiPlan = async (forceRegenerate = false) => {
+  const fetchAiPlan = async (opts: { forceRegenerate?: boolean; primaryKeyword?: string; secondaryKeywords?: string[] } = {}) => {
     if (!analysisId) return
     setAiPlanLoading(true)
     setAiPlanError("")
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, { forceRegenerate }, {
+      const response = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, {
+        forceRegenerate: opts.forceRegenerate ?? false,
+        ...(opts.primaryKeyword !== undefined ? { primaryKeyword: opts.primaryKeyword } : {}),
+        ...(opts.secondaryKeywords !== undefined ? { secondaryKeywords: opts.secondaryKeywords } : {}),
+      }, {
         withCredentials: true,
       })
       if (response.status < 200 || response.status >= 300) {
@@ -746,7 +755,10 @@ function CompetitorAnalysisResultsContent() {
               onClick={() => {
                 if (!aiReady) return
                 setActiveResultTab("ai-plan")
-                if (!aiPlan && !aiPlanLoading) fetchAiPlan()
+                if (!aiPlan && !aiPlanLoading) {
+                  setAiPrimaryKw(keyword || analysis?.keyword || "")
+                  setShowAiKwModal(true)
+                }
               }}
               disabled={!aiReady}
               title={!aiReady ? "Available once the main-page analysis completes" : undefined}
@@ -848,9 +860,25 @@ function CompetitorAnalysisResultsContent() {
                   </div>
                   <button
                     className="btn"
-                    onClick={() => { setAiPlanError(""); fetchAiPlan() }}
+                    onClick={() => { setAiPlanError(""); setAiPrimaryKw(keyword || analysis?.keyword || ""); setShowAiKwModal(true) }}
                   >
                     <Icon.refresh /> Retry
+                  </button>
+                </div>
+              )}
+              {!aiPlan && !aiPlanLoading && !aiPlanError && (
+                <div className="card" style={{ padding: 48, textAlign: "center" }}>
+                  <div className="eyebrow" style={{ justifyContent: "center" }}><span className="spark"><Icon.ai /></span> AI PLAN</div>
+                  <div className="b" style={{ fontSize: 16, marginTop: 6 }}>Generate your AI plan</div>
+                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 380, marginLeft: "auto", marginRight: "auto" }}>
+                    Confirm your primary and secondary keywords and we’ll generate a prioritized SEO action plan for this page.
+                  </div>
+                  <button
+                    className="btn primary"
+                    style={{ marginTop: 16 }}
+                    onClick={() => { setAiPrimaryKw(keyword || analysis?.keyword || ""); setShowAiKwModal(true) }}
+                  >
+                    <Icon.ai /> Generate AI plan
                   </button>
                 </div>
               )}
@@ -988,6 +1016,67 @@ function CompetitorAnalysisResultsContent() {
         ) : (
           <AskAnalystUpsell />
         )
+      )}
+
+      {/* AI plan keyword popup — captures primary/secondary, then generates */}
+      {showAiKwModal && (
+        <div className="modal-bg" onClick={() => setShowAiKwModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.ai /></span> AI PLAN</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Confirm your keywords</div>
+              </div>
+              <button onClick={() => setShowAiKwModal(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+            </div>
+            <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <p className="tiny muted" style={{ margin: 0, lineHeight: 1.5 }}>
+                So the plan is prioritized by your page’s real ranking goal: what is the page’s
+                primary keyword (the main keyword you want it to rank for)? Add any secondary
+                keywords it also targets.
+              </p>
+              <div>
+                <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
+                  Primary keyword <span style={{ color: "var(--neg)" }}>*</span>
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={aiPrimaryKw}
+                  onChange={(e) => setAiPrimaryKw(e.target.value)}
+                  placeholder="e.g. best running shoes"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
+                  Secondary keyword(s) <span style={{ opacity: 0.7 }}>— optional, comma-separated</span>
+                </label>
+                <input
+                  className="input"
+                  type="text"
+                  value={aiSecondaryKw}
+                  onChange={(e) => setAiSecondaryKw(e.target.value)}
+                  placeholder="e.g. lightweight running shoes, trail running shoes"
+                />
+              </div>
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setShowAiKwModal(false)}>Cancel</button>
+              <button
+                className="btn primary"
+                disabled={!aiPrimaryKw.trim()}
+                onClick={() => {
+                  const secondary = aiSecondaryKw.split(",").map((s) => s.trim()).filter(Boolean)
+                  setShowAiKwModal(false)
+                  void fetchAiPlan({ forceRegenerate: !!aiPlan, primaryKeyword: aiPrimaryKw.trim(), secondaryKeywords: secondary })
+                }}
+              >
+                <Icon.ai /> Generate AI plan
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

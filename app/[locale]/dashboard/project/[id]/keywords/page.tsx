@@ -807,6 +807,13 @@ export default function ProjectKeywordsPage() {
             <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
+            <Link
+              href={`/dashboard/project/${project.id}/competitor-spy`}
+              className="btn"
+              title="Spy on competitor domains ranking for your keywords"
+            >
+              <Icon.users /> Competitor Spy
+            </Link>
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
             <Link
