@@ -94,7 +94,7 @@ export function AskAnalystUpsell() {
                 ))}
               </ul>
               <div className="aau-actions">
-                <a href="/pricing" className="aau-cta">Upgrade</a>
+                <a href="/pricing?clicked-buy-button" className="aau-cta">Upgrade</a>
                 <button className="aau-secondary" onClick={() => setOpen(false)}>Maybe later</button>
               </div>
             </div>

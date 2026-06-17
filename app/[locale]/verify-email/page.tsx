@@ -128,7 +128,9 @@ export default function VerifyEmailPage() {
     try {
       await verifyEmail(otp)
       setSuccess(t("successVerified"))
-      setTimeout(() => router.push("/dashboard/projects"), 1200)
+      // First successful email verification = first signup landing — mark it so
+      // GTM can track the signup conversion (see lib/track.ts / ?first-sign-up).
+      setTimeout(() => router.push("/dashboard/projects?first-sign-up"), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       // Clear digits on wrong OTP

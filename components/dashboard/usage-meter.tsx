@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api, getAccessToken } from "@/lib/api"
+import { trackEvent } from "@/lib/track"
 import { AddWorkersModal } from "./add-workers-modal"
 
 interface UsageInfo {
@@ -61,7 +62,7 @@ export function UsageMeter() {
       <button
         type="button"
         className="usage-pill"
-        onClick={() => setShowWorkers(true)}
+        onClick={() => { trackEvent("clicked-buy-button"); setShowWorkers(true) }}
         aria-label={buyLabel}
         title={t("chipTitle", {
           plan: isPaid ? t("planPro") : t("planFree"),

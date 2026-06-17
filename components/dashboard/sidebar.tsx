@@ -98,7 +98,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         <div className="sb-upgrade">
           <div className="title"><Icon.spark size={12} /> {t("upgradeToPro")}</div>
           <div className="desc">{t("upgradeDesc")}</div>
-          <Link href="/pricing"><button>{t("seePlans")}</button></Link>
+          <Link href="/pricing?clicked-buy-button"><button>{t("seePlans")}</button></Link>
         </div>
       )}
 

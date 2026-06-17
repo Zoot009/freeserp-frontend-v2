@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth"
 import axios from "@/lib/axios"
+import { trackEvent } from "@/lib/track"
 import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -73,6 +74,8 @@ export default function PricingPage() {
   }, [token])
 
   const handleUpgrade = async () => {
+    // Buy intent — fire the GTM conversion before any redirect to checkout/login.
+    trackEvent("clicked-buy-button")
     if (!user || !token) {
       router.push("/login?next=/pricing")
       return

@@ -14,6 +14,7 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
+import { trackOnce } from "@/lib/track"
 import {
   PosCell,
   DeltaCell,
@@ -70,6 +71,9 @@ interface ProjectDetail {
   lastScheduledCheck: string | null
   nextScheduledCheck: string | null
   createdAt: string
+  // Public-share token for the keywords page. Null = sharing off; non-null means
+  // the read-only /share/keywords/<token> page is live. Drives the Share modal.
+  shareToken: string | null
   keywords: Keyword[]
 }
 
@@ -261,6 +265,8 @@ function AddKeywordsModal({
     setError(""); setLoading(true)
     try {
       await api.post(`/api/projects/${projectId}/keywords`, { keywords: lines.map((k) => ({ keyword: k, location, device })) })
+      // First keyword(s) for an empty project = the "first keywords" milestone.
+      if (currentCount === 0) trackOnce("first-set-keywords-added")
       onAdded(device)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
@@ -383,6 +389,11 @@ export default function ProjectKeywordsPage() {
   const [showFrequencyModal, setShowFrequencyModal] = useState(false)
   const [showAlerts, setShowAlerts] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  // Public-share modal state. project.shareToken is the source of truth for
+  // whether sharing is on; these just track in-flight UI.
+  const [showShare, setShowShare] = useState(false)
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const [pausing, setPausing] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
@@ -513,10 +524,14 @@ export default function ProjectKeywordsPage() {
 
   const handleRunCheck = async () => {
     if (!project) return
+    // First rank check ever for this project (no keyword has been checked yet)
+    // = the "first rank check" milestone. Captured before the post.
+    const isFirstCheck = project.keywords.length > 0 && project.keywords.every((k) => !k.checkedAt)
     setChecking(true); setError("")
     try {
       const keywordIds = selectedKeywords.size > 0 ? Array.from(selectedKeywords) : undefined
       await api.post(`/api/projects/${project.id}/check`, { keywordIds })
+      if (isFirstCheck) trackOnce("first-rank-check-button-clicked")
       setSelectedKeywords(new Set())
       advanceFromStep(3)
       setTimeout(load, 2000)
@@ -639,6 +654,50 @@ export default function ProjectKeywordsPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to toggle pause")
     } finally { setPausing(false) }
+  }
+
+  // Public share URL for the current token (host-relative so it points at the
+  // domain the user is actually on). Empty when sharing is off.
+  const shareUrl =
+    project?.shareToken && typeof window !== "undefined"
+      ? `${window.location.origin}/share/keywords/${project.shareToken}`
+      : ""
+
+  // Enable public sharing — idempotent on the backend, so reopening the modal
+  // and clicking again just returns the existing token.
+  const handleCreateShare = async () => {
+    if (!project) return
+    setShareBusy(true); setError("")
+    try {
+      const data = await api.post<{ shareToken: string }>(`/api/projects/${project.id}/share`)
+      setProject((prev) => (prev ? { ...prev, shareToken: data.shareToken } : prev))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create share link")
+    } finally { setShareBusy(false) }
+  }
+
+  // Revoke the link — the public page 404s afterwards.
+  const handleDisableShare = async () => {
+    if (!project) return
+    setShareBusy(true); setError("")
+    try {
+      await api.delete(`/api/projects/${project.id}/share`)
+      setProject((prev) => (prev ? { ...prev, shareToken: null } : prev))
+      setShareCopied(false)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to disable sharing")
+    } finally { setShareBusy(false) }
+  }
+
+  const handleCopyShare = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch {
+      // Clipboard blocked (insecure context / permissions) — non-fatal.
+    }
   }
 
   // ───── Derived data ─────────────────────────────────────────────────────
@@ -854,6 +913,14 @@ export default function ProjectKeywordsPage() {
                 <Icon.bell /> Alerts
               </button>
             )}
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowShare(true)}
+              title="Share a public, read-only view of this project's keyword rankings"
+            >
+              <Icon.globe /> Share
+            </button>
             {/* {plan === "paid" && (
               <button
                 type="button"
@@ -1601,6 +1668,63 @@ export default function ProjectKeywordsPage() {
       {showAlerts && <AlertSettingsModal projectId={project.id} onClose={() => setShowAlerts(false)} />}
 
       {showReport && <ReportModal projectId={project.id} onClose={() => setShowReport(false)} />}
+
+      {/* Public share modal — create / copy / revoke a read-only link to this
+          project's live keyword rankings. */}
+      {showShare && (
+        <div className="modal-bg" onClick={() => setShowShare(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.globe /></span> SHARE RANKINGS</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Public link</div>
+              </div>
+              <button onClick={() => setShowShare(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+            </div>
+            <div className="modal-b">
+              {project.shareToken ? (
+                <>
+                  <div className="tiny muted" style={{ marginBottom: 8 }}>
+                    Anyone with this link can view a read-only, live snapshot of this project&apos;s keyword rankings — no login required.
+                  </div>
+                  <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
+                    <input className="input" readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} style={{ flex: 1, fontSize: 12 }} />
+                    <button type="button" className="btn" onClick={handleCopyShare} style={{ whiteSpace: "nowrap" }}>
+                      {shareCopied ? <><Icon.check /> Copied</> : "Copy"}
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <a href={shareUrl} target="_blank" rel="noreferrer" className="tiny" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      Open link <Icon.external />
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <div className="tiny muted">
+                  Generate a public link to share a read-only, live view of this project&apos;s keyword rankings. You can disable it any time.
+                </div>
+              )}
+            </div>
+            <div className="modal-f">
+              {project.shareToken ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleDisableShare}
+                  disabled={shareBusy}
+                  style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
+                >
+                  {shareBusy ? "Disabling…" : "Disable sharing"}
+                </button>
+              ) : (
+                <button type="button" className="btn primary" onClick={handleCreateShare} disabled={shareBusy}>
+                  {shareBusy ? "Creating…" : "Create public link"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showFrequencyModal && tempFrequency && (
         <div className="modal-bg" onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }}>

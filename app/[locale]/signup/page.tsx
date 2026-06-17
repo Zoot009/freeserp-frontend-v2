@@ -49,6 +49,10 @@ function SignupForm() {
       setGoogleLoading(true)
       setError("")
       try {
+        // Google auth on the signup page = treat as a signup. Mark it so the
+        // dashboard fires the ?first-sign-up GTM conversion on landing. (The
+        // login page's Google button does not set this, so logins don't fire.)
+        try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
         await loginWithGoogle(access_token)
         router.push("/dashboard/projects")
       } catch (err: unknown) {

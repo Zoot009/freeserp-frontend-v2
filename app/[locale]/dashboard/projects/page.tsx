@@ -11,6 +11,7 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
+import { trackEvent } from "@/lib/track"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker in the New Project modal. Free users still get
@@ -173,7 +174,7 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="modal-f">
             <button type="button" className="btn" onClick={onClose}>{t("notNow")}</button>
-            <Link href="/pricing"><button type="button" className="btn primary">{t("upgradePlan")}</button></Link>
+            <Link href="/pricing?clicked-buy-button"><button type="button" className="btn primary">{t("upgradePlan")}</button></Link>
           </div>
         </div>
       </div>
@@ -457,6 +458,19 @@ export default function ProjectsPage() {
     if (!loading && user && !user.emailVerified) router.push("/verify-email")
   }, [user, loading, router])
 
+  // Google signup lands here with a sessionStorage marker (the email signup
+  // path arrives with ?first-sign-up already in the URL). Fire the GTM signup
+  // conversion once, then clear the marker.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      if (sessionStorage.getItem("fs_just_signed_up")) {
+        sessionStorage.removeItem("fs_just_signed_up")
+        trackEvent("first-sign-up")
+      }
+    } catch {}
+  }, [])
+
   // Don't gate these on the React `token` state — it can lag behind the
   // actual session (the api client owns the token via getAccessToken() and
   // refreshes on 401). The `user?.emailVerified` gate on the callers already
@@ -541,13 +555,17 @@ export default function ProjectsPage() {
           plan={usage?.plan}
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
+            // First-ever project for this user → mark the GTM conversion. The
+            // current `projects` list is empty only on the very first create
+            // (existing users always have ≥1), so this never mis-fires.
+            const isFirstProject = projects.length === 0
             setProjects((prev) => [p, ...prev])
             setShowAddProject(false)
             // Tutorial step 1 → 2 — survives the navigation since tutorial
             // state lives in TutorialProvider at the root layout level.
             advanceFromStep(1)
             // Newly-created project → jump straight into its keywords page.
-            router.push(`/dashboard/project/${p.id}/keywords`)
+            router.push(`/dashboard/project/${p.id}/keywords${isFirstProject ? "?first-project-created" : ""}`)
           }}
         />
       )}

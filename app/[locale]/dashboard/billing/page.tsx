@@ -241,7 +241,7 @@ export default function BillingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/pricing"><button className="btn primary">{t("upgrade")}</button></Link>
+              <Link href="/pricing?clicked-buy-button"><button className="btn primary">{t("upgrade")}</button></Link>
             </div>
           ) : (
             <div>
@@ -339,7 +339,7 @@ export default function BillingPage() {
                   canResume ? (
                     <button className="btn primary" onClick={resumePlan} disabled={busy}>{t("resumePlan")}</button>
                   ) : (
-                    <Link href="/pricing"><button className="btn">{t("resubscribe")}</button></Link>
+                    <Link href="/pricing?clicked-buy-button"><button className="btn">{t("resubscribe")}</button></Link>
                   )
                 ) : (
                   <button className="btn" onClick={() => setConfirmCancel(true)} disabled={busy} style={{ color: "var(--neg)" }}>{t("cancelPlan")}</button>
@@ -368,7 +368,7 @@ export default function BillingPage() {
               t.rich("usageLineFree", {
                 remaining: usage.dailyRemaining,
                 limit: usage.dailyLimit,
-                link: (chunks) => <Link href="/pricing" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
+                link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
               })
             )}
           </div>

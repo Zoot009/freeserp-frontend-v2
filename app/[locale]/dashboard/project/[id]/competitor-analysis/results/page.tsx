@@ -47,11 +47,10 @@ function CompetitorAnalysisResultsContent() {
   // fetch resolves so the star can remount with the correct initial value.
   const [caFavorited, setCaFavorited] = useState(false)
   const [caFavReady, setCaFavReady] = useState(false)
-  // AI-plan keyword popup — captures the page's primary/secondary keywords, then
-  // generates the plan on demand.
+  // AI-plan keyword popup — asks whether the tracked keyword is the page's
+  // primary ranking target, then generates the plan on demand. Defaults to Yes.
   const [showAiKwModal, setShowAiKwModal] = useState(false)
-  const [aiPrimaryKw, setAiPrimaryKw] = useState("")
-  const [aiSecondaryKw, setAiSecondaryKw] = useState("")
+  const [aiIsPrimary, setAiIsPrimary] = useState(true)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const exportMenuRef = useRef<HTMLDivElement>(null)
   // Fire the "analysis ready" alert exactly once; request notification permission once.
@@ -364,7 +363,7 @@ function CompetitorAnalysisResultsContent() {
     }
   }
 
-  const fetchAiPlan = async (opts: { forceRegenerate?: boolean; primaryKeyword?: string; secondaryKeywords?: string[] } = {}) => {
+  const fetchAiPlan = async (opts: { forceRegenerate?: boolean; isPrimaryKeyword?: boolean } = {}) => {
     if (!analysisId) return
     setAiPlanLoading(true)
     setAiPlanError("")
@@ -372,8 +371,7 @@ function CompetitorAnalysisResultsContent() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
       const response = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/ai-plan`, {
         forceRegenerate: opts.forceRegenerate ?? false,
-        ...(opts.primaryKeyword !== undefined ? { primaryKeyword: opts.primaryKeyword } : {}),
-        ...(opts.secondaryKeywords !== undefined ? { secondaryKeywords: opts.secondaryKeywords } : {}),
+        ...(opts.isPrimaryKeyword !== undefined ? { isPrimaryKeyword: opts.isPrimaryKeyword } : {}),
       }, {
         withCredentials: true,
       })
@@ -763,7 +761,7 @@ function CompetitorAnalysisResultsContent() {
                   </div>
                 </div>
               </div>
-              <Link href="/pricing" style={{ flexShrink: 0 }}>
+              <Link href="/pricing?clicked-buy-button" style={{ flexShrink: 0 }}>
                 <button className="btn primary sm">Upgrade</button>
               </Link>
             </div>
@@ -791,7 +789,7 @@ function CompetitorAnalysisResultsContent() {
                 if (!aiReady) return
                 setActiveResultTab("ai-plan")
                 if (!aiPlan && !aiPlanLoading) {
-                  setAiPrimaryKw(keyword || analysis?.keyword || "")
+                  setAiIsPrimary(true)
                   setShowAiKwModal(true)
                 }
               }}
@@ -895,7 +893,7 @@ function CompetitorAnalysisResultsContent() {
                   </div>
                   <button
                     className="btn"
-                    onClick={() => { setAiPlanError(""); setAiPrimaryKw(keyword || analysis?.keyword || ""); setShowAiKwModal(true) }}
+                    onClick={() => { setAiPlanError(""); setAiIsPrimary(true); setShowAiKwModal(true) }}
                   >
                     <Icon.refresh /> Retry
                   </button>
@@ -906,12 +904,12 @@ function CompetitorAnalysisResultsContent() {
                   <div className="eyebrow" style={{ justifyContent: "center" }}><span className="spark"><Icon.ai /></span> AI PLAN</div>
                   <div className="b" style={{ fontSize: 16, marginTop: 6 }}>Generate your AI plan</div>
                   <div className="tiny muted" style={{ marginTop: 6, maxWidth: 380, marginLeft: "auto", marginRight: "auto" }}>
-                    Confirm your primary and secondary keywords and we’ll generate a prioritized SEO action plan for this page.
+                    Confirm whether this is your page’s primary keyword and we’ll generate a prioritized SEO action plan for this page.
                   </div>
                   <button
                     className="btn primary"
                     style={{ marginTop: 16 }}
-                    onClick={() => { setAiPrimaryKw(keyword || analysis?.keyword || ""); setShowAiKwModal(true) }}
+                    onClick={() => { setAiIsPrimary(true); setShowAiKwModal(true) }}
                   >
                     <Icon.ai /> Generate AI plan
                   </button>
@@ -981,7 +979,7 @@ function CompetitorAnalysisResultsContent() {
                         </div>
                       ))}
                       {aiPlan.free && (
-                        <Link href="/pricing" style={{ display: "block", marginTop: 12 }}>
+                        <Link href="/pricing?clicked-buy-button" style={{ display: "block", marginTop: 12 }}>
                           <button className="btn primary" style={{ width: "100%" }}>
                             Upgrade to unlock full plan
                           </button>
@@ -1069,58 +1067,52 @@ function CompetitorAnalysisResultsContent() {
         )
       )}
 
-      {/* AI plan keyword popup — captures primary/secondary, then generates */}
+      {/* AI plan keyword popup — asks whether the tracked keyword is the page's
+          primary target, then generates the plan with that weighting. */}
       {showAiKwModal && (
         <div className="modal-bg" onClick={() => setShowAiKwModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-h">
               <div>
                 <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.ai /></span> AI PLAN</div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Confirm your keywords</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Confirm your keyword</div>
               </div>
               <button onClick={() => setShowAiKwModal(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
             </div>
             <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <p className="tiny muted" style={{ margin: 0, lineHeight: 1.5 }}>
-                So the plan is prioritized by your page’s real ranking goal: what is the page’s
-                primary keyword (the main keyword you want it to rank for)? Add any secondary
-                keywords it also targets.
+              <p className="tiny" style={{ margin: 0, lineHeight: 1.5 }}>
+                Is <span className="b" style={{ color: "var(--text)" }}>“{keyword || analysis?.keyword}”</span> your page’s primary keyword
+                (the main keyword you want it to rank for)?
               </p>
-              <div>
-                <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
-                  Primary keyword <span style={{ color: "var(--neg)" }}>*</span>
-                </label>
-                <input
-                  className="input"
-                  type="text"
-                  value={aiPrimaryKw}
-                  onChange={(e) => setAiPrimaryKw(e.target.value)}
-                  placeholder="e.g. best running shoes"
-                  autoFocus
-                />
+              <div className="pill-toggle" style={{ width: "fit-content" }}>
+                <button
+                  type="button"
+                  className={aiIsPrimary ? "active" : ""}
+                  onClick={() => setAiIsPrimary(true)}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  className={!aiIsPrimary ? "active" : ""}
+                  onClick={() => setAiIsPrimary(false)}
+                >
+                  No
+                </button>
               </div>
-              <div>
-                <label className="tiny muted" style={{ display: "block", marginBottom: 4 }}>
-                  Secondary keyword(s) <span style={{ opacity: 0.7 }}>— optional, comma-separated</span>
-                </label>
-                <input
-                  className="input"
-                  type="text"
-                  value={aiSecondaryKw}
-                  onChange={(e) => setAiSecondaryKw(e.target.value)}
-                  placeholder="e.g. lightweight running shoes, trail running shoes"
-                />
-              </div>
+              <p className="tiny muted" style={{ margin: 0, lineHeight: 1.5 }}>
+                {aiIsPrimary
+                  ? "We’ll weight this keyword in the analysis and prioritize recommendations toward it."
+                  : "We’ll treat it as one of several ranking signals and won’t give it extra weight."}
+              </p>
             </div>
             <div className="modal-f">
               <button className="btn" onClick={() => setShowAiKwModal(false)}>Cancel</button>
               <button
                 className="btn primary"
-                disabled={!aiPrimaryKw.trim()}
                 onClick={() => {
-                  const secondary = aiSecondaryKw.split(",").map((s) => s.trim()).filter(Boolean)
                   setShowAiKwModal(false)
-                  void fetchAiPlan({ forceRegenerate: !!aiPlan, primaryKeyword: aiPrimaryKw.trim(), secondaryKeywords: secondary })
+                  void fetchAiPlan({ forceRegenerate: !!aiPlan, isPrimaryKeyword: aiIsPrimary })
                 }}
               >
                 <Icon.ai /> Generate AI plan
