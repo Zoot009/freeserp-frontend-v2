@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { Link, usePathname, useRouter } from "@/emails/i18n/navigation"
+import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "./icons"

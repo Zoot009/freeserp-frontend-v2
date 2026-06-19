@@ -1,4 +1,4 @@
-import { redirect } from "@/emails/i18n/navigation"
+import { redirect } from "@/i18n/navigation"
 
 export default async function Page({
   params,

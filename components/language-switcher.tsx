@@ -2,8 +2,8 @@
 
 import { useTransition } from "react"
 import { useLocale, useTranslations } from "next-intl"
-import { usePathname, useRouter } from "@/emails/i18n/navigation"
-import { routing } from "@/emails/i18n/routing"
+import { usePathname, useRouter } from "@/i18n/navigation"
+import { routing } from "@/i18n/routing"
 
 /**
  * Locale switcher. Navigates to the same page in the chosen locale, preserving

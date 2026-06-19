@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "@/emails/i18n/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 
