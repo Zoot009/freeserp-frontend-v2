@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { usePathname } from "@/i18n/navigation"
+import { usePathname } from "@/emails/i18n/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { LanguageSwitcher } from "@/components/language-switcher"

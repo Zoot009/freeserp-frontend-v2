@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { Link } from "@/i18n/navigation"
+import { Link } from "@/emails/i18n/navigation"
 import { toast } from "sonner"
 import { api, ApiError, getAccessToken } from "@/lib/api"
 import { StatTile } from "@/components/dashboard/primitives"

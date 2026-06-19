@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useTranslations } from "next-intl"
-import { Link, useRouter } from "@/i18n/navigation"
+import { Link, useRouter } from "@/emails/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"

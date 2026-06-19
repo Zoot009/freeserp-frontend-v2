@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next'
-import { routing } from '@/i18n/routing'
+import { routing } from '@/emails/i18n/routing'
 
 // Public, indexable pages (paths without locale prefix).
 const PUBLIC_PATHS = ['/login', '/signup', '/pricing'] as const

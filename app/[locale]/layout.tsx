@@ -16,7 +16,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollProgress } from "@/components/scroll-progress"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
-import { routing } from "@/i18n/routing"
+import { routing } from "@/emails/i18n/routing"
 import "../globals.css"
 
 const bebasNeue = Bebas_Neue({ weight: "400", subsets: ["latin"], variable: "--font-bebas" })
