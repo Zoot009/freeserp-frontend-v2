@@ -11,7 +11,7 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
-import { trackEvent } from "@/lib/track"
+import { trackEvent, trackMilestone } from "@/lib/track"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker in the New Project modal. Free users still get
@@ -555,17 +555,18 @@ export default function ProjectsPage() {
           plan={usage?.plan}
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
-            // First-ever project for this user → mark the GTM conversion. The
-            // current `projects` list is empty only on the very first create
-            // (existing users always have ≥1), so this never mis-fires.
-            const isFirstProject = projects.length === 0
             setProjects((prev) => [p, ...prev])
             setShowAddProject(false)
+            // First-ever project for this account → GTM conversion. Deduped
+            // server-side, so it fires once per account and never again if the
+            // user later deletes all their projects and creates another (the old
+            // `projects.length === 0` heuristic re-fired in that case).
+            void trackMilestone("first-project-created")
             // Tutorial step 1 → 2 — survives the navigation since tutorial
             // state lives in TutorialProvider at the root layout level.
             advanceFromStep(1)
             // Newly-created project → jump straight into its keywords page.
-            router.push(`/dashboard/project/${p.id}/keywords${isFirstProject ? "?first-project-created" : ""}`)
+            router.push(`/dashboard/project/${p.id}/keywords`)
           }}
         />
       )}

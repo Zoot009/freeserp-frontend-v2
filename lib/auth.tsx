@@ -29,7 +29,7 @@ interface AuthContextValue {
   loading: boolean
   register: (data: RegisterData) => Promise<void>
   login: (data: LoginData) => Promise<{ emailVerified: boolean }>
-  loginWithGoogle: (accessToken: string) => Promise<void>
+  loginWithGoogle: (accessToken: string) => Promise<{ isNewUser: boolean }>
   logout: () => void
   verifyEmail: (otp: string) => Promise<void>
   resendVerify: () => Promise<void>
@@ -42,6 +42,8 @@ interface AuthResponse {
   user: User
   accessToken: string
   refreshToken: string
+  // Only present on the Google endpoint: true when this call created the account.
+  isNewUser?: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -117,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = useCallback(async (accessToken: string) => {
     const res = await api.post<AuthResponse>("/api/auth/google", { accessToken }, { skipAuth: true })
     handleAuth(res)
+    return { isNewUser: res.isNewUser ?? false }
   }, [])
 
   const logout = useCallback(() => {

@@ -14,7 +14,7 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
-import { trackOnce } from "@/lib/track"
+import { trackOnce, trackMilestone } from "@/lib/track"
 import {
   PosCell,
   DeltaCell,
@@ -265,8 +265,10 @@ function AddKeywordsModal({
     setError(""); setLoading(true)
     try {
       await api.post(`/api/projects/${projectId}/keywords`, { keywords: lines.map((k) => ({ keyword: k, location, device })) })
-      // First keyword(s) for an empty project = the "first keywords" milestone.
-      if (currentCount === 0) trackOnce("first-set-keywords-added")
+      // Adding to a still-empty project might be this account's first-ever set of
+      // keywords — let the backend decide (deduped per account, so it won't
+      // re-fire on a later new project the way the old per-browser guard could).
+      if (currentCount === 0) void trackMilestone("first-set-keywords-added")
       onAdded(device)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")

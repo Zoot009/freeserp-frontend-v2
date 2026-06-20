@@ -29,6 +29,7 @@ interface Subscription {
   trialEndsAt: string | null
   stripeSubscriptionId: string | null
   razorpaySubscriptionId: string | null
+  payuMandateId: string | null
 }
 
 interface Payment {
@@ -104,7 +105,8 @@ export default function BillingPage() {
   const monthlyUsd = workers * PRICE_PER_WORKER_USD
   const monthlyDelta = (workers - currentWorkers) * PRICE_PER_WORKER_USD
   const usedPct = usage && usage.dailyLimit > 0 ? Math.min(100, Math.round((usage.dailyUsed / usage.dailyLimit) * 100)) : 0
-  const canResume = sub?.provider !== "razorpay"
+  // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
+  const canResume = sub?.provider === "stripe"
 
   const refreshMeter = () => window.dispatchEvent(new Event("usage:refresh"))
 

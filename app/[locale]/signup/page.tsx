@@ -49,11 +49,15 @@ function SignupForm() {
       setGoogleLoading(true)
       setError("")
       try {
-        // Google auth on the signup page = treat as a signup. Mark it so the
-        // dashboard fires the ?first-sign-up GTM conversion on landing. (The
-        // login page's Google button does not set this, so logins don't fire.)
-        try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
-        await loginWithGoogle(access_token)
+        // Google auth on the signup page only counts as a signup when it
+        // actually creates a new account. An existing user clicking "Sign up
+        // with Google" is really logging in — the backend tells us which, so we
+        // mark the ?first-sign-up GTM conversion (fired on the dashboard) only
+        // for genuinely new accounts.
+        const { isNewUser } = await loginWithGoogle(access_token)
+        if (isNewUser) {
+          try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
+        }
         router.push("/dashboard/projects")
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))

@@ -3,6 +3,8 @@
 // — so a GTM History-Change / "URL contains" trigger fires — and also push a
 // matching dataLayer event for GTM custom-event triggers.
 
+import { api } from "@/lib/api"
+
 declare global {
   interface Window {
     dataLayer?: Record<string, unknown>[]
@@ -34,4 +36,23 @@ export function trackOnce(flag: string): void {
     // localStorage unavailable (private mode / blocked) — still fire once now.
   }
   trackEvent(flag)
+}
+
+// Account-level once: the backend atomically records the milestone and reports
+// whether THIS call was the first to reach it, so we fire the GTM conversion
+// exactly once per account. Unlike trackOnce (per-browser localStorage), this is
+// correct across devices and never re-fires after the user deletes and recreates
+// the underlying project/keywords. `flag` must be a milestone key the
+// /api/me/milestones endpoint whitelists.
+export async function trackMilestone(flag: string): Promise<void> {
+  if (typeof window === "undefined") return
+  try {
+    const { firstTime } = await api.post<{ firstTime: boolean }>("/api/me/milestones", { key: flag })
+    if (firstTime) trackEvent(flag)
+  } catch {
+    // Backend unreachable / not yet migrated — degrade to a per-browser guard so
+    // a genuine first milestone still has a chance to register rather than being
+    // lost entirely.
+    trackOnce(flag)
+  }
 }

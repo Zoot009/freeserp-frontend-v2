@@ -235,7 +235,7 @@ export function AddWorkersModal({ onClose }: { onClose: () => void }) {
                   <span className="tiny muted">${PRICING_TIERS[PRICING_TIERS.length - 1]}</span>
                 </div>
                 <p className="tiny muted" style={{ marginTop: 10 }}>
-                  Billed monthly via <span style={{ color: "var(--text)", fontWeight: 600 }}>Stripe</span>.
+                  Billed <span style={{ color: "var(--text)", fontWeight: 600 }}>monthly</span>, cancel anytime.
                 </p>
               </div>
 
