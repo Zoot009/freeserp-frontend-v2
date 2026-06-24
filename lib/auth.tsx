@@ -9,6 +9,9 @@ interface User {
   name?: string | null
   plan?: string
   emailVerified?: boolean
+  // Self-reported audience segment. null/undefined = the user hasn't answered the
+  // one-time role modal yet, which keeps the dashboard RolePickerGate open.
+  occupationRole?: string | null
 }
 
 interface RegisterData {
