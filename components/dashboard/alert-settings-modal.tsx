@@ -7,6 +7,8 @@ import { Icon } from "@/components/dashboard/icons"
 
 // Per-project rank-change alert settings. Mirrors the backend
 // notificationSettingsSchema (GET/PATCH /api/projects/:id/notification-settings).
+type DigestFrequency = "daily" | "weekly" | "monthly"
+
 interface AlertSettings {
   alertsEnabled: boolean
   alertEmailEnabled: boolean
@@ -14,6 +16,8 @@ interface AlertSettings {
   alertPage1Cross: boolean
   alertSerpFeature: boolean
   email: string | null
+  reportDigestEnabled: boolean
+  reportDigestFrequency: DigestFrequency
 }
 
 const DEFAULTS: AlertSettings = {
@@ -23,6 +27,8 @@ const DEFAULTS: AlertSettings = {
   alertPage1Cross: true,
   alertSerpFeature: false,
   email: null,
+  reportDigestEnabled: false,
+  reportDigestFrequency: "weekly",
 }
 
 function Row({
@@ -75,11 +81,14 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
     setError("")
     try {
       await api.patch(`/api/projects/${projectId}/notification-settings`, {
+        email: settings.email ?? "",
         alertsEnabled: settings.alertsEnabled,
         alertEmailEnabled: settings.alertEmailEnabled,
         alertMovementThreshold: settings.alertMovementThreshold,
         alertPage1Cross: settings.alertPage1Cross,
         alertSerpFeature: settings.alertSerpFeature,
+        reportDigestEnabled: settings.reportDigestEnabled,
+        reportDigestFrequency: settings.reportDigestFrequency,
       })
       onClose()
     } catch (err) {
@@ -109,16 +118,28 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
             <div className="tiny muted">Loading…</div>
           ) : (
             <>
+              <div>
+                <div className="b" style={{ fontSize: 13 }}>Email address</div>
+                <div className="tiny muted" style={{ marginTop: 2, marginBottom: 6 }}>
+                  Where rank alerts and scheduled reports are sent.
+                </div>
+                <input
+                  type="email"
+                  value={settings.email ?? ""}
+                  onChange={(e) => patch({ email: e.target.value || null })}
+                  placeholder="you@example.com"
+                  className="input"
+                  style={{ width: "100%", fontSize: 13, paddingTop: 6, paddingBottom: 6 }}
+                />
+              </div>
+
+              <div style={{ height: 1, background: "var(--border)" }} />
+
               <Row label="Enable alerts" hint="Get notified when this project's keywords move.">
                 <Switch checked={settings.alertsEnabled} onCheckedChange={(v) => patch({ alertsEnabled: v })} />
               </Row>
 
-              <div style={{ height: 1, background: "var(--border)" }} />
-
-              <Row
-                label="Email me"
-                hint={settings.email ? `Sends to ${settings.email}` : "No project email set — add one to receive emails."}
-              >
+              <Row label="Email me" hint="Also email me each time a tracked keyword moves.">
                 <Switch
                   checked={settings.alertEmailEnabled}
                   disabled={disabled}
@@ -153,6 +174,32 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
                   disabled={disabled}
                   onCheckedChange={(v) => patch({ alertSerpFeature: v })}
                 />
+              </Row>
+
+              <div style={{ height: 1, background: "var(--border)" }} />
+
+              <Row label="Scheduled report" hint="Email a rank-report summary on a regular schedule.">
+                <Switch
+                  checked={settings.reportDigestEnabled}
+                  onCheckedChange={(v) => patch({ reportDigestEnabled: v })}
+                />
+              </Row>
+
+              <Row
+                label="Frequency"
+                hint={settings.email ? "How often the report digest is emailed." : "Add an email address above to receive it."}
+              >
+                <select
+                  value={settings.reportDigestFrequency}
+                  disabled={!settings.reportDigestEnabled}
+                  onChange={(e) => patch({ reportDigestFrequency: e.target.value as DigestFrequency })}
+                  className="input"
+                  style={{ fontSize: 13, padding: "6px 8px" }}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
               </Row>
 
               {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}
