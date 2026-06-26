@@ -27,6 +27,9 @@ export interface CrawlData {
     scores: { performance: number; seo: number; accessibility: number; bestPractices: number }
     vitals: { ttfb: number; fcp: number; lcp: number; tbt: number; cls: number; si: number; tti: number }
   } | null
+  // Off-page authority (DA/PA), embedded by the backend crawl worker. Absent on
+  // pre-DA/PA rows and when the provider is OFF — the scorer then stays on-page.
+  authority?: { da: number | null; pa: number | null; source: string } | null
   crawlMethod: string
   crawlTime: number
   crawledAt: string

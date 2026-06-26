@@ -1,10 +1,17 @@
 import type { CrawlData } from "@/types/competitor-analysis"
 
-// NOTE: this scorer is mirrored on the backend at
-// freeserp-backend/src/modules/competitor-analysis/lib/pageScore.ts, which
-// computes and persists the keyword's ranking-page score for the keywords
-// dashboard. Any change to the scoring logic here must be mirrored there, or the
-// dashboard's "Page Score" and this table's "Overall Score" will disagree.
+// NOTE: this scorer powers the competitor-analysis comparison table's "Overall
+// Score" for the user's site and each competitor. It is intentionally DECOUPLED
+// from the backend's freeserp-backend/src/modules/competitor-analysis/lib/
+// pageScore.ts (a different, density-focused, on-page-only 5-factor "Page Score"
+// for the keywords dashboard) — do NOT sync them.
+//
+// Scoring = on-page (normalized to 0–1, weighted 50%) blended with off-page
+// authority DA/PA (the other 50%, split DA 40% + PA 10%). The authority layer
+// (PA_WEIGHT/DA_WEIGHT/authorityScore/blendTotal) lives ONLY here, NOT in
+// pageScore.ts — DA/PA must not influence the keyword Page Score. Authority
+// adapts down when DA/PA data is missing, so with no provider configured the
+// blend is inert and the score is on-page-only.
 
 const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','being','as','it','its','this','that','these','those','i','my','your','our','we','they','he','she','not','no','so','do','does','did','has','have','had','can','will','would','should','could','may','might','into','about','up','out'])
 
@@ -21,12 +28,41 @@ export interface SeoScoreBreakdown {
   cwv: number        // max 10
   links: number      // max 12
   anchors: number    // max 5
-  total: number      // 0–100 (normalized)
+  da: number | null  // raw Domain Authority 0–100 (null when unavailable)
+  pa: number | null  // raw Page Authority 0–100 (null when unavailable)
+  authority: number  // weighted authority points earned (max = 50 both / 40 DA-only / 10 PA-only)
+  total: number      // 0–100 (on-page 50% blended with authority 50%)
   grade: string      // A+, A, B, C, D, F
   label: string      // Excellent, Very Good, Good, Fair, Needs Work, Poor
 }
 
-const RAW_MAX = 103 // actual sum of all category maxes
+const RAW_MAX = 103 // actual sum of all on-page category maxes (pre-authority)
+
+// ── Authority layer (DA/PA) — lives only in this file. DA is weighted far above
+// PA: domain-wide authority is the dominant off-page ranking signal here.
+const PA_WEIGHT = 10
+const DA_WEIGHT = 40 // DA + PA = the 50% authority half of the blended score
+
+function coerceAuthority(raw: number | null | undefined): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : null
+}
+
+// Weighted authority points earned + the max available (0 when neither present).
+function authorityScore(da: number | null, pa: number | null): { raw: number; max: number } {
+  let raw = 0
+  let max = 0
+  if (pa !== null) { raw += (pa / 100) * PA_WEIGHT; max += PA_WEIGHT }
+  if (da !== null) { raw += (da / 100) * DA_WEIGHT; max += DA_WEIGHT }
+  return { raw, max }
+}
+
+// Blend on-page (fixed weight 50) with authority (adaptive weight = max). With
+// no authority data (max=0) this reduces to onPageNorm*100 — the pre-DA/PA
+// behaviour — so scores are unchanged until a provider is configured.
+function blendTotal(onPageNorm: number, authRaw: number, authMax: number): number {
+  const authNorm = authMax > 0 ? authRaw / authMax : 0
+  return Math.round(((onPageNorm * 50) + (authNorm * authMax)) / (50 + authMax) * 100)
+}
 
 function getKwWords(keyword: string): string[] {
   return keyword.toLowerCase().split(/\s+/).filter(w => w.length > 0 && !STOP_WORDS.has(w))
@@ -274,7 +310,13 @@ export function computeSeoScore(
   if (tbtMissing) denom -= 2
   if (linkDataMissing) denom -= 17
 
-  const total = Math.min(100, Math.round((rawScore / denom) * 100))
+  // On-page normalized to 0–1, then blended with off-page authority (DA/PA) so
+  // authority is 50% when both present and adapts down when missing.
+  const onPageNorm = Math.min(1, rawScore / denom)
+  const da = coerceAuthority(crawlData?.authority?.da)
+  const pa = coerceAuthority(crawlData?.authority?.pa)
+  const { raw: authRaw, max: authMax } = authorityScore(da, pa)
+  const total = Math.min(100, blendTotal(onPageNorm, authRaw, authMax))
   const { grade, label } = gradeFromTotal(total)
 
   const r1 = (v: number) => Math.round(v * 10) / 10
@@ -292,6 +334,9 @@ export function computeSeoScore(
     cwv:        r1(cwvScore),
     links:      r1(linkScore),
     anchors:    anchorScore,
+    da,
+    pa,
+    authority:  r1(authRaw),
     total,
     grade,
     label,

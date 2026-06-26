@@ -351,6 +351,24 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                   </div>
                                 )
                               })}
+                              {/* ── Off-page authority (DA/PA) — 50% of the Overall Score (DA 40% / PA 10%) ── */}
+                              <div className="pt-1 mt-1 border-t border-[color:var(--border)]">
+                                <span className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--text-mute)]">Authority · 50%</span>
+                              </div>
+                              {([['DA', score.da], ['PA', score.pa]] as const).map(([label, val]) => {
+                                const pct = val != null ? Math.max(0, Math.min(1, val / 100)) : 0
+                                const barColor = pct >= 0.8 ? 'bg-[color:var(--pos)]' : pct >= 0.5 ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--neg)]'
+                                const textColor = pct >= 0.8 ? 'text-[color:var(--pos)]' : pct >= 0.5 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'
+                                return (
+                                  <div key={label} className="flex items-center gap-1.5 sm:gap-2">
+                                    <span className="text-[10px] font-medium text-[color:var(--text-mute)] w-9 sm:w-14 shrink-0 text-right">{label}</span>
+                                    <div className="flex-1 min-w-[16px] bg-[color:var(--bg-inset)] rounded-full h-1 overflow-hidden">
+                                      <div className={`h-1 rounded-full ${barColor}`} style={{ width: `${pct * 100}%` }} />
+                                    </div>
+                                    <span className={`tabular-nums text-[10px] sm:text-[11px] font-semibold w-9 sm:w-12 text-right ${val != null ? textColor : 'text-[color:var(--text-mute)]'}`}>{val != null ? `${val}/100` : '—'}</span>
+                                  </div>
+                                )
+                              })}
                             </div>
                           ) : (
                             <span className="text-[14px] text-[color:var(--text-mute)]">—</span>

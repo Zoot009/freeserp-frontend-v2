@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
@@ -10,7 +11,28 @@ import gsap from "gsap"
 import Image from "next/image"
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+// Allow only internal absolute paths (e.g. "/pricing") as a post-login target so
+// the ?next param can't be abused as an open redirect to another origin.
+function safeNext(next: string | null): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+    return "/dashboard/projects"
+  }
+  return next
+}
+
+function LoginForm() {
   const t = useTranslations("login")
+  const searchParams = useSearchParams()
+  // Where to land after sign-in — defaults to the dashboard, but the buy flow
+  // sends users here as /login?next=/pricing so they return to checkout.
+  const nextPath = safeNext(searchParams.get("next"))
   const containerRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const asideRef = useRef<HTMLElement>(null)
@@ -25,9 +47,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/dashboard/projects")
+      router.push(nextPath)
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, nextPath])
 
   const googleLogin = useGoogleLogin({
     scope: "openid email profile",
@@ -36,7 +58,7 @@ export default function LoginPage() {
       setError("")
       try {
         await loginWithGoogle(access_token)
-        router.push("/dashboard/projects")
+        router.push(nextPath)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
       } finally {
@@ -100,7 +122,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { emailVerified } = await login({ email, password })
-      router.push(emailVerified ? "/dashboard/projects" : "/verify-email")
+      router.push(emailVerified ? nextPath : "/verify-email")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorInvalidCredentials"))
     } finally {

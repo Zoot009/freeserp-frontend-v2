@@ -204,7 +204,7 @@ export function AddWorkersModal({ onClose }: { onClose: () => void }) {
                     disabled={busy || atMax}
                     style={stepBtnStyle}
                   >
-                    Buy
+                    +
                   </button>
                 </div>
 
