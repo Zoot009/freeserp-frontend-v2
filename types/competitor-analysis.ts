@@ -30,6 +30,9 @@ export interface CrawlData {
   // Off-page authority (DA/PA), embedded by the backend crawl worker. Absent on
   // pre-DA/PA rows and when the provider is OFF — the scorer then stays on-page.
   authority?: { da: number | null; pa: number | null; source: string } | null
+  // Off-page backlink counts (domain-wide + this exact page) from DataForSEO.
+  // Absent / null when BACKLINKS_ENABLED is off. Folded into the off-page score.
+  backlinks?: { domain: number | null; page: number | null; source: string } | null
   crawlMethod: string
   crawlTime: number
   crawledAt: string

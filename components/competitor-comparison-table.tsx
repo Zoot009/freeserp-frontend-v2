@@ -351,30 +351,49 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                   </div>
                                 )
                               })}
-                              {/* ── Off-page authority (DA/PA) — 50% of the Overall Score (DA 40% / PA 10%) ── */}
-                              <div className="pt-1 mt-1 border-t border-[color:var(--border)]">
-                                <span className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--text-mute)]">Authority · 50%</span>
-                              </div>
-                              {([['DA', score.da], ['PA', score.pa]] as const).map(([label, val]) => {
-                                const pct = val != null ? Math.max(0, Math.min(1, val / 100)) : 0
-                                const barColor = pct >= 0.8 ? 'bg-[color:var(--pos)]' : pct >= 0.5 ? 'bg-[color:var(--warn)]' : 'bg-[color:var(--neg)]'
-                                const textColor = pct >= 0.8 ? 'text-[color:var(--pos)]' : pct >= 0.5 ? 'text-[color:var(--warn)]' : 'text-[color:var(--neg)]'
-                                return (
-                                  <div key={label} className="flex items-center gap-1.5 sm:gap-2">
-                                    <span className="text-[10px] font-medium text-[color:var(--text-mute)] w-9 sm:w-14 shrink-0 text-right">{label}</span>
-                                    <div className="flex-1 min-w-[16px] bg-[color:var(--bg-inset)] rounded-full h-1 overflow-hidden">
-                                      <div className={`h-1 rounded-full ${barColor}`} style={{ width: `${pct * 100}%` }} />
-                                    </div>
-                                    <span className={`tabular-nums text-[10px] sm:text-[11px] font-semibold w-9 sm:w-12 text-right ${val != null ? textColor : 'text-[color:var(--text-mute)]'}`}>{val != null ? `${val}/100` : '—'}</span>
-                                  </div>
-                                )
-                              })}
                             </div>
                           ) : (
                             <span className="text-[14px] text-[color:var(--text-mute)]">—</span>
                           )}
                         </td>
                       )
+
+                      // On/Off-page sub-score row (value out of 100; "—" when null).
+                      const SubScoreRow = ({ label, sub, pick }: { label: string; sub?: string; pick: (s: SeoScoreBreakdown) => number | null }) => {
+                        const cell = (s: SeoScoreBreakdown | null) => {
+                          const v = s ? pick(s) : null
+                          return v != null
+                            ? <span className={`font-sans font-semibold tabular-nums text-lg ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
+                            : <span className="text-[13px] text-[color:var(--text-mute)]">—</span>
+                        }
+                        return (
+                          <tr>
+                            <Label label={label} sub={sub} />
+                            <Cell>{cell(yourScore)}</Cell>
+                            {compScores.map((s, i) => <Cell key={i}>{cell(s)}</Cell>)}
+                          </tr>
+                        )
+                      }
+
+                      // Off-page metric row (DA/PA as /100 scores, or raw backlink counts),
+                      // with best/worst highlighting (higher is better).
+                      const OffPageRow = ({ label, sub, pick, kind }: { label: string; sub?: string; pick: (s: SeoScoreBreakdown) => number | null; kind: 'score' | 'count' }) => {
+                        const nums = [yourScore, ...compScores].map(s => (s ? pick(s) : null))
+                        const { highlight } = rankNums(nums[0], nums.slice(1))
+                        const render = (v: number | null) =>
+                          v == null
+                            ? <span className="text-[13px] text-[color:var(--text-mute)]">—</span>
+                            : kind === 'score'
+                              ? <span className={`font-sans font-semibold tabular-nums text-[15px] ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
+                              : <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{v.toLocaleString()}</span>
+                        return (
+                          <tr>
+                            <Label label={label} sub={sub} />
+                            <Cell highlight={highlight(nums[0])}>{render(nums[0])}</Cell>
+                            {compScores.map((_, i) => <Cell key={i} highlight={highlight(nums[i + 1])}>{render(nums[i + 1])}</Cell>)}
+                          </tr>
+                        )
+                      }
 
                       return (
                         <>
@@ -429,6 +448,9 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                               </td>
                             ))}
                           </tr>
+                          {/* On-page vs off-page sub-scores (the two halves of the blended Overall) */}
+                          <SubScoreRow label="On-Page" sub="content & technical" pick={s => s.onPageScore} />
+                          <SubScoreRow label="Off-Page" sub="authority & backlinks" pick={s => s.offPageScore} />
                           {/* Breakdown row — only rendered when open */}
                           {scoreBreakdownOpen && (
                             <tr>
@@ -442,6 +464,16 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                               ))}
                             </tr>
                           )}
+
+                          {/* ── OFF-PAGE SEO (authority + backlinks) ── */}
+                          <SectionRow title="Off-Page SEO" colSpan={totalCols} />
+                          <OffPageRow label="Domain Authority" sub="DA · 0–100" pick={s => s.da} kind="score" />
+                          <OffPageRow label="Page Authority" sub="PA · 0–100" pick={s => s.pa} kind="score" />
+                          <OffPageRow label="Backlinks — Domain" sub="total to domain" pick={s => s.domainBacklinks} kind="count" />
+                          <OffPageRow label="Backlinks — Page" sub="total to ranking page" pick={s => s.pageBacklinks} kind="count" />
+
+                          {/* ── ON-PAGE SEO (everything below) ── */}
+                          <SectionRow title="On-Page SEO" colSpan={totalCols} />
 
                           {/* ── URL ── */}
                           {(() => {

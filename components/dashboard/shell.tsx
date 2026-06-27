@@ -13,7 +13,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login")
-    if (!loading && user && !user.emailVerified) router.push("/verify-email")
+    else if (!loading && user && !user.emailVerified) router.push("/verify-email")
+    // One-time required onboarding: a verified user who hasn't picked a role yet
+    // is sent to the dedicated page until occupationRole is set.
+    else if (!loading && user && !user.occupationRole) router.push("/onboarding")
   }, [user, loading, router])
 
   if (loading || !user) {

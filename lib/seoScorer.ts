@@ -6,12 +6,13 @@ import type { CrawlData } from "@/types/competitor-analysis"
 // pageScore.ts (a different, density-focused, on-page-only 5-factor "Page Score"
 // for the keywords dashboard) — do NOT sync them.
 //
-// Scoring = on-page (normalized to 0–1, weighted 50%) blended with off-page
-// authority DA/PA (the other 50%, split DA 40% + PA 10%). The authority layer
-// (PA_WEIGHT/DA_WEIGHT/authorityScore/blendTotal) lives ONLY here, NOT in
-// pageScore.ts — DA/PA must not influence the keyword Page Score. Authority
-// adapts down when DA/PA data is missing, so with no provider configured the
-// blend is inert and the score is on-page-only.
+// Score = ON-PAGE 30% blended with OFF-PAGE 70%. Off-page is a weighted blend of
+// four signals whose weights are their share of the OVERALL score (sum 70%):
+// Domain Authority 30, domain backlinks 20, page backlinks 10, Page Authority 10
+// (see *_WEIGHT below). Backlink counts are unbounded, so they're log-normalized
+// against a reference ceiling. Off-page is a FIXED 70% whenever ANY off-page
+// signal is present (weights renormalize over the present ones); with NONE, the
+// score falls back to on-page-only. This off-page layer lives ONLY here.
 
 const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','being','as','it','its','this','that','these','those','i','my','your','our','we','they','he','she','not','no','so','do','does','did','has','have','had','can','will','would','should','could','may','might','into','about','up','out'])
 
@@ -28,40 +29,67 @@ export interface SeoScoreBreakdown {
   cwv: number        // max 10
   links: number      // max 12
   anchors: number    // max 5
-  da: number | null  // raw Domain Authority 0–100 (null when unavailable)
-  pa: number | null  // raw Page Authority 0–100 (null when unavailable)
-  authority: number  // weighted authority points earned (max = 50 both / 40 DA-only / 10 PA-only)
-  total: number      // 0–100 (on-page 50% blended with authority 50%)
+  da: number | null             // raw Domain Authority 0–100 (null when unavailable)
+  pa: number | null             // raw Page Authority 0–100 (null when unavailable)
+  domainBacklinks: number | null // raw domain backlink count (null when unavailable)
+  pageBacklinks: number | null   // raw page backlink count (null when unavailable)
+  onPageScore: number           // 0–100, on-page only
+  offPageScore: number | null   // 0–100, off-page blend (null when no off-page data)
+  total: number                 // 0–100 (on-page 30% blended with off-page 70%)
   grade: string      // A+, A, B, C, D, F
   label: string      // Excellent, Very Good, Good, Fair, Needs Work, Poor
 }
 
-const RAW_MAX = 103 // actual sum of all on-page category maxes (pre-authority)
+const RAW_MAX = 103 // actual sum of all on-page category maxes (pre-off-page)
 
-// ── Authority layer (DA/PA) — lives only in this file. DA is weighted far above
-// PA: domain-wide authority is the dominant off-page ranking signal here.
-const PA_WEIGHT = 10
-const DA_WEIGHT = 40 // DA + PA = the 50% authority half of the blended score
+// ── Off-page layer — lives only in this file. Weights are each signal's share of
+// the OVERALL score (sum = 70, the off-page half). When all four are present each
+// contributes exactly its weight%; missing signals renormalize over the rest.
+const DA_WEIGHT = 30        // Domain Authority
+const DOMAIN_BL_WEIGHT = 20 // domain backlinks
+const PAGE_BL_WEIGHT = 10   // page backlinks
+const PA_WEIGHT = 10        // Page Authority
+// Backlink reference ceilings: a target at/above the ref earns full backlink
+// credit. Log scale handles the heavy skew of backlink counts. Tunable.
+const DOMAIN_REF = 1_000_000
+const PAGE_REF = 10_000
 
 function coerceAuthority(raw: number | null | undefined): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : null
 }
 
-// Weighted authority points earned + the max available (0 when neither present).
-function authorityScore(da: number | null, pa: number | null): { raw: number; max: number } {
+function coerceCount(raw: number | null | undefined): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null
+}
+
+// Log-normalize an unbounded count to 0–1 against a reference ceiling.
+function logNorm(count: number, ref: number): number {
+  return Math.max(0, Math.min(1, Math.log10(count + 1) / Math.log10(ref + 1)))
+}
+
+// Weighted off-page points earned + the max available across PRESENT signals
+// (0 when none present). Each value is normalized to 0–1.
+function offPageScore(
+  da: number | null,
+  pa: number | null,
+  domBL: number | null,
+  pageBL: number | null,
+): { raw: number; max: number } {
   let raw = 0
   let max = 0
-  if (pa !== null) { raw += (pa / 100) * PA_WEIGHT; max += PA_WEIGHT }
-  if (da !== null) { raw += (da / 100) * DA_WEIGHT; max += DA_WEIGHT }
+  if (da !== null)    { raw += (da / 100) * DA_WEIGHT;            max += DA_WEIGHT }
+  if (domBL !== null) { raw += logNorm(domBL, DOMAIN_REF) * DOMAIN_BL_WEIGHT; max += DOMAIN_BL_WEIGHT }
+  if (pa !== null)    { raw += (pa / 100) * PA_WEIGHT;            max += PA_WEIGHT }
+  if (pageBL !== null){ raw += logNorm(pageBL, PAGE_REF) * PAGE_BL_WEIGHT;    max += PAGE_BL_WEIGHT }
   return { raw, max }
 }
 
-// Blend on-page (fixed weight 50) with authority (adaptive weight = max). With
-// no authority data (max=0) this reduces to onPageNorm*100 — the pre-DA/PA
-// behaviour — so scores are unchanged until a provider is configured.
-function blendTotal(onPageNorm: number, authRaw: number, authMax: number): number {
-  const authNorm = authMax > 0 ? authRaw / authMax : 0
-  return Math.round(((onPageNorm * 50) + (authNorm * authMax)) / (50 + authMax) * 100)
+// Blend on-page (0–1) with off-page (0–1): on-page 30% / off-page 70% whenever
+// ANY off-page signal is present; with none (offMax=0) the score is on-page only
+// — so the blend is inert until DA/PA or backlinks data exists.
+function blendTotal(onPageNorm: number, offPageNorm: number, offMax: number): number {
+  if (offMax <= 0) return Math.round(onPageNorm * 100)
+  return Math.round((onPageNorm * 30 + offPageNorm * 70))
 }
 
 function getKwWords(keyword: string): string[] {
@@ -310,13 +338,16 @@ export function computeSeoScore(
   if (tbtMissing) denom -= 2
   if (linkDataMissing) denom -= 17
 
-  // On-page normalized to 0–1, then blended with off-page authority (DA/PA) so
-  // authority is 50% when both present and adapts down when missing.
+  // On-page normalized to 0–1, then blended 50/50 with off-page (DA/PA +
+  // backlinks). Off-page is a fixed 50% when any off-page signal is present.
   const onPageNorm = Math.min(1, rawScore / denom)
   const da = coerceAuthority(crawlData?.authority?.da)
   const pa = coerceAuthority(crawlData?.authority?.pa)
-  const { raw: authRaw, max: authMax } = authorityScore(da, pa)
-  const total = Math.min(100, blendTotal(onPageNorm, authRaw, authMax))
+  const domainBacklinks = coerceCount(crawlData?.backlinks?.domain)
+  const pageBacklinks = coerceCount(crawlData?.backlinks?.page)
+  const { raw: offRaw, max: offMax } = offPageScore(da, pa, domainBacklinks, pageBacklinks)
+  const offPageNorm = offMax > 0 ? offRaw / offMax : 0
+  const total = Math.min(100, blendTotal(onPageNorm, offPageNorm, offMax))
   const { grade, label } = gradeFromTotal(total)
 
   const r1 = (v: number) => Math.round(v * 10) / 10
@@ -336,7 +367,10 @@ export function computeSeoScore(
     anchors:    anchorScore,
     da,
     pa,
-    authority:  r1(authRaw),
+    domainBacklinks,
+    pageBacklinks,
+    onPageScore:  Math.round(onPageNorm * 100),
+    offPageScore: offMax > 0 ? Math.round(offPageNorm * 100) : null,
     total,
     grade,
     label,

@@ -10,8 +10,10 @@ interface User {
   plan?: string
   emailVerified?: boolean
   // Self-reported audience segment. null/undefined = the user hasn't answered the
-  // one-time role modal yet, which keeps the dashboard RolePickerGate open.
+  // one-time role page yet, which makes the dashboard shell re-route to /onboarding.
   occupationRole?: string | null
+  // Free-text detail supplied when occupationRole === "other" (else null).
+  occupationRoleOther?: string | null
 }
 
 interface RegisterData {
