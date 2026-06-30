@@ -26,21 +26,54 @@ const UTM_KEYS: Array<[string, keyof Utm]> = [
   ["utm_term", "utmTerm"],
 ]
 
-// Read (or lazily create) the anonymous, first-party visitor id. Stable across
-// sessions for this browser; regenerated only if localStorage is cleared. When
-// storage is unavailable (private mode) it returns a fresh ephemeral id so a touch
-// can still be recorded — it just won't link across page loads.
+// Cookie attributes for the shared visitor id. Scoped to ".freeserp.com" in prod
+// so the marketing site (freeserp.com) and the app (app.freeserp.com) — separate
+// origins — read the SAME id and the journey stitches across the domain boundary
+// (localStorage is per-origin and can't). On localhost/IP we omit the domain →
+// host-only, which is still shared across ports (cookies ignore port).
+function visitorCookieAttrs(): string {
+  const https = typeof location !== "undefined" && location.protocol === "https:"
+  const host = typeof location !== "undefined" ? location.hostname : ""
+  const domain = host.endsWith("freeserp.com") ? "; domain=.freeserp.com" : ""
+  return `; path=/; max-age=31536000; SameSite=Lax${https ? "; Secure" : ""}${domain}`
+}
+
+function readVisitorCookie(): string | null {
+  if (typeof document === "undefined") return null
+  const m = document.cookie.match(/(?:^|;\s*)fs_visitor_id=([^;]+)/)
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+// Read (or lazily create) the anonymous, first-party visitor id, held in a cookie
+// shared across *.freeserp.com (see visitorCookieAttrs) so the cross-domain journey
+// links up. Migrates any pre-existing localStorage id so current app visitors keep
+// their id (and already-recorded touches). Falls back to an ephemeral id when both
+// cookies and storage are unavailable (private mode) so a touch can still fire.
 export function getVisitorId(): string {
   if (typeof window === "undefined") return ""
+  const fromCookie = readVisitorCookie()
+  if (fromCookie) return fromCookie
+
+  let id: string | null = null
   try {
-    const existing = localStorage.getItem(VISITOR_ID_KEY)
-    if (existing) return existing
-    const id = crypto.randomUUID()
-    localStorage.setItem(VISITOR_ID_KEY, id)
-    return id
+    id = localStorage.getItem(VISITOR_ID_KEY)
   } catch {
-    return crypto.randomUUID()
+    /* localStorage unavailable */
   }
+  if (!id) id = crypto.randomUUID()
+
+  try {
+    document.cookie = `${VISITOR_ID_KEY}=${encodeURIComponent(id)}${visitorCookieAttrs()}`
+  } catch {
+    /* ignore */
+  }
+  // Keep a localStorage mirror as a fallback if the cookie is later cleared.
+  try {
+    localStorage.setItem(VISITOR_ID_KEY, id)
+  } catch {
+    /* ignore */
+  }
+  return id
 }
 
 // Pull the five standard UTM params from a URLSearchParams, keeping only keys that
