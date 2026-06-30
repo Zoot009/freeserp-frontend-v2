@@ -1,4 +1,5 @@
 import type React from "react"
+import { Suspense } from "react"
 import type { Metadata, Viewport } from "next"
 import { notFound } from "next/navigation"
 import { Bebas_Neue } from "next/font/google"
@@ -16,6 +17,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollProgress } from "@/components/scroll-progress"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
+import { UtmCapture } from "@/components/utm-capture"
 import { routing } from "@/i18n/routing"
 import "../globals.css"
 
@@ -160,6 +162,10 @@ export default async function LocaleLayout({
         </NextIntlClientProvider>
         <Analytics />
         <ClarityAnalytics />
+        {/* First-party UTM/attribution capture (useSearchParams ⇒ Suspense). */}
+        <Suspense fallback={null}>
+          <UtmCapture />
+        </Suspense>
       </body>
     </html>
   )

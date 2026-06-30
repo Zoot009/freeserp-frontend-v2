@@ -1,0 +1,121 @@
+// First-party marketing-attribution capture. Deliberately does NOT touch GTM or
+// any third party — every touch is POSTed to our own backend
+// (/api/attribution/touch) and stored in Postgres. See components/utm-capture.tsx
+// for when touches fire, and lib/auth.tsx for how the visitor id is linked to a
+// user at signup.
+
+import { api } from "@/lib/api"
+
+const VISITOR_ID_KEY = "fs_visitor_id"
+const TOUCH_DEDUPE_PREFIX = "fs_touch_"
+
+export interface Utm {
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  utmContent?: string
+  utmTerm?: string
+}
+
+// UTM query-param name → our camelCase field.
+const UTM_KEYS: Array<[string, keyof Utm]> = [
+  ["utm_source", "utmSource"],
+  ["utm_medium", "utmMedium"],
+  ["utm_campaign", "utmCampaign"],
+  ["utm_content", "utmContent"],
+  ["utm_term", "utmTerm"],
+]
+
+// Cookie attributes for the shared visitor id. Scoped to ".freeserp.com" in prod
+// so the marketing site (freeserp.com) and the app (app.freeserp.com) — separate
+// origins — read the SAME id and the journey stitches across the domain boundary
+// (localStorage is per-origin and can't). On localhost/IP we omit the domain →
+// host-only, which is still shared across ports (cookies ignore port).
+function visitorCookieAttrs(): string {
+  const https = typeof location !== "undefined" && location.protocol === "https:"
+  const host = typeof location !== "undefined" ? location.hostname : ""
+  const domain = host.endsWith("freeserp.com") ? "; domain=.freeserp.com" : ""
+  return `; path=/; max-age=31536000; SameSite=Lax${https ? "; Secure" : ""}${domain}`
+}
+
+function readVisitorCookie(): string | null {
+  if (typeof document === "undefined") return null
+  const m = document.cookie.match(/(?:^|;\s*)fs_visitor_id=([^;]+)/)
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+// Read (or lazily create) the anonymous, first-party visitor id, held in a cookie
+// shared across *.freeserp.com (see visitorCookieAttrs) so the cross-domain journey
+// links up. Migrates any pre-existing localStorage id so current app visitors keep
+// their id (and already-recorded touches). Falls back to an ephemeral id when both
+// cookies and storage are unavailable (private mode) so a touch can still fire.
+export function getVisitorId(): string {
+  if (typeof window === "undefined") return ""
+  const fromCookie = readVisitorCookie()
+  if (fromCookie) return fromCookie
+
+  let id: string | null = null
+  try {
+    id = localStorage.getItem(VISITOR_ID_KEY)
+  } catch {
+    /* localStorage unavailable */
+  }
+  if (!id) id = crypto.randomUUID()
+
+  try {
+    document.cookie = `${VISITOR_ID_KEY}=${encodeURIComponent(id)}${visitorCookieAttrs()}`
+  } catch {
+    /* ignore */
+  }
+  // Keep a localStorage mirror as a fallback if the cookie is later cleared.
+  try {
+    localStorage.setItem(VISITOR_ID_KEY, id)
+  } catch {
+    /* ignore */
+  }
+  return id
+}
+
+// Pull the five standard UTM params from a URLSearchParams, keeping only keys that
+// are actually present and non-empty (so we never send "").
+export function readUtm(params: URLSearchParams): Utm {
+  const utm: Utm = {}
+  for (const [param, field] of UTM_KEYS) {
+    const v = params.get(param)?.trim()
+    if (v) utm[field] = v
+  }
+  return utm
+}
+
+export function hasAnyUtm(utm: Utm): boolean {
+  return Object.keys(utm).length > 0
+}
+
+// Fire-and-forget a single touch to the backend. `dedupeKey`, when given, guards
+// against duplicate inserts within the same tab session (React re-renders / strict-
+// mode double-mount / navigating back to the same URL). Never throws — attribution
+// is non-critical, so network/4xx failures are swallowed.
+export async function recordTouch(
+  payload: Utm & { referrer?: string; landingPath?: string },
+  dedupeKey?: string,
+): Promise<void> {
+  if (typeof window === "undefined") return
+  const sessionKey = dedupeKey ? `${TOUCH_DEDUPE_PREFIX}${dedupeKey}` : undefined
+  try {
+    if (sessionKey && sessionStorage.getItem(sessionKey)) return
+  } catch {
+    // sessionStorage unavailable — fall through and record (best-effort).
+  }
+  try {
+    await api.post("/api/attribution/touch", { visitorId: getVisitorId(), ...payload })
+    if (sessionKey) {
+      try {
+        sessionStorage.setItem(sessionKey, "1")
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* attribution is non-critical — swallow */
+  }
+}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react"
 import { api, ApiError, getAccessToken, setAccessToken, subscribeToToken } from "@/lib/api"
+import { getVisitorId } from "@/lib/utm"
 
 interface User {
   id: string
@@ -107,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(async ({ firstName, lastName, email, password }: RegisterData) => {
     const res = await api.post<AuthResponse>(
       "/api/auth/register",
-      { email, password, name: `${firstName} ${lastName}`.trim() || undefined },
+      { email, password, name: `${firstName} ${lastName}`.trim() || undefined, visitorId: getVisitorId() },
       { skipAuth: true },
     )
     handleAuth(res)
@@ -122,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Exchanges a Google OAuth access token (from useGoogleLogin's implicit flow)
   // for a FreeSerp session via the backend's /api/auth/google endpoint.
   const loginWithGoogle = useCallback(async (accessToken: string) => {
-    const res = await api.post<AuthResponse>("/api/auth/google", { accessToken }, { skipAuth: true })
+    const res = await api.post<AuthResponse>("/api/auth/google", { accessToken, visitorId: getVisitorId() }, { skipAuth: true })
     handleAuth(res)
     return { isNewUser: res.isNewUser ?? false }
   }, [])
