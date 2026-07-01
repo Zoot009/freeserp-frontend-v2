@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
+import { track } from "@/lib/analytics"
 
 // Canonical role keys must match the backend whitelist in
 // freeserp-backend/src/modules/me/me.routes.ts (setOccupationSchema) and the
@@ -59,6 +60,7 @@ export default function OnboardingPage() {
         role: selected,
         ...(needsOther ? { otherText: otherText.trim() } : {}),
       })
+      track("onboarding_completed", { role: selected })
       // Re-reads /api/auth/me so user.occupationRole is now set; the guard above
       // (and the dashboard shell) then treat onboarding as complete.
       await refreshUser()

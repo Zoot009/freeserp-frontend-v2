@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { hasAnyUtm, readUtm, recordTouch, type Utm } from "@/lib/utm"
+import { track } from "@/lib/analytics"
 
 // Marks that this browser session's entry touch has been recorded, so the
 // direct/organic origin (referrer + landing path) is logged once per session
@@ -100,6 +101,15 @@ export function UtmCapture() {
       void recordTouch({ referrer, landingPath: pathname })
     }
   }, [consentGranted, pathname, searchParams, entry])
+
+  // Behavioural page-view tracking, deduped on consecutive identical paths. track()
+  // gates on consent itself; the effect just fires it on each real navigation.
+  const lastPagePath = useRef<string | null>(null)
+  useEffect(() => {
+    if (!consentGranted || lastPagePath.current === pathname) return
+    lastPagePath.current = pathname
+    track("$pageview")
+  }, [consentGranted, pathname])
 
   return null
 }

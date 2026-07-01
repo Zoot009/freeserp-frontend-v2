@@ -15,6 +15,7 @@ import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
 import { trackOnce, trackMilestone } from "@/lib/track"
+import { track } from "@/lib/analytics"
 import {
   PosCell,
   DeltaCell,
@@ -269,6 +270,7 @@ function AddKeywordsModal({
       // keywords — let the backend decide (deduped per account, so it won't
       // re-fire on a later new project the way the old per-browser guard could).
       if (currentCount === 0) void trackMilestone("first-set-keywords-added")
+      track("keywords_added", { projectId, count: lines.length })
       onAdded(device)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
@@ -534,6 +536,7 @@ export default function ProjectKeywordsPage() {
       const keywordIds = selectedKeywords.size > 0 ? Array.from(selectedKeywords) : undefined
       await api.post(`/api/projects/${project.id}/check`, { keywordIds })
       if (isFirstCheck) trackOnce("first-rank-check-button-clicked")
+      track("rank_check_run", { projectId: project.id, keywordCount: keywordIds?.length ?? project.keywords.length })
       setSelectedKeywords(new Set())
       advanceFromStep(3)
       setTimeout(load, 2000)

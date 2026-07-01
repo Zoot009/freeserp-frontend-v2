@@ -12,6 +12,7 @@ import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
 import { trackEvent, trackMilestone } from "@/lib/track"
+import { track } from "@/lib/analytics"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker in the New Project modal. Free users still get
@@ -562,6 +563,7 @@ export default function ProjectsPage() {
             // user later deletes all their projects and creates another (the old
             // `projects.length === 0` heuristic re-fired in that case).
             void trackMilestone("first-project-created")
+            track("project_created", { projectId: p.id })
             // Tutorial step 1 → 2 — survives the navigation since tutorial
             // state lives in TutorialProvider at the root layout level.
             advanceFromStep(1)
