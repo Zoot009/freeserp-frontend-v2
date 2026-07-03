@@ -16,6 +16,10 @@ import {
   type SerpFeatures,
 } from "@/components/dashboard/primitives"
 
+// Free accounts can track a single competitor; adding more requires Pro. Keep
+// this in sync with the backend limit on POST /api/projects/:id/competitors.
+const FREE_COMPETITORS_LIMIT = 1
+
 // ───── Types (mirror the competitor-spy backend response shapes) ─────────────
 
 interface OverviewStats {
@@ -173,10 +177,14 @@ function TableScroll({ children }: { children: React.ReactNode }) {
 
 function AddCompetitorModal({
   projectId,
+  locked,
   onClose,
   onAdded,
 }: {
   projectId: string
+  // Free plan already at the competitor limit — the modal still shows the full
+  // add experience, but the add action is replaced with an upgrade prompt.
+  locked: boolean
   onClose: () => void
   onAdded: (res: AddResult) => void
 }) {
@@ -192,6 +200,7 @@ function AddCompetitorModal({
   }, [projectId])
 
   const add = async (value: string) => {
+    if (locked) return // Free plan at the limit — the footer routes to /pricing instead.
     const v = value.trim()
     if (!v) { setError("Enter a competitor domain"); return }
     setError(""); setSubmitting(true)
@@ -223,11 +232,12 @@ function AddCompetitorModal({
               <div className="field">
                 <label>Competitor domain</label>
                 <input
-                  autoFocus
+                  autoFocus={!locked}
                   className="input"
                   placeholder="example.com"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
+                  disabled={locked}
                   style={{ fontFamily: "var(--font-mono)" }}
                 />
                 <span className="tiny muted">Paste a domain or URL — we compare it against the keywords you already track.</span>
@@ -247,7 +257,7 @@ function AddCompetitorModal({
                         key={s.domain}
                         type="button"
                         className="btn"
-                        disabled={submitting}
+                        disabled={submitting || locked}
                         onClick={() => add(s.domain)}
                         style={{ justifyContent: "space-between", width: "100%" }}
                       >
@@ -269,12 +279,40 @@ function AddCompetitorModal({
                   {error}
                 </div>
               )}
+
+              {/* Free plan is capped at one competitor — show the full add UI above
+                  (greyed out), then the upgrade prompt here at the end. */}
+              {locked && (
+                <div
+                  className="card tight"
+                  style={{ borderColor: "var(--brand)", background: "var(--brand-soft)", display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <div className="row" style={{ gap: 8, color: "var(--brand)", fontSize: 13, fontWeight: 600 }}>
+                    <span className="spark"><Icon.spark /></span>
+                    {`Free plan tracks ${FREE_COMPETITORS_LIMIT} competitor`}
+                  </div>
+                  <div className="tiny" style={{ color: "var(--text)", lineHeight: 1.6 }}>
+                    You&apos;re already tracking your free competitor. Upgrade to Pro to spy on unlimited competitors across the keywords you track.
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-f">
-              <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={submitting || !domain.trim()}>
-                {submitting ? "Adding…" : "Add competitor"}
-              </button>
+              {locked ? (
+                <>
+                  <button type="button" className="btn" onClick={onClose}>Maybe later</button>
+                  <Link href="/pricing?clicked-buy-button">
+                    <button type="button" className="btn primary"><Icon.spark /> Upgrade to Pro</button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn" onClick={onClose}>Cancel</button>
+                  <button type="submit" className="btn primary" disabled={submitting || !domain.trim()}>
+                    {submitting ? "Adding…" : "Add competitor"}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         </div>
@@ -527,6 +565,10 @@ export default function CompetitorSpyPage() {
 
   const stats = overview?.stats
   const competitors = overview?.competitors ?? []
+  // Only gate once auth has resolved to "free" — treating the still-loading
+  // undefined plan as free would flash the paywall at paid users.
+  const isFree = user?.plan === "free"
+  const atCompetitorLimit = isFree && competitors.length >= FREE_COMPETITORS_LIMIT
   const shareRate = stats && stats.sharedKeywords > 0
     ? Math.round((stats.youRankHigher / stats.sharedKeywords) * 1000) / 10
     : 0
@@ -679,6 +721,7 @@ export default function CompetitorSpyPage() {
       {showAdd && typeof window !== "undefined" && createPortal(
         <AddCompetitorModal
           projectId={projectId}
+          locked={atCompetitorLimit}
           onClose={() => setShowAdd(false)}
           onAdded={handleAdded}
         />,

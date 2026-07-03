@@ -241,6 +241,8 @@ function AddKeywordsModal({
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggLoading, setSuggLoading] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { taRef.current?.focus() }, [])
 
@@ -250,6 +252,44 @@ function AddKeywordsModal({
   const remaining = isFree ? Math.max(0, FREE_KEYWORDS_PER_PROJECT_LIMIT - currentCount) : Infinity
   const pendingLines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
   const wouldOverflow = isFree && pendingLines.length > remaining
+  const atKeywordCap = isFree && pendingLines.length >= remaining
+
+  // The keyword currently being typed — the text after the last newline/comma.
+  // We fetch related keywords for this "seed" and offer them as click-to-add chips.
+  const seed = (raw.split(/[\r\n,]/).pop() ?? "").trim()
+
+  // Debounced related-keyword lookup via our local /api/keyword-suggest route
+  // (free Google autocomplete). Reached with a same-origin fetch, NOT lib/api —
+  // the api client points at the backend, which doesn't serve this path.
+  useEffect(() => {
+    if (seed.length < 2) { setSuggestions([]); setSuggLoading(false); return }
+    const ctrl = new AbortController()
+    setSuggLoading(true)
+    const t = setTimeout(() => {
+      fetch(`/api/keyword-suggest?q=${encodeURIComponent(seed)}&gl=${encodeURIComponent(location)}`, { signal: ctrl.signal })
+        .then((res) => res.json())
+        .then((data: { suggestions?: string[] }) => setSuggestions(data.suggestions ?? []))
+        .catch(() => { /* aborted or failed — keep whatever we had */ })
+        .finally(() => { if (!ctrl.signal.aborted) setSuggLoading(false) })
+    }, 300)
+    return () => { ctrl.abort(); clearTimeout(t) }
+  }, [seed, location])
+
+  // Suggestions not already present in the textarea, capped for a tidy strip.
+  const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
+  const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 6)
+
+  // Clicking a chip replaces the partial word being typed with the full keyword
+  // and starts a fresh line, then refocuses so the user keeps typing. Routing
+  // through `raw` means the free 10-keyword cap stays enforced automatically.
+  const addSuggestion = (kw: string) => {
+    if (atKeywordCap) return
+    const idx = Math.max(raw.lastIndexOf("\n"), raw.lastIndexOf(","))
+    const head = idx >= 0 ? raw.slice(0, idx + 1) : ""
+    setRaw(head + kw + "\n")
+    setSuggestions([])
+    taRef.current?.focus()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -327,6 +367,32 @@ function AddKeywordsModal({
                       ? `Free plan: project is full — ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keyword limit reached. Upgrade for unlimited.`
                       : `Free plan: up to ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keywords per project (${currentCount} used). Upgrade for unlimited.`}
                 </span>
+
+                {/* Live related-keyword suggestions (free Google autocomplete). */}
+                {seed.length >= 2 && (suggLoading || visibleSuggestions.length > 0) && (
+                  <div className="col" style={{ gap: 6, marginTop: 8 }}>
+                    <span className="tiny muted">
+                      {visibleSuggestions.length === 0 && suggLoading
+                        ? "Finding related keywords…"
+                        : "Related keywords — click to add"}
+                    </span>
+                    <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                      {visibleSuggestions.map((kw) => (
+                        <button
+                          key={kw}
+                          type="button"
+                          className="chip brand"
+                          disabled={atKeywordCap}
+                          onClick={() => addSuggestion(kw)}
+                          title={atKeywordCap ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})` : `Add "${kw}"`}
+                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                        >
+                          + {kw}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="field">
                 <label>Search location</label>
