@@ -15,6 +15,7 @@ import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { flagFor } from "@/lib/locations"
 import { trackOnce, trackMilestone } from "@/lib/track"
+import { track } from "@/lib/analytics"
 import {
   PosCell,
   DeltaCell,
@@ -226,12 +227,17 @@ function AddKeywordsModal({
   projectId,
   currentCount,
   plan,
+  domain,
+  existingKeywords,
   onClose,
   onAdded,
 }: {
   projectId: string
   currentCount: number
   plan?: string
+  // Project context used to bias keyword suggestions toward the site's niche.
+  domain: string
+  existingKeywords: string[]
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
@@ -240,6 +246,8 @@ function AddKeywordsModal({
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggLoading, setSuggLoading] = useState(false)
   const taRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { taRef.current?.focus() }, [])
 
@@ -249,6 +257,63 @@ function AddKeywordsModal({
   const remaining = isFree ? Math.max(0, FREE_KEYWORDS_PER_PROJECT_LIMIT - currentCount) : Infinity
   const pendingLines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
   const wouldOverflow = isFree && pendingLines.length > remaining
+  const atKeywordCap = isFree && pendingLines.length >= remaining
+
+  // The keyword currently being typed — the text after the last newline/comma.
+  // We fetch related keywords for this "seed" and offer them as click-to-add chips.
+  const seed = (raw.split(/[\r\n,]/).pop() ?? "").trim()
+
+  // Niche context to bias suggestions toward the site's topic (so "serp" on an
+  // SEO site suggests "serp checker", not "serpent"). Tokenize the domain (minus
+  // protocol/www/TLD) and the already-tracked keywords, drop stopwords and short
+  // tokens, and keep the most frequent — existing keywords are the strongest signal.
+  const nicheTokens = useMemo(() => {
+    const STOP = new Set(["the", "and", "for", "with", "your", "you", "how", "what", "best", "top", "near", "com", "www"])
+    const counts = new Map<string, number>()
+    const bump = (text: string, weight: number) => {
+      for (const w of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+        if (w.length < 3 || STOP.has(w) || /^\d+$/.test(w)) continue
+        counts.set(w, (counts.get(w) ?? 0) + weight)
+      }
+    }
+    bump(domain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\.[a-z.]+$/, ""), 1)
+    for (const kw of existingKeywords) bump(kw, 2)
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([w]) => w)
+  }, [domain, existingKeywords])
+
+  // Debounced related-keyword lookup via our local /api/keyword-suggest route
+  // (free Google autocomplete). Reached with a same-origin fetch, NOT lib/api —
+  // the api client points at the backend, which doesn't serve this path.
+  useEffect(() => {
+    if (seed.length < 2) { setSuggestions([]); setSuggLoading(false); return }
+    const ctrl = new AbortController()
+    setSuggLoading(true)
+    const ctx = nicheTokens.join(",")
+    const t = setTimeout(() => {
+      fetch(`/api/keyword-suggest?q=${encodeURIComponent(seed)}&gl=${encodeURIComponent(location)}&ctx=${encodeURIComponent(ctx)}`, { signal: ctrl.signal })
+        .then((res) => res.json())
+        .then((data: { suggestions?: string[] }) => setSuggestions(data.suggestions ?? []))
+        .catch(() => { /* aborted or failed — keep whatever we had */ })
+        .finally(() => { if (!ctrl.signal.aborted) setSuggLoading(false) })
+    }, 300)
+    return () => { ctrl.abort(); clearTimeout(t) }
+  }, [seed, location, nicheTokens])
+
+  // Suggestions not already present in the textarea, capped for a tidy strip.
+  const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
+  const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 6)
+
+  // Clicking a chip replaces the partial word being typed with the full keyword
+  // and starts a fresh line, then refocuses so the user keeps typing. Routing
+  // through `raw` means the free 10-keyword cap stays enforced automatically.
+  const addSuggestion = (kw: string) => {
+    if (atKeywordCap) return
+    const idx = Math.max(raw.lastIndexOf("\n"), raw.lastIndexOf(","))
+    const head = idx >= 0 ? raw.slice(0, idx + 1) : ""
+    setRaw(head + kw + "\n")
+    setSuggestions([])
+    taRef.current?.focus()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -269,6 +334,7 @@ function AddKeywordsModal({
       // keywords — let the backend decide (deduped per account, so it won't
       // re-fire on a later new project the way the old per-browser guard could).
       if (currentCount === 0) void trackMilestone("first-set-keywords-added")
+      track("keywords_added", { projectId, count: lines.length })
       onAdded(device)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
@@ -325,6 +391,32 @@ function AddKeywordsModal({
                       ? `Free plan: project is full — ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keyword limit reached. Upgrade for unlimited.`
                       : `Free plan: up to ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keywords per project (${currentCount} used). Upgrade for unlimited.`}
                 </span>
+
+                {/* Live related-keyword suggestions (free Google autocomplete). */}
+                {seed.length >= 2 && (suggLoading || visibleSuggestions.length > 0) && (
+                  <div className="col" style={{ gap: 6, marginTop: 8 }}>
+                    <span className="tiny muted">
+                      {visibleSuggestions.length === 0 && suggLoading
+                        ? "Finding related keywords…"
+                        : "Related keywords — click to add"}
+                    </span>
+                    <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                      {visibleSuggestions.map((kw) => (
+                        <button
+                          key={kw}
+                          type="button"
+                          className="chip brand"
+                          disabled={atKeywordCap}
+                          onClick={() => addSuggestion(kw)}
+                          title={atKeywordCap ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})` : `Add "${kw}"`}
+                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                        >
+                          + {kw}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="field">
                 <label>Search location</label>
@@ -534,6 +626,7 @@ export default function ProjectKeywordsPage() {
       const keywordIds = selectedKeywords.size > 0 ? Array.from(selectedKeywords) : undefined
       await api.post(`/api/projects/${project.id}/check`, { keywordIds })
       if (isFirstCheck) trackOnce("first-rank-check-button-clicked")
+      track("rank_check_run", { projectId: project.id, keywordCount: keywordIds?.length ?? project.keywords.length })
       setSelectedKeywords(new Set())
       advanceFromStep(3)
       setTimeout(load, 2000)
@@ -885,7 +978,7 @@ export default function ProjectKeywordsPage() {
 
           {/* Action buttons */}
           <div className="row kd-proj-btns">
-            <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
+            <button data-tutorial="add-keywords-btn" type="button" className="btn primary" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
             <Link
@@ -956,7 +1049,7 @@ export default function ProjectKeywordsPage() {
               // check costs us money, so don't let the button be spammed.
               disabled={checking || project.keywords.length === 0 || pendingCount > 0}
               title={pendingCount > 0 ? "A check is already running for this project" : undefined}
-              className="btn primary"
+              className="btn"
             >
               {checking
                 ? "Checking…"
@@ -1246,16 +1339,25 @@ export default function ProjectKeywordsPage() {
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
                               onClick={() => {
                                 advanceFromStep(4)
+                                // Open the most recent analysis result rather than
+                                // kicking off a fresh (paid) analysis. Only when no
+                                // analysis exists yet do we fall back to creating
+                                // the first one. "New Analysis" (row menu) always
+                                // starts a new run.
                                 router.push(
-                                  `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
+                                  kw.latestAnalysisId
+                                    ? `/dashboard/project/${project.id}/competitor-analysis/results?analysisId=${kw.latestAnalysisId}`
+                                    : `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
                                 )
                               }}
                               className="btn primary sm rank-cta"
                               style={{ whiteSpace: "nowrap", gap: 6 }}
                               title={
-                                kw.position != null
-                                  ? `Improve this keyword from #${kw.position} to #1`
-                                  : "Get this keyword ranking on page 1"
+                                kw.latestAnalysisId
+                                  ? "Open the latest competitor analysis for this keyword"
+                                  : kw.position != null
+                                    ? `Improve this keyword from #${kw.position} to #1`
+                                    : "Get this keyword ranking on page 1"
                               }
                             >
                               Rank
@@ -1270,7 +1372,10 @@ export default function ProjectKeywordsPage() {
                               )}
                             </button>
                           )}
-                          {kw.latestAnalysisId && (
+                          {/* Only shown for #1-ranked keywords — for everything
+                              else the "Rank" button above already opens the latest
+                              analysis, so this would be a redundant twin. */}
+                          {kw.latestAnalysisId && kw.position != null && kw.position <= 1 && (
                             <button
                               onClick={() =>
                                 router.push(`/dashboard/project/${project.id}/competitor-analysis/results?analysisId=${kw.latestAnalysisId}`)
@@ -1366,6 +1471,32 @@ export default function ProjectKeywordsPage() {
               View details
             </button>
             <button
+              onClick={() => {
+                const kw = project.keywords.find((k) => k.id === openMenuId)
+                setOpenMenuId(null)
+                setMenuPosition(null)
+                if (kw) {
+                  advanceFromStep(4)
+                  router.push(
+                    `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
+                  )
+                }
+              }}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 10px",
+                background: "transparent",
+                border: "none",
+                borderRadius: 6,
+                color: "var(--text)",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              New Analysis
+            </button>
+            <button
               onClick={async () => {
                 const kwId = openMenuId!
                 setOpenMenuId(null)
@@ -1434,6 +1565,8 @@ export default function ProjectKeywordsPage() {
           projectId={project.id}
           currentCount={project.keywords.length}
           plan={plan}
+          domain={project.domain}
+          existingKeywords={project.keywords.map((k) => k.keyword)}
           onClose={() => setShowAddKw(false)}
           onAdded={(device) => { setShowAddKw(false); setDeviceTab(device); void load(); advanceFromStep(2) }}
         />,
