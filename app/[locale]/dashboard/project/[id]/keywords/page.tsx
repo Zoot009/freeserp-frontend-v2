@@ -888,7 +888,7 @@ export default function ProjectKeywordsPage() {
 
           {/* Action buttons */}
           <div className="row kd-proj-btns">
-            <button data-tutorial="add-keywords-btn" type="button" className="btn" onClick={() => setShowAddKw(true)}>
+            <button data-tutorial="add-keywords-btn" type="button" className="btn primary" onClick={() => setShowAddKw(true)}>
               <Icon.plus /> Keywords
             </button>
             <Link
@@ -959,7 +959,7 @@ export default function ProjectKeywordsPage() {
               // check costs us money, so don't let the button be spammed.
               disabled={checking || project.keywords.length === 0 || pendingCount > 0}
               title={pendingCount > 0 ? "A check is already running for this project" : undefined}
-              className="btn primary"
+              className="btn"
             >
               {checking
                 ? "Checking…"
@@ -1249,16 +1249,25 @@ export default function ProjectKeywordsPage() {
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
                               onClick={() => {
                                 advanceFromStep(4)
+                                // Open the most recent analysis result rather than
+                                // kicking off a fresh (paid) analysis. Only when no
+                                // analysis exists yet do we fall back to creating
+                                // the first one. "New Analysis" (row menu) always
+                                // starts a new run.
                                 router.push(
-                                  `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
+                                  kw.latestAnalysisId
+                                    ? `/dashboard/project/${project.id}/competitor-analysis/results?analysisId=${kw.latestAnalysisId}`
+                                    : `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
                                 )
                               }}
                               className="btn primary sm rank-cta"
                               style={{ whiteSpace: "nowrap", gap: 6 }}
                               title={
-                                kw.position != null
-                                  ? `Improve this keyword from #${kw.position} to #1`
-                                  : "Get this keyword ranking on page 1"
+                                kw.latestAnalysisId
+                                  ? "Open the latest competitor analysis for this keyword"
+                                  : kw.position != null
+                                    ? `Improve this keyword from #${kw.position} to #1`
+                                    : "Get this keyword ranking on page 1"
                               }
                             >
                               Rank
@@ -1273,7 +1282,10 @@ export default function ProjectKeywordsPage() {
                               )}
                             </button>
                           )}
-                          {kw.latestAnalysisId && (
+                          {/* Only shown for #1-ranked keywords — for everything
+                              else the "Rank" button above already opens the latest
+                              analysis, so this would be a redundant twin. */}
+                          {kw.latestAnalysisId && kw.position != null && kw.position <= 1 && (
                             <button
                               onClick={() =>
                                 router.push(`/dashboard/project/${project.id}/competitor-analysis/results?analysisId=${kw.latestAnalysisId}`)
@@ -1367,6 +1379,32 @@ export default function ProjectKeywordsPage() {
               }}
             >
               View details
+            </button>
+            <button
+              onClick={() => {
+                const kw = project.keywords.find((k) => k.id === openMenuId)
+                setOpenMenuId(null)
+                setMenuPosition(null)
+                if (kw) {
+                  advanceFromStep(4)
+                  router.push(
+                    `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
+                  )
+                }
+              }}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 10px",
+                background: "transparent",
+                border: "none",
+                borderRadius: 6,
+                color: "var(--text)",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              New Analysis
             </button>
             <button
               onClick={async () => {
