@@ -227,12 +227,17 @@ function AddKeywordsModal({
   projectId,
   currentCount,
   plan,
+  domain,
+  existingKeywords,
   onClose,
   onAdded,
 }: {
   projectId: string
   currentCount: number
   plan?: string
+  // Project context used to bias keyword suggestions toward the site's niche.
+  domain: string
+  existingKeywords: string[]
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
@@ -258,6 +263,24 @@ function AddKeywordsModal({
   // We fetch related keywords for this "seed" and offer them as click-to-add chips.
   const seed = (raw.split(/[\r\n,]/).pop() ?? "").trim()
 
+  // Niche context to bias suggestions toward the site's topic (so "serp" on an
+  // SEO site suggests "serp checker", not "serpent"). Tokenize the domain (minus
+  // protocol/www/TLD) and the already-tracked keywords, drop stopwords and short
+  // tokens, and keep the most frequent — existing keywords are the strongest signal.
+  const nicheTokens = useMemo(() => {
+    const STOP = new Set(["the", "and", "for", "with", "your", "you", "how", "what", "best", "top", "near", "com", "www"])
+    const counts = new Map<string, number>()
+    const bump = (text: string, weight: number) => {
+      for (const w of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+        if (w.length < 3 || STOP.has(w) || /^\d+$/.test(w)) continue
+        counts.set(w, (counts.get(w) ?? 0) + weight)
+      }
+    }
+    bump(domain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\.[a-z.]+$/, ""), 1)
+    for (const kw of existingKeywords) bump(kw, 2)
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([w]) => w)
+  }, [domain, existingKeywords])
+
   // Debounced related-keyword lookup via our local /api/keyword-suggest route
   // (free Google autocomplete). Reached with a same-origin fetch, NOT lib/api —
   // the api client points at the backend, which doesn't serve this path.
@@ -265,15 +288,16 @@ function AddKeywordsModal({
     if (seed.length < 2) { setSuggestions([]); setSuggLoading(false); return }
     const ctrl = new AbortController()
     setSuggLoading(true)
+    const ctx = nicheTokens.join(",")
     const t = setTimeout(() => {
-      fetch(`/api/keyword-suggest?q=${encodeURIComponent(seed)}&gl=${encodeURIComponent(location)}`, { signal: ctrl.signal })
+      fetch(`/api/keyword-suggest?q=${encodeURIComponent(seed)}&gl=${encodeURIComponent(location)}&ctx=${encodeURIComponent(ctx)}`, { signal: ctrl.signal })
         .then((res) => res.json())
         .then((data: { suggestions?: string[] }) => setSuggestions(data.suggestions ?? []))
         .catch(() => { /* aborted or failed — keep whatever we had */ })
         .finally(() => { if (!ctrl.signal.aborted) setSuggLoading(false) })
     }, 300)
     return () => { ctrl.abort(); clearTimeout(t) }
-  }, [seed, location])
+  }, [seed, location, nicheTokens])
 
   // Suggestions not already present in the textarea, capped for a tidy strip.
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
@@ -1541,6 +1565,8 @@ export default function ProjectKeywordsPage() {
           projectId={project.id}
           currentCount={project.keywords.length}
           plan={plan}
+          domain={project.domain}
+          existingKeywords={project.keywords.map((k) => k.keyword)}
           onClose={() => setShowAddKw(false)}
           onAdded={(device) => { setShowAddKw(false); setDeviceTab(device); void load(); advanceFromStep(2) }}
         />,
