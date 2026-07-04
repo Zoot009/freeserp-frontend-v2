@@ -518,18 +518,28 @@
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border);
   overflow: hidden;
+  /* Cap height so a tall modal can't overflow the viewport; the body scrolls
+     while the header/footer stay pinned. (80px = the overlay's 40px×2 padding.) */
+  max-height: calc(100dvh - 80px);
+  display: flex; flex-direction: column;
 }
+/* Some modals wrap the body+footer in a <form>; display:contents drops the form's
+   box so .modal-b/.modal-f become direct flex children of .modal (form semantics
+   and onSubmit are unaffected). */
+.fs-app .modal > form { display: contents; }
 .fs-app .modal-h {
   padding: 18px 22px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
 }
-.fs-app .modal-b { padding: 22px; }
+.fs-app .modal-b { padding: 22px; overflow-y: auto; overscroll-behavior: contain; }
 .fs-app .modal-f {
   padding: 14px 22px;
   border-top: 1px solid var(--border);
   display: flex; gap: 8px; justify-content: flex-end;
   background: var(--bg-sub);
+  flex-shrink: 0;
 }
 
 /* === Add-workers / pricing modal ===
@@ -548,7 +558,7 @@
 }
 .fs-app .aw-close:hover { background: var(--bg-inset); color: var(--text); }
 
-.fs-app .aw-body { padding: 28px; }
+.fs-app .aw-body { padding: 28px; overflow-y: auto; overscroll-behavior: contain; }
 .fs-app .aw-loading { padding: 48px 0; text-align: center; }
 
 @keyframes aw-pop {

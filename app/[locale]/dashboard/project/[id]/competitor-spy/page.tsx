@@ -199,6 +199,14 @@ function AddCompetitorModal({
       .catch(() => setSuggestions([]))
   }, [projectId])
 
+  // Lock <body> scroll while the modal is open so the page underneath doesn't
+  // scroll when the wheel is over the backdrop or the modal body reaches its end.
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   const add = async (value: string) => {
     if (locked) return // Free plan at the limit — the footer routes to /pricing instead.
     const v = value.trim()
@@ -250,7 +258,17 @@ function AddCompetitorModal({
                 </div>
               ) : suggestions.length > 0 ? (
                 <div className="field">
-                  <label>Suggested from your SERPs</label>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    Suggested from your SERPs
+                    {/* Locked (free plan): list stays visible but non-clickable — a lock
+                        icon + the disabled rows signal it needs Pro. */}
+                    {locked && (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--brand)" }} aria-label="Pro feature">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    )}
+                  </label>
                   <div className="col" style={{ gap: 6 }}>
                     {suggestions.map((s) => (
                       <button
@@ -259,7 +277,7 @@ function AddCompetitorModal({
                         className="btn"
                         disabled={submitting || locked}
                         onClick={() => add(s.domain)}
-                        style={{ justifyContent: "space-between", width: "100%" }}
+                        style={{ justifyContent: "space-between", width: "100%", cursor: locked ? "not-allowed" : undefined }}
                       >
                         <span className="row" style={{ gap: 8 }}>
                           <Favicon domain={s.domain} size={20} />
