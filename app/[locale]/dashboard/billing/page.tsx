@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import { toast } from "sonner"
@@ -18,6 +19,9 @@ interface Usage {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
+  // One-time, non-recurring free-plan trial state. Always null/false for paid.
+  freeCheckTrialEndsAt: string | null
+  freeCheckTrialExhausted: boolean
 }
 
 interface Subscription {
@@ -56,6 +60,8 @@ function formatDate(iso: string): string {
 
 export default function BillingPage() {
   const t = useTranslations("dashBilling")
+  const searchParams = useSearchParams()
+  const trialExpiredRedirect = searchParams.get("trial") === "expired"
   const upgradePerks = t.raw("upgradePerks") as string[]
   const [usage, setUsage] = useState<Usage | null>(null)
   const [sub, setSub] = useState<Subscription | null>(null)
@@ -98,6 +104,7 @@ export default function BillingPage() {
   }, [load])
 
   const isPaid = usage?.plan === "paid"
+  const trialEndsAtDate = !isPaid && usage?.freeCheckTrialEndsAt ? new Date(usage.freeCheckTrialEndsAt) : null
   const perWorker = usage?.perWorkerDailyChecks ?? SEARCHES_PER_WORKER
   const currentWorkers = usage?.workerCount ?? 1
   const dirty = isPaid && workers !== currentWorkers
@@ -212,12 +219,25 @@ export default function BillingPage() {
       {/* Header */}
       {Header}
 
+      {trialExpiredRedirect && !isPaid && (
+        <div
+          className="tiny"
+          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)" }}
+        >
+          {t("trialExpiredBanner")}
+        </div>
+      )}
+
       {/* Overview tiles */}
       <div className="grid g-4" style={{ marginBottom: 16 }}>
         <StatTile lbl={t("tilePlan")} val={isPaid ? t("workers") : t("free")} tip={isPaid ? t("tilePlanActive", { count: usage?.workerCount ?? 0 }) : t("tilePlanManual")} />
         <StatTile lbl={t("workers")} val={isPaid ? (usage?.workerCount ?? 1) : "—"} tip={isPaid ? t("tileWorkersEach", { count: perWorker }) : undefined} />
         <StatTile lbl={t("tileMonthlyCost")} val={isPaid ? `$${(usage?.workerCount ?? 1) * PRICE_PER_WORKER_USD}` : "$0"} tip={isPaid ? t("tileBilledMonthly") : t("tileFreeForever")} />
-        <StatTile lbl={t("tileChecksToday")} val={`${usage?.dailyUsed ?? 0} / ${usage?.dailyLimit ?? 0}`} tip={t("tileRemaining", { count: usage?.dailyRemaining ?? 0 })} />
+        <StatTile
+          lbl={isPaid ? t("tileChecksToday") : t("tileChecksTrial")}
+          val={`${usage?.dailyUsed ?? 0} / ${usage?.dailyLimit ?? 0}`}
+          tip={t("tileRemaining", { count: usage?.dailyRemaining ?? 0 })}
+        />
       </div>
 
       <div className="grid g-21" style={{ marginBottom: 16, alignItems: "start" }}>
@@ -233,7 +253,11 @@ export default function BillingPage() {
           {!isPaid ? (
             <div>
               <p className="tiny muted" style={{ marginBottom: 14 }}>
-                {t("freePlanLine", { count: usage?.dailyLimit ?? 5 })}
+                {usage?.freeCheckTrialExhausted
+                  ? t("freePlanLineExhausted")
+                  : trialEndsAtDate
+                    ? t("freePlanLine", { count: usage?.dailyLimit ?? 5, date: formatDate(trialEndsAtDate.toISOString()) })
+                    : t("freePlanLineExhausted")}
               </p>
               <ul style={{ listStyle: "none", margin: "0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {upgradePerks.map(perk => (
@@ -352,13 +376,15 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Usage — shown for every plan; free users get a daily allowance too. */}
+      {/* Usage — shown for every plan; free users get a one-time trial allowance. */}
       {usage && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-h">
             <div>
-              <div className="t">{t("dailyUsage")}</div>
-              <div className="tiny muted">{t("resetsMidnight")}</div>
+              <div className="t">{isPaid ? t("dailyUsage") : t("trialUsage")}</div>
+              <div className="tiny muted">
+                {isPaid ? t("resetsMidnight") : trialEndsAtDate ? t("trialEndsOn", { date: formatDate(trialEndsAtDate.toISOString()) }) : t("trialEnded")}
+              </div>
             </div>
             <div className="tiny muted tabular">{t("usageChecks", { used: usage.dailyUsed, limit: usage.dailyLimit })}</div>
           </div>
@@ -366,6 +392,10 @@ export default function BillingPage() {
           <div className="tiny muted" style={{ marginTop: 8 }}>
             {isPaid ? (
               t("usageLinePaid", { remaining: usage.dailyRemaining, count: usage.workerCount, perWorker })
+            ) : usage.freeCheckTrialExhausted ? (
+              t.rich("usageLineFreeExhausted", {
+                link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
+              })
             ) : (
               t.rich("usageLineFree", {
                 remaining: usage.dailyRemaining,
