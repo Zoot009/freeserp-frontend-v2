@@ -250,9 +250,6 @@ function ProjectsList({
         </div>
         <div className="row">
           {/* Daily-checks chip moved to the navbar (UsageMeter). */}
-          {usage?.isAdmin && (
-            <Link href="/admin"><button className="btn sm">{t("admin")}</button></Link>
-          )}
           <button className="btn sm" onClick={onStartTour} title={t("tourTitle")}>{t("tour")}</button>
           <div className="pill-toggle">
             <button className={view === "grid" ? "active" : ""} onClick={() => setView("grid")}>{t("viewGrid")}</button>

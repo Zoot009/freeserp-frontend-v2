@@ -601,7 +601,6 @@
   "headerTitle": "Proyectos",
   "subFree": "{used} de {limit} usados en el plan Gratuito · mejora para ilimitados",
   "subTracked": "{count, plural, one {# proyecto rastreado} other {# proyectos rastreados}}",
-  "admin": "Administración",
   "tour": "Tour",
   "tourTitle": "Repetir el tour del producto",
   "viewGrid": "Cuadrícula",
