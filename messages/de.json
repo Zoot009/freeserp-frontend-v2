@@ -601,7 +601,6 @@
   "headerTitle": "Projekte",
   "subFree": "{used} von {limit} im kostenlosen Tarif genutzt · Upgrade für unbegrenzt",
   "subTracked": "{count, plural, one {# Projekt verfolgt} other {# Projekte verfolgt}}",
-  "admin": "Administration",
   "tour": "Tour",
   "tourTitle": "Produkt-Tour erneut abspielen",
   "viewGrid": "Raster",

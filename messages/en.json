@@ -608,7 +608,6 @@
   "headerTitle": "Projects",
   "subFree": "{used} of {limit} used on Free plan · upgrade for unlimited",
   "subTracked": "{count, plural, one {# project tracked} other {# projects tracked}}",
-  "admin": "Admin",
   "tour": "Tour",
   "tourTitle": "Replay product tour",
   "viewGrid": "Grid",
