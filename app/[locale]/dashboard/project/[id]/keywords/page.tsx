@@ -537,8 +537,15 @@ export default function ProjectKeywordsPage() {
       setTimeout(load, 2000)
       if (refreshUser) setTimeout(() => refreshUser(), 2500)
     } catch (err: unknown) {
-      // 402 = daily plan quota exhausted. The backend's message is already
-      // user-facing, so surface it directly.
+      // 402 = quota exhausted. A free-plan trial exhaustion is permanent (no
+      // "come back tomorrow"), so redirect straight to the subscribe prompt
+      // instead of showing an inline error the user has no way to resolve here.
+      if (err instanceof ApiError && err.status === 402 && err.code === "free_trial_exhausted") {
+        router.push("/dashboard/billing?trial=expired")
+        return
+      }
+      // Other 402s (paid daily quota) keep the existing inline message — the
+      // backend's message is already user-facing.
       if (err instanceof ApiError && err.status === 402) {
         setError(err.message || "Daily check limit reached.")
       } else {
@@ -559,6 +566,10 @@ export default function ProjectKeywordsPage() {
       setTimeout(() => load(true), 1500)
       if (refreshUser) setTimeout(() => refreshUser(), 2000)
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 402 && err.code === "free_trial_exhausted") {
+        router.push("/dashboard/billing?trial=expired")
+        return
+      }
       if (err instanceof ApiError && err.status === 402) {
         setError(err.message || "Daily check limit reached.")
       } else {

@@ -12,6 +12,10 @@ interface UsageInfo {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
+  // One-time, non-recurring free-plan trial state (see /api/usage). Always
+  // null/false for paid plans.
+  freeCheckTrialEndsAt: string | null
+  freeCheckTrialExhausted: boolean
 }
 
 // Daily rank-check quota + plan, shown in the navbar. The whole chip is a single
@@ -57,6 +61,25 @@ export function UsageMeter() {
   const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
   const buyLabel = isPaid ? t("addWorkers") : t("buyMore")
 
+  // Free plan: a one-time 15-day trial, not a daily allowance — show days
+  // remaining (or "Trial ended") instead of "checks today".
+  const trialDaysLeft = !isPaid && usage.freeCheckTrialEndsAt
+    ? Math.max(0, Math.ceil((new Date(usage.freeCheckTrialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    : null
+  const freeSuffixLabel = usage.freeCheckTrialExhausted
+    ? t("trialEnded")
+    : trialDaysLeft != null
+      ? `${t("checksTotal")} · ${t("trialDaysLeft", { days: trialDaysLeft })}`
+      : t("checksTotal")
+  const chipTitle = isPaid
+    ? t("chipTitle", {
+        plan: t("planPro"),
+        workerSuffix,
+        used: usage.dailyUsed,
+        limit: usage.dailyLimit,
+      })
+    : t("chipTitleTrial", { used: usage.dailyUsed, limit: usage.dailyLimit })
+
   return (
     <>
       <button
@@ -64,12 +87,7 @@ export function UsageMeter() {
         className="usage-pill"
         onClick={() => { trackEvent("clicked-buy-button"); setShowWorkers(true) }}
         aria-label={buyLabel}
-        title={t("chipTitle", {
-          plan: isPaid ? t("planPro") : t("planFree"),
-          workerSuffix,
-          used: usage.dailyUsed,
-          limit: usage.dailyLimit,
-        })}
+        title={chipTitle}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -104,7 +122,7 @@ export function UsageMeter() {
           <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
             {usage.dailyUsed}/{usage.dailyLimit}
           </span>{" "}
-          <span className="muted usage-suffix">{t("checksToday")}</span>
+          <span className="muted usage-suffix">{isPaid ? t("checksToday") : freeSuffixLabel}</span>
         </span>
         <span
           aria-hidden
