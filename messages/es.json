@@ -295,7 +295,41 @@
   "choosePlan": "Elige tu plan",
   "tierChecks": "{checks, number} comprobaciones/día",
   "fewerChecks": "Menos comprobaciones",
-  "moreChecks": "Más comprobaciones"
+  "moreChecks": "Más comprobaciones",
+  "compareEyebrow": "Comparar",
+  "compareTitle": "Todo lo de Free, y más",
+  "compareFree": "Free",
+  "compareWorkers": "Workers",
+  "compareRows": [
+   { "feature": "Comprobaciones de ranking por día", "free": "5", "paid": "15 / worker" },
+   { "feature": "Comprobaciones automáticas recurrentes", "free": "—", "paid": "✓" },
+   { "feature": "Análisis de competencia con IA", "free": "1 / día", "paid": "Ilimitado" },
+   { "feature": "Análisis de enlaces internos", "free": "Tú + 1 competidor", "paid": "Todos los competidores" },
+   { "feature": "Todas las ubicaciones y dispositivos", "free": "✓", "paid": "✓" },
+   { "feature": "Soporte prioritario", "free": "—", "paid": "✓" }
+  ],
+  "manageTitle": "Ajusta tus workers",
+  "saveChanges": "Guardar cambios",
+  "saved": "Guardado",
+  "savedToast": "Actualizado a {workers, plural, one {# worker} other {# workers}} — {checks, number} comprobaciones/día. Prorrateado.",
+  "errorSaveFailed": "No se pudieron actualizar tus workers",
+  "ctaTitle": "¿Listo para posicionar mejor?",
+  "ctaSubtitle": "Empieza gratis — sin tarjeta. Añade workers en cuanto necesites más.",
+  "ctaButton": "Empezar"
+ },
+ "billingResult": {
+  "eyebrow": "Pago",
+  "successAllSetTitle": "Todo listo",
+  "successFinalizingTitle": "Finalizando…",
+  "successThankYouTitle": "Gracias",
+  "successAllSetBody": "Tu plan de pago está activo — tu límite diario de comprobaciones de ranking ha aumentado.",
+  "successFinalizingBody": "Finalizando tu suscripción… esto suele tardar unos segundos.",
+  "successThankYouBody": "Hemos recibido tu pago. Si tu plan no se actualiza en un minuto, recarga esta página o revisa tu panel.",
+  "canceledTitle": "Pago cancelado",
+  "canceledBody": "No se realizó ningún cargo. Puedes elegir un plan e intentarlo de nuevo cuando quieras.",
+  "goToDashboard": "Ir al panel",
+  "viewBilling": "Ver facturación",
+  "backToPricing": "Volver a precios"
  },
  "dashboardNav": {
   "workspace": "Espacio de trabajo",

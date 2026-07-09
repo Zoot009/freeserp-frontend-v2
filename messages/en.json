@@ -295,7 +295,41 @@
   "choosePlan": "Choose your plan",
   "tierChecks": "{checks, number} checks/day",
   "fewerChecks": "Fewer checks",
-  "moreChecks": "More checks"
+  "moreChecks": "More checks",
+  "compareEyebrow": "Compare",
+  "compareTitle": "Everything in Free, and more",
+  "compareFree": "Free",
+  "compareWorkers": "Workers",
+  "compareRows": [
+   { "feature": "Rank checks per day", "free": "5", "paid": "15 / worker" },
+   { "feature": "Automated recurring checks", "free": "—", "paid": "✓" },
+   { "feature": "AI competitor analysis", "free": "1 / day", "paid": "Unlimited" },
+   { "feature": "Internal link analysis", "free": "You + 1 competitor", "paid": "All competitors" },
+   { "feature": "All locations & devices", "free": "✓", "paid": "✓" },
+   { "feature": "Priority support", "free": "—", "paid": "✓" }
+  ],
+  "manageTitle": "Adjust your workers",
+  "saveChanges": "Save changes",
+  "saved": "Saved",
+  "savedToast": "Updated to {workers, plural, one {# worker} other {# workers}} — {checks, number} checks/day. Prorated.",
+  "errorSaveFailed": "Could not update your workers",
+  "ctaTitle": "Ready to rank higher?",
+  "ctaSubtitle": "Start free — no card required. Add workers the moment you need more.",
+  "ctaButton": "Get started"
+ },
+ "billingResult": {
+  "eyebrow": "Payment",
+  "successAllSetTitle": "You're all set",
+  "successFinalizingTitle": "Finalizing…",
+  "successThankYouTitle": "Thank you",
+  "successAllSetBody": "Your paid plan is active — your daily rank-check limit has increased.",
+  "successFinalizingBody": "Finalizing your subscription… this usually takes a few seconds.",
+  "successThankYouBody": "We received your payment. If your plan hasn't updated within a minute, refresh this page or check your dashboard.",
+  "canceledTitle": "Checkout canceled",
+  "canceledBody": "No charges were made. You can pick a plan and try again whenever you're ready.",
+  "goToDashboard": "Go to dashboard",
+  "viewBilling": "View billing",
+  "backToPricing": "Back to pricing"
  },
  "dashboardNav": {
   "workspace": "Workspace",

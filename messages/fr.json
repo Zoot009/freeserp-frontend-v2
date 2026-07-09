@@ -295,7 +295,41 @@
   "choosePlan": "Choisissez votre forfait",
   "tierChecks": "{checks, number} vérifications/jour",
   "fewerChecks": "Moins de vérifications",
-  "moreChecks": "Plus de vérifications"
+  "moreChecks": "Plus de vérifications",
+  "compareEyebrow": "Comparer",
+  "compareTitle": "Tout Free, et plus encore",
+  "compareFree": "Free",
+  "compareWorkers": "Workers",
+  "compareRows": [
+   { "feature": "Vérifications de position par jour", "free": "5", "paid": "15 / worker" },
+   { "feature": "Vérifications récurrentes automatiques", "free": "—", "paid": "✓" },
+   { "feature": "Analyse concurrentielle par IA", "free": "1 / jour", "paid": "Illimité" },
+   { "feature": "Analyse des liens internes", "free": "Vous + 1 concurrent", "paid": "Tous les concurrents" },
+   { "feature": "Tous les lieux et appareils", "free": "✓", "paid": "✓" },
+   { "feature": "Support prioritaire", "free": "—", "paid": "✓" }
+  ],
+  "manageTitle": "Ajustez vos workers",
+  "saveChanges": "Enregistrer",
+  "saved": "Enregistré",
+  "savedToast": "Mis à jour vers {workers, plural, one {# worker} other {# workers}} — {checks, number} vérifications/jour. Calculé au prorata.",
+  "errorSaveFailed": "Impossible de mettre à jour vos workers",
+  "ctaTitle": "Prêt à mieux vous positionner ?",
+  "ctaSubtitle": "Commencez gratuitement — sans carte. Ajoutez des workers dès que vous en avez besoin.",
+  "ctaButton": "Commencer"
+ },
+ "billingResult": {
+  "eyebrow": "Paiement",
+  "successAllSetTitle": "Tout est prêt",
+  "successFinalizingTitle": "Finalisation…",
+  "successThankYouTitle": "Merci",
+  "successAllSetBody": "Votre offre payante est active — votre limite quotidienne de vérifications a augmenté.",
+  "successFinalizingBody": "Finalisation de votre abonnement… cela prend généralement quelques secondes.",
+  "successThankYouBody": "Nous avons reçu votre paiement. Si votre offre n'est pas mise à jour dans la minute, actualisez cette page ou consultez votre tableau de bord.",
+  "canceledTitle": "Paiement annulé",
+  "canceledBody": "Aucun montant n'a été débité. Vous pouvez choisir une offre et réessayer quand vous le souhaitez.",
+  "goToDashboard": "Aller au tableau de bord",
+  "viewBilling": "Voir la facturation",
+  "backToPricing": "Retour aux tarifs"
  },
  "dashboardNav": {
   "workspace": "Espace de travail",

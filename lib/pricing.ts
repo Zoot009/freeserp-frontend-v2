@@ -21,3 +21,14 @@ export const TIERS: TierInfo[] = PRICING_TIERS.map((usd) => ({
   workers: usd,
   checks: usd * SEARCHES_PER_WORKER,
 }))
+
+// Index of the fixed tier nearest an arbitrary worker count. Paid users may sit
+// between tiers (proration lets any quantity through), so the stepper snaps to the
+// closest preset when initializing from their current worker count.
+export const nearestTier = (count: number): number => {
+  let best = 0
+  for (let i = 1; i < PRICING_TIERS.length; i++) {
+    if (Math.abs(PRICING_TIERS[i] - count) < Math.abs(PRICING_TIERS[best] - count)) best = i
+  }
+  return best
+}

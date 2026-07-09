@@ -1,0 +1,221 @@
+/* FreeSERP — pricing surfaces (pricing page, checkout result pages).
+   Scoped under .fs-app so it inherits the same tokens as dashboard.css.
+   Keep the design signature: tight tracking, weight 600, mono + electric-blue. */
+
+/* ---- Sticky, blurred header ---- */
+.fs-app .pricing-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg-elev) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- Radial brand glow backdrop (hero + result cards) ---- */
+.fs-app .pricing-glow { position: relative; isolation: isolate; }
+.fs-app .pricing-glow::before {
+  content: "";
+  position: absolute;
+  inset: -160px -10% auto -10%;
+  height: 520px;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    58% 60% at 50% 0%,
+    color-mix(in srgb, var(--brand) 20%, transparent) 0%,
+    transparent 72%
+  );
+}
+
+/* ---- Trust pills under the hero ---- */
+.fs-app .trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+.fs-app .trust-pill .spark { color: var(--brand); }
+
+/* ---- Pricing cards ---- */
+.fs-app .price-card {
+  position: relative;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.fs-app .price-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+.fs-app .price-card.featured {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--brand), var(--shadow-md);
+}
+.fs-app .price-card.featured:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1.5px var(--brand), var(--shadow-lg);
+}
+
+/* "Most popular" ribbon */
+.fs-app .price-ribbon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--brand) 65%, transparent);
+}
+
+/* Segmented tier scale (animated fill) */
+.fs-app .tier-seg {
+  flex: 1;
+  height: 8px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  background: var(--border);
+  transition: background .2s ease, transform .12s ease;
+}
+.fs-app .tier-seg.on { background: var(--brand); }
+.fs-app .tier-seg:hover { transform: scaleY(1.5); }
+
+/* ---- Free vs Workers comparison ---- */
+.fs-app .cmp {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-elev);
+}
+.fs-app .cmp-row {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.fs-app .cmp-row:last-child { border-bottom: none; }
+.fs-app .cmp-head {
+  background: var(--bg-inset);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.fs-app .cmp-head .cmp-val { color: var(--text); }
+.fs-app .cmp-feat { color: var(--text-soft); font-weight: 500; }
+.fs-app .cmp-val { text-align: center; }
+.fs-app .cmp-val.paid {
+  color: var(--text);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--brand) 5%, transparent);
+  border-radius: var(--r-sm);
+  padding: 4px 6px;
+}
+.fs-app .cmp-yes { color: var(--brand); }
+.fs-app .cmp-no { color: var(--text-mute); }
+
+@media (max-width: 560px) {
+  .fs-app .cmp-row { grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; padding: 12px; font-size: 12.5px; }
+  .fs-app .cmp-val.paid { padding: 3px 4px; }
+}
+
+/* ---- Stats band ---- */
+.fs-app .stat-band {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-elev);
+}
+.fs-app .stat-band > div {
+  padding: 24px 18px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.fs-app .stat-band > div:last-child { border-right: none; }
+.fs-app .stat-band .val {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+.fs-app .stat-band .lbl { margin-top: 4px; font-size: 12px; color: var(--text-mute); }
+.fs-app .stat-band .ic { color: var(--brand); margin-bottom: 8px; display: inline-flex; }
+@media (max-width: 640px) {
+  .fs-app .stat-band { grid-template-columns: 1fr; }
+  .fs-app .stat-band > div { border-right: none; border-bottom: 1px solid var(--border); }
+  .fs-app .stat-band > div:last-child { border-bottom: none; }
+}
+
+/* ---- FAQ ---- */
+.fs-app .faq-item { transition: border-color .15s ease, box-shadow .15s ease; }
+.fs-app .faq-item[open] { border-color: var(--brand); box-shadow: var(--shadow-sm); }
+.fs-app .faq-mark { transition: transform .2s ease; display: inline-block; }
+.fs-app .faq-item[open] .faq-mark { transform: rotate(45deg); }
+
+/* ---- Final CTA band ---- */
+.fs-app .cta-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  padding: 44px 32px;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  box-shadow: var(--shadow-lg);
+}
+.fs-app .cta-band::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(55% 120% at 18% 0%, rgba(255,255,255,.20), transparent 60%);
+}
+.fs-app .cta-band > * { position: relative; z-index: 1; }
+.fs-app .btn.on-brand {
+  background: #fff;
+  color: var(--brand);
+  border-color: transparent;
+  font-weight: 600;
+}
+.fs-app .btn.on-brand:hover { background: rgba(255,255,255,.9); transform: translateY(-1px); }
+
+/* ---- Entrance for result cards ---- */
+.fs-app .pop-in { animation: pop-in .32s ease-out both; }
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- Motion safety ---- */
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .price-card,
+  .fs-app .price-card.featured,
+  .fs-app .tier-seg,
+  .fs-app .faq-item,
+  .fs-app .faq-mark,
+  .fs-app .btn.on-brand { transition: none; }
+  .fs-app .price-card:hover,
+  .fs-app .price-card.featured:hover,
+  .fs-app .tier-seg:hover,
+  .fs-app .btn.on-brand:hover { transform: none; }
+  .fs-app .pop-in { animation: none; }
+}

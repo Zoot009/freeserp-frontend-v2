@@ -1,17 +1,20 @@
 "use client"
 
-import Link from "next/link"
+import { useTranslations } from "next-intl"
+import { Link } from "@/i18n/navigation"
 import { XCircle } from "lucide-react"
 
 export default function BillingCancelPage() {
+  const t = useTranslations("billingResult")
+
   return (
     <main
-      className="fs-app"
+      className="fs-app pricing-glow"
       style={{ minHeight: "100vh", background: "var(--bg-sub)", display: "grid", placeItems: "center", padding: 24 }}
     >
       <div
-        className="card"
-        style={{ width: "100%", maxWidth: 440, padding: 36, textAlign: "center" }}
+        className="card pop-in"
+        style={{ width: "100%", maxWidth: 440, padding: 36, textAlign: "center", boxShadow: "var(--shadow-lg)" }}
       >
         {/* Icon badge */}
         <span
@@ -30,23 +33,23 @@ export default function BillingCancelPage() {
         </span>
 
         <span className="eyebrow" style={{ justifyContent: "center" }}>
-          <span className="spark">◆</span> Payment
+          <span className="spark">◆</span> {t("eyebrow")}
         </span>
 
         <h1 style={{ margin: "10px 0 0", fontSize: 30, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-          Checkout canceled
+          {t("canceledTitle")}
         </h1>
 
         <p className="muted" style={{ marginTop: 12, fontSize: 14, lineHeight: 1.5, maxWidth: 360, marginInline: "auto" }}>
-          No charges were made. You can pick a plan and try again whenever you&apos;re ready.
+          {t("canceledBody")}
         </p>
 
         <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
           <Link href="/pricing" className="btn primary">
-            Back to pricing
+            {t("backToPricing")}
           </Link>
           <Link href="/dashboard" className="btn">
-            Go to dashboard
+            {t("goToDashboard")}
           </Link>
         </div>
       </div>

@@ -5,8 +5,8 @@ import { useTranslations } from "next-intl"
 import { Icon } from "@/components/dashboard/icons"
 
 // Small in-app confirmation dialog reusing the dashboard's .modal-* pattern
-// (see add-workers-modal.tsx) so destructive actions don't fall back to the
-// browser-native window.confirm(). Renders nothing when `open` is false.
+// so destructive actions don't fall back to the browser-native window.confirm().
+// Renders nothing when `open` is false.
 export function ConfirmDialog({
   open,
   title,

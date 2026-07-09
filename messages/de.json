@@ -295,7 +295,41 @@
   "choosePlan": "Wähle deinen Plan",
   "tierChecks": "{checks, number} Checks/Tag",
   "fewerChecks": "Weniger Checks",
-  "moreChecks": "Mehr Checks"
+  "moreChecks": "Mehr Checks",
+  "compareEyebrow": "Vergleich",
+  "compareTitle": "Alles aus Free – und mehr",
+  "compareFree": "Free",
+  "compareWorkers": "Workers",
+  "compareRows": [
+   { "feature": "Rank-Checks pro Tag", "free": "5", "paid": "15 / Worker" },
+   { "feature": "Automatische wiederkehrende Checks", "free": "—", "paid": "✓" },
+   { "feature": "KI-Wettbewerbsanalyse", "free": "1 / Tag", "paid": "Unbegrenzt" },
+   { "feature": "Interne Linkanalyse", "free": "Sie + 1 Wettbewerber", "paid": "Alle Wettbewerber" },
+   { "feature": "Alle Standorte & Geräte", "free": "✓", "paid": "✓" },
+   { "feature": "Priorisierter Support", "free": "—", "paid": "✓" }
+  ],
+  "manageTitle": "Worker anpassen",
+  "saveChanges": "Änderungen speichern",
+  "saved": "Gespeichert",
+  "savedToast": "Aktualisiert auf {workers, plural, one {# Worker} other {# Worker}} — {checks, number} Checks/Tag. Anteilig berechnet.",
+  "errorSaveFailed": "Worker konnten nicht aktualisiert werden",
+  "ctaTitle": "Bereit für bessere Rankings?",
+  "ctaSubtitle": "Kostenlos starten – keine Karte nötig. Worker hinzufügen, sobald Sie mehr brauchen.",
+  "ctaButton": "Loslegen"
+ },
+ "billingResult": {
+  "eyebrow": "Zahlung",
+  "successAllSetTitle": "Alles bereit",
+  "successFinalizingTitle": "Wird abgeschlossen…",
+  "successThankYouTitle": "Vielen Dank",
+  "successAllSetBody": "Ihr kostenpflichtiger Plan ist aktiv – Ihr tägliches Rank-Check-Limit wurde erhöht.",
+  "successFinalizingBody": "Ihr Abo wird abgeschlossen… das dauert normalerweise nur wenige Sekunden.",
+  "successThankYouBody": "Wir haben Ihre Zahlung erhalten. Falls Ihr Plan nicht innerhalb einer Minute aktualisiert wird, laden Sie diese Seite neu oder prüfen Sie Ihr Dashboard.",
+  "canceledTitle": "Checkout abgebrochen",
+  "canceledBody": "Es wurden keine Kosten berechnet. Sie können jederzeit einen Plan wählen und es erneut versuchen.",
+  "goToDashboard": "Zum Dashboard",
+  "viewBilling": "Abrechnung ansehen",
+  "backToPricing": "Zurück zu den Preisen"
  },
  "dashboardNav": {
   "workspace": "Arbeitsbereich",
