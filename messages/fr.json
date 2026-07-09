@@ -374,7 +374,8 @@
   "guest": "Invité",
   "accountMenu": "Menu du compte",
   "signOut": "Se déconnecter",
-  "keywordAnalysis": "Analyse de mots-clés"
+  "keywordAnalysis": "Analyse de mots-clés",
+  "onPageAudit": "Audit On-Page"
  },
  "dashFavorites": {
   "headerEyebrow": "Enregistrés",

@@ -374,7 +374,8 @@
   "guest": "Invitado",
   "accountMenu": "Menú de cuenta",
   "signOut": "Cerrar sesión",
-  "keywordAnalysis": "Análisis de palabras clave"
+  "keywordAnalysis": "Análisis de palabras clave",
+  "onPageAudit": "Auditoría On-Page"
  },
  "dashFavorites": {
   "headerEyebrow": "Guardados",

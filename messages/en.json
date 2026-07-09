@@ -374,7 +374,8 @@
   "guest": "Guest",
   "accountMenu": "Account menu",
   "signOut": "Sign out",
-  "keywordAnalysis": "Keyword Analysis"
+  "keywordAnalysis": "Keyword Analysis",
+  "onPageAudit": "On-Page Audit"
  },
  "dashFavorites": {
   "headerEyebrow": "Saved",
