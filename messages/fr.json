@@ -301,12 +301,36 @@
   "compareFree": "Free",
   "compareWorkers": "Workers",
   "compareRows": [
-   { "feature": "Vérifications de position par jour", "free": "5", "paid": "15 / worker" },
-   { "feature": "Vérifications récurrentes automatiques", "free": "—", "paid": "✓" },
-   { "feature": "Analyse concurrentielle par IA", "free": "1 / jour", "paid": "Illimité" },
-   { "feature": "Analyse des liens internes", "free": "Vous + 1 concurrent", "paid": "Tous les concurrents" },
-   { "feature": "Tous les lieux et appareils", "free": "✓", "paid": "✓" },
-   { "feature": "Support prioritaire", "free": "—", "paid": "✓" }
+   {
+    "feature": "Vérifications de position par jour",
+    "free": "5",
+    "paid": "15 / worker"
+   },
+   {
+    "feature": "Vérifications récurrentes automatiques",
+    "free": "—",
+    "paid": "✓"
+   },
+   {
+    "feature": "Analyse concurrentielle par IA",
+    "free": "1 / jour",
+    "paid": "Illimité"
+   },
+   {
+    "feature": "Analyse des liens internes",
+    "free": "Vous + 1 concurrent",
+    "paid": "Tous les concurrents"
+   },
+   {
+    "feature": "Tous les lieux et appareils",
+    "free": "✓",
+    "paid": "✓"
+   },
+   {
+    "feature": "Support prioritaire",
+    "free": "—",
+    "paid": "✓"
+   }
   ],
   "manageTitle": "Ajustez vos workers",
   "saveChanges": "Enregistrer",
@@ -349,7 +373,8 @@
   "freePlan": "Forfait gratuit",
   "guest": "Invité",
   "accountMenu": "Menu du compte",
-  "signOut": "Se déconnecter"
+  "signOut": "Se déconnecter",
+  "keywordAnalysis": "Analyse de mots-clés"
  },
  "dashFavorites": {
   "headerEyebrow": "Enregistrés",
@@ -656,7 +681,8 @@
   "colStatus": "Statut",
   "colCreated": "Créé",
   "colTrend": "Tendance",
-  "loading": "Chargement…"
+  "loading": "Chargement…",
+  "admin": "Administration"
  },
  "dashSerpChecker": {
   "eyebrow": "SERP RAPIDE",

@@ -20,6 +20,7 @@ const CRUMB_KEYS: Record<string, string[]> = {
   "/dashboard/project": ["workspace", "projects", "project"],
   "/dashboard/keywords": ["workspace", "keywords"],
   "/dashboard/serp-checker": ["tools", "quickSerp"],
+  "/dashboard/keyword-analysis": ["tools", "keywordAnalysis"],
   "/dashboard/alerts": ["tools", "alerts"],
   "/dashboard/billing": ["tools", "settings"],
 }

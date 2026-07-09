@@ -301,12 +301,36 @@
   "compareFree": "Free",
   "compareWorkers": "Workers",
   "compareRows": [
-   { "feature": "Rank-Checks pro Tag", "free": "5", "paid": "15 / Worker" },
-   { "feature": "Automatische wiederkehrende Checks", "free": "—", "paid": "✓" },
-   { "feature": "KI-Wettbewerbsanalyse", "free": "1 / Tag", "paid": "Unbegrenzt" },
-   { "feature": "Interne Linkanalyse", "free": "Sie + 1 Wettbewerber", "paid": "Alle Wettbewerber" },
-   { "feature": "Alle Standorte & Geräte", "free": "✓", "paid": "✓" },
-   { "feature": "Priorisierter Support", "free": "—", "paid": "✓" }
+   {
+    "feature": "Rank-Checks pro Tag",
+    "free": "5",
+    "paid": "15 / Worker"
+   },
+   {
+    "feature": "Automatische wiederkehrende Checks",
+    "free": "—",
+    "paid": "✓"
+   },
+   {
+    "feature": "KI-Wettbewerbsanalyse",
+    "free": "1 / Tag",
+    "paid": "Unbegrenzt"
+   },
+   {
+    "feature": "Interne Linkanalyse",
+    "free": "Sie + 1 Wettbewerber",
+    "paid": "Alle Wettbewerber"
+   },
+   {
+    "feature": "Alle Standorte & Geräte",
+    "free": "✓",
+    "paid": "✓"
+   },
+   {
+    "feature": "Priorisierter Support",
+    "free": "—",
+    "paid": "✓"
+   }
   ],
   "manageTitle": "Worker anpassen",
   "saveChanges": "Änderungen speichern",
@@ -349,7 +373,8 @@
   "freePlan": "Kostenloser Plan",
   "guest": "Gast",
   "accountMenu": "Kontomenü",
-  "signOut": "Abmelden"
+  "signOut": "Abmelden",
+  "keywordAnalysis": "Keyword-Analyse"
  },
  "dashFavorites": {
   "headerEyebrow": "Gespeichert",
@@ -656,7 +681,8 @@
   "colStatus": "Status",
   "colCreated": "Erstellt",
   "colTrend": "Trend",
-  "loading": "Wird geladen…"
+  "loading": "Wird geladen…",
+  "admin": "Administration"
  },
  "dashSerpChecker": {
   "eyebrow": "SCHNELLE SERP",

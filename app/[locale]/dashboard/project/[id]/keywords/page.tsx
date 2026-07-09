@@ -22,6 +22,7 @@ import {
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
+import { Sparkle, Sparkles } from "lucide-react"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -1371,7 +1372,7 @@ export default function ProjectKeywordsPage() {
                                     : "Get this keyword ranking on page 1"
                               }
                             >
-                              Rank
+                              <Sparkles size={15}/> Rank
                               {kw.position != null ? (
                                 <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                                   #{kw.position}

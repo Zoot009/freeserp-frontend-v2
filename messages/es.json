@@ -301,12 +301,36 @@
   "compareFree": "Free",
   "compareWorkers": "Workers",
   "compareRows": [
-   { "feature": "Comprobaciones de ranking por día", "free": "5", "paid": "15 / worker" },
-   { "feature": "Comprobaciones automáticas recurrentes", "free": "—", "paid": "✓" },
-   { "feature": "Análisis de competencia con IA", "free": "1 / día", "paid": "Ilimitado" },
-   { "feature": "Análisis de enlaces internos", "free": "Tú + 1 competidor", "paid": "Todos los competidores" },
-   { "feature": "Todas las ubicaciones y dispositivos", "free": "✓", "paid": "✓" },
-   { "feature": "Soporte prioritario", "free": "—", "paid": "✓" }
+   {
+    "feature": "Comprobaciones de ranking por día",
+    "free": "5",
+    "paid": "15 / worker"
+   },
+   {
+    "feature": "Comprobaciones automáticas recurrentes",
+    "free": "—",
+    "paid": "✓"
+   },
+   {
+    "feature": "Análisis de competencia con IA",
+    "free": "1 / día",
+    "paid": "Ilimitado"
+   },
+   {
+    "feature": "Análisis de enlaces internos",
+    "free": "Tú + 1 competidor",
+    "paid": "Todos los competidores"
+   },
+   {
+    "feature": "Todas las ubicaciones y dispositivos",
+    "free": "✓",
+    "paid": "✓"
+   },
+   {
+    "feature": "Soporte prioritario",
+    "free": "—",
+    "paid": "✓"
+   }
   ],
   "manageTitle": "Ajusta tus workers",
   "saveChanges": "Guardar cambios",
@@ -349,7 +373,8 @@
   "freePlan": "Plan gratis",
   "guest": "Invitado",
   "accountMenu": "Menú de cuenta",
-  "signOut": "Cerrar sesión"
+  "signOut": "Cerrar sesión",
+  "keywordAnalysis": "Análisis de palabras clave"
  },
  "dashFavorites": {
   "headerEyebrow": "Guardados",
@@ -656,7 +681,8 @@
   "colStatus": "Estado",
   "colCreated": "Creado",
   "colTrend": "Tendencia",
-  "loading": "Cargando…"
+  "loading": "Cargando…",
+  "admin": "Administración"
  },
  "dashSerpChecker": {
   "eyebrow": "SERP RÁPIDA",
