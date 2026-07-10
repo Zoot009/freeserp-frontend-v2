@@ -36,6 +36,9 @@ interface AuthContextValue {
   register: (data: RegisterData) => Promise<void>
   login: (data: LoginData) => Promise<{ emailVerified: boolean }>
   loginWithGoogle: (accessToken: string) => Promise<{ isNewUser: boolean }>
+  loginWithFacebook: (accessToken: string) => Promise<{ isNewUser: boolean }>
+  requestLoginOtp: (email: string) => Promise<void>
+  verifyLoginOtp: (email: string, otp: string) => Promise<{ isNewUser: boolean }>
   logout: () => void
   verifyEmail: (otp: string) => Promise<void>
   resendVerify: () => Promise<void>
@@ -128,6 +131,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { isNewUser: res.isNewUser ?? false }
   }, [])
 
+  // Exchanges a Facebook Login access token (from FB.login) for a FreeSerp
+  // session via the backend's /api/auth/facebook endpoint.
+  const loginWithFacebook = useCallback(async (accessToken: string) => {
+    const res = await api.post<AuthResponse>("/api/auth/facebook", { accessToken, visitorId: getVisitorId() }, { skipAuth: true })
+    handleAuth(res)
+    return { isNewUser: res.isNewUser ?? false }
+  }, [])
+
+  // Passwordless email sign-in — step 1: request a one-time code. Always resolves
+  // (the backend answers ok regardless) so no signal leaks about which emails exist.
+  const requestLoginOtp = useCallback(async (email: string) => {
+    await api.post("/api/auth/otp/request", { email, visitorId: getVisitorId() }, { skipAuth: true })
+  }, [])
+
+  // Step 2: confirm the code and establish the session.
+  const verifyLoginOtp = useCallback(async (email: string, otp: string) => {
+    const res = await api.post<AuthResponse>("/api/auth/otp/verify", { email, otp, visitorId: getVisitorId() }, { skipAuth: true })
+    handleAuth(res)
+    return { isNewUser: res.isNewUser ?? false }
+  }, [])
+
   const logout = useCallback(() => {
     api.post("/api/auth/logout").catch(() => undefined)
     setAccessToken(null)
@@ -165,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, register, login, loginWithGoogle, logout, verifyEmail, resendVerify, forgotPassword, resetPassword, refreshUser }}
+      value={{ user, token, loading, register, login, loginWithGoogle, loginWithFacebook, requestLoginOtp, verifyLoginOtp, logout, verifyEmail, resendVerify, forgotPassword, resetPassword, refreshUser }}
     >
       {children}
     </AuthContext.Provider>
