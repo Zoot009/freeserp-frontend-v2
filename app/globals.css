@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./dashboard.css";
+@import "./pricing.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

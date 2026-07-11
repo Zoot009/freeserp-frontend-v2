@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { hasAnyUtm, readUtm, recordTouch, type Utm } from "@/lib/utm"
-import { track } from "@/lib/analytics"
+import { track, flushPageEngagement, markPage, initHeatmap } from "@/lib/analytics"
 
 // Marks that this browser session's entry touch has been recorded, so the
 // direct/organic origin (referrer + landing path) is logged once per session
@@ -102,11 +102,20 @@ export function UtmCapture() {
     }
   }, [consentGranted, pathname, searchParams, entry])
 
+  // Register the click-heatmap listener once (the handler re-checks consent).
+  useEffect(() => {
+    initHeatmap()
+  }, [])
+
   // Behavioural page-view tracking, deduped on consecutive identical paths. track()
-  // gates on consent itself; the effect just fires it on each real navigation.
+  // gates on consent itself; the effect just fires it on each real navigation. On
+  // each navigation, flush the engagement (dwell + scroll) of the page just left and
+  // start measuring the new one (both consent-gated internally).
   const lastPagePath = useRef<string | null>(null)
   useEffect(() => {
     if (!consentGranted || lastPagePath.current === pathname) return
+    flushPageEngagement()
+    markPage(pathname)
     lastPagePath.current = pathname
     track("$pageview")
   }, [consentGranted, pathname])

@@ -1,14 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
+import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { Icon } from "@/components/dashboard/icons"
 import { useAuth } from "@/lib/auth"
 import axios from "@/lib/axios"
 import { trackEvent } from "@/lib/track"
 import { track } from "@/lib/analytics"
-import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
+import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD, nearestTier } from "@/lib/pricing"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -44,20 +46,25 @@ export default function PricingPage() {
   const t = useTranslations("pricing")
   const freeFeatures = t.raw("freeFeatures") as string[]
   const paidFeatures = t.raw("paidFeatures") as string[]
+  const compareRows = t.raw("compareRows") as { feature: string; free: string; paid: string }[]
   const stats = [
-    { label: t("statMarketsLabel"), value: t("statMarketsValue") },
-    { label: t("statResultTimeLabel"), value: t("statResultTimeValue") },
-    { label: t("statCommitmentLabel"), value: t("statCommitmentValue") },
+    { label: t("statMarketsLabel"), value: t("statMarketsValue"), icon: <Icon.globe /> },
+    { label: t("statResultTimeLabel"), value: t("statResultTimeValue"), icon: <Icon.zap /> },
+    { label: t("statCommitmentLabel"), value: t("statCommitmentValue"), icon: <Icon.refresh /> },
   ]
   const faq = t.raw("faq") as { q: string; a: string }[]
   const { user, token, loading } = useAuth()
   const router = useRouter()
   const [status, setStatus] = useState<Status | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   // Fixed pricing tiers stepped through with −/+ (no custom amounts). The selected
   // tier drives the worker quantity, price, and daily checks shown on the card.
   const [tierIndex, setTierIndex] = useState(0)
+  // Paid users' current worker count — the stepper starts here and the Save button
+  // is only enabled once they pick a different tier.
+  const [currentWorkers, setCurrentWorkers] = useState<number | null>(null)
   const tier = TIERS[tierIndex]
   const workers = tier.workers
   const searchesPerDay = tier.checks
@@ -65,14 +72,39 @@ export default function PricingPage() {
   const atMin = tierIndex <= 0
   const atMax = tierIndex >= TIERS.length - 1
 
-  useEffect(() => {
+  // Load plan status; for paid users also resolve the current worker count so the
+  // stepper opens on their tier and the Save button can detect changes.
+  const loadStatus = useCallback(async () => {
     if (!token) return
-    axios
-      .get(`${API_URL}/api/payments/status`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => (r.status >= 200 && r.status < 300 ? r.data : null))
-      .then(d => d && setStatus(d))
-      .catch(() => {})
+    const headers = { Authorization: `Bearer ${token}` }
+    try {
+      const r = await axios.get(`${API_URL}/api/payments/status`, { headers })
+      if (r.status < 200 || r.status >= 300) return
+      const d = r.data as Status
+      setStatus(d)
+      if (d?.plan === "paid") {
+        let wc = typeof d.workerCount === "number" ? d.workerCount : null
+        if (wc == null) {
+          try {
+            const u = await axios.get(`${API_URL}/api/usage`, { headers })
+            if (typeof u.data?.workerCount === "number") wc = u.data.workerCount
+          } catch {
+            /* usage is best-effort; fall back to leaving the stepper at tier 0 */
+          }
+        }
+        if (wc != null) {
+          setCurrentWorkers(wc)
+          setTierIndex(nearestTier(Math.max(1, wc)))
+        }
+      }
+    } catch {
+      /* status is best-effort — the page still renders with defaults */
+    }
   }, [token])
+
+  useEffect(() => {
+    void loadStatus()
+  }, [loadStatus])
 
   const handleUpgrade = async () => {
     // Buy intent — fire the GTM conversion before any redirect to checkout/login.
@@ -105,6 +137,30 @@ export default function PricingPage() {
     status?.plan === "paid" &&
     (!status.planExpiresAt || new Date(status.planExpiresAt).getTime() > Date.now())
 
+  // Paid users adjust their worker count right here — prorated, mirroring the
+  // billing dashboard's PATCH. Only enabled once the picked tier differs.
+  const dirty = Boolean(isPaid && currentWorkers != null && workers !== currentWorkers)
+
+  const handleSaveWorkers = async () => {
+    if (!dirty || !token) return
+    setSaving(true)
+    try {
+      await axios.patch(
+        `${API_URL}/api/billing/workers`,
+        { workerCount: workers },
+        { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
+      )
+      toast.success(t("savedToast", { workers, checks: searchesPerDay }))
+      window.dispatchEvent(new Event("usage:refresh"))
+      setCurrentWorkers(workers)
+      void loadStatus()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errorSaveFailed"))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const stepBtnStyle: React.CSSProperties = {
     width: 46,
     height: 46,
@@ -115,18 +171,17 @@ export default function PricingPage() {
     flexShrink: 0,
   }
 
+  // Renders a comparison cell: check / dash get iconography, everything else is text.
+  const cmpCell = (v: string) => {
+    if (v === "✓") return <span className="cmp-yes" aria-label="Included"><Icon.check size={16} /></span>
+    if (v === "—") return <span className="cmp-no" aria-hidden>—</span>
+    return <span>{v}</span>
+  }
+
   return (
     <main className="fs-app" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
       {/* Header */}
-      <header
-        className="row"
-        style={{
-          justifyContent: "space-between",
-          padding: "14px 24px",
-          background: "var(--bg-elev)",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
+      <header className="pricing-header row" style={{ justifyContent: "space-between", padding: "14px 24px" }}>
         <Link href="/dashboard" className="row" style={{ gap: 8, textDecoration: "none", color: "var(--text)" }}>
           <span
             style={{
@@ -153,25 +208,36 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 24px 72px" }}>
-        {/* Hero */}
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
+      {/* Hero */}
+      <div className="pricing-glow">
+        <div style={{ maxWidth: 1040, margin: "0 auto", padding: "56px 24px 0", textAlign: "center" }}>
           <span className="eyebrow" style={{ justifyContent: "center" }}>
             <span className="spark">◆</span> {t("eyebrow")}
           </span>
-          <h1 style={{ margin: 0, fontSize: "clamp(28px, 7vw, 38px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+          <h1 style={{ margin: "6px 0 0", fontSize: "clamp(30px, 7vw, 42px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.08 }}>
             {t.rich("title", { hl: (chunks) => <span style={{ color: "var(--brand)" }}>{chunks}</span> })}
           </h1>
-          <p className="muted" style={{ marginTop: 12, fontSize: 14, maxWidth: 520, marginInline: "auto" }}>
+          <p className="muted" style={{ marginTop: 12, fontSize: 15, maxWidth: 540, marginInline: "auto" }}>
             {t("subtitle")}
           </p>
+          {/* Trust pills — grounded in the real stat values below */}
+          <div className="row" style={{ justifyContent: "center", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
+            {stats.map((s) => (
+              <span key={s.label} className="trust-pill">
+                <span className="spark" style={{ display: "inline-flex" }}>{s.icon}</span>
+                <b style={{ fontWeight: 600, color: "var(--text)" }}>{s.value}</b> {s.label}
+              </span>
+            ))}
+          </div>
         </div>
+      </div>
 
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "36px 24px 72px" }}>
         {/* Pricing cards */}
         <div className="grid g-2" style={{ alignItems: "stretch" }}>
           {/* Free */}
-          <div className="card" style={{ padding: 28, display: "flex", flexDirection: "column" }}>
-            <span >{t("freeTitle")}</span>
+          <div className="card price-card" style={{ padding: 28, display: "flex", flexDirection: "column" }}>
+            <span className="chip outline" style={{ alignSelf: "flex-start" }}>{t("freeTitle")}</span>
             <div style={{ marginTop: 18, display: "flex", alignItems: "baseline", gap: 6 }}>
               <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>$0</span>
               <span className="muted" style={{ fontSize: 13 }}>{t("perMonth")}</span>
@@ -192,17 +258,17 @@ export default function PricingPage() {
             <button
               className="btn"
               disabled
-              style={{ width: "100%", justifyContent: "center", marginTop: "auto", opacity: 0.7, cursor: "not-allowed" }}
+              style={{ width: "100%", justifyContent: "center", marginTop: "auto", paddingTop: 10, paddingBottom: 10, opacity: 0.7, cursor: "not-allowed" }}
             >
               {isPaid ? t("freePlan") : t("currentPlan")}
             </button>
           </div>
 
           {/* Workers */}
-          <div className="card" style={{ padding: 28, borderColor: "var(--brand)", boxShadow: "var(--shadow-md)" }}>
+          <div className="card price-card featured" style={{ padding: 28 }}>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <span className="chip brand">{t("workers")}</span>
-              <span className="chip brand" style={{ fontWeight: 600 }}>{t("recommended")}</span>
+              <span className="price-ribbon"><Icon.star size={11} /> {t("recommended")}</span>
             </div>
 
             {/* Price scales with worker count: $1/worker, 15 searches/day per worker. */}
@@ -230,7 +296,7 @@ export default function PricingPage() {
             >
               <div className="row between" style={{ marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-mute)" }}>
-                  {t("choosePlan")}
+                  {isPaid ? t("manageTitle") : t("choosePlan")}
                 </span>
                 <span className="tiny muted">
                   {t("perWorkerEach", { searches: SEARCHES_PER_WORKER, price: PRICE_PER_WORKER_USD })}
@@ -288,15 +354,7 @@ export default function PricingPage() {
                     aria-label={`$${tt.usd}`}
                     aria-pressed={i === tierIndex}
                     onClick={() => setTierIndex(i)}
-                    style={{
-                      flex: 1,
-                      height: 6,
-                      padding: 0,
-                      border: "none",
-                      cursor: "pointer",
-                      borderRadius: 3,
-                      background: i <= tierIndex ? "var(--brand)" : "var(--border)",
-                    }}
+                    className={`tier-seg${i <= tierIndex ? " on" : ""}`}
                   />
                 ))}
               </div>
@@ -323,20 +381,26 @@ export default function PricingPage() {
                 {t("loading")}
               </button>
             ) : isPaid ? (
+              // Paid — let them re-tier their workers in place (prorated) instead of a dead end.
               <button
-                className="btn"
-                disabled
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                  marginTop: 18,
-                  background: "var(--pos-soft)",
-                  color: "var(--pos)",
-                  borderColor: "transparent",
-                  cursor: "not-allowed",
-                }}
+                className="btn primary"
+                onClick={handleSaveWorkers}
+                disabled={saving || !dirty}
+                style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: saving || !dirty ? 0.85 : 1 }}
               >
-                {t("activePlan")}
+                {saving ? (
+                  <>
+                    <span
+                      className="spin"
+                      style={{ display: "inline-block", width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)", borderTopColor: "#fff" }}
+                    />
+                    {t("redirecting")}
+                  </>
+                ) : dirty ? (
+                  t("saveChanges")
+                ) : (
+                  t("activePlan")
+                )}
               </button>
             ) : (
               <button
@@ -392,10 +456,35 @@ export default function PricingPage() {
           {t("limitsReset")}
         </p>
 
+        {/* Comparison */}
+        <div style={{ marginTop: 56 }}>
+          <div style={{ textAlign: "center", marginBottom: 22 }}>
+            <span className="eyebrow" style={{ justifyContent: "center" }}>
+              <span className="spark">◆</span> {t("compareEyebrow")}
+            </span>
+            <h2 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: "-0.025em" }}>{t("compareTitle")}</h2>
+          </div>
+          <div className="cmp">
+            <div className="cmp-row cmp-head">
+              <span />
+              <span className="cmp-val">{t("compareFree")}</span>
+              <span className="cmp-val" style={{ color: "var(--brand)", fontWeight: 700 }}>{t("compareWorkers")}</span>
+            </div>
+            {compareRows.map(r => (
+              <div className="cmp-row" key={r.feature}>
+                <span className="cmp-feat">{r.feature}</span>
+                <span className="cmp-val">{cmpCell(r.free)}</span>
+                <span className="cmp-val paid">{cmpCell(r.paid)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Stats */}
-        <div className="grid g-3" style={{ marginTop: 40 }}>
+        <div className="stat-band" style={{ marginTop: 48 }}>
           {stats.map(s => (
-            <div key={s.label} className="stat">
+            <div key={s.label}>
+              <span className="ic">{s.icon}</span>
               <div className="val">{s.value}</div>
               <div className="lbl">{s.label}</div>
             </div>
@@ -403,7 +492,7 @@ export default function PricingPage() {
         </div>
 
         {/* FAQ */}
-        <div style={{ marginTop: 48, maxWidth: 720, marginInline: "auto" }}>
+        <div style={{ marginTop: 56, maxWidth: 720, marginInline: "auto" }}>
           <div style={{ textAlign: "center", marginBottom: 22 }}>
             <span className="eyebrow" style={{ justifyContent: "center" }}>
               <span className="spark">◆</span> {t("faqEyebrow")}
@@ -412,7 +501,7 @@ export default function PricingPage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {faq.map(item => (
-              <details key={item.q} className="card" style={{ padding: 0 }}>
+              <details key={item.q} className="card faq-item" style={{ padding: 0 }}>
                 <summary
                   className="row between"
                   style={{
@@ -425,7 +514,7 @@ export default function PricingPage() {
                   }}
                 >
                   <span>{item.q}</span>
-                  <span style={{ color: "var(--brand)", fontSize: 18, lineHeight: 1 }}>+</span>
+                  <span className="faq-mark" style={{ color: "var(--brand)", fontSize: 18, lineHeight: 1 }}>+</span>
                 </summary>
                 <div className="muted" style={{ padding: "0 16px 16px", fontSize: 13, lineHeight: 1.55 }}>
                   {item.a}
@@ -433,6 +522,26 @@ export default function PricingPage() {
               </details>
             ))}
           </div>
+        </div>
+
+        {/* Final CTA */}
+        <div className="cta-band" style={{ marginTop: 56 }}>
+          <h2 style={{ margin: 0, fontSize: "clamp(24px, 5vw, 30px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+            {t("ctaTitle")}
+          </h2>
+          <p style={{ margin: "10px auto 0", maxWidth: 460, fontSize: 14.5, lineHeight: 1.5, opacity: 0.92 }}>
+            {t("ctaSubtitle")}
+          </p>
+          <button
+            className="btn on-brand"
+            style={{ marginTop: 22, paddingLeft: 20, paddingRight: 20 }}
+            onClick={() => {
+              if (isPaid) window.scrollTo({ top: 0, behavior: "smooth" })
+              else void handleUpgrade()
+            }}
+          >
+            {t("ctaButton")} →
+          </button>
         </div>
       </div>
 

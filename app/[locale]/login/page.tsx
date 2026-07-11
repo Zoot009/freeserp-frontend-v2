@@ -7,6 +7,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth"
 import { useGoogleLogin } from "@react-oauth/google"
+import { facebookLogin, isFacebookConfigured } from "@/lib/facebook"
 import gsap from "gsap"
 import Image from "next/image"
 
@@ -41,9 +42,11 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [facebookLoading, setFacebookLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { user, loading: authLoading, login, loginWithGoogle } = useAuth()
+  const { user, loading: authLoading, login, loginWithGoogle, loginWithFacebook } = useAuth()
+  const facebookEnabled = isFacebookConfigured()
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -67,6 +70,20 @@ function LoginForm() {
     },
     onError: () => setError(t("errorGoogleCancelled")),
   })
+
+  const handleFacebook = async () => {
+    setFacebookLoading(true)
+    setError("")
+    try {
+      const accessToken = await facebookLogin()
+      await loginWithFacebook(accessToken)
+      router.push(nextPath)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t("errorFacebookFailed"))
+    } finally {
+      setFacebookLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!containerRef.current || !formRef.current) return
@@ -196,6 +213,32 @@ function LoginForm() {
                 </button>
               </div>
 
+              {/* Facebook */}
+              {facebookEnabled && (
+                <div className="field-row">
+                  <button
+                    type="button"
+                    onClick={handleFacebook}
+                    disabled={facebookLoading}
+                    className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm disabled:opacity-50 transition-all duration-200"
+                  >
+                    {facebookLoading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-4 w-4 rounded-full border-2 border-slate-300 border-t-slate-700 animate-spin" />
+                        {t("connecting")}
+                      </span>
+                    ) : (
+                      <>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+                          <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z" />
+                        </svg>
+                        {t("continueWithFacebook")}
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {/* Divider */}
               <div className="field-row flex items-center gap-3 text-xs text-slate-400">
                 <div className="h-px flex-1 bg-slate-200" />
@@ -289,6 +332,13 @@ function LoginForm() {
                   )}
                 </button>
               </div>
+
+              {/* Passwordless option */}
+              <p className="field-row text-center text-sm text-slate-500">
+                <Link href="/otp-login" className="font-medium text-blue-600 hover:text-blue-700">
+                  {t("signInWithCode")}
+                </Link>
+              </p>
 
               {/* Footer */}
               <p className="field-row text-sm text-slate-500">

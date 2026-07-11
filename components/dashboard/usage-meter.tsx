@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
+import { useRouter } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
 import { trackEvent } from "@/lib/track"
-import { AddWorkersModal } from "./add-workers-modal"
 
 interface UsageInfo {
   plan: string
@@ -19,15 +19,15 @@ interface UsageInfo {
 }
 
 // Daily rank-check quota + plan, shown in the navbar. The whole chip is a single
-// "buy more" control: a trailing "Buy" opens the workers modal — "Buy more rank
-// checks" for free users, "Add workers" (scale) for paid. Refreshes on a slow
+// "buy more" control: a trailing "Buy" sends the user to the pricing page — where
+// free users convert and paid users re-tier their workers. Refreshes on a slow
 // interval so the counter tracks checks triggered elsewhere in the app.
 const POLL_MS = 60_000
 
 export function UsageMeter() {
   const t = useTranslations("usageMeter")
+  const router = useRouter()
   const [usage, setUsage] = useState<UsageInfo | null>(null)
-  const [showWorkers, setShowWorkers] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -85,7 +85,7 @@ export function UsageMeter() {
       <button
         type="button"
         className="usage-pill"
-        onClick={() => { trackEvent("clicked-buy-button"); setShowWorkers(true) }}
+        onClick={() => { trackEvent("clicked-buy-button"); router.push("/pricing?clicked-buy-button") }}
         aria-label={buyLabel}
         title={chipTitle}
         style={{
@@ -143,7 +143,6 @@ export function UsageMeter() {
           {t("buy")}
         </span>
       </button>
-      {showWorkers && <AddWorkersModal onClose={() => setShowWorkers(false)} />}
     </>
   )
 }
