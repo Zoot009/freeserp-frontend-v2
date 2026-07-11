@@ -399,6 +399,32 @@
 .fs-app .chip.neg { background: var(--neg-soft); color: var(--neg); }
 .fs-app .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .fs-app .chip.outline { background: transparent; border: 1px solid var(--border); }
+/* Clickable list rows (e.g. saved-analysis history lists) */
+.fs-app .list-row:hover { background: var(--bg-sub); }
+.fs-app li:last-child > .list-row { border-bottom: none !important; }
+/* Small nested stat/check tiles used inside collapsible report sections
+   (e.g. the Keyword Analysis page report) */
+.fs-app .mini-tile {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  transition: border-color .15s, transform .15s;
+}
+.fs-app .mini-tile:hover { border-color: var(--border-strong); }
+.fs-app .mini-tile-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-mute);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.fs-app .mini-tile-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
 /* Position badge */
 .fs-app .pos-badge {
   display: inline-grid; place-items: center;
@@ -1505,4 +1531,40 @@
     width: auto; max-height: 70dvh;
   }
   .fs-app .chatbtn { right: 16px; bottom: 16px; }
+}
+
+/* === ON-PAGE AUDIT — entrance motion + hover depth ===
+   Scoped utility classes (oa- prefix) used only by the on-page audit start,
+   results and report views so the score hero and check lists feel alive
+   instead of a static stack of flat boxes. */
+@keyframes oa-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.fs-app .oa-fade-up { animation: oa-fade-up .5s cubic-bezier(.16,1,.3,1) both; }
+.fs-app .oa-fade-up.d1 { animation-delay: .07s; }
+.fs-app .oa-fade-up.d2 { animation-delay: .14s; }
+.fs-app .oa-fade-up.d3 { animation-delay: .21s; }
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .oa-fade-up { animation: none; }
+}
+
+.fs-app .oa-hero { box-shadow: var(--shadow-md); }
+
+/* Category score tiles + saved-audit rows lift slightly on hover so the grid
+   reads as interactive tiles rather than static labels. */
+.fs-app .oa-cat-card { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.fs-app .oa-cat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+
+.fs-app .oa-section-btn { transition: background .12s ease; }
+.fs-app .oa-section-btn:hover { background: var(--bg-inset); }
+
+.fs-app .oa-row-hover { transition: background .12s ease; }
+.fs-app .oa-row-hover:hover { background: var(--bg-sub); }
+
+.fs-app .oa-cta { transition: transform .16s ease, box-shadow .16s ease; }
+.fs-app .oa-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -6px rgba(45,91,255,0.35); }
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .oa-cat-card, .fs-app .oa-cta { transition: none; }
+  .fs-app .oa-cat-card:hover, .fs-app .oa-cta:hover { transform: none; }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
 
 // A saved single-site analysis as returned by GET /api/keyword-analysis (list
@@ -24,6 +25,41 @@ type AnalysisListItem = {
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+
+// Matches the pos/warn/neg score bands used across the dashboard (score cards,
+// bars, etc.) so a saved analysis's score badge reads consistently everywhere.
+function scoreTone(v: number): { color: string; bg: string } {
+  if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
+  if (v >= 60) return { color: "var(--warn)", bg: "var(--warn-soft)" }
+  return { color: "var(--neg)", bg: "var(--neg-soft)" }
+}
+
+function ScoreBadge({ value }: { value: number | null }) {
+  if (value == null) {
+    return <span className="tiny muted" style={{ width: 36, textAlign: "center", flexShrink: 0 }}>—</span>
+  }
+  const tone = scoreTone(value)
+  return (
+    <span
+      className="tabular"
+      title={`Overall score: ${value}/100`}
+      style={{
+        display: "inline-grid",
+        placeItems: "center",
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: tone.bg,
+        color: tone.color,
+        fontSize: 13,
+        fontWeight: 700,
+        flexShrink: 0,
+      }}
+    >
+      {value}
+    </span>
+  )
+}
 
 function StatusChip({ status }: { status: AnalysisListItem["status"] }) {
   const map: Record<AnalysisListItem["status"], { cls: string; label: string }> = {
@@ -98,24 +134,36 @@ export default function KeywordAnalysisPage() {
       </div>
 
       {/* Create form */}
-      <form className="card" onSubmit={submit} style={{ marginBottom: 16 }}>
-        <div className="grid g-2" style={{ marginBottom: 14 }}>
-          <Field label="Website URL">
-            <input
-              className="input"
-              placeholder="https://example.com/page"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
+      <form className="card" onSubmit={submit} style={{ marginBottom: 20 }}>
+        <div className="grid g-2" style={{ marginBottom: 16, alignItems: "start" }}>
+          <Field label="Website URL" hint="The exact page you want scored">
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}>
+                <Icon.globe />
+              </span>
+              <input
+                className="input"
+                style={{ paddingLeft: 32 }}
+                placeholder="https://example.com/page"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
           </Field>
-          <Field label="Target Keyword">
-            <input
-              className="input"
-              placeholder="best running shoes"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              required
-            />
+          <Field label="Target Keyword" hint="The search term this page should rank for">
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}>
+                <Icon.search />
+              </span>
+              <input
+                className="input"
+                style={{ paddingLeft: 32 }}
+                placeholder="best running shoes"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                required
+              />
+            </div>
           </Field>
         </div>
 
@@ -144,12 +192,17 @@ export default function KeywordAnalysisPage() {
         </div>
 
         {loadingHistory ? (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
+          <div style={{ padding: 48, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
             <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span> Loading…
           </div>
         ) : history.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-            No analyses yet. Run your first one above.
+          <div style={{ padding: 48, textAlign: "center" }}>
+            <div style={{ color: "var(--text-mute)", marginBottom: 8, display: "flex", justifyContent: "center" }}>
+              <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--bg-inset)", display: "grid", placeItems: "center" }}>
+                <Icon.search />
+              </span>
+            </div>
+            <div className="tiny muted">No analyses yet. Run your first one above.</div>
           </div>
         ) : (
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -158,14 +211,17 @@ export default function KeywordAnalysisPage() {
                 <button
                   type="button"
                   onClick={() => router.push(`/dashboard/keyword-analysis/results?id=${a.id}`)}
+                  className="list-row"
                   style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderBottom: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}
                 >
+                  <Favicon domain={displayDomain(a.domain || a.url)} size={28} />
                   <span style={{ minWidth: 0, flex: 1 }}>
                     <span className="b" style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.keyword}</span>
-                    <span className="tiny muted mono">{displayDomain(a.domain || a.url)}</span>
+                    <span className="tiny muted mono" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayDomain(a.domain || a.url)}</span>
                   </span>
-                  <span className="tiny muted tabular" style={{ flexShrink: 0 }}>{fmtDate(a.createdAt)}</span>
-                  <StatusChip status={a.status} />
+                  <ScoreBadge value={a.status === "COMPLETED" ? a.overallScore : null} />
+                  <span className="tiny muted tabular" style={{ display: "inline-block", flexShrink: 0, width: 78 }}>{fmtDate(a.createdAt)}</span>
+                  <span style={{ display: "inline-block", flexShrink: 0, width: 76 }}><StatusChip status={a.status} /></span>
                   <span style={{ flexShrink: 0, color: "var(--text-mute)" }}><Icon.chevR /></span>
                 </button>
               </li>
@@ -177,11 +233,12 @@ export default function KeywordAnalysisPage() {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="col" style={{ gap: 6 }}>
       <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>{label}</span>
       {children}
+      {hint && <span className="tiny muted" style={{ opacity: 0.8 }}>{hint}</span>}
     </label>
   )
 }

@@ -288,7 +288,7 @@
     "errorCheckoutFailed": "Error en el pago",
     "limitsReset": "Los límites diarios se reinician a medianoche (IST). Cancela cuando quieras desde el portal de cliente de tu proveedor de pagos.",
     "freeFeatures": [
-      "5 comprobaciones de ranking / día",
+      "3 comprobaciones de ranking / día",
       "Solo comprobaciones manuales",
       "1 análisis de IA completo / día",
       "Análisis de enlaces internos: tu sitio + 1 competidor",
@@ -337,7 +337,7 @@
     "compareRows": [
       {
         "feature": "Comprobaciones de ranking por día",
-        "free": "5",
+        "free": "3",
         "paid": "15 / worker"
       },
       {

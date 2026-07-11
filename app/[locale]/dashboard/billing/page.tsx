@@ -256,7 +256,7 @@ export default function BillingPage() {
                 {usage?.freeCheckTrialExhausted
                   ? t("freePlanLineExhausted")
                   : trialEndsAtDate
-                    ? t("freePlanLine", { count: usage?.dailyLimit ?? 5, date: formatDate(trialEndsAtDate.toISOString()) })
+                    ? t("freePlanLine", { count: usage?.dailyLimit ?? 3, date: formatDate(trialEndsAtDate.toISOString()) })
                     : t("freePlanLineExhausted")}
               </p>
               <ul style={{ listStyle: "none", margin: "0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>

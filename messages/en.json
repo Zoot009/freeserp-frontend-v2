@@ -288,7 +288,7 @@
     "errorCheckoutFailed": "Checkout failed",
     "limitsReset": "Daily limits reset at midnight IST. Cancel anytime from your payment provider's customer portal.",
     "freeFeatures": [
-      "5 rank checks / day",
+      "3 rank checks / day",
       "Manual checks only",
       "1 full AI analysis / day",
       "Internal link analysis: your site + 1 competitor",
@@ -337,7 +337,7 @@
     "compareRows": [
       {
         "feature": "Rank checks per day",
-        "free": "5",
+        "free": "3",
         "paid": "15 / worker"
       },
       {
@@ -390,8 +390,8 @@
     "backToPricing": "Back to pricing"
   },
   "dashboardNav": {
-    "workspace": "Workspace",
-    "tools": "Tools",
+    "workspace": "Rank Tracker Workspace",
+    "tools": "Other Tools",
     "overview": "Overview",
     "projects": "Projects",
     "project": "Project",
@@ -408,8 +408,8 @@
     "guest": "Guest",
     "accountMenu": "Account menu",
     "signOut": "Sign out",
-    "keywordAnalysis": "Keyword Analysis",
-    "onPageAudit": "On-Page Audit"
+    "keywordAnalysis": "Keyword Score Checker",
+    "onPageAudit": "Page Score Checker"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",

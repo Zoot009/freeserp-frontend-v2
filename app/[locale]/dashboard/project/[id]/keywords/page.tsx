@@ -922,11 +922,6 @@ export default function ProjectKeywordsPage() {
               <div className="tiny muted mono">{project.domain}</div>
             </div>
           </div>
-          <div className="sub">
-            {project.keywords.length} keyword{project.keywords.length !== 1 ? "s" : ""} tracked
-              {/* Daily-checks counter now lives in the navbar (UsageMeter). The
-                `usage` fetch is kept — it still drives the paid-feature gating below. */}
-          </div>
         </div>
         <div className="col kd-proj-actions">
           {/* Auto-check schedule chip — paid-only. Shows a live countdown +

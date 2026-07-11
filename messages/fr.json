@@ -288,7 +288,7 @@
     "errorCheckoutFailed": "Échec du paiement",
     "limitsReset": "Les limites quotidiennes se réinitialisent à minuit (IST). Annulez à tout moment depuis le portail client de votre prestataire de paiement.",
     "freeFeatures": [
-      "5 vérifications de classement / jour",
+      "3 vérifications de classement / jour",
       "Vérifications manuelles uniquement",
       "1 analyse IA complète / jour",
       "Analyse des liens internes : votre site + 1 concurrent",
@@ -337,7 +337,7 @@
     "compareRows": [
       {
         "feature": "Vérifications de position par jour",
-        "free": "5",
+        "free": "3",
         "paid": "15 / worker"
       },
       {

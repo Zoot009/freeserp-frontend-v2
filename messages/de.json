@@ -288,7 +288,7 @@
     "errorCheckoutFailed": "Checkout fehlgeschlagen",
     "limitsReset": "Die täglichen Limits werden um Mitternacht (IST) zurückgesetzt. Jederzeit über das Kundenportal deines Zahlungsanbieters kündbar.",
     "freeFeatures": [
-      "5 Rank-Checks / Tag",
+      "3 Rank-Checks / Tag",
       "Nur manuelle Checks",
       "1 vollständige KI-Analyse / Tag",
       "Interne Linkanalyse: deine Seite + 1 Wettbewerber",
@@ -337,7 +337,7 @@
     "compareRows": [
       {
         "feature": "Rank-Checks pro Tag",
-        "free": "5",
+        "free": "3",
         "paid": "15 / Worker"
       },
       {

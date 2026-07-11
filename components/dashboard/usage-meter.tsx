@@ -61,8 +61,8 @@ export function UsageMeter() {
   const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
   const buyLabel = isPaid ? t("addWorkers") : t("buyMore")
 
-  // Free plan: a one-time 15-day trial, not a daily allowance — show days
-  // remaining (or "Trial ended") instead of "checks today".
+  // Free plan: a one-time trial (FREE_TRIAL_WINDOW_DAYS), not a daily
+  // allowance — show days remaining (or "Trial ended") instead of "checks today".
   const trialDaysLeft = !isPaid && usage.freeCheckTrialEndsAt
     ? Math.max(0, Math.ceil((new Date(usage.freeCheckTrialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
     : null

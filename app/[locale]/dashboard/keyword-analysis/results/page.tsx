@@ -6,8 +6,8 @@ import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { StatTile } from "@/components/dashboard/primitives"
-import { SinglePageReport } from "@/components/single-page-report"
-import { computeSeoScore, scoreColor } from "@/lib/seoScorer"
+import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
+import { computeSeoScore } from "@/lib/seoScorer"
 import type { CrawlData } from "@/types/competitor-analysis"
 
 type Analysis = {
@@ -35,6 +35,19 @@ function barColor(v: number): string {
   return "var(--neg)"
 }
 
+// Soft/tint counterpart of barColor — used for gradient washes & chip backgrounds.
+function bandSoft(v: number): string {
+  if (v >= 80) return "var(--pos-soft)"
+  if (v >= 60) return "var(--warn-soft)"
+  return "var(--neg-soft)"
+}
+
+function bandChipClass(v: number): string {
+  if (v >= 80) return "chip pos"
+  if (v >= 60) return "chip warn"
+  return "chip neg"
+}
+
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
   const v = value ?? 0
   return (
@@ -50,18 +63,52 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
   )
 }
 
+// Circular gauge for the overall score — reads at a glance far better than a
+// bare number, and the ring color/fill communicate the grade band instantly.
+function ScoreRing({ value, size = 128 }: { value: number; size?: number }) {
+  const stroke = 10
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const pct = Math.max(0, Math.min(100, value))
+  const offset = c - (pct / 100) * c
+  const color = barColor(value)
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-inset)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset .6s ease" }}
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div className="tabular" style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, color }}>{value}</div>
+        <div className="tiny muted" style={{ marginTop: 2 }}>/ 100</div>
+      </div>
+    </div>
+  )
+}
+
 function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword: string; url: string }) {
   const score = computeSeoScore(crawlData, keyword, url)
+  const color = barColor(score.total)
   return (
     <>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="grid g-21" style={{ gap: 24, alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <div style={{ textAlign: "center", flexShrink: 0 }}>
-              <div className={scoreColor(score.total)} style={{ fontSize: 52, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{score.total}</div>
-              <div className="tiny muted" style={{ marginTop: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{score.grade} · {score.label}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="card" style={{ marginBottom: 16, borderTop: `3px solid ${color}`, position: "relative", overflow: "hidden" }}>
+        <div
+          aria-hidden
+          style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            background: `radial-gradient(500px circle at -5% -25%, ${bandSoft(score.total)}, transparent 60%)`,
+          }}
+        />
+        <div className="grid g-21" style={{ gap: 24, alignItems: "center", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+            <ScoreRing value={score.total} />
+            <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 12 }}>
+              <span className={bandChipClass(score.total)} style={{ width: "fit-content" }}>{score.grade} · {score.label}</span>
               <ScoreBar label="On-Page SEO" value={score.onPageScore} />
               <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
             </div>
@@ -73,10 +120,10 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
       </div>
 
       <div className="grid g-4" style={{ marginBottom: 16 }}>
-        <StatTile lbl="Domain Authority" val={score.da ?? "—"} tip="0–100 (Moz)" />
-        <StatTile lbl="Page Authority" val={score.pa ?? "—"} tip="0–100 (Moz)" />
-        <StatTile lbl="Domain Backlinks" val={score.domainBacklinks?.toLocaleString() ?? "—"} tip="Site-wide" />
-        <StatTile lbl="Page Backlinks" val={score.pageBacklinks?.toLocaleString() ?? "—"} tip="This URL" />
+        <StatTile icon={<Icon.chart />} lbl="Domain Authority" val={score.da ?? "—"} tip="0–100 (Moz)" />
+        <StatTile icon={<Icon.chart />} lbl="Page Authority" val={score.pa ?? "—"} tip="0–100 (Moz)" />
+        <StatTile icon={<Icon.external />} lbl="Domain Backlinks" val={score.domainBacklinks?.toLocaleString() ?? "—"} tip="Site-wide" />
+        <StatTile icon={<Icon.external />} lbl="Page Backlinks" val={score.pageBacklinks?.toLocaleString() ?? "—"} tip="This URL" />
       </div>
     </>
   )
@@ -175,7 +222,7 @@ function ResultsContent() {
       {!error && status === "COMPLETED" && analysis?.crawlData && (
         <>
           <ScoreCard crawlData={analysis.crawlData} keyword={analysis.keyword} url={analysis.url} />
-          <SinglePageReport crawlData={analysis.crawlData} keyword={analysis.keyword} />
+          <KeywordAnalysisReport crawlData={analysis.crawlData} keyword={analysis.keyword} />
         </>
       )}
     </div>
