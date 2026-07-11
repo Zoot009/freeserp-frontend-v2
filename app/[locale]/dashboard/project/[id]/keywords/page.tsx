@@ -458,7 +458,7 @@ export default function ProjectKeywordsPage() {
   const router = useRouter()
   const projectId = params.id as string
   const { user, loading: authLoading, token, refreshUser } = useAuth()
-  const { advanceFromStep } = useTutorial()
+  const { advanceFromStep, isActive: tutorialActive, step: tutorialStep } = useTutorial()
 
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -488,6 +488,8 @@ export default function ProjectKeywordsPage() {
   const [showShare, setShowShare] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  // Project-level "more" menu (Competitor Spy / Alerts / Share / Delete project).
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [pausing, setPausing] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
@@ -989,16 +991,14 @@ export default function ProjectKeywordsPage() {
 
           {/* Action buttons */}
           <div className="row kd-proj-btns">
-            <button data-tutorial="add-keywords-btn" type="button" className="btn primary" onClick={() => setShowAddKw(true)}>
+            <button
+              data-tutorial="add-keywords-btn"
+              type="button"
+              className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
+              onClick={() => setShowAddKw(true)}
+            >
               <Icon.plus /> Keywords
             </button>
-            <Link
-              href={`/dashboard/project/${project.id}/competitor-spy`}
-              className="btn"
-              title="Spy on competitor domains ranking for your keywords"
-            >
-              <Icon.users /> Competitor Spy
-            </Link>
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
             <Link
@@ -1009,24 +1009,6 @@ export default function ProjectKeywordsPage() {
               Search Console
             </Link>
             */}
-            {plan === "paid" && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setShowAlerts(true)}
-                title="Configure rank-change alerts for this project"
-              >
-                <Icon.bell /> Alerts
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowShare(true)}
-              title="Share a public, read-only view of this project's keyword rankings"
-            >
-              <Icon.globe /> Share
-            </button>
             {/* {plan === "paid" && (
               <button
                 type="button"
@@ -1052,24 +1034,30 @@ export default function ProjectKeywordsPage() {
                 <option value={24}>Every 24 hours</option>
               </select>
             )}
-            <button
-              data-tutorial="run-check-btn"
-              type="button"
-              onClick={handleRunCheck}
-              // Block while a check is already running for this project — each
-              // check costs us money, so don't let the button be spammed.
-              disabled={checking || project.keywords.length === 0 || pendingCount > 0}
-              title={pendingCount > 0 ? "A check is already running for this project" : undefined}
-              className="btn"
-            >
-              {checking
-                ? "Checking…"
-                : pendingCount > 0
-                  ? "Check in progress…"
-                  : selectedKeywords.size > 0
-                    ? `Check ${selectedKeywords.size} selected`
-                    : "Run check"}
-            </button>
+            {/* Hidden by default — only surfaces once keywords are selected (or a
+                check is actively running), so it doesn't sit idle next to
+                "+ Keywords". Stays visible during the onboarding tutorial's
+                "run-check" step since that step spotlights this exact button. */}
+            {(checking || pendingCount > 0 || selectedKeywords.size > 0 || (tutorialActive && tutorialStep.id === "run-check")) && (
+              <button
+                data-tutorial="run-check-btn"
+                type="button"
+                onClick={handleRunCheck}
+                // Block while a check is already running for this project — each
+                // check costs us money, so don't let the button be spammed.
+                disabled={checking || project.keywords.length === 0 || pendingCount > 0}
+                title={pendingCount > 0 ? "A check is already running for this project" : undefined}
+                className={selectedKeywords.size > 0 ? "btn primary" : "btn"}
+              >
+                {checking
+                  ? "Checking…"
+                  : pendingCount > 0
+                    ? "Check in progress…"
+                    : selectedKeywords.size > 0
+                      ? `Check ${selectedKeywords.size} selected`
+                      : "Run check"}
+              </button>
+            )}
             {selectedKeywords.size > 0 && (
               <button
                 type="button"
@@ -1081,14 +1069,124 @@ export default function ProjectKeywordsPage() {
                 Delete {selectedKeywords.size}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="btn"
-              style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
-            >
-              Delete project
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowMoreMenu((v) => !v)}
+                className="icon-btn"
+                style={{ width: 36, height: 36 }}
+                title="More project options"
+                aria-label="More project options"
+              >
+                <Icon.dots />
+              </button>
+              {showMoreMenu && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                    onClick={() => setShowMoreMenu(false)}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 4px)",
+                      right: 0,
+                      zIndex: 50,
+                      width: 190,
+                      background: "var(--bg-elev)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--r-md)",
+                      boxShadow: "var(--shadow-md)",
+                      padding: 4,
+                    }}
+                  >
+                    <Link
+                      href={`/dashboard/project/${project.id}/competitor-spy`}
+                      onClick={() => setShowMoreMenu(false)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        background: "transparent",
+                        border: "none",
+                        borderRadius: 6,
+                        color: "var(--text)",
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Icon.users /> Competitor Spy
+                    </Link>
+                    {plan === "paid" && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowMoreMenu(false); setShowAlerts(true) }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "8px 10px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: 6,
+                          color: "var(--text)",
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Icon.bell /> Alerts
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setShowMoreMenu(false); setShowShare(true) }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        background: "transparent",
+                        border: "none",
+                        borderRadius: 6,
+                        color: "var(--text)",
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Icon.globe /> Share
+                    </button>
+                    <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                    <button
+                      type="button"
+                      onClick={() => { setShowMoreMenu(false); setConfirmDelete(true) }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        background: "transparent",
+                        border: "none",
+                        borderRadius: 6,
+                        color: "var(--neg)",
+                        fontSize: 13,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Delete project
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
