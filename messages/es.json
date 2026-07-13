@@ -707,6 +707,7 @@
     "createFirstProject": "Crear primer proyecto",
     "statusActive": "Activo",
     "statusPaused": "Pausado",
+    "statusManual": "Manual",
     "keywords": "Palabras clave",
     "added": "Añadido",
     "upgradeToTrackMore": "Mejora para rastrear más",

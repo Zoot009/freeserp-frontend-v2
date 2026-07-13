@@ -714,6 +714,7 @@
     "createFirstProject": "Create first project",
     "statusActive": "Active",
     "statusPaused": "Paused",
+    "statusManual": "Manual",
     "keywords": "Keywords",
     "added": "Added",
     "upgradeToTrackMore": "Upgrade to track more",

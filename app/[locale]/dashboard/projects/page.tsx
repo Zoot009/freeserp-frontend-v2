@@ -14,13 +14,6 @@ import { displayDomain } from "@/lib/utils"
 import { trackEvent, trackMilestone } from "@/lib/track"
 import { track } from "@/lib/analytics"
 
-// Feature flag — automated/scheduled rank checks. When true, paid users see
-// the check-frequency picker in the New Project modal. Free users still get
-// manual checks only and never hit the scheduler (gated server-side in
-// scheduler.runProjectChecks). Keep in sync with the matching flag in
-// freeserp-backend/src/routes/projects.js.
-const SCHEDULED_CHECKS_ENABLED = true
-
 // Max projects a free user can own. Paid users are uncapped. Must stay in
 // sync with FREE_PROJECTS_LIMIT in freeserp-backend/src/routes/projects.js.
 const FREE_PROJECTS_LIMIT = 1
@@ -32,8 +25,11 @@ interface ProjectSummary {
   name: string
   domain: string
   isActive: boolean
-  // Manual pause toggle (PATCH /api/projects/:id). When true the project is
-  // excluded from scheduled rank checks — this is what the status chip reflects.
+  // Opt-in auto-check schedule. Off by default — the status chip reads "Manual"
+  // until the owner turns a schedule on.
+  autoCheckEnabled: boolean
+  // Manual pause toggle. When true an active schedule is temporarily halted —
+  // reflected by the status chip.
   isPaused: boolean
   createdAt: string
   _count: { keywords: number }
@@ -58,18 +54,15 @@ function projectColor(id: string): string {
 // ───── Add project modal ───────────────────────────────────────────────────
 
 function AddProjectModal({
-  plan,
   onClose,
   onCreated,
 }: {
-  plan?: string
   onClose: () => void
   onCreated: (p: ProjectSummary) => void
 }) {
   const t = useTranslations("dashProjects")
   const [name, setName] = useState("")
   const [domain, setDomain] = useState("")
-  const [checkFrequency, setCheckFrequency] = useState(24)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const firstRef = useRef<HTMLInputElement>(null)
@@ -78,12 +71,10 @@ function AddProjectModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setLoading(true)
     try {
-      // Only paid users send a checkFrequency — free users get manual checks
-      // only. Gating on `plan === "paid"` (not `!isFree`) keeps the unknown /
-      // still-loading window safely on the manual-only side.
-      const body: Record<string, unknown> = { name, domain }
-      if (SCHEDULED_CHECKS_ENABLED && plan === "paid") body.checkFrequency = checkFrequency
-      const data = await api.post<ProjectSummary>("/api/projects", body)
+      // New projects start with NO auto-check schedule — the owner sets a
+      // cadence afterward on the project page (paid-only). Creation just needs
+      // name + domain.
+      const data = await api.post<ProjectSummary>("/api/projects", { name, domain })
       onCreated({ ...data, _count: { keywords: 0 } })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("createError"))
@@ -112,18 +103,6 @@ function AddProjectModal({
                 <input className="input" type="text" required placeholder={t("domainPlaceholder")} value={domain} onChange={(e) => setDomain(e.target.value)} />
                 <span className="tiny muted">{t("domainHint")}</span>
               </div>
-              {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
-                <div className="field">
-                  <label>{t("checkFrequencyLabel")}</label>
-                  <select className="input" value={checkFrequency} onChange={(e) => setCheckFrequency(Number(e.target.value))}>
-                    <option value={1}>{t("freqEvery1Hour")}</option>
-                    <option value={6}>{t("freqEvery6Hours")}</option>
-                    <option value={12}>{t("freqEvery12Hours")}</option>
-                    <option value={24}>{t("freqEvery24Hours")}</option>
-                  </select>
-                  <span className="tiny muted">{t("checkFrequencyHint")}</span>
-                </div>
-              )}
               {error && (
                 <div className="card tight" style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}>
                   {error}
@@ -333,7 +312,7 @@ function ProjectsList({
                       {displayDomain(p.domain)}
                     </div>
                   </div>
-                  <span className={"chip " + (p.isPaused ? "warn" : "pos")}>{p.isPaused ? t("statusPaused") : t("statusActive")}</span>
+                  <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
                   <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
                     <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
                   </div>
@@ -405,7 +384,7 @@ function ProjectsList({
                     </td>
                     <td className="tabular">{p._count.keywords}</td>
                     <td>
-                      <span className={"chip " + (p.isPaused ? "warn" : "pos")}>{p.isPaused ? t("statusPaused") : t("statusActive")}</span>
+                      <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
                     </td>
                     <td className="tabular tiny muted">
                       {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
@@ -550,7 +529,6 @@ export default function ProjectsPage() {
 
       {showAddProject && (
         <AddProjectModal
-          plan={usage?.plan}
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
             setProjects((prev) => [p, ...prev])
