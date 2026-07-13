@@ -1069,12 +1069,11 @@ export default function ProjectKeywordsPage() {
               <button
                 type="button"
                 onClick={() => setShowMoreMenu((v) => !v)}
-                className="icon-btn"
-                style={{ width: 36, height: 36 }}
+                className="btn"
                 title="More project options"
                 aria-label="More project options"
               >
-                <Icon.dots />
+                <Icon.dots /> More options
               </button>
               {showMoreMenu && (
                 <>
