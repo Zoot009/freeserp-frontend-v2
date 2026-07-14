@@ -16,6 +16,13 @@ function tone(ok: boolean): string {
   return ok ? "var(--pos)" : "var(--neg)"
 }
 
+// Performance timings come straight off the browser Performance API as
+// high-precision floats (e.g. 243.30000019) — round to a whole millisecond
+// before display so the stat tiles show clean numbers instead of overflowing.
+function fmtMs(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}ms` : "—"
+}
+
 function CheckRow({ label, ok, detail }: { label: string; ok: boolean; detail?: string }) {
   return (
     <div
@@ -484,12 +491,12 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           <div>
             <SubHeading>Performance</SubHeading>
             <TileGrid min={100}>
-              <MiniStat label="TTFB" value={`${crawlData.performance.ttfb}ms`} tone={crawlData.performance.ttfb > 600 ? "warn" : undefined} />
-              <MiniStat label="DOM Interactive" value={`${crawlData.performance.domInteractive}ms`} />
-              <MiniStat label="DOM Loaded" value={`${crawlData.performance.domContentLoaded}ms`} />
-              <MiniStat label="FCP" value={`${crawlData.performance.webVitals?.fcp}ms`} tone={(crawlData.performance.webVitals?.fcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="LCP" value={`${crawlData.performance.webVitals?.lcp}ms`} tone={(crawlData.performance.webVitals?.lcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="CLS" value={String(crawlData.performance.webVitals?.cls ?? 0)} tone={(crawlData.performance.webVitals?.cls || 0) > 0.1 ? "warn" : undefined} />
+              <MiniStat label="TTFB" value={fmtMs(crawlData.performance.ttfb)} tone={crawlData.performance.ttfb > 600 ? "warn" : undefined} />
+              <MiniStat label="DOM Interactive" value={fmtMs(crawlData.performance.domInteractive)} />
+              <MiniStat label="DOM Loaded" value={fmtMs(crawlData.performance.domContentLoaded)} />
+              <MiniStat label="FCP" value={fmtMs(crawlData.performance.webVitals?.fcp)} tone={(crawlData.performance.webVitals?.fcp || 0) > 2500 ? "warn" : undefined} />
+              <MiniStat label="LCP" value={fmtMs(crawlData.performance.webVitals?.lcp)} tone={(crawlData.performance.webVitals?.lcp || 0) > 2500 ? "warn" : undefined} />
+              <MiniStat label="CLS" value={(crawlData.performance.webVitals?.cls ?? 0).toFixed(2)} tone={(crawlData.performance.webVitals?.cls || 0) > 0.1 ? "warn" : undefined} />
             </TileGrid>
           </div>
         )}
