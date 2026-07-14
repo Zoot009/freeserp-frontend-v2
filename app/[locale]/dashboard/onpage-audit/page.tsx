@@ -39,7 +39,7 @@ function StatusChip({ status }: { status: AuditListItem["status"] }) {
 // bars, etc.) so a saved audit's score badge reads consistently everywhere.
 function scoreTone(v: number): { color: string; bg: string } {
   if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
-  if (v >= 60) return { color: "var(--warn)", bg: "var(--warn-soft)" }
+  if (v >= 60) return { color: "var(--brand)", bg: "var(--brand-soft)" }
   return { color: "var(--neg)", bg: "var(--neg-soft)" }
 }
 
