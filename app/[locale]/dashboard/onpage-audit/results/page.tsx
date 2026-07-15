@@ -39,13 +39,13 @@ const fmtDate = (iso: string) =>
 
 function scoreColorVar(v: number): string {
   if (v >= 80) return "var(--pos)"
-  if (v >= 60) return "var(--warn)"
+  if (v >= 60) return "var(--brand)"
   return "var(--neg)"
 }
 
 function scoreToneVar(v: number): { color: string; bg: string } {
   if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
-  if (v >= 60) return { color: "var(--warn)", bg: "var(--warn-soft)" }
+  if (v >= 60) return { color: "var(--brand)", bg: "var(--brand-soft)" }
   return { color: "var(--neg)", bg: "var(--neg-soft)" }
 }
 

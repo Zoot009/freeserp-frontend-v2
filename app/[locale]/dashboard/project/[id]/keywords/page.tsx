@@ -34,6 +34,18 @@ const SCHEDULED_CHECKS_ENABLED = true
 // in sync with FREE_KEYWORDS_PER_PROJECT_LIMIT in the backend.
 const FREE_KEYWORDS_PER_PROJECT_LIMIT = 10
 
+// Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
+// 15d / 30d — anything else falls back to a plain "Every Nh".
+function freqLabel(hours: number): string {
+  switch (hours) {
+    case 24: return "Every 24 hours"
+    case 168: return "Every 7 days"
+    case 360: return "Every 15 days"
+    case 720: return "Every 30 days"
+    default: return `Every ${hours}h`
+  }
+}
+
 // ───── Types ───────────────────────────────────────────────────────────────
 
 interface Keyword {
@@ -69,6 +81,9 @@ interface ProjectDetail {
   domain: string
   isActive: boolean
   isPaused: boolean
+  // Opt-in auto-check schedule. Off by default — the schedule card/select only
+  // arm a cadence once the (paid) owner turns this on.
+  autoCheckEnabled: boolean
   checkFrequency: number
   lastScheduledCheck: string | null
   nextScheduledCheck: string | null
@@ -480,7 +495,8 @@ export default function ProjectKeywordsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
   const [updatingFrequency, setUpdatingFrequency] = useState(false)
-  const [tempFrequency, setTempFrequency] = useState<number | null>(null)
+  // "off" = turn the schedule off; a number = the cadence in hours to arm.
+  const [tempFrequency, setTempFrequency] = useState<number | "off" | null>(null)
   const [showFrequencyModal, setShowFrequencyModal] = useState(false)
   const [showAlerts, setShowAlerts] = useState(false)
   const [showReport, setShowReport] = useState(false)
@@ -735,10 +751,14 @@ export default function ProjectKeywordsPage() {
     }
   }
 
-  const handleUpdateFrequency = async (newFrequency: number) => {
+  const handleUpdateFrequency = async (choice: number | "off") => {
     setUpdatingFrequency(true); setError("")
     try {
-      const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${projectId}/frequency`, { checkFrequency: newFrequency })
+      // "off" clears the schedule; a number turns it on and sets the cadence.
+      const body = choice === "off"
+        ? { autoCheckEnabled: false }
+        : { autoCheckEnabled: true, checkFrequency: choice }
+      const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${projectId}/frequency`, body)
       setProject((prev) => prev ? { ...prev, ...data } : prev)
       setShowFrequencyModal(false)
       setTempFrequency(null)
@@ -747,8 +767,8 @@ export default function ProjectKeywordsPage() {
     } finally { setUpdatingFrequency(false) }
   }
 
-  const handleFrequencyChange = (newFrequency: number) => {
-    setTempFrequency(newFrequency)
+  const handleFrequencyChange = (choice: number | "off") => {
+    setTempFrequency(choice)
     setShowFrequencyModal(true)
   }
 
@@ -756,9 +776,9 @@ export default function ProjectKeywordsPage() {
     if (!project) return
     setPausing(true); setError("")
     try {
-      // Pause/resume is a field update on the project — there is no dedicated
-      // /pause route. PATCH /:id accepts isPaused and returns the project.
-      const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${project.id}`, { isPaused: !project.isPaused })
+      // Pause/resume is part of the (paid-gated) schedule endpoint — PATCH
+      // /:id/frequency accepts isPaused and returns the project.
+      const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${project.id}/frequency`, { isPaused: !project.isPaused })
       setProject((prev) => prev ? { ...prev, ...data } : prev)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to toggle pause")
@@ -932,9 +952,9 @@ export default function ProjectKeywordsPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
                     <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10 }}>
-                      {project.nextScheduledCheck ? "Next check in" : "Auto check"}
+                      {project.autoCheckEnabled ? (project.nextScheduledCheck ? "Next check in" : "Auto check") : "Auto check"}
                     </span>
-                    {project.nextScheduledCheck && (
+                    {project.autoCheckEnabled && project.nextScheduledCheck && (
                       <button
                         onClick={handleTogglePause}
                         disabled={pausing}
@@ -956,7 +976,9 @@ export default function ProjectKeywordsPage() {
                       </button>
                     )}
                   </div>
-                  {project.nextScheduledCheck ? (
+                  {!project.autoCheckEnabled ? (
+                    <span className="b" style={{ color: "var(--muted)", fontSize: 13 }}>Off · not scheduled</span>
+                  ) : project.nextScheduledCheck ? (
                     project.isPaused ? (
                       <span className="b" style={{ color: "var(--warn)", fontSize: 13 }}>Paused</span>
                     ) : (
@@ -971,14 +993,16 @@ export default function ProjectKeywordsPage() {
                 <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
                 <div>
                   <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10, marginBottom: 2 }}>
-                    {project.nextScheduledCheck && !project.isPaused ? "Scheduled at" : "Frequency"}
+                    {project.autoCheckEnabled && project.nextScheduledCheck && !project.isPaused ? "Scheduled at" : "Frequency"}
                   </div>
                   <div className="tiny mono">
-                    {project.nextScheduledCheck && !project.isPaused
-                      ? new Date(project.nextScheduledCheck).toLocaleString("en-IN", {
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-                        })
-                      : `Every ${project.checkFrequency}h`}
+                    {!project.autoCheckEnabled
+                      ? "Off"
+                      : project.nextScheduledCheck && !project.isPaused
+                        ? new Date(project.nextScheduledCheck).toLocaleString("en-IN", {
+                            day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+                          })
+                        : freqLabel(project.checkFrequency)}
                   </div>
                 </div>
               </div>
@@ -1017,17 +1041,18 @@ export default function ProjectKeywordsPage() {
             )} */}
             {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
               <select
-                value={project.checkFrequency}
-                onChange={(e) => handleFrequencyChange(Number(e.target.value))}
+                value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
+                onChange={(e) => handleFrequencyChange(e.target.value === "off" ? "off" : Number(e.target.value))}
                 disabled={updatingFrequency}
                 title="Set how often automated rank checks run for this project"
                 className="input"
                 style={{ width: "auto", paddingTop: 8, paddingBottom: 8, fontSize: 12 }}
               >
-                <option value={1}>Every 1 hour</option>
-                <option value={6}>Every 6 hours</option>
-                <option value={12}>Every 12 hours</option>
+                <option value="off">Off (no schedule)</option>
                 <option value={24}>Every 24 hours</option>
+                <option value={168}>Every 7 days</option>
+                <option value={360}>Every 15 days</option>
+                <option value={720}>Every 30 days</option>
               </select>
             )}
             {/* Hidden by default — only surfaces once keywords are selected (or a
@@ -1069,12 +1094,11 @@ export default function ProjectKeywordsPage() {
               <button
                 type="button"
                 onClick={() => setShowMoreMenu((v) => !v)}
-                className="icon-btn"
-                style={{ width: 36, height: 36 }}
+                className="btn"
                 title="More project options"
                 aria-label="More project options"
               >
-                <Icon.dots />
+                <Icon.dots /> More options
               </button>
               {showMoreMenu && (
                 <>
@@ -1966,36 +1990,30 @@ export default function ProjectKeywordsPage() {
         </div>
       )}
 
-      {showFrequencyModal && tempFrequency && (
+      {showFrequencyModal && tempFrequency !== null && (
         <div className="modal-bg" onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-h">
               <div>
-                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> UPDATE FREQUENCY</div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>Change automated checks</div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> {tempFrequency === "off" ? "TURN OFF SCHEDULE" : "UPDATE FREQUENCY"}</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{tempFrequency === "off" ? "Stop automated checks" : "Change automated checks"}</div>
               </div>
               <button onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }} className="icon-btn" aria-label="Close"><Icon.close /></button>
             </div>
             <div className="modal-b">
-              <div className="tiny muted">New frequency</div>
+              <div className="tiny muted">{tempFrequency === "off" ? "Schedule" : "New frequency"}</div>
               <div
                 className="card tight"
                 style={{ marginTop: 6, background: "var(--brand-soft)", borderColor: "var(--brand)", color: "var(--brand)" }}
               >
                 <div className="b" style={{ fontSize: 18 }}>
-                  {tempFrequency === 0.5
-                    ? "Every 30 seconds"
-                    : tempFrequency === 1
-                      ? "Every 1 hour"
-                      : tempFrequency === 6
-                        ? "Every 6 hours"
-                        : tempFrequency === 12
-                          ? "Every 12 hours"
-                          : "Every 24 hours"}
+                  {tempFrequency === "off" ? "Off (no schedule)" : freqLabel(tempFrequency)}
                 </div>
               </div>
               <div className="tiny muted" style={{ marginTop: 10 }}>
-                The next scheduled check will be recalculated based on the new frequency.
+                {tempFrequency === "off"
+                  ? "Automated rank checks will stop. You can re-enable a schedule any time, or run checks manually."
+                  : "The next scheduled check will be recalculated based on the new frequency."}
               </div>
             </div>
             <div className="modal-f">

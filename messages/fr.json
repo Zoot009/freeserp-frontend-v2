@@ -707,6 +707,7 @@
     "createFirstProject": "Créer le premier projet",
     "statusActive": "Actif",
     "statusPaused": "En pause",
+    "statusManual": "Manuel",
     "keywords": "Mots-clés",
     "added": "Ajouté",
     "upgradeToTrackMore": "Passez à l'offre supérieure pour en suivre plus",

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Icon } from "@/components/dashboard/icons"
-import { StatTile } from "@/components/dashboard/primitives"
 import type { CrawlData } from "@/types/competitor-analysis"
 
 // SEO report body for a single crawled page, styled to match the fs-app
@@ -17,12 +16,19 @@ function tone(ok: boolean): string {
   return ok ? "var(--pos)" : "var(--neg)"
 }
 
+// Performance timings come straight off the browser Performance API as
+// high-precision floats (e.g. 243.30000019) — round to a whole millisecond
+// before display so the stat tiles show clean numbers instead of overflowing.
+function fmtMs(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}ms` : "—"
+}
+
 function CheckRow({ label, ok, detail }: { label: string; ok: boolean; detail?: string }) {
   return (
     <div
       className="mini-tile"
       style={{
-        display: "flex", alignItems: "center", gap: 8,
+        display: "flex", alignItems: "center", gap: 8, minWidth: 0,
         borderLeft: `3px solid ${tone(ok)}`,
         background: ok ? "var(--bg-inset)" : "var(--neg-soft)",
       }}
@@ -71,16 +77,44 @@ function MiniBar({ label, value, max = 100 }: { label: string; value: number; ma
   )
 }
 
-// Section title → icon + accent color, so the accordion reads as a scannable
-// list instead of a wall of identical rows.
-const SECTION_STYLE: Record<string, { icon: keyof typeof Icon; color: string }> = {
-  meta: { icon: "search", color: "var(--brand)" },
-  keyword: { icon: "key", color: "var(--brand)" },
-  content: { icon: "chart", color: "var(--pos)" },
-  headings: { icon: "menu", color: "var(--brand)" },
-  links: { icon: "external", color: "var(--brand)" },
-  images: { icon: "monitor", color: "var(--warn)" },
-  technical: { icon: "settings", color: "var(--text-mute)" },
+// Ranked phrase list (top n-grams by occurrence) — a divided row list reads
+// far better than a cramped space-between column once phrase text gets long.
+function PhraseList({ title, phrases }: { title: string; phrases: Array<{ phrase: string; count: number }> }) {
+  return (
+    <div className="mini-tile" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "12px 14px 6px" }}>
+        <SubHeading>{title}</SubHeading>
+      </div>
+      {phrases.slice(0, 8).map((p, i) => (
+        <div
+          key={i}
+          className="row"
+          style={{ justifyContent: "space-between", gap: 10, padding: "8px 14px", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}
+        >
+          <span className="tiny" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.phrase}</span>
+          <span
+            className="tiny b tabular"
+            style={{ flexShrink: 0, padding: "2px 8px", borderRadius: 999, background: "var(--bg-elev)", color: "var(--text-mute)" }}
+          >
+            {p.count}×
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Section title → icon + accent color (+ matching soft background for the
+// icon badge and a top accent stripe on the card), so the accordion reads as
+// a scannable, color-coded list instead of a wall of identical rows.
+const SECTION_STYLE: Record<string, { icon: keyof typeof Icon; color: string; soft: string }> = {
+  meta: { icon: "search", color: "var(--brand)", soft: "var(--brand-soft)" },
+  keyword: { icon: "key", color: "var(--brand)", soft: "var(--brand-soft)" },
+  content: { icon: "chart", color: "var(--pos)", soft: "var(--pos-soft)" },
+  headings: { icon: "menu", color: "var(--brand)", soft: "var(--brand-soft)" },
+  links: { icon: "external", color: "var(--brand)", soft: "var(--brand-soft)" },
+  images: { icon: "monitor", color: "var(--warn)", soft: "var(--warn-soft)" },
+  technical: { icon: "settings", color: "var(--text-mute)", soft: "var(--bg-inset)" },
 }
 
 function Section({
@@ -102,22 +136,22 @@ function Section({
         onClick={() => onToggle(id)}
         style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-          gap: 12, padding: "14px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
+          gap: 12, padding: "16px 18px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
         }}
       >
-        <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           {SectionIcon && (
             <span
               style={{
-                width: 28, height: 28, borderRadius: "var(--r-sm)", background: "var(--bg-inset)",
-                color: style.color, display: "grid", placeItems: "center", flexShrink: 0,
+                width: 32, height: 32, borderRadius: "var(--r-sm)", background: style?.soft ?? "var(--bg-inset)",
+                color: style?.color ?? "var(--text-mute)", display: "grid", placeItems: "center", flexShrink: 0,
               }}
             >
               <SectionIcon />
             </span>
           )}
           <span style={{ minWidth: 0 }}>
-            <span className="b" style={{ fontSize: 14, display: "block" }}>{title}</span>
+            <span className="b" style={{ fontSize: 15, display: "block" }}>{title}</span>
             {subtitle && <span className="tiny muted" style={{ display: "block", marginTop: 2 }}>{subtitle}</span>}
           </span>
         </span>
@@ -131,7 +165,7 @@ function Section({
         </span>
       </button>
       {open && (
-        <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 14, paddingTop: 14 }}>
+        <div style={{ padding: "16px 18px 20px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 14 }}>
           {children}
         </div>
       )}
@@ -141,7 +175,7 @@ function Section({
 
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
+    <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
       {children}
     </div>
   )
@@ -156,25 +190,18 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
       return next
     })
 
-  const httpStatus = crawlData.httpStatus
-  const statusTone = httpStatus >= 200 && httpStatus < 300 ? "pos" : httpStatus >= 400 ? "neg" : "warn"
-
   return (
     <div>
-      {/* Overview — sits directly under the score card's stat tiles, so it uses
-          the same StatTile primitive rather than a differently styled block. */}
-      <div className="grid g-3" style={{ marginBottom: 16 }}>
-        <StatTile lbl="HTTP Status" val={httpStatus || "N/A"} tip={statusTone === "pos" ? "OK" : statusTone === "neg" ? "Error" : "Redirect"} />
-        <StatTile lbl="Word Count" val={(crawlData.content?.wordCount ?? 0).toLocaleString()} />
-        <StatTile lbl="Crawl Time" val={`${((crawlData.crawlTime || 0) / 1000).toFixed(1)}s`} />
-      </div>
+      {/* HTTP Status / Word Count / Crawl Time now live in the ScoreCard's
+          "Overview Metrics" card (app/[locale]/dashboard/keyword-analysis/results/page.tsx),
+          alongside Domain/Page Authority and backlinks — no need to repeat them here. */}
 
       {/* Meta Tags */}
       <Section id="meta" title="Meta Tags" subtitle="Title, description, canonical, and Open Graph data" open={open.has("meta")} onToggle={toggle}>
         <div className="mini-tile">
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
             <span className="mini-tile-lbl" style={{ marginBottom: 0 }}>Title</span>
-            <span className="tiny" style={{ color: crawlData.metaTags?.titleLength >= 30 && crawlData.metaTags?.titleLength <= 60 ? "var(--pos)" : "var(--warn)" }}>
+            <span className="tiny" style={{ flexShrink: 0, color: crawlData.metaTags?.titleLength >= 30 && crawlData.metaTags?.titleLength <= 60 ? "var(--pos)" : "var(--warn)" }}>
               {crawlData.metaTags?.titleLength ?? 0} chars
             </span>
           </div>
@@ -184,23 +211,24 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         <div className="mini-tile">
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
             <span className="mini-tile-lbl" style={{ marginBottom: 0 }}>Meta Description</span>
-            <span className="tiny" style={{ color: crawlData.metaTags?.descriptionLength >= 120 && crawlData.metaTags?.descriptionLength <= 160 ? "var(--pos)" : "var(--warn)" }}>
+            <span className="tiny" style={{ flexShrink: 0, color: crawlData.metaTags?.descriptionLength >= 120 && crawlData.metaTags?.descriptionLength <= 160 ? "var(--pos)" : "var(--warn)" }}>
               {crawlData.metaTags?.descriptionLength ?? 0} chars
             </span>
           </div>
           <p className="tiny muted" style={{ margin: 0 }}>{crawlData.metaTags?.description || "Not set"}</p>
         </div>
 
-        <TileGrid min={150}>
-          <div className="mini-tile">
-            <div className="mini-tile-lbl">Canonical</div>
-            <div className="row" style={{ gap: 6 }}>
-              <span style={{ color: tone(!!crawlData.metaTags?.canonical), display: "inline-flex", flexShrink: 0 }}>
-                {crawlData.metaTags?.canonical ? <Icon.check /> : <Icon.close />}
-              </span>
-              <span className="tiny mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crawlData.metaTags?.canonical || "Not set"}</span>
-            </div>
+        <div className="mini-tile">
+          <div className="mini-tile-lbl">Canonical URL</div>
+          <div className="row" style={{ gap: 6, minWidth: 0 }}>
+            <span style={{ color: tone(!!crawlData.metaTags?.canonical), display: "inline-flex", flexShrink: 0 }}>
+              {crawlData.metaTags?.canonical ? <Icon.check /> : <Icon.close />}
+            </span>
+            <span className="tiny mono" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crawlData.metaTags?.canonical || "Not set"}</span>
           </div>
+        </div>
+
+        <TileGrid min={150}>
           <MiniStat label="Language" value={crawlData.metaTags?.language || "N/A"} />
           <CheckRow label="HTTPS" ok={!!crawlData.urlInfo?.isHttps} detail={crawlData.urlInfo?.isHttps ? "Secure" : "Not secure"} />
         </TileGrid>
@@ -208,14 +236,14 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         {crawlData.openGraph && Object.keys(crawlData.openGraph).length > 0 && (
           <div>
             <SubHeading>Open Graph</SubHeading>
-            <div className="mini-tile" style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 6 }}>
+            <TileGrid min={200}>
               {Object.entries(crawlData.openGraph).slice(0, 6).map(([key, value]) => (
-                <div key={key} className="tiny" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  <span className="muted">{key}: </span>
-                  <span>{String(value).slice(0, 80)}</span>
+                <div key={key} className="mini-tile" style={{ minWidth: 0 }}>
+                  <div className="mini-tile-lbl">{key}</div>
+                  <div className="tiny" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(value).slice(0, 80) || "—"}</div>
                 </div>
               ))}
-            </div>
+            </TileGrid>
           </div>
         )}
       </Section>
@@ -223,7 +251,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
       {/* Keyword Analysis */}
       {crawlData.keywordAnalysis && (
         <Section id="keyword" title="Keyword Analysis" subtitle={`Target: "${keyword}"`} open={open.has("keyword")} onToggle={toggle}>
-          <TileGrid min={130}>
+          <TileGrid min={160}>
             <CheckRow label="In Title" ok={crawlData.keywordAnalysis.inTitle} />
             <CheckRow label="In H1" ok={crawlData.keywordAnalysis.inH1} />
             <CheckRow label="In Meta Desc" ok={crawlData.keywordAnalysis.inMetaDescription} />
@@ -254,30 +282,10 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           {crawlData.keywordAnalysis.topPhrases && (
             <div className="grid g-2">
               {(crawlData.keywordAnalysis.topPhrases.twoWord?.length ?? 0) > 0 && (
-                <div className="mini-tile">
-                  <div className="mini-tile-lbl">Two-word Phrases</div>
-                  <div className="col" style={{ gap: 5 }}>
-                    {crawlData.keywordAnalysis.topPhrases.twoWord.slice(0, 8).map((p, i) => (
-                      <div key={i} className="row tiny" style={{ justifyContent: "space-between" }}>
-                        <span>&quot;{p.phrase}&quot;</span>
-                        <span className="muted tabular">{p.count}×</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <PhraseList title="Two-word Phrases" phrases={crawlData.keywordAnalysis.topPhrases.twoWord} />
               )}
               {(crawlData.keywordAnalysis.topPhrases.threeWord?.length ?? 0) > 0 && (
-                <div className="mini-tile">
-                  <div className="mini-tile-lbl">Three-word Phrases</div>
-                  <div className="col" style={{ gap: 5 }}>
-                    {crawlData.keywordAnalysis.topPhrases.threeWord.slice(0, 8).map((p, i) => (
-                      <div key={i} className="row tiny" style={{ justifyContent: "space-between" }}>
-                        <span>&quot;{p.phrase}&quot;</span>
-                        <span className="muted tabular">{p.count}×</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <PhraseList title="Three-word Phrases" phrases={crawlData.keywordAnalysis.topPhrases.threeWord} />
               )}
             </div>
           )}
@@ -317,7 +325,11 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
                 <div key={section} className="mini-tile">
                   <div className="tiny b" style={{ marginBottom: 4, textTransform: "capitalize" }}>{section}</div>
                   <div className="tiny muted">{data.wordCount} words</div>
-                  <div className="tiny muted">H1: {data.headings?.h1 || 0}, H2: {data.headings?.h2 || 0}, H3: {data.headings?.h3 || 0}</div>
+                  <div className="tiny muted">
+                    H1: {Array.isArray(data.headings?.h1) ? data.headings.h1.length : (data.headings?.h1 || 0)},{" "}
+                    H2: {Array.isArray(data.headings?.h2) ? data.headings.h2.length : (data.headings?.h2 || 0)},{" "}
+                    H3: {Array.isArray(data.headings?.h3) ? data.headings.h3.length : (data.headings?.h3 || 0)}
+                  </div>
                   <div className="tiny muted">
                     {Array.isArray(data.links?.internal) ? data.links.internal.length : (data.links?.internal || 0)} internal, {Array.isArray(data.links?.external) ? data.links.external.length : (data.links?.external || 0)} external links
                   </div>
@@ -479,12 +491,12 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           <div>
             <SubHeading>Performance</SubHeading>
             <TileGrid min={100}>
-              <MiniStat label="TTFB" value={`${crawlData.performance.ttfb}ms`} tone={crawlData.performance.ttfb > 600 ? "warn" : undefined} />
-              <MiniStat label="DOM Interactive" value={`${crawlData.performance.domInteractive}ms`} />
-              <MiniStat label="DOM Loaded" value={`${crawlData.performance.domContentLoaded}ms`} />
-              <MiniStat label="FCP" value={`${crawlData.performance.webVitals?.fcp}ms`} tone={(crawlData.performance.webVitals?.fcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="LCP" value={`${crawlData.performance.webVitals?.lcp}ms`} tone={(crawlData.performance.webVitals?.lcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="CLS" value={String(crawlData.performance.webVitals?.cls ?? 0)} tone={(crawlData.performance.webVitals?.cls || 0) > 0.1 ? "warn" : undefined} />
+              <MiniStat label="TTFB" value={fmtMs(crawlData.performance.ttfb)} tone={crawlData.performance.ttfb > 600 ? "warn" : undefined} />
+              <MiniStat label="DOM Interactive" value={fmtMs(crawlData.performance.domInteractive)} />
+              <MiniStat label="DOM Loaded" value={fmtMs(crawlData.performance.domContentLoaded)} />
+              <MiniStat label="FCP" value={fmtMs(crawlData.performance.webVitals?.fcp)} tone={(crawlData.performance.webVitals?.fcp || 0) > 2500 ? "warn" : undefined} />
+              <MiniStat label="LCP" value={fmtMs(crawlData.performance.webVitals?.lcp)} tone={(crawlData.performance.webVitals?.lcp || 0) > 2500 ? "warn" : undefined} />
+              <MiniStat label="CLS" value={(crawlData.performance.webVitals?.cls ?? 0).toFixed(2)} tone={(crawlData.performance.webVitals?.cls || 0) > 0.1 ? "warn" : undefined} />
             </TileGrid>
           </div>
         )}
@@ -528,7 +540,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
 
         <div>
           <SubHeading>Content Structure</SubHeading>
-          <TileGrid min={120}>
+          <TileGrid min={160}>
             <CheckRow label="Table of Contents" ok={!!crawlData.contentStructure?.hasTableOfContents} />
             <CheckRow label="FAQ Section" ok={!!crawlData.contentStructure?.hasFaqSection} />
             <CheckRow label="Video" ok={!!crawlData.contentStructure?.hasVideo} />

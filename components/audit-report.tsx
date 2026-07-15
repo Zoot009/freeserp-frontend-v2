@@ -68,7 +68,7 @@ const SEVERITY_ORDER: Record<AuditIssue["severity"], number> = {
 
 function scoreVar(v: number): string {
   if (v >= 80) return "var(--pos)"
-  if (v >= 60) return "var(--warn)"
+  if (v >= 60) return "var(--brand)"
   return "var(--neg)"
 }
 

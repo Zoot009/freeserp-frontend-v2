@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation"
 import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
-import { StatTile } from "@/components/dashboard/primitives"
 import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
 import { computeSeoScore } from "@/lib/seoScorer"
 import type { CrawlData } from "@/types/competitor-analysis"
@@ -28,28 +27,39 @@ type Analysis = {
 
 const POLL_MS = 2500
 
-// Bar color token by 0–100 score, matching the dashboard's pos/warn/neg palette.
-function barColor(v: number): string {
-  if (v >= 80) return "var(--pos)"
-  if (v >= 60) return "var(--warn)"
-  return "var(--neg)"
+// Score band → tone, matching the Page Score Checker's pos/brand/neg palette.
+function scoreToneVar(v: number): { color: string; bg: string } {
+  if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
+  if (v >= 60) return { color: "var(--brand)", bg: "var(--brand-soft)" }
+  return { color: "var(--neg)", bg: "var(--neg-soft)" }
 }
 
-// Soft/tint counterpart of barColor — used for gradient washes & chip backgrounds.
-function bandSoft(v: number): string {
-  if (v >= 80) return "var(--pos-soft)"
-  if (v >= 60) return "var(--warn-soft)"
-  return "var(--neg-soft)"
-}
-
-function bandChipClass(v: number): string {
-  if (v >= 80) return "chip pos"
-  if (v >= 60) return "chip warn"
-  return "chip neg"
+// Eased 0→target ramp driven by rAF, shared by the ring and the count-up
+// number so they land in sync instead of the number popping in instantly.
+function useCountUp(target: number, duration = 900) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    let raf: number
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setVal(target * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return val
 }
 
 function ScoreBar({ label, value }: { label: string; value: number | null }) {
-  const v = value ?? 0
+  const target = value ?? 0
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setWidth(target))
+    return () => cancelAnimationFrame(raf)
+  }, [target])
   return (
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 5 }}>
@@ -57,35 +67,141 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
         <span className="tiny b tabular">{value ?? "—"}</span>
       </div>
       <div style={{ height: 6, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${v}%`, background: barColor(v), borderRadius: 999, transition: "width .3s" }} />
+        <div style={{ height: "100%", width: `${width}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${scoreToneVar(target).color} 75%, transparent), ${scoreToneVar(target).color})`, borderRadius: 999, transition: "width .8s cubic-bezier(.16,1,.3,1)" }} />
       </div>
     </div>
   )
 }
 
-// Circular gauge for the overall score — reads at a glance far better than a
-// bare number, and the ring color/fill communicate the grade band instantly.
-function ScoreRing({ value, size = 128 }: { value: number; size?: number }) {
-  const stroke = 10
+// Circular gauge for the headline score — colored by tier so the ring itself
+// communicates pass/warn/fail at a glance. Fills and counts up together on
+// mount so the score feels "revealed" rather than just printed on the page.
+function ScoreRing({ value, color, size = 132, stroke = 11 }: { value: number; color: string; size?: number; stroke?: number }) {
+  const display = useCountUp(value)
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
-  const pct = Math.max(0, Math.min(100, value))
+  const pct = Math.max(0, Math.min(100, display))
   const offset = c - (pct / 100) * c
-  const color = barColor(value)
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, filter: `drop-shadow(0 0 14px color-mix(in srgb, ${color} 35%, transparent))` }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <linearGradient id="ka-ring-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.65" />
+            <stop offset="100%" stopColor={color} />
+          </linearGradient>
+        </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-inset)" strokeWidth={stroke} />
         <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: "stroke-dashoffset .6s ease" }}
+          cx={size / 2} cy={size / 2} r={r}
+          fill="none" stroke="url(#ka-ring-grad)" strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <div className="tabular" style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, color }}>{value}</div>
-        <div className="tiny muted" style={{ marginTop: 2 }}>/ 100</div>
+      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+        <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums", color }}>{Math.round(display)}</div>
+      </div>
+    </div>
+  )
+}
+
+// Ring gauge for the Domain/Page Authority overview stats — a smaller, static
+// sibling of the hero ScoreRing, paired with a label underneath instead of a
+// number inline, since these read as secondary stats rather than a headline.
+function AuthorityRing({ value, label, caption }: { value: number | null; label: string; caption: string }) {
+  const display = useCountUp(value ?? 0)
+  const tone = scoreToneVar(value ?? 0)
+  const size = 96
+  const stroke = 7
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const pct = Math.max(0, Math.min(100, display))
+  const offset = c - (pct / 100) * c
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9 }}>
+      <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-inset)" strokeWidth={stroke} />
+          <circle
+            cx={size / 2} cy={size / 2} r={r}
+            fill="none" stroke={tone.color} strokeWidth={stroke}
+            strokeDasharray={c} strokeDashoffset={offset}
+            strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            style={{ transition: "stroke-dashoffset .8s cubic-bezier(.16,1,.3,1)" }}
+          />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 27, fontWeight: 800, lineHeight: 1 }}>{value ?? "—"}</span>
+          <span style={{ fontSize: 9.5, color: "var(--text-mute)", fontWeight: 600, marginTop: 3 }}>/ 100</span>
+        </div>
+      </div>
+      <div style={{ textAlign: "center" }}>
+        <div className="tiny b">{label}</div>
+        <div style={{ fontSize: 10.5, color: "var(--text-mute)" }}>{caption}</div>
+      </div>
+    </div>
+  )
+}
+
+// Backlink counts are unbounded, so the bar fill is log-scaled against the
+// same reference ceilings the scorer itself uses for off-page credit (see
+// DOMAIN_REF/PAGE_REF in lib/seoScorer.ts) — kept local since this is purely
+// a visual fill %, not a score input.
+const BACKLINK_REF = { domain: 1_000_000, page: 10_000 }
+function backlinkPct(value: number | null, ceiling: number): number {
+  const v = value ?? 0
+  if (v <= 0) return 0
+  return Math.max(3, Math.min(100, (Math.log10(v + 1) / Math.log10(ceiling)) * 100))
+}
+
+function BacklinkBar({ label, value, caption, ceiling }: { label: string; value: number | null; caption: string; ceiling: number }) {
+  const pct = backlinkPct(value, ceiling)
+  return (
+    <div>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 7 }}>
+        <span className="tiny" style={{ color: "var(--text-mute)", fontWeight: 600 }}>{label}</span>
+        <span style={{ fontWeight: 800 }}>{value?.toLocaleString() ?? "—"}</span>
+      </div>
+      <div style={{ height: 10, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "var(--brand)", borderRadius: 999, transition: "width .8s cubic-bezier(.16,1,.3,1)" }} />
+      </div>
+      <div style={{ fontSize: 10.5, color: "var(--text-mute)", marginTop: 5 }}>{caption}</div>
+    </div>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M8 4.5V8L10.5 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function OverviewIconStat({
+  icon, label, value, tone, sub,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: React.ReactNode
+  tone: { color: string; bg: string }
+  sub?: React.ReactNode
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+      <span
+        style={{
+          width: 36, height: 36, borderRadius: "var(--r-sm)", background: tone.bg, color: tone.color,
+          display: "grid", placeItems: "center", flexShrink: 0,
+        }}
+      >
+        {icon}
+      </span>
+      <div>
+        <div className="tiny muted">{label}</div>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>{value}{sub}</div>
       </div>
     </div>
   )
@@ -93,37 +209,88 @@ function ScoreRing({ value, size = 128 }: { value: number; size?: number }) {
 
 function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword: string; url: string }) {
   const score = computeSeoScore(crawlData, keyword, url)
-  const color = barColor(score.total)
+  const tone = scoreToneVar(score.total)
+
+  const httpStatus = crawlData.httpStatus
+  const statusTone: "pos" | "warn" | "neg" = httpStatus >= 200 && httpStatus < 300 ? "pos" : httpStatus >= 400 ? "neg" : "warn"
+  const statusColors = statusTone === "pos" ? { color: "var(--pos)", bg: "var(--pos-soft)" }
+    : statusTone === "neg" ? { color: "var(--neg)", bg: "var(--neg-soft)" }
+    : { color: "var(--warn)", bg: "var(--warn-soft)" }
+
   return (
     <>
-      <div className="card" style={{ marginBottom: 16, borderTop: `3px solid ${color}`, position: "relative", overflow: "hidden" }}>
-        <div
-          aria-hidden
-          style={{
-            position: "absolute", inset: 0, pointerEvents: "none",
-            background: `radial-gradient(500px circle at -5% -25%, ${bandSoft(score.total)}, transparent 60%)`,
-          }}
-        />
-        <div className="grid g-21" style={{ gap: 24, alignItems: "center", position: "relative" }}>
+      <div
+        className="card oa-fade-up"
+        style={{
+          marginBottom: 14,
+          background: "var(--bg-elev)",
+          border: `1px solid ${tone.color}`,
+          boxShadow: `0 6px 24px color-mix(in srgb, ${tone.color} 7%, transparent)`,
+        }}
+      >
+        <div className="grid g-21" style={{ gap: 28, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <ScoreRing value={score.total} />
-            <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 12 }}>
-              <span className={bandChipClass(score.total)} style={{ width: "fit-content" }}>{score.grade} · {score.label}</span>
-              <ScoreBar label="On-Page SEO" value={score.onPageScore} />
-              <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
+            <ScoreRing value={score.total} color={tone.color} />
+            <div style={{ minWidth: 0 }}>
+              <span
+                className="tiny b"
+                style={{
+                  display: "inline-block", marginBottom: 10, padding: "5px 11px", borderRadius: 999,
+                  textTransform: "uppercase", letterSpacing: "0.03em",
+                  background: tone.bg, border: "1px solid var(--border)", color: tone.color,
+                }}
+              >
+                Grade {score.grade} · {score.label}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 220 }}>
+                <ScoreBar label="On-Page SEO" value={score.onPageScore} />
+                <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
+              </div>
             </div>
           </div>
-          <div className="tiny muted" style={{ lineHeight: 1.5 }}>
+          <div className="tiny muted" style={{ lineHeight: 1.5, maxWidth: 260 }}>
             Overall score blends 12 on-page factors with off-page authority (Domain/Page Authority &amp; backlinks). Expand the sections below for the full breakdown.
           </div>
         </div>
       </div>
 
-      <div className="grid g-4" style={{ marginBottom: 16 }}>
-        <StatTile icon={<Icon.chart />} lbl="Domain Authority" val={score.da ?? "—"} tip="0–100 (Moz)" />
-        <StatTile icon={<Icon.chart />} lbl="Page Authority" val={score.pa ?? "—"} tip="0–100 (Moz)" />
-        <StatTile icon={<Icon.external />} lbl="Domain Backlinks" val={score.domainBacklinks?.toLocaleString() ?? "—"} tip="Site-wide" />
-        <StatTile icon={<Icon.external />} lbl="Page Backlinks" val={score.pageBacklinks?.toLocaleString() ?? "—"} tip="This URL" />
+      <div className="card oa-fade-up d1" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 34, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 24 }}>
+            <AuthorityRing value={score.da} label="Domain Authority" caption="Moz · site-wide" />
+            <AuthorityRing value={score.pa} label="Page Authority" caption="Moz · this URL" />
+          </div>
+          <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
+          <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Backlinks</div>
+            <BacklinkBar label="Domain Backlinks" value={score.domainBacklinks} caption="Site-wide" ceiling={BACKLINK_REF.domain} />
+            <BacklinkBar label="Page Backlinks" value={score.pageBacklinks} caption="This URL" ceiling={BACKLINK_REF.page} />
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "var(--border)", margin: "22px 0 18px" }} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          <OverviewIconStat
+            icon={<Icon.check />}
+            label="HTTP Status"
+            value={httpStatus || "N/A"}
+            tone={statusColors}
+            sub={statusTone === "pos" ? <span style={{ fontSize: 11, color: "var(--pos)", fontWeight: 700, marginLeft: 6 }}>OK</span> : null}
+          />
+          <OverviewIconStat
+            icon={<Icon.menu />}
+            label="Word Count"
+            value={(crawlData.content?.wordCount ?? 0).toLocaleString()}
+            tone={{ color: "var(--brand)", bg: "var(--brand-soft)" }}
+          />
+          <OverviewIconStat
+            icon={<ClockIcon />}
+            label="Crawl Time"
+            value={`${((crawlData.crawlTime || 0) / 1000).toFixed(1)}s`}
+            tone={{ color: "var(--brand)", bg: "var(--brand-soft)" }}
+          />
+        </div>
       </div>
     </>
   )
