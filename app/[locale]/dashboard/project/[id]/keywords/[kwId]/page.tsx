@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 
@@ -124,6 +124,12 @@ export default function KeywordDetailPage() {
     if (!authLoading && !user) router.push("/login")
   }, [user, authLoading, router])
 
+  // Feed the topbar breadcrumb the real project name instead of "Project" —
+  // covers hard refreshes directly on this page.
+  useEffect(() => {
+    if (data?.project) setProjectCrumb(data.project.id, data.project.name || data.project.domain)
+  }, [data])
+
   // Fetch keyword detail via the shared client — it carries the access token,
   // refreshes it on 401, and runs in parallel with useAuth()'s /me round-trip.
   const fetchDetail = useCallback(async (): Promise<KeywordDetail | null> => {
@@ -235,19 +241,6 @@ export default function KeywordDetailPage() {
 
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          <div className="crumbs" style={{ marginBottom: 6, fontSize: 12 }}>
-            <Link href={`/dashboard/project/${project.id}/keywords`} style={{ color: "inherit" }}>
-              <span>{project.domain}</span>
-            </Link>
-            <span className="sep">/</span>
-            <Link href={`/dashboard/project/${project.id}/keywords`} style={{ color: "inherit" }}>
-              <span>Keywords</span>
-            </Link>
-            <span className="sep">/</span>
-            <span className="here" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {keyword}
-            </span>
-          </div>
           <h1 style={{ wordBreak: "break-word" }}>{keyword}</h1>
           <div className="sub">
             {location.toUpperCase()} · {(device ?? "desktop").toUpperCase()} · Added{" "}
@@ -540,11 +533,28 @@ export default function KeywordDetailPage() {
                 Showing {history.length > 0 ? startHistoryIndex + 1 : 0}–{Math.min(startHistoryIndex + ITEMS_PER_PAGE, history.length)} of {history.length}
               </div>
             </div>
-            {history.length > 0 && (
-              <button className="btn sm" onClick={handleExportHistory}>
-                <Icon.download /> Export CSV
-              </button>
-            )}
+            {history.length > 0 && (() => {
+              const histPositions = history.map((h) => h.position).filter((p): p is number => p != null)
+              const best = histPositions.length ? Math.min(...histPositions) : null
+              const worst = histPositions.length ? Math.max(...histPositions) : null
+              return (
+                <div className="row" style={{ gap: 14, flexWrap: "wrap" }}>
+                  {best != null && (
+                    <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>
+                      Best <span className="b tabular" style={{ color: "var(--pos)" }}>#{best}</span>
+                    </span>
+                  )}
+                  {worst != null && worst !== best && (
+                    <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>
+                      Worst <span className="b tabular" style={{ color: "var(--text)" }}>#{worst}</span>
+                    </span>
+                  )}
+                  <button className="btn sm" onClick={handleExportHistory}>
+                    <Icon.download /> Export CSV
+                  </button>
+                </div>
+              )
+            })()}
           </div>
 
           {history.length > 0 ? (
@@ -553,21 +563,28 @@ export default function KeywordDetailPage() {
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Position</th>
-                    <th>Δ</th>
+                    <th style={{ width: 260 }}>Date</th>
+                    <th style={{ width: 130 }}>Position</th>
+                    <th style={{ width: 120 }}>Change</th>
                     <th>Monthly traffic</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedHistory.map((h, i) => {
                     const isLatest = i === 0 && historyPage === 1
+                    const d = new Date(h.checkedAt)
                     return (
                       <tr key={h.id} style={isLatest ? { background: "var(--bg-sub)" } : undefined}>
-                        <td className="tabular tiny muted" style={{ whiteSpace: "nowrap" }}>
-                          {new Date(h.checkedAt).toLocaleString("en-IN", {
-                            day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-                          })}
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span className="tabular" style={{ fontWeight: 500 }}>
+                            {d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          </span>
+                          <span className="tiny muted tabular" style={{ marginLeft: 8 }}>
+                            {d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {isLatest && (
+                            <span className="chip pos" style={{ marginLeft: 10 }}>Latest</span>
+                          )}
                         </td>
                         <td>
                           <PosCell position={h.position} />

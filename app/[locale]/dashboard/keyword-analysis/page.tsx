@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
@@ -72,10 +73,19 @@ function StatusChip({ status }: { status: AnalysisListItem["status"] }) {
   return <span className={cls}>{label}</span>
 }
 
-export default function KeywordAnalysisPage() {
+function KeywordAnalysisContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Context when launched from a project keyword's "Score" CTA (non-ranking
+  // keyword): prefill the keyword and carry the ids through to the results page
+  // so the computed score can be saved back onto that keyword.
+  const ctxKeyword = searchParams.get("keyword") || ""
+  const ctxProjectId = searchParams.get("projectId") || ""
+  const ctxKeywordId = searchParams.get("keywordId") || ""
+  const fromProject = !!(ctxProjectId && ctxKeywordId)
+
   const [url, setUrl] = useState("")
-  const [keyword, setKeyword] = useState("")
+  const [keyword, setKeyword] = useState(ctxKeyword)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -116,7 +126,10 @@ export default function KeywordAnalysisPage() {
         "/api/keyword-analysis",
         { url: normalizedUrl, keyword: trimmedKeyword },
       )
-      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}`)
+      // When launched from a project keyword, carry the ids so the results page
+      // can save the computed score back onto that keyword.
+      const ctx = fromProject ? `&projectId=${ctxProjectId}&keywordId=${ctxKeywordId}` : ""
+      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}${ctx}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to start analysis. Please try again.")
       setSubmitting(false)
@@ -132,6 +145,20 @@ export default function KeywordAnalysisPage() {
           <div className="sub">Crawl and score one of your own pages for a target keyword — on-page &amp; off-page SEO, no competitors.</div>
         </div>
       </div>
+
+      {/* Context banner — shown when scoring a specific project keyword. */}
+      {fromProject && (
+        <div
+          className="card tight"
+          style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 10, background: "var(--brand-soft)", borderColor: "var(--brand)", color: "var(--brand)", fontSize: 13 }}
+        >
+          <Icon.spark />
+          <span>
+            Scoring <b>“{ctxKeyword}”</b> for your project. Enter the page that ranks for it — the score
+            will be saved back to that keyword.
+          </span>
+        </div>
+      )}
 
       {/* Create form */}
       <form className="card" onSubmit={submit} style={{ marginBottom: 20 }}>
@@ -230,6 +257,20 @@ export default function KeywordAnalysisPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function KeywordAnalysisPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
+          Loading…
+        </div>
+      }
+    >
+      <KeywordAnalysisContent />
+    </Suspense>
   )
 }
 

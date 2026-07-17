@@ -114,6 +114,29 @@
   color: var(--text);
 }
 .fs-app .sb-brand .spark { color: var(--brand); font-size: 18px; line-height: 1; }
+/* Desktop collapse toggle (hidden on mobile — the drawer covers that). */
+.fs-app .sb-collapse {
+  margin-left: auto;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  background: transparent; border: none;
+  color: var(--text-mute);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.fs-app .sb-collapse:hover { background: var(--bg-inset); color: var(--text); }
+/* Account popover anchored to the user row. */
+.fs-app .sb-user-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 8px; right: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  z-index: 40;
+}
 .fs-app .sb-section {
   font-size: 10.5px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -189,14 +212,30 @@
   position: sticky; top: 0; z-index: 30;
 }
 .fs-app .crumbs {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 4px;
   font-size: 13px; color: var(--text-mute);
   min-width: 0;
   flex-shrink: 1;
 }
-.fs-app .crumbs > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fs-app .crumbs .here { color: var(--text); font-weight: 500; }
-.fs-app .crumbs .sep { opacity: 0.5; }
+.fs-app .crumbs > span {
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap; min-width: 0;
+}
+.fs-app .crumbs .sep { display: inline-flex; align-items: center; opacity: 0.4; flex-shrink: 0; }
+.fs-app .crumbs .crumb-link {
+  color: var(--text-mute);
+  text-decoration: none;
+  padding: 4px 7px;
+  border-radius: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.fs-app .crumbs .crumb-link:hover { background: var(--bg-inset); color: var(--text); }
+.fs-app .crumbs .crumb-cur {
+  padding: 4px 7px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fs-app .crumbs .here .crumb-cur { color: var(--text); font-weight: 600; }
 .fs-app .topbar .search {
   margin-left: auto;
   position: relative;
@@ -262,10 +301,70 @@
 }
 .dark .fs-app .btn.dark { background: var(--white); color: var(--black); border-color: var(--white); }
 .fs-app .btn.sm { padding: 5px 10px; font-size: 12px; }
+/* === CUSTOM DROPDOWN (styled replacement for native <select>) ===
+   Deliberately NOT scoped to .fs-app — the language switcher uses these on
+   auth/marketing pages too. Every token has a light-theme fallback for use
+   outside the dashboard shell. */
+.dd-trigger {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #E7E9EE);
+  background: var(--bg, #FFFFFF);
+  color: var(--text, #0B0D12);
+  font-size: 13px; font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.dd-trigger:hover { background: var(--bg-inset, #F2F4F7); }
+.dd-trigger:disabled { opacity: 0.6; cursor: default; }
+.dd-caret {
+  display: inline-flex; align-items: center;
+  color: var(--text-mute, #8A93A4);
+  transition: transform .15s ease;
+}
+.dd-caret[data-open="true"] { transform: rotate(180deg); }
+.dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 100%;
+  width: max-content;
+  background: var(--bg-elev, #FFFFFF);
+  border: 1px solid var(--border, #E7E9EE);
+  border-radius: var(--r-md, 12px);
+  box-shadow: var(--shadow-md, 0 6px 24px -8px rgba(11,13,18,0.08), 0 2px 4px rgba(11,13,18,0.04));
+  padding: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  animation: dd-pop .12s ease-out;
+}
+@keyframes dd-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dd-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text, #0B0D12);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .1s ease;
+}
+.dd-item:hover { background: var(--bg-inset, #F2F4F7); }
+.dd-item[data-active="true"] { color: var(--brand, #2D5BFF); font-weight: 600; background: var(--brand-soft, #EEF2FF); }
+.dd-item:disabled { opacity: 0.45; cursor: default; background: transparent; }
 /* === PAGE === */
 .fs-app .page {
   padding: 28px var(--page-pad) 60px;
-  max-width: 1400px;
   width: 100%;
 }
 .fs-app .page-h {
@@ -339,6 +438,51 @@
 .fs-app .stat .delta.up { background: var(--pos-soft); color: var(--pos); }
 .fs-app .stat .delta.down { background: var(--neg-soft); color: var(--neg); }
 .fs-app .stat .delta.flat { background: var(--bg-inset); color: var(--text-soft); }
+/* Stat strip — one card, cells separated by hairlines. */
+.fs-app .stat-strip {
+  display: flex; align-items: stretch; flex-wrap: wrap;
+  padding: 16px 0;
+  row-gap: 16px;
+}
+.fs-app .stat-strip .cell {
+  flex: 1 1 150px; min-width: 150px;
+  padding: 2px 22px;
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.fs-app .stat-strip .cell:first-child { border-left: none; }
+.fs-app .stat-strip .lbl { font-size: 12px; color: var(--text-mute); font-weight: 500; }
+.fs-app .stat-strip .val { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+.fs-app .stat-strip .delta {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.fs-app .stat-strip .delta.up { background: var(--pos-soft); color: var(--pos); }
+.fs-app .stat-strip .delta.down { background: var(--neg-soft); color: var(--neg); }
+/* Project page layout: insight rail on the left, tracking table on the right. */
+.fs-app .kd-layout {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1100px) { .fs-app .kd-layout { grid-template-columns: 1fr; } }
+/* Header row inside the SERP Rank Tracking card. */
+.fs-app .serp-track-h {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+/* Label/value rows inside the insight cards. */
+.fs-app .insight-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.fs-app .insight-row + .insight-row { border-top: 1px solid var(--border); }
 /* Grid helpers */
 .fs-app .grid { display: grid; gap: 14px; }
 .fs-app .g-4 { grid-template-columns: repeat(4, 1fr); }
@@ -464,12 +608,15 @@
 /* Pill toggle */
 .fs-app .pill-toggle {
   display: inline-flex;
+  align-items: center;
   background: var(--bg-inset);
   border-radius: 8px;
   padding: 3px;
   gap: 2px;
 }
 .fs-app .pill-toggle button {
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
   padding: 5px 12px;
   background: transparent;
   border: none;
@@ -667,13 +814,17 @@
   font-family: var(--font-mono); font-size: 11px;
   color: var(--text-mute);
 }
-/* Filter row */
+/* Filter row — every control shares one 36px height so the search box,
+   dropdowns and pill toggles sit on a single clean line. */
 .fs-app .filter-row {
   display: flex; gap: 8px; align-items: center;
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
-.fs-app .filter-row .input { width: 220px; }
+.fs-app .filter-row .input { width: 220px; height: 36px; }
+.fs-app .filter-row .dd-trigger { height: 36px; }
+.fs-app .filter-row .pill-toggle { height: 36px; }
+.fs-app .filter-row .pill-toggle button { height: 30px; }
 .fs-app .filter-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 10px;
@@ -1329,34 +1480,174 @@
 .fs-app .spin { animation: fs-spin 0.8s linear infinite; }
 @keyframes fs-spin { to { transform: rotate(360deg); } }
 
-/* Competitor-analysis loader — pulsing rings around a spinning icon. */
+/* Competitor-analysis loader — a rotating gradient ring around a soft brand
+   disc, with expanding pulse rings behind it. */
 .fs-app .ca-loader {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   display: grid;
   place-items: center;
 }
+/* Expanding pulse rings (two, offset). */
 .fs-app .ca-loader::before,
 .fs-app .ca-loader::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: 8px;
   border-radius: 50%;
   border: 2px solid var(--brand);
   opacity: 0;
-  animation: ca-pulse 1.8s ease-out infinite;
+  animation: ca-pulse 2s ease-out infinite;
 }
-.fs-app .ca-loader::after { animation-delay: 0.9s; }
+.fs-app .ca-loader::after { animation-delay: 1s; }
+/* Rotating conic ring — the spinner. A masked ring shows the gradient arc. */
+.fs-app .ca-loader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--brand) 300deg, var(--brand) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  animation: fs-spin 1s linear infinite;
+}
+/* Soft brand disc holding the icon. */
 .fs-app .ca-loader-icon {
+  position: relative;
+  z-index: 1;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--brand-soft);
   color: var(--brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
+.fs-app .ca-loader-icon svg { width: 20px; height: 20px; }
 @keyframes ca-pulse {
-  0%   { transform: scale(0.5); opacity: 0.6; }
-  100% { transform: scale(1.2); opacity: 0; }
+  0%   { transform: scale(0.7); opacity: 0.5; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COMPETITOR COMPARISON — "stacked section panels" (boxy)
+   Wrapper = recessed board (bg-sub). Each SEO section renders as one elevated
+   bg-elev card spanning all columns: a header bar (tick + label) over a dense
+   comparison body. The board shows through the 16px gaps between panels and the
+   8px gaps between header business tiles. Your-Business column = brand wash;
+   best/worst cells keep their pos-/neg-soft class and win over every tint.
+   100% tokens → light + dark correct.
+   ══════════════════════════════════════════════════════════════════════════ */
+.fs-app .cmp-compare {
+  --cmp-gap: 16px;                       /* vertical gap between section panels */
+  --cmp-radius: var(--r-md);             /* 12px panel + header-tile corners */
+  --cmp-you: color-mix(in srgb, var(--brand-soft) 60%, var(--bg-elev));
+  --cmp-you-hover: color-mix(in srgb, var(--brand-soft) 80%, var(--bg-elev));
+  --cmp-you-edge: color-mix(in srgb, var(--brand) 26%, var(--border));
+  background: var(--bg-sub);             /* the board (was bg-elev) */
+  padding-bottom: 6px;
+}
+.fs-app .cmp-compare table {
+  border-collapse: separate;            /* required for per-cell border-radius */
+  border-spacing: 0;                    /* kill the 2px UA default */
+  background: transparent;
+}
+
+/* ── Header: a strip of floating business tiles ─────────────────────────── */
+.fs-app .cmp-compare thead th {
+  position: sticky; top: 0; z-index: 3;  /* pins only if the wrapper gets a max-height */
+  background: transparent;               /* board shows between tiles */
+  border: 0;
+  padding: 8px 4px 10px;                 /* 8px gutter between tiles, board air above */
+}
+.fs-app .cmp-compare thead th.cmp-corner {
+  left: 0; z-index: 5;                   /* corner is sticky top AND left */
+  background: var(--bg-sub);
+  padding: 8px 0 10px;
+  box-shadow: 2px 0 4px -2px rgba(11,13,18,0.12);
+}
+.dark .fs-app .cmp-compare thead th.cmp-corner { box-shadow: 2px 0 6px -2px rgba(0,0,0,0.5); }
+.fs-app .cmp-compare .cmp-head-tile {
+  height: 100%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--cmp-radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;                      /* clip the rank/brand top strip to the radius */
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.fs-app .cmp-compare .cmp-head-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.fs-app .cmp-compare .cmp-head-tile.you {
+  background: var(--brand-soft);
+  border-color: var(--cmp-you-edge);
+}
+.fs-app .cmp-compare .cmp-head-tile.failed { border-color: var(--neg); }
+
+/* ── Section panels ─────────────────────────────────────────────────────── */
+/* header-bar row: its colSpan cell supplies only the transparent gap above */
+.fs-app .cmp-compare tbody tr.cmp-section > td {
+  padding: var(--cmp-gap) 0 0 0;
+  background: transparent;
+  border: 0;
+}
+.fs-app .cmp-compare .cmp-section-head {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-top-left-radius: var(--cmp-radius);
+  border-top-right-radius: var(--cmp-radius);
+  padding: 10px 14px;
+}
+.fs-app .cmp-compare .cmp-section-title {
+  position: sticky; left: 14px;          /* stay visible while scrolling right */
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text);
+}
+.fs-app .cmp-compare .cmp-section-tick {
+  width: 3px; height: 13px; border-radius: 2px;
+  background: var(--brand); display: inline-block; flex-shrink: 0;
+}
+
+/* panel body — outer side edges always; interior / label rail / your-column
+   fills are guarded so best/worst highlight cells keep their pos-/neg-soft bg */
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:first-child { border-left: 1px solid var(--border); }
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:last-child  { border-right: 1px solid var(--border); }
+
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:not([class*="pos-soft"]):not([class*="neg-soft"]) {
+  background: var(--bg-elev);            /* elevated panel interior */
+}
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:first-child:not([class*="pos-soft"]):not([class*="neg-soft"]) {
+  background: var(--bg-sub);             /* metric-label rail */
+}
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:nth-child(2):not([class*="pos-soft"]):not([class*="neg-soft"]) {
+  background: var(--cmp-you);            /* opaque Your-Business wash */
+}
+
+/* bottom-edge rounding on the LAST row of every panel (unguarded so a
+   highlighted last-row cell still rounds) */
+.fs-app .cmp-compare tbody tr:not(.cmp-section):has(+ tr.cmp-section) > td:first-child,
+.fs-app .cmp-compare tbody tr:not(.cmp-section):last-child > td:first-child {
+  border-bottom-left-radius: var(--cmp-radius);
+}
+.fs-app .cmp-compare tbody tr:not(.cmp-section):has(+ tr.cmp-section) > td:last-child,
+.fs-app .cmp-compare tbody tr:not(.cmp-section):last-child > td:last-child {
+  border-bottom-right-radius: var(--cmp-radius);
+}
+
+/* row hover — subtle; never clobbers highlights, your-column, or label rail */
+.fs-app .cmp-compare tbody tr { transition: background .1s ease; }
+.fs-app .cmp-compare tbody tr:not(.cmp-section):hover > td:not([class*="pos-soft"]):not([class*="neg-soft"]):not(:first-child):not(:nth-child(2)) {
+  background: var(--bg-sub);
+}
+.fs-app .cmp-compare tbody tr:not(.cmp-section):hover > td:first-child:not([class*="pos-soft"]):not([class*="neg-soft"]) {
+  background: var(--bg-inset);
+}
+.fs-app .cmp-compare tbody tr:not(.cmp-section):hover > td:nth-child(2):not([class*="pos-soft"]):not([class*="neg-soft"]) {
+  background: var(--cmp-you-hover);
 }
 
 /* ── Competitor-selection cards (Select competitors page) ────────────────── */
@@ -1426,6 +1717,29 @@
 .fs-app .sb-overlay { display: none; }
 .fs-app .topbar-hamburger { display: none; }
 
+/* ---- Collapsed sidebar (desktop only — the <=768px drawer is unaffected).
+   The .sb-collapsed class on .app narrows the grid to an icon rail and hides
+   every text label; nav items keep their icons with title-attr tooltips. ---- */
+@media (min-width: 769px) {
+  .fs-app .app { transition: grid-template-columns 0.2s ease; }
+  .fs-app .app.sb-collapsed { grid-template-columns: 64px 1fr; }
+  .fs-app .app.sb-collapsed .sidebar { padding: 18px 10px; }
+  .fs-app .app.sb-collapsed .sb-label,
+  .fs-app .app.sb-collapsed .sb-section,
+  .fs-app .app.sb-collapsed .sb-upgrade,
+  .fs-app .app.sb-collapsed .sb-user-info,
+  .fs-app .app.sb-collapsed .sb-user-dots,
+  .fs-app .app.sb-collapsed .sb-brand .spark,
+  .fs-app .app.sb-collapsed .sb-item .badge { display: none; }
+  .fs-app .app.sb-collapsed .sb-item { justify-content: center; padding: 10px 0; }
+  .fs-app .app.sb-collapsed .sb-brand { justify-content: center; padding: 6px 0 14px; }
+  .fs-app .app.sb-collapsed .sb-collapse { margin-left: 0; }
+  .fs-app .app.sb-collapsed .sb-user { justify-content: center; padding-left: 0; padding-right: 0; }
+  .fs-app .app.sb-collapsed .sb-user-menu { left: 4px; right: auto; width: 210px; }
+  /* Sections need a little breathing room where their headings used to be. */
+  .fs-app .app.sb-collapsed .sb-section + .sb-item { margin-top: 8px; }
+}
+
 /* ---- Tablet (<=1024px): 4-col grids drop to 2 ---- */
 @media (max-width: 1024px) {
   .fs-app .g-4 { grid-template-columns: repeat(2, 1fr); }
@@ -1452,6 +1766,9 @@
     background: rgba(11, 13, 18, 0.45);
     z-index: 55;
   }
+
+  /* Collapse toggle is desktop-only — meaningless inside the drawer. */
+  .fs-app .sb-collapse { display: none; }
 
   /* Topbar: reveal hamburger, drop the placeholder search, tighten. */
   .fs-app .topbar-hamburger { display: grid; }

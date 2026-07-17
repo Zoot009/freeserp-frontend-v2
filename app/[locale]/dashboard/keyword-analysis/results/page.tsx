@@ -300,9 +300,17 @@ function ResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id") || ""
+  // Context when launched from a project keyword's "Score" CTA — save the
+  // computed score back onto that keyword once the analysis completes.
+  const projectId = searchParams.get("projectId") || ""
+  const keywordId = searchParams.get("keywordId") || ""
+  const fromProject = !!(projectId && keywordId)
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [savedScore, setSavedScore] = useState<number | null>(null)
+  const savedRef = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -335,6 +343,28 @@ function ResultsContent() {
   const status = analysis?.status
   const inProgress = !analysis || status === "PENDING" || status === "PROCESSING"
 
+  // Once the analysis completes, save the score back onto the originating
+  // project keyword (fires exactly once). The backend re-crawls the same URL —
+  // a cache hit — and stores the keyword + page scores on that keyword.
+  useEffect(() => {
+    if (!fromProject || savedRef.current) return
+    if (status !== "COMPLETED" || !analysis?.url) return
+    savedRef.current = true
+    setSaveState("saving")
+    ;(async () => {
+      try {
+        const res = await api.post<{ pageScore: number }>(
+          `/api/projects/${projectId}/keywords/${keywordId}/manual-score`,
+          { url: analysis.url },
+        )
+        setSavedScore(res.pageScore)
+        setSaveState("saved")
+      } catch {
+        setSaveState("error")
+      }
+    })()
+  }, [status, analysis?.url, fromProject, projectId, keywordId])
+
   return (
     <div className="page">
       <div className="page-h">
@@ -346,7 +376,6 @@ function ResultsContent() {
           >
             <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span> Back
           </button>
-          <div className="eyebrow"><span className="spark"><Icon.search /></span> Keyword Analysis</div>
           <h1>Page report</h1>
           {analysis && (
             <div className="sub" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -382,6 +411,42 @@ function ResultsContent() {
               <div className="tiny muted" style={{ marginTop: 6, opacity: 0.7 }}>This usually takes 10–40 seconds</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Saved-to-project banner — only when launched from a project keyword. */}
+      {fromProject && status === "COMPLETED" && saveState !== "idle" && (
+        <div
+          className="card tight"
+          style={{
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: 13,
+            borderColor: saveState === "error" ? "var(--neg)" : "var(--pos)",
+            background: saveState === "error" ? "var(--neg-soft)" : "var(--pos-soft)",
+            color: saveState === "error" ? "var(--neg)" : "var(--pos)",
+          }}
+        >
+          {saveState === "saving" && (
+            <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Saving the keyword score to your project…</>
+          )}
+          {saveState === "saved" && (
+            <>
+              <Icon.check />
+              <span style={{ flex: 1 }}>
+                Keyword score{savedScore != null ? <> <b>{savedScore}</b></> : null} saved to your project.
+              </span>
+              <button
+                className="btn sm"
+                onClick={() => router.push(`/dashboard/project/${projectId}/keywords`)}
+              >
+                Back to project <Icon.chevR />
+              </button>
+            </>
+          )}
+          {saveState === "error" && <>Couldn&apos;t save the score to your project — the analysis above is still valid.</>}
         </div>
       )}
 

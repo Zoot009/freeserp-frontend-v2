@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { createPortal } from "react-dom"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
@@ -10,10 +11,12 @@ import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
+import { Dropdown } from "@/components/dashboard/dropdown"
+import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
-import { flagFor } from "@/lib/locations"
+import { Flag } from "@/components/flag"
 import { trackOnce, trackMilestone } from "@/lib/track"
 import { track } from "@/lib/analytics"
 import {
@@ -22,7 +25,6 @@ import {
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
-import { Sparkle, Sparkles } from "lucide-react"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -35,13 +37,14 @@ const SCHEDULED_CHECKS_ENABLED = true
 const FREE_KEYWORDS_PER_PROJECT_LIMIT = 10
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
-// 15d / 30d — anything else falls back to a plain "Every Nh".
-function freqLabel(hours: number): string {
+// 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
+// passed translator (projKeywords namespace).
+function freqLabel(hours: number, t: (k: string) => string): string {
   switch (hours) {
-    case 24: return "Every 24 hours"
-    case 168: return "Every 7 days"
-    case 360: return "Every 15 days"
-    case 720: return "Every 30 days"
+    case 24: return t("freq24")
+    case 168: return t("freq7d")
+    case 360: return t("freq15d")
+    case 720: return t("freq30d")
     default: return `Every ${hours}h`
   }
 }
@@ -73,6 +76,12 @@ interface Keyword {
   pageScore: number | null
   pageScoreGrade: string | null
   pageScoreLabel: string | null
+  // Keyword-independent audit score of the ranking page — the "Page score"
+  // column. Null when the keyword isn't ranking / not yet scored.
+  pageAuditScore: number | null
+  // The exact page that was scored (ranking URL, or domain homepage when not
+  // ranking) — the target for the full Page Score Checker audit on click.
+  pageScoreUrl: string | null
 }
 
 interface ProjectDetail {
@@ -91,6 +100,11 @@ interface ProjectDetail {
   // Public-share token for the keywords page. Null = sharing off; non-null means
   // the read-only /share/keywords/<token> page is live. Drives the Share modal.
   shareToken: string | null
+  // Domain authority & backlinks (DataForSEO) — fetched right after project
+  // creation, auto-refreshed every 30 days. Null until the first fetch lands.
+  domainAuthority: number | null
+  domainBacklinks: number | null
+  backlinksCheckedAt: string | null
   keywords: Keyword[]
 }
 
@@ -170,9 +184,30 @@ const SCORE_CATEGORIES: { key: keyof KeywordScoreBreakdown; label: string; max: 
   { key: "headings", label: "Headings", max: 15 },
 ]
 
-function ScoreBadge({ score, grade, label, onClick }: { score: number | null; grade: string | null; label: string | null; onClick?: () => void }) {
+function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle }: { score: number | null; grade?: string | null; label: string | null; onClick?: () => void; onEmptyClick?: () => void; emptyTitle?: string }) {
   if (score == null) {
-    return <span className="tiny muted" title="Run a competitor analysis to score this ranking page">—</span>
+    // Unscored (keyword not ranking) → the "—" becomes a call-to-action that
+    // sends the user to the Keyword Score Checker to designate a page manually.
+    if (onEmptyClick) {
+      return (
+        <span
+          role="button"
+          tabIndex={0}
+          title={emptyTitle}
+          onClick={(e) => { e.stopPropagation(); onEmptyClick() }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onEmptyClick() } }}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "2px 8px", borderRadius: "var(--r-sm)",
+            border: "1px dashed var(--border-strong)", color: "var(--text-mute)",
+            fontSize: 12, fontWeight: 500, cursor: "pointer",
+          }}
+        >
+          <Icon.plus /> Score
+        </span>
+      )
+    }
+    return <span className="tiny muted" title={emptyTitle ?? "Scored automatically once the keyword ranks"}>—</span>
   }
   const color = score >= 80 ? "var(--pos)" : score >= 60 ? "var(--warn)" : "var(--neg)"
   const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
@@ -200,7 +235,48 @@ function ScoreBadge({ score, grade, label, onClick }: { score: number | null; gr
       }}
     >
       {score}
-      {grade ? <span style={{ opacity: 0.75, fontWeight: 500 }}>{grade}</span> : null}
+    </span>
+  )
+}
+
+// Keyword-independent page-health score — the "Page score" column. Clicking it
+// opens the full Page Score Checker audit report for the scored page.
+function AuditBadge({ score, onClick, loading }: { score: number | null; onClick?: () => void; loading?: boolean }) {
+  if (loading) {
+    return (
+      <span className="tiny muted" title="Opening audit report…">
+        <span className="spin" style={{ display: "inline-block", width: 13, height: 13, borderRadius: "50%", border: "2px solid var(--border-strong)", borderTopColor: "var(--brand)", boxSizing: "border-box", verticalAlign: "middle" }} />
+      </span>
+    )
+  }
+  if (score == null) {
+    return <span className="tiny muted" title="On-page health of the page — computed automatically after the first check">—</span>
+  }
+  const color = score >= 80 ? "var(--pos)" : score >= 60 ? "var(--warn)" : "var(--neg)"
+  const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
+  const clickable = !!onClick
+  return (
+    <span
+      title={clickable ? "Page audit score — click for the full audit report" : "Page audit score — general on-page health"}
+      className="tabular"
+      onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClick!() } } : undefined}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        borderRadius: "var(--r-sm)",
+        background: soft,
+        color,
+        fontWeight: 600,
+        fontSize: 12,
+        lineHeight: 1.4,
+        cursor: clickable ? "pointer" : "default",
+      }}
+    >
+      {score}
     </span>
   )
 }
@@ -470,6 +546,7 @@ function AddKeywordsModal({
 // ───── Page ────────────────────────────────────────────────────────────────
 
 export default function ProjectKeywordsPage() {
+  const t = useTranslations("projKeywords")
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
@@ -480,6 +557,11 @@ export default function ProjectKeywordsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+
+  // Feed the topbar breadcrumb the real project name instead of "Project".
+  useEffect(() => {
+    if (project) setProjectCrumb(project.id, project.name || project.domain)
+  }, [project])
 
   // Action state
   const [checking, setChecking] = useState(false)
@@ -494,6 +576,29 @@ export default function ProjectKeywordsPage() {
   const [showAddKw, setShowAddKw] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
+
+  // Dismiss the row-action menu on any outside interaction WITHOUT eating the
+  // click (no blocking overlay — that forced users to click twice). The menu
+  // and its own trigger are exempt; the trigger's onClick handles toggling.
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = () => { setOpenMenuId(null); setMenuPosition(null) }
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest("[data-kw-row-menu]")) return
+      if (target?.closest(`[data-menu-trigger="${openMenuId}"]`)) return
+      close()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close()
+    }
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [openMenuId])
   const [updatingFrequency, setUpdatingFrequency] = useState(false)
   // "off" = turn the schedule off; a number = the cadence in hours to arm.
   const [tempFrequency, setTempFrequency] = useState<number | "off" | null>(null)
@@ -587,6 +692,24 @@ export default function ProjectKeywordsPage() {
       /* leave the breakdown empty on failure — the header still shows the score */
     } finally {
       setScoreLoading(false)
+    }
+  }
+
+  // Page score click → run a full on-page audit (the Page Score Checker) for
+  // the keyword's scored page and open its report. Mirrors the audit tool's
+  // own submit flow: POST creates/reuses the audit, then route to results.
+  const [auditingKwId, setAuditingKwId] = useState<string | null>(null)
+  const openAuditReport = async (url: string, kwId: string) => {
+    if (auditingKwId) return
+    setAuditingKwId(kwId)
+    try {
+      // /open reuses a recent audit for the same URL instead of paying for a
+      // fresh external run on every click.
+      const res = await api.post<{ audit: { id: string } }>("/api/on-page-audit/open", { url })
+      router.push(`/dashboard/onpage-audit/results?id=${res.audit.id}`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to open the audit report.")
+      setAuditingKwId(null)
     }
   }
 
@@ -862,11 +985,43 @@ export default function ProjectKeywordsPage() {
     const positions = scoped
       .map((k) => k.position)
       .filter((p): p is number => p != null && Number.isFinite(p))
+    const ranked = scoped.filter((k) => k.position != null)
+    // Aggregate SEO score — the average of the keywords' page-audit scores
+    // (the same 0–100 scale as the table's "Keyword score" column). Null until
+    // at least one keyword has been analysed.
+    const scoresArr = scoped
+      .map((k) => k.pageScore)
+      .filter((s): s is number => s != null && Number.isFinite(s))
+    // 7-day movement — real deltas only, from each keyword's d7 window.
+    const d7s = ranked
+      .map((k) => k.d7)
+      .filter((d): d is number => d != null && Number.isFinite(d))
+    const prevPositions = ranked
+      .filter((k) => k.position != null && k.d7 != null)
+      .map((k) => (k.position as number) + (k.d7 as number))
     return {
       total: scoped.length,
       avgPos: positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0,
       top3: positions.filter((p) => p <= 3).length,
       top10: positions.filter((p) => p <= 10).length,
+      // "In top 100" — every keyword the SERP check actually found.
+      top100: positions.length,
+      // 1-day movement split (d1 > 0 = rank improved).
+      gained: ranked.filter((k) => (k.d1 ?? 0) > 0).length,
+      lost: ranked.filter((k) => (k.d1 ?? 0) < 0).length,
+      noChange: ranked.filter((k) => (k.d1 ?? 0) === 0).length,
+      estTraffic: scoped.reduce((s, k) => s + (k.monthlyTraffic ?? 0), 0),
+      seoScore: scoresArr.length
+        ? Math.round(scoresArr.reduce((a, b) => a + b, 0) / scoresArr.length)
+        : null,
+      // Positive = average rank improved over the last 7 days.
+      avgPosD7: d7s.length ? d7s.reduce((a, b) => a + b, 0) / d7s.length : null,
+      top3D7: prevPositions.length
+        ? positions.filter((p) => p <= 3).length - prevPositions.filter((p) => p <= 3).length
+        : null,
+      top10D7: prevPositions.length
+        ? positions.filter((p) => p <= 10).length - prevPositions.filter((p) => p <= 10).length
+        : null,
     }
   }, [scoped])
 
@@ -911,7 +1066,7 @@ export default function ProjectKeywordsPage() {
   if (authLoading || (loading && !project)) {
     return (
       <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
-        Loading project…
+        {t("loadingProject")}
       </div>
     )
   }
@@ -919,7 +1074,7 @@ export default function ProjectKeywordsPage() {
   if (!project) {
     return (
       <div className="page" style={{ color: "var(--neg)", fontSize: 13, padding: 60, textAlign: "center" }}>
-        {error || "Project not found"}
+        {error || t("projectNotFound")}
       </div>
     )
   }
@@ -933,7 +1088,7 @@ export default function ProjectKeywordsPage() {
       <div className="page-h kd-proj-h">
         <div style={{ minWidth: 0 }}>
           <Link href="/dashboard/projects" className="kd-back" style={{ display: "inline-flex" }}>
-            ← All projects
+            ← {t("allProjects")}
           </Link>
           <div className="row" style={{ marginBottom: 8 }}>
             <Favicon domain={project.domain} size={36} fallbackColor={color} />
@@ -952,7 +1107,7 @@ export default function ProjectKeywordsPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
                     <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10 }}>
-                      {project.autoCheckEnabled ? (project.nextScheduledCheck ? "Next check in" : "Auto check") : "Auto check"}
+                      {project.autoCheckEnabled && project.nextScheduledCheck ? t("nextCheckIn") : t("autoCheck")}
                     </span>
                     {project.autoCheckEnabled && project.nextScheduledCheck && (
                       <button
@@ -970,39 +1125,39 @@ export default function ProjectKeywordsPage() {
                           fontSize: 10,
                           fontWeight: 600,
                         }}
-                        title={project.isPaused ? "Resume automated checks" : "Pause automated checks"}
+                        title={project.isPaused ? t("resumeTitle") : t("pauseTitle")}
                       >
-                        {pausing ? "…" : project.isPaused ? "▶ Resume" : "⏸ Pause"}
+                        {pausing ? "…" : project.isPaused ? `▶ ${t("resume")}` : `⏸ ${t("pause")}`}
                       </button>
                     )}
                   </div>
                   {!project.autoCheckEnabled ? (
-                    <span className="b" style={{ color: "var(--muted)", fontSize: 13 }}>Off · not scheduled</span>
+                    <span className="b" style={{ color: "var(--text-mute)", fontSize: 13 }}>{t("offNotScheduled")}</span>
                   ) : project.nextScheduledCheck ? (
                     project.isPaused ? (
-                      <span className="b" style={{ color: "var(--warn)", fontSize: 13 }}>Paused</span>
+                      <span className="b" style={{ color: "var(--warn)", fontSize: 13 }}>{t("paused")}</span>
                     ) : (
                       <span className="b" style={{ color: "var(--brand)", fontSize: 13 }}>
                         <CountdownTimer targetDate={project.nextScheduledCheck} />
                       </span>
                     )
                   ) : (
-                    <span className="b" style={{ color: "var(--brand)", fontSize: 13 }}>Pending first run</span>
+                    <span className="b" style={{ color: "var(--brand)", fontSize: 13 }}>{t("pendingFirstRun")}</span>
                   )}
                 </div>
                 <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
                 <div>
                   <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10, marginBottom: 2 }}>
-                    {project.autoCheckEnabled && project.nextScheduledCheck && !project.isPaused ? "Scheduled at" : "Frequency"}
+                    {project.autoCheckEnabled && project.nextScheduledCheck && !project.isPaused ? t("scheduledAt") : t("frequency")}
                   </div>
                   <div className="tiny mono">
                     {!project.autoCheckEnabled
-                      ? "Off"
+                      ? t("off")
                       : project.nextScheduledCheck && !project.isPaused
                         ? new Date(project.nextScheduledCheck).toLocaleString("en-IN", {
                             day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                           })
-                        : freqLabel(project.checkFrequency)}
+                        : freqLabel(project.checkFrequency, t)}
                   </div>
                 </div>
               </div>
@@ -1017,7 +1172,7 @@ export default function ProjectKeywordsPage() {
               className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
               onClick={() => setShowAddKw(true)}
             >
-              <Icon.plus /> Keywords
+              <Icon.plus /> {t("keywordsBtn")}
             </button>
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
@@ -1040,20 +1195,19 @@ export default function ProjectKeywordsPage() {
               </button>
             )} */}
             {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
-              <select
+              <Dropdown
                 value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
-                onChange={(e) => handleFrequencyChange(e.target.value === "off" ? "off" : Number(e.target.value))}
+                options={[
+                  { value: "off", label: t("freqOff") },
+                  { value: "24", label: t("freq24") },
+                  { value: "168", label: t("freq7d") },
+                  { value: "360", label: t("freq15d") },
+                  { value: "720", label: t("freq30d") },
+                ]}
+                onChange={(v) => handleFrequencyChange(v === "off" ? "off" : Number(v))}
                 disabled={updatingFrequency}
-                title="Set how often automated rank checks run for this project"
-                className="input"
-                style={{ width: "auto", paddingTop: 8, paddingBottom: 8, fontSize: 12 }}
-              >
-                <option value="off">Off (no schedule)</option>
-                <option value={24}>Every 24 hours</option>
-                <option value={168}>Every 7 days</option>
-                <option value={360}>Every 15 days</option>
-                <option value={720}>Every 30 days</option>
-              </select>
+                title={t("freqTitle")}
+              />
             )}
             {/* Hidden by default — only surfaces once keywords are selected (or a
                 check is actively running), so it doesn't sit idle next to
@@ -1067,27 +1221,27 @@ export default function ProjectKeywordsPage() {
                 // Block while a check is already running for this project — each
                 // check costs us money, so don't let the button be spammed.
                 disabled={checking || project.keywords.length === 0 || pendingCount > 0}
-                title={pendingCount > 0 ? "A check is already running for this project" : undefined}
+                title={pendingCount > 0 ? t("checkRunningTitle") : undefined}
                 className={selectedKeywords.size > 0 ? "btn primary" : "btn"}
               >
                 {checking
-                  ? "Checking…"
+                  ? t("checking")
                   : pendingCount > 0
-                    ? "Check in progress…"
+                    ? t("checkInProgress")
                     : selectedKeywords.size > 0
-                      ? `Check ${selectedKeywords.size} selected`
-                      : "Run check"}
+                      ? t("checkSelected", { count: selectedKeywords.size })
+                      : t("runCheck")}
               </button>
             )}
             {selectedKeywords.size > 0 && (
               <button
                 type="button"
                 onClick={() => setConfirmDeleteKwIds(Array.from(selectedKeywords))}
-                title={`Delete the ${selectedKeywords.size} selected keyword${selectedKeywords.size === 1 ? "" : "s"}`}
+                title={t("deleteN", { count: selectedKeywords.size })}
                 className="btn"
                 style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
               >
-                Delete {selectedKeywords.size}
+                {t("deleteN", { count: selectedKeywords.size })}
               </button>
             )}
             <div style={{ position: "relative" }}>
@@ -1095,10 +1249,10 @@ export default function ProjectKeywordsPage() {
                 type="button"
                 onClick={() => setShowMoreMenu((v) => !v)}
                 className="btn"
-                title="More project options"
-                aria-label="More project options"
+                title={t("moreOptionsTitle")}
+                aria-label={t("moreOptionsTitle")}
               >
-                <Icon.dots /> More options
+                <Icon.dots /> {t("moreOptions")}
               </button>
               {showMoreMenu && (
                 <>
@@ -1201,7 +1355,7 @@ export default function ProjectKeywordsPage() {
                         cursor: "pointer",
                       }}
                     >
-                      Delete project
+                      {t("deleteProject")}
                     </button>
                   </div>
                 </>
@@ -1211,27 +1365,82 @@ export default function ProjectKeywordsPage() {
         </div>
       </div>
 
-      {/* Stat tiles */}
-      <div className="grid g-3" style={{ marginBottom: 14 }}>
-        <div className="stat">
-          <div className="lbl">Keywords tracked</div>
-          <div className="val tabular">{stats.total.toLocaleString()}</div>
-          <span className="tiny muted">{stats.top3} in top 3</span>
-        </div>
-        <div className="stat">
-          <div className="lbl">Average position</div>
-          <div className="val tabular">{stats.avgPos ? stats.avgPos.toFixed(1) : "—"}</div>
+      {/* Stat strip — one card, divider-separated cells */}
+      <div className="card stat-strip" style={{ marginBottom: 14 }}>
+        <div className="cell">
+          <div className="lbl">{t("statSeoScore")}</div>
+          <div className="row" style={{ gap: 10, alignItems: "center" }}>
+            <div className="val tabular">{stats.seoScore ?? "—"}</div>
+            <ScoreGauge score={stats.seoScore} />
+          </div>
           <span className="tiny muted">
-            {stats.total > 0
-              ? `${stats.total - (statusCounts["FAILED"] || 0) - (statusCounts["NONE"] || 0)} ranked`
-              : "no data"}
+            {stats.seoScore != null ? t("avgKeywordScore") : t("runAnalysisToGrade")}
           </span>
         </div>
-        <div className="stat">
-          <div className="lbl">In top 10</div>
+        <div className="cell">
+          <div className="lbl">{t("keywordsTracked")}</div>
+          <div className="val tabular">{stats.total.toLocaleString()}</div>
+          <span className="tiny muted">{t("inTop3Count", { count: stats.top3 })}</span>
+        </div>
+        <div className="cell">
+          <div className="lbl">{t("avgPosition")}</div>
+          <div className="val tabular">{stats.avgPos ? stats.avgPos.toFixed(1) : "—"}</div>
+          {stats.avgPosD7 != null && Math.round(stats.avgPosD7 * 10) !== 0 ? (
+            <DeltaPill value={Math.round(stats.avgPosD7 * 10) / 10} format={(n) => n.toFixed(1)} />
+          ) : (
+            <span className="tiny muted">
+              {stats.total > 0
+                ? t("rankedCount", { count: stats.total - (statusCounts["FAILED"] || 0) - (statusCounts["NONE"] || 0) })
+                : t("noData")}
+            </span>
+          )}
+        </div>
+        <div className="cell">
+          <div className="lbl">{t("top3Keywords")}</div>
+          <div className="val tabular">{stats.top3.toLocaleString()}</div>
+          {stats.top3D7 != null && stats.top3D7 !== 0 ? (
+            <DeltaPill value={stats.top3D7} />
+          ) : (
+            <span className="tiny muted">
+              {stats.total ? `${Math.round((stats.top3 / stats.total) * 100)}%` : "—"}
+            </span>
+          )}
+        </div>
+        <div className="cell">
+          <div className="lbl">{t("inTop10")}</div>
           <div className="val tabular">{stats.top10.toLocaleString()}</div>
+          {stats.top10D7 != null && stats.top10D7 !== 0 ? (
+            <DeltaPill value={stats.top10D7} />
+          ) : (
+            <span className="tiny muted">
+              {stats.total ? `${Math.round((stats.top10 / stats.total) * 100)}%` : "—"}
+            </span>
+          )}
+        </div>
+        <div className="cell">
+          <div className="lbl">{t("estTraffic")}</div>
+          <div className="val tabular">
+            {stats.estTraffic > 0
+              ? stats.estTraffic >= 1000
+                ? `${(stats.estTraffic / 1000).toFixed(1)}K`
+                : stats.estTraffic.toLocaleString()
+              : "—"}
+          </div>
+          <span className="tiny muted">{t("monthlyModelled")}</span>
+        </div>
+        <div className="cell">
+          <div className="lbl">{t("backlinks")}</div>
+          <div className="val tabular">
+            {project.domainBacklinks != null
+              ? project.domainBacklinks >= 1000
+                ? `${(project.domainBacklinks / 1000).toFixed(1)}K`
+                : project.domainBacklinks.toLocaleString()
+              : "—"}
+          </div>
           <span className="tiny muted">
-            {stats.total ? `${Math.round((stats.top10 / stats.total) * 100)}%` : "—"}
+            {project.domainAuthority != null
+              ? t("domainAuthority", { n: project.domainAuthority })
+              : t("siteWide")}
           </span>
         </div>
       </div>
@@ -1262,44 +1471,13 @@ export default function ProjectKeywordsPage() {
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--warn)" }} />
           <div>
             <div className="b" style={{ fontSize: 13, color: "var(--warn)" }}>
-              {pendingCount} keyword{pendingCount !== 1 ? "s" : ""} {statusCounts["PROCESSING"] > 0 ? "checking" : "queued"}
+              {statusCounts["PROCESSING"] > 0
+                ? t("statusChecking", { count: pendingCount })
+                : t("statusQueued", { count: pendingCount })}
             </div>
             <div className="tiny" style={{ color: "var(--warn)", opacity: 0.8 }}>
-              {statusCounts["PENDING"] || 0} pending, {statusCounts["PROCESSING"] || 0} processing
+              {t("statusPendingProcessing", { pending: statusCounts["PENDING"] || 0, processing: statusCounts["PROCESSING"] || 0 })}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filter row */}
-      {project.keywords.length > 0 && (
-        <div className="filter-row">
-          <div style={{ position: "relative", width: 260 }}>
-            <span style={{ position: "absolute", left: 10, top: 9, color: "var(--text-mute)" }}><Icon.search /></span>
-            <input
-              className="input"
-              style={{ paddingLeft: 32 }}
-              placeholder="Search keywords or URLs…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
-          <div className="tiny muted spacer">
-            Showing {filtered.length} of {scoped.length}
-          </div>
-          <div className="pill-toggle" style={{ width: "fit-content" }}>
-            {(["desktop", "mobile"] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={deviceTab === d ? "active" : ""}
-                onClick={() => setDeviceTab(d)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                {d === "desktop" ? <Icon.monitor /> : <Icon.smartphone />}
-                {d === "desktop" ? "Desktop" : "Mobile"} ({deviceCounts[d]})
-              </button>
-            ))}
           </div>
         </div>
       )}
@@ -1316,36 +1494,115 @@ export default function ProjectKeywordsPage() {
           }}
         >
           <div className="eyebrow" style={{ justifyContent: "center" }}>
-            <span className="spark"><Icon.spark /></span> NO KEYWORDS YET
+            <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
           </div>
-          <div className="b" style={{ fontSize: 16, marginTop: 4 }}>Start tracking</div>
+          <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
           <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
-            Add keywords to this project to start tracking daily Google rankings.
+            {t("startTrackingDesc")}
           </div>
           <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-            <Icon.plus /> Add keywords
+            <Icon.plus /> {t("addKeywords")}
           </button>
         </div>
-      ) : filtered.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            padding: "40px 32px",
-            textAlign: "center",
-            border: "1px dashed var(--border-strong)",
-            background: "transparent",
-            color: "var(--text-mute)",
-            fontSize: 13,
-          }}
-        >
-          {filter.trim()
-            ? `No keywords match “${filter}”.`
-            : `No ${deviceTab} keywords yet — add some, or switch to ${deviceTab === "desktop" ? "Mobile" : "Desktop"}.`}
-        </div>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="kd-layout">
+          {/* Insight rail */}
+          <div className="col" style={{ gap: 14, minWidth: 0 }}>
+            <div className="card">
+              <div className="card-h"><div className="t">{t("keywordVisibility")}</div></div>
+              <div className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+                {stats.total ? `${Math.round((stats.top100 / stats.total) * 100)}%` : "—"}
+              </div>
+              <div className="tiny muted" style={{ marginTop: 4, marginBottom: 10 }}>
+                {t("visibilitySub", { device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile") })}
+              </div>
+              <div className="insight-row">
+                <span className="muted">{t("top3")}</span>
+                <span className="b tabular">{stats.top3}</span>
+              </div>
+              <div className="insight-row">
+                <span className="muted">{t("top10")}</span>
+                <span className="b tabular">{stats.top10}</span>
+              </div>
+              <div className="insight-row">
+                <span className="muted">{t("top100")}</span>
+                <span className="b tabular">{stats.top100}</span>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-h"><div className="t">{t("rankingsImproved")}</div></div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+                  {stats.gained}
+                </span>
+                <span className="tiny muted">{t("vs24h")}</span>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <div className="insight-row">
+                  <span className="muted">{t("gained")}</span>
+                  <span className="b tabular" style={{ color: "var(--pos)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {stats.gained} <Icon.arrowUp />
+                  </span>
+                </div>
+                <div className="insight-row">
+                  <span className="muted">{t("lost")}</span>
+                  <span className="b tabular" style={{ color: "var(--neg)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {stats.lost} <Icon.arrowDown />
+                  </span>
+                </div>
+                <div className="insight-row">
+                  <span className="muted">{t("noChange")}</span>
+                  <span className="b tabular" style={{ color: "var(--text-soft)" }}>{stats.noChange} →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SERP rank tracking */}
+          <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 0 }}>
+            <div className="serp-track-h">
+              <div className="b" style={{ fontSize: 14 }}>{t("serpRankTracking")}</div>
+              <div style={{ position: "relative", width: 240 }}>
+                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", color: "var(--text-mute)" }}><Icon.search /></span>
+                <input
+                  className="input"
+                  style={{ paddingLeft: 32, height: 34 }}
+                  placeholder={t("searchPlaceholder")}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+              </div>
+              <div className="tiny muted">
+                {t("showingOf", { n: filtered.length, total: scoped.length })}
+              </div>
+              <div className="pill-toggle" style={{ width: "fit-content", marginLeft: "auto" }}>
+                {(["desktop", "mobile"] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={deviceTab === d ? "active" : ""}
+                    onClick={() => setDeviceTab(d)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    {d === "desktop" ? <Icon.monitor /> : <Icon.smartphone />}
+                    {d === "desktop" ? t("deviceDesktop") : t("deviceMobile")} ({deviceCounts[d]})
+                  </button>
+                ))}
+              </div>
+            </div>
+            {filtered.length === 0 ? (
+              <div style={{ padding: "40px 32px", textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
+                {filter.trim()
+                  ? t("noMatch", { filter })
+                  : t("noDeviceKeywords", {
+                      device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile"),
+                      other: deviceTab === "desktop" ? t("deviceMobile") : t("deviceDesktop"),
+                    })}
+              </div>
+            ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl" style={{ minWidth: 1100 }}>
+            <table className="tbl" style={{ minWidth: 1080 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -1353,17 +1610,18 @@ export default function ProjectKeywordsPage() {
                       type="checkbox"
                       checked={filtered.length > 0 && filtered.every((kw) => selectedKeywords.has(kw.id))}
                       onChange={handleSelectAll}
-                      title="Select all keywords"
+                      title={t("colKeyword")}
                     />
                   </th>
-                  <SortHeader label="Keyword" k="kw" sort={sort} onClick={clickSort} />
-                  <SortHeader label="Position" k="pos" sort={sort} onClick={clickSort} />
-                  <th style={{ whiteSpace: "nowrap" }}>First check</th>
-                  <SortHeader label="Volume" k="vol" sort={sort} onClick={clickSort} />
-                  <th>URL</th>
-                  <SortHeader label="Keyword score" k="score" sort={sort} onClick={clickSort} />
-                  <SortHeader label="Last checked" k="checkedAt" sort={sort} onClick={clickSort} />
-                  <th>Actions</th>
+                  <SortHeader label={t("colKeyword")} k="kw" sort={sort} onClick={clickSort} />
+                  <SortHeader label={t("colPosition")} k="pos" sort={sort} onClick={clickSort} width={120} />
+                  <th style={{ whiteSpace: "nowrap", width: 100 }}>{t("colFirstCheck")}</th>
+                  <SortHeader label={t("colVolume")} k="vol" sort={sort} onClick={clickSort} width={100} />
+                  <th style={{ width: "22%" }}>{t("colUrl")}</th>
+                  <th style={{ width: 110, whiteSpace: "nowrap" }}>{t("colPageScore")}</th>
+                  <SortHeader label={t("colKeywordScore")} k="score" sort={sort} onClick={clickSort} width={130} />
+                  <SortHeader label={t("colLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={140} />
+                  <th style={{ width: 190, whiteSpace: "nowrap" }}>{t("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1390,29 +1648,25 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <span className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <span
-                            title={kw.location?.toUpperCase()}
-                            style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}
-                          >
-                            {flagFor(kw.location)}
-                          </span>
+                          <Flag code={kw.location} title={kw.location?.toUpperCase()} />
                           <span className="kw">{kw.keyword}</span>
                         </span>
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <PosCell position={kw.position} processing={isActive} />
-                          <DeltaCell
-                            from={kw.position != null && kw.d1 != null ? kw.position + kw.d1 : null}
-                            to={kw.position}
-                          />
+                          <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
+                          {/* Inline delta only when there was actual movement —
+                              a "—" placeholder next to the badge reads as clutter. */}
+                          {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (
+                            <DeltaCell from={kw.position + kw.d1} to={kw.position} />
+                          )}
                         </div>
                       </td>
                       <td>
-                        <PosCell position={kw.firstPosition} />
+                        <PosCell position={kw.firstPosition} checked={!!kw.checkedAt} />
                       </td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
-                      <td style={{ maxWidth: 180 }}>
+                      <td style={{ maxWidth: 320 }}>
                         {kw.url ? (
                           <a
                             href={kw.url}
@@ -1421,7 +1675,9 @@ export default function ProjectKeywordsPage() {
                             className="url"
                             onClick={(e) => e.stopPropagation()}
                             style={{
-                              display: "block",
+                              display: "inline-block",
+                              maxWidth: "100%",
+                              verticalAlign: "middle",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -1434,11 +1690,28 @@ export default function ProjectKeywordsPage() {
                         )}
                       </td>
                       <td>
+                        <AuditBadge
+                          score={kw.pageAuditScore}
+                          loading={auditingKwId === kw.id}
+                          onClick={
+                            kw.pageScoreUrl
+                              ? () => openAuditReport(kw.pageScoreUrl!, kw.id)
+                              : undefined
+                          }
+                        />
+                      </td>
+                      <td>
                         <ScoreBadge
                           score={kw.pageScore}
                           grade={kw.pageScoreGrade}
                           label={kw.pageScoreLabel}
                           onClick={() => openScore(kw.id)}
+                          emptyTitle="Not ranking yet — click to score a page for this keyword"
+                          onEmptyClick={() =>
+                            router.push(
+                              `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}`
+                            )
+                          }
                         />
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
@@ -1448,7 +1721,7 @@ export default function ProjectKeywordsPage() {
                               ? new Date(kw.checkedAt).toLocaleDateString("en-IN", {
                                   day: "2-digit", month: "short", year: "numeric",
                                 })
-                              : "Never"}
+                              : t("never")}
                           </span>
                           <StatusDot status={kw.status} />
                         </span>
@@ -1463,6 +1736,37 @@ export default function ProjectKeywordsPage() {
                             size={15}
                             style={{ width: 28, height: 28 }}
                           />
+                          <button
+                            onClick={() => handleRefreshKeyword(kw.id)}
+                            disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
+                            className="icon-btn"
+                            style={{ width: 28, height: 28 }}
+                            title="Refresh this keyword"
+                          >
+                            <Icon.refresh />
+                          </button>
+                          <button
+                            data-menu-trigger={kw.id}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (openMenuId === kw.id) {
+                                setOpenMenuId(null)
+                                setMenuPosition(null)
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuPosition({
+                                  top: rect.bottom + 4,
+                                  right: window.innerWidth - rect.right,
+                                })
+                                setOpenMenuId(kw.id)
+                              }
+                            }}
+                            className="icon-btn"
+                            style={{ width: 28, height: 28 }}
+                            title="Options"
+                          >
+                            <Icon.dots />
+                          </button>
                           {(kw.position === null || kw.position > 1) && (
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
@@ -1486,19 +1790,15 @@ export default function ProjectKeywordsPage() {
                                   ? "Open the latest competitor analysis for this keyword"
                                   : kw.position != null
                                     ? `Improve this keyword from #${kw.position} to #1`
-                                    : "Get this keyword ranking on page 1"
+                                    : "Improve this keyword from #100+ to #1"
                               }
                             >
-                              <Sparkles size={15}/> Rank
-                              {kw.position != null ? (
-                                <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                                  #{kw.position}
-                                  <span className="rank-arrow" style={{ opacity: 0.7, fontSize: "0.9em" }}>→</span>
-                                  <span style={{ fontWeight: 700 }}>#1</span>
-                                </span>
-                              ) : (
-                                <span>on page 1</span>
-                              )}
+                              {t("rank")}
+                              <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                {kw.position != null ? `#${kw.position}` : "#100+"}
+                                <span className="rank-arrow" style={{ opacity: 0.7, fontSize: "0.9em" }}>→</span>
+                                <span style={{ fontWeight: 700 }}>#1</span>
+                              </span>
                             </button>
                           )}
                           {/* Only shown for #1-ranked keywords — for everything
@@ -1512,39 +1812,9 @@ export default function ProjectKeywordsPage() {
                               className="btn sm"
                               style={{ whiteSpace: "nowrap" }}
                             >
-                              View analysis <Icon.chevR />
+                              {t("viewAnalysis")} <Icon.chevR />
                             </button>
                           )}
-                          <button
-                            onClick={() => handleRefreshKeyword(kw.id)}
-                            disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
-                            className="icon-btn"
-                            style={{ width: 28, height: 28 }}
-                            title="Refresh this keyword"
-                          >
-                            <Icon.refresh />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (openMenuId === kw.id) {
-                                setOpenMenuId(null)
-                                setMenuPosition(null)
-                              } else {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setMenuPosition({
-                                  top: rect.bottom + 4,
-                                  right: window.innerWidth - rect.right,
-                                })
-                                setOpenMenuId(kw.id)
-                              }
-                            }}
-                            className="icon-btn"
-                            style={{ width: 28, height: 28 }}
-                            title="Options"
-                          >
-                            <Icon.dots />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1553,18 +1823,19 @@ export default function ProjectKeywordsPage() {
               </tbody>
             </table>
           </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Row-action dropdown (rendered outside the table so it can escape
-          overflow:hidden and float on top). */}
+          overflow:hidden and float on top). Closed by the outside-pointerdown
+          listener below rather than a click-blocking overlay, so dismissing it
+          doesn't swallow the user's click. */}
       {openMenuId && menuPosition && (
         <>
           <div
-            style={{ position: "fixed", inset: 0, zIndex: 40 }}
-            onClick={() => { setOpenMenuId(null); setMenuPosition(null) }}
-          />
-          <div
+            data-kw-row-menu
             style={{
               position: "fixed",
               top: `${menuPosition.top}px`,
@@ -1597,7 +1868,7 @@ export default function ProjectKeywordsPage() {
                 cursor: "pointer",
               }}
             >
-              View details
+              {t("viewDetails")}
             </button>
             <button
               onClick={() => {
@@ -1623,7 +1894,7 @@ export default function ProjectKeywordsPage() {
                 cursor: "pointer",
               }}
             >
-              New Analysis
+              {t("newAnalysis")}
             </button>
             <button
               onClick={async () => {
@@ -1660,7 +1931,7 @@ export default function ProjectKeywordsPage() {
                 cursor: "pointer",
               }}
             >
-              Analysis history
+              {t("analysisHistory")}
             </button>
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
             <button
@@ -1682,7 +1953,7 @@ export default function ProjectKeywordsPage() {
                 cursor: "pointer",
               }}
             >
-              Delete
+              {t("delete")}
             </button>
           </div>
         </>
@@ -2007,7 +2278,7 @@ export default function ProjectKeywordsPage() {
                 style={{ marginTop: 6, background: "var(--brand-soft)", borderColor: "var(--brand)", color: "var(--brand)" }}
               >
                 <div className="b" style={{ fontSize: 18 }}>
-                  {tempFrequency === "off" ? "Off (no schedule)" : freqLabel(tempFrequency)}
+                  {tempFrequency === "off" ? t("freqOff") : freqLabel(tempFrequency, t)}
                 </div>
               </div>
               <div className="tiny muted" style={{ marginTop: 10 }}>
@@ -2029,22 +2300,70 @@ export default function ProjectKeywordsPage() {
   )
 }
 
+// Semi-circle score gauge for the stat strip. Color + label follow the same
+// grade bands as the keyword-score badges (green / amber / red).
+function ScoreGauge({ score }: { score: number | null }) {
+  const color =
+    score == null
+      ? "var(--border-strong)"
+      : score >= 70
+        ? "var(--pos)"
+        : score >= 40
+          ? "var(--warn)"
+          : "var(--neg)"
+  const label =
+    score == null ? "No data" : score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Poor"
+  const C = Math.PI * 30 // semicircle length for r=30
+  const filled = ((score ?? 0) / 100) * C
+  return (
+    <svg width="76" height="48" viewBox="0 0 76 48" aria-label={`SEO score ${score ?? "unknown"} — ${label}`}>
+      <path d="M 8 42 A 30 30 0 0 1 68 42" fill="none" stroke="var(--bg-inset)" strokeWidth="8" strokeLinecap="round" />
+      {score != null && (
+        <path
+          d="M 8 42 A 30 30 0 0 1 68 42"
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${C + 10}`}
+        />
+      )}
+      <text x="38" y="42" textAnchor="middle" fontSize="10" fill="var(--text-mute)">{label}</text>
+    </svg>
+  )
+}
+
+// Green/red movement pill under a stat (↑ 6.3). Renders nothing without real
+// movement — no fabricated deltas.
+function DeltaPill({ value, format }: { value: number | null; format?: (n: number) => string }) {
+  if (value == null || value === 0) return null
+  const up = value > 0
+  const text = format ? format(Math.abs(value)) : Math.abs(value).toLocaleString()
+  return (
+    <span className={"delta " + (up ? "up" : "down")}>
+      {up ? <Icon.arrowUp /> : <Icon.arrowDown />} {text}
+    </span>
+  )
+}
+
 function SortHeader({
   label,
   k,
   sort,
   onClick,
+  width,
 }: {
   label: string
   k: SortKey
   sort: { key: SortKey; dir: "asc" | "desc" }
   onClick: (k: SortKey) => void
+  width?: number | string
 }) {
   const active = sort.key === k
   return (
     <th
       onClick={() => onClick(k)}
-      style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+      style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", width }}
     >
       {label}
       {active && <span style={{ color: "var(--brand)", marginLeft: 4 }}>{sort.dir === "asc" ? "↑" : "↓"}</span>}

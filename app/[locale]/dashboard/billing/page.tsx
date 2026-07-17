@@ -183,7 +183,7 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div className="page" style={{ maxWidth: 1040 }}>
+      <div className="page">
         {Header}
         <div className="grid g-4" style={{ marginBottom: 16 }}>
           {[0, 1, 2, 3].map((i) => <div key={i} className="placeholder" style={{ height: 76 }} />)}
@@ -199,7 +199,7 @@ export default function BillingPage() {
 
   if (error) {
     return (
-      <div className="page" style={{ maxWidth: 1040 }}>
+      <div className="page">
         {Header}
         <div className="card" style={{ textAlign: "center", padding: 40 }}>
           <span className="chip neg" style={{ marginBottom: 12 }}>{t("loadErrorChip")}</span>
@@ -215,7 +215,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="page" style={{ maxWidth: 1040 }}>
+    <div className="page">
       {/* Header */}
       {Header}
 

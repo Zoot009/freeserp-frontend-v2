@@ -65,9 +65,14 @@ export function PosBadge({ pos }: { pos: number | null | undefined }) {
 export function PosCell({
   position,
   processing = false,
+  checked = true,
 }: {
   position: number | null | undefined
   processing?: boolean
+  /** Whether a rank check has actually completed for this keyword. When false
+      and there's no position, render "—" (not checked yet) instead of "100+"
+      (checked, not in the top 100) — they mean very different things. */
+  checked?: boolean
 }) {
   const t = useTranslations("dashPrimitives")
   if (processing) {
@@ -93,6 +98,13 @@ export function PosCell({
   }
   if (position != null && Number.isFinite(position)) {
     return <PosBadge pos={position} />
+  }
+  if (!checked) {
+    return (
+      <span className="tiny muted" title="Not checked yet">
+        —
+      </span>
+    )
   }
   return (
     <span

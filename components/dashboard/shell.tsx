@@ -10,6 +10,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [navOpen, setNavOpen] = useState(false)
+  // Desktop sidebar collapse (icon-only rail). Persisted per browser; read in
+  // an effect so SSR and the first client render agree (expanded).
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("fs-sb-collapsed") === "1")
+  }, [])
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      localStorage.setItem("fs-sb-collapsed", c ? "0" : "1")
+      return !c
+    })
 
   useEffect(() => {
     if (!loading && !user) router.push("/login")
@@ -21,7 +32,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="fs-app">
+      <div className="fs-app" translate="no">
         <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
           Loading…
         </div>
@@ -30,9 +41,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="fs-app">
-      <div className="app">
-        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+    <div className="fs-app" translate="no">
+      <div className={"app" + (collapsed ? " sb-collapsed" : "")}>
+        <Sidebar
+          open={navOpen}
+          onClose={() => setNavOpen(false)}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+        />
         <div
           className="sb-overlay"
           data-open={navOpen}

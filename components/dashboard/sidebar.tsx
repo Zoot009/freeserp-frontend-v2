@@ -27,12 +27,17 @@ const TOOLS: NavEntry[] = [
   { href: "/dashboard/billing", labelKey: "settings", icon: Icon.settings },
 ]
 
-function NavLink({ entry, label, active, onNavigate }: { entry: NavEntry; label: string; active: boolean; onNavigate?: () => void }) {
+function NavLink({ entry, label, active, onNavigate, collapsed }: { entry: NavEntry; label: string; active: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   const I = entry.icon
   return (
-    <Link href={entry.href} className={"sb-item " + (active ? "active" : "")} onClick={onNavigate}>
+    <Link
+      href={entry.href}
+      className={"sb-item " + (active ? "active" : "")}
+      onClick={onNavigate}
+      title={collapsed ? label : undefined}
+    >
       <I />
-      {label}
+      <span className="sb-label">{label}</span>
       {entry.badge != null && <span className="badge">{entry.badge}</span>}
     </Link>
   )
@@ -43,7 +48,17 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/")
 }
 
-export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
+export function Sidebar({
+  open = false,
+  onClose,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  open?: boolean
+  onClose?: () => void
+  collapsed?: boolean
+  onToggleCollapse?: () => void
+}) {
   const pathname = usePathname() || ""
   const router = useRouter()
   const t = useTranslations("dashboardNav")
@@ -80,17 +95,30 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="sb-brand">
         <span className="spark"><Icon.spark size={16} /></span>
-        FreeSerp
+        <span className="sb-label">FreeSerp</span>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sb-collapse"
+            onClick={onToggleCollapse}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <span style={{ display: "inline-flex", transform: collapsed ? "none" : "rotate(180deg)", transition: "transform .18s ease" }}>
+              <Icon.chevR />
+            </span>
+          </button>
+        )}
       </div>
 
       <div className="sb-section">{t("workspace")}</div>
       {WORKSPACE.map((n) => (
-        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} />
+        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} collapsed={collapsed} />
       ))}
 
       <div className="sb-section">{t("tools")}</div>
       {TOOLS.map((n) => (
-        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} />
+        <NavLink key={n.href} entry={n} label={t(n.labelKey)} active={isActive(n.href, pathname)} onNavigate={onClose} collapsed={collapsed} />
       ))}
 
       <div className="sb-spacer" />
@@ -104,45 +132,46 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       )}
 
       <div className="sb-user" ref={menuRef} style={{ position: "relative" }}>
-        <div className="avatar">{initials}</div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user?.name || user?.email?.split("@")[0] || t("guest")}
-          </div>
-          <div className="plan">{planLabel}</div>
-        </div>
-        <button
-          type="button"
-          aria-label={t("accountMenu")}
+        {/* When collapsed only the avatar remains visible, so it doubles as the
+            account-menu trigger. */}
+        <div
+          className="avatar"
           onClick={() => setMenuOpen((o) => !o)}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "var(--text-mute)",
-            padding: 4,
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            borderRadius: 6,
-          }}
+          style={{ cursor: "pointer" }}
+          title={collapsed ? (user?.name || user?.email || undefined) : undefined}
         >
-          <Icon.dots />
-        </button>
+          {initials}
+        </div>
+        {!collapsed && (
+          <>
+            <div className="sb-user-info" style={{ minWidth: 0, flex: 1 }}>
+              <div className="name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {user?.name || user?.email?.split("@")[0] || t("guest")}
+              </div>
+              <div className="plan">{planLabel}</div>
+            </div>
+            <button
+              type="button"
+              className="sb-user-dots"
+              aria-label={t("accountMenu")}
+              onClick={() => setMenuOpen((o) => !o)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-mute)",
+                padding: 4,
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 6,
+              }}
+            >
+              <Icon.dots />
+            </button>
+          </>
+        )}
         {menuOpen && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "calc(100% + 6px)",
-              right: 8,
-              left: 8,
-              background: "var(--bg-elev)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--r-md)",
-              boxShadow: "var(--shadow-md)",
-              padding: 4,
-              zIndex: 40,
-            }}
-          >
+          <div className="sb-user-menu">
             <Link href="/dashboard/billing">
               <button
                 type="button"

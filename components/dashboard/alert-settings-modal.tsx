@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { Switch } from "@/components/ui/switch"
 import { Icon } from "@/components/dashboard/icons"
+import { Dropdown } from "@/components/dashboard/dropdown"
 
 // Per-project rank-change alert settings. Mirrors the backend
 // notificationSettingsSchema (GET/PATCH /api/projects/:id/notification-settings).
@@ -189,17 +190,17 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
                 label="Frequency"
                 hint={settings.email ? "How often the report digest is emailed." : "Add an email address above to receive it."}
               >
-                <select
+                <Dropdown
                   value={settings.reportDigestFrequency}
                   disabled={!settings.reportDigestEnabled}
-                  onChange={(e) => patch({ reportDigestFrequency: e.target.value as DigestFrequency })}
-                  className="input"
-                  style={{ fontSize: 13, padding: "6px 8px" }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
+                  options={[
+                    { value: "daily", label: "Daily" },
+                    { value: "weekly", label: "Weekly" },
+                    { value: "monthly", label: "Monthly" },
+                  ]}
+                  onChange={(v) => patch({ reportDigestFrequency: v as DigestFrequency })}
+                  ariaLabel="Report digest frequency"
+                />
               </Row>
 
               {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}

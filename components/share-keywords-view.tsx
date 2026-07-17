@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
-import { flagFor } from "@/lib/locations"
+import { Flag } from "@/components/flag"
 import { PosCell, DeltaCell, type SerpFeatures } from "@/components/dashboard/primitives"
 
 // Read-only keyword shape served by the public share endpoint
@@ -145,7 +145,7 @@ export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
   }, [scoped, filter])
 
   return (
-    <div className="fs-app" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
+    <div className="fs-app" translate="no" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "clamp(20px, 4vw, 28px) clamp(14px, 4vw, 24px) 64px" }}>
         {/* Header */}
         <div className="page-h" style={{ alignItems: "flex-start" }}>
@@ -260,23 +260,22 @@ export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
                       <tr key={kw.id} style={isActive ? { background: "var(--warn-soft)" } : undefined}>
                         <td>
                           <span className="row" style={{ gap: 8, alignItems: "center" }}>
-                            <span title={kw.location?.toUpperCase()} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>
-                              {flagFor(kw.location)}
-                            </span>
+                            <Flag code={kw.location} title={kw.location?.toUpperCase()} />
                             <span className="kw">{kw.keyword}</span>
                           </span>
                         </td>
                         <td>
                           <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                            <PosCell position={kw.position} processing={isActive} />
-                            <DeltaCell
-                              from={kw.position != null && kw.d1 != null ? kw.position + kw.d1 : null}
-                              to={kw.position}
-                            />
+                            <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
+                            {/* Inline delta only when there was actual movement —
+                                a "—" placeholder next to the badge reads as clutter. */}
+                            {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (
+                              <DeltaCell from={kw.position + kw.d1} to={kw.position} />
+                            )}
                           </div>
                         </td>
                         <td>
-                          <PosCell position={kw.firstPosition} />
+                          <PosCell position={kw.firstPosition} checked={!!kw.checkedAt} />
                         </td>
                         <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
                         <td style={{ maxWidth: 220 }}>
