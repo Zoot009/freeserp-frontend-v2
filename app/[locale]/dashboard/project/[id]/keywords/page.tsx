@@ -184,7 +184,14 @@ const SCORE_CATEGORIES: { key: keyof KeywordScoreBreakdown; label: string; max: 
   { key: "headings", label: "Headings", max: 15 },
 ]
 
-function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle }: { score: number | null; grade?: string | null; label: string | null; onClick?: () => void; onEmptyClick?: () => void; emptyTitle?: string }) {
+function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }: { score: number | null; grade?: string | null; label: string | null; onClick?: () => void; onEmptyClick?: () => void; emptyTitle?: string; loading?: boolean }) {
+  if (loading) {
+    return (
+      <span className="tiny muted" title="Opening detailed report…">
+        <span className="spin" style={{ display: "inline-block", width: 13, height: 13, borderRadius: "50%", border: "2px solid var(--border-strong)", borderTopColor: "var(--brand)", boxSizing: "border-box", verticalAlign: "middle" }} />
+      </span>
+    )
+  }
   if (score == null) {
     // Unscored (keyword not ranking) → the "—" becomes a call-to-action that
     // sends the user to the Keyword Score Checker to designate a page manually.
@@ -214,7 +221,7 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle }: { score
   const clickable = !!onClick
   return (
     <span
-      title={`Page audit score${label ? ` — ${label}` : ""}${clickable ? " — click for breakdown" : ""}`}
+      title={`Keyword score${label ? ` — ${label}` : ""}${clickable ? " — click to view in detail" : ""}`}
       className="tabular"
       onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
       role={clickable ? "button" : undefined}
@@ -710,6 +717,27 @@ export default function ProjectKeywordsPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to open the audit report.")
       setAuditingKwId(null)
+    }
+  }
+
+  // Keyword score click (ranking keyword) → open the full detailed Keyword Score
+  // Checker report for the keyword + its ranking page, instead of the compact
+  // modal. Reuses a recent analysis for the same url+keyword so repeated clicks
+  // don't re-pay for the crawl.
+  const [openingReportKwId, setOpeningReportKwId] = useState<string | null>(null)
+  const openKeywordReport = async (kw: Keyword) => {
+    if (openingReportKwId) return
+    if (!kw.pageScoreUrl) { openScore(kw.id); return } // no ranking page → fall back to the modal
+    setOpeningReportKwId(kw.id)
+    try {
+      const res = await api.post<{ analysis: { id: string } }>("/api/keyword-analysis/open", {
+        keyword: kw.keyword,
+        url: kw.pageScoreUrl,
+      })
+      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to open the detailed report.")
+      setOpeningReportKwId(null)
     }
   }
 
@@ -1482,30 +1510,9 @@ export default function ProjectKeywordsPage() {
         </div>
       )}
 
-      {/* Keywords table */}
-      {project.keywords.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            padding: "60px 32px",
-            textAlign: "center",
-            border: "1px dashed var(--border-strong)",
-            background: "transparent",
-          }}
-        >
-          <div className="eyebrow" style={{ justifyContent: "center" }}>
-            <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
-          </div>
-          <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
-          <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }}>
-            {t("startTrackingDesc")}
-          </div>
-          <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-            <Icon.plus /> {t("addKeywords")}
-          </button>
-        </div>
-      ) : (
-        <div className="kd-layout">
+      {/* Keywords table — the insight rail always shows (even before any
+          keywords exist); the right column is the empty state or the table. */}
+      <div className="kd-layout">
           {/* Insight rail */}
           <div className="col" style={{ gap: 14, minWidth: 0 }}>
             <div className="card">
@@ -1559,7 +1566,35 @@ export default function ProjectKeywordsPage() {
             </div>
           </div>
 
-          {/* SERP rank tracking */}
+          {/* Right column — empty "Start tracking" state before any keywords
+              exist, otherwise the SERP rank-tracking table. */}
+          {project.keywords.length === 0 ? (
+            <div
+              className="card"
+              style={{
+                padding: "60px 32px",
+                textAlign: "center",
+                border: "1px dashed var(--border-strong)",
+                background: "transparent",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 300,
+              }}
+            >
+              <div className="eyebrow" style={{ justifyContent: "center" }}>
+                <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
+              </div>
+              <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
+              <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
+                {t("startTrackingDesc")}
+              </div>
+              <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                <Icon.plus /> {t("addKeywords")}
+              </button>
+            </div>
+          ) : (
           <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 0 }}>
             <div className="serp-track-h">
               <div className="b" style={{ fontSize: 14 }}>{t("serpRankTracking")}</div>
@@ -1705,7 +1740,8 @@ export default function ProjectKeywordsPage() {
                           score={kw.pageScore}
                           grade={kw.pageScoreGrade}
                           label={kw.pageScoreLabel}
-                          onClick={() => openScore(kw.id)}
+                          loading={openingReportKwId === kw.id}
+                          onClick={() => openKeywordReport(kw)}
                           emptyTitle="Not ranking yet — click to score a page for this keyword"
                           onEmptyClick={() =>
                             router.push(
@@ -1825,8 +1861,8 @@ export default function ProjectKeywordsPage() {
           </div>
             )}
           </div>
+          )}
         </div>
-      )}
 
       {/* Row-action dropdown (rendered outside the table so it can escape
           overflow:hidden and float on top). Closed by the outside-pointerdown

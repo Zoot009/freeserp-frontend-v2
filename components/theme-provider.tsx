@@ -2,20 +2,20 @@
 
 import * as React from 'react'
 
-// Minimal, dependency-free theme provider (replaces next-themes).
+// Cookie-based theme provider (replaces next-themes) — no rendered <script>.
 //
-// Why not next-themes? Its provider renders a raw <script> element inside the
-// React tree to set the theme before paint. React 19 / Next 16 flags every
-// rendered <script> with "Encountered a script tag while rendering React
-// component…" on client renders (fires on every navigation). We only need a
-// light/dark class toggle with no system-theme detection, so this hand-rolled
-// context does the job with zero rendered scripts. The pre-paint anti-flash is
-// handled once by a `next/script` (beforeInteractive) in the locale layout —
-// see ThemeInitScript below — which Next injects specially and does NOT flag.
+// The anti-flash trick: the theme is stored in a cookie, and the SERVER layout
+// reads it and stamps the correct `class` on <html> in the initial HTML. So
+// there is no flash of the wrong theme AND no client-side script to inject —
+// which is what React 19 / Next 16 flags with "Encountered a script tag while
+// rendering React component…" (it flags every rendered <script>, including
+// next-themes' and next/script's beforeInteractive one). This provider only
+// manages runtime toggling: it writes the cookie + class on setTheme.
 
 type Theme = 'light' | 'dark'
 
-const STORAGE_KEY = 'theme'
+const COOKIE = 'theme'
+const ONE_YEAR = 60 * 60 * 24 * 365
 
 interface ThemeContextValue {
   theme: Theme
@@ -25,11 +25,6 @@ interface ThemeContextValue {
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null)
 
-// The inline program the anti-flash script runs (also reused on client-side
-// theme changes). Kept as a plain string so it can be serialized verbatim into
-// the beforeInteractive script.
-export const THEME_INIT_JS = `(function(){try{var t=localStorage.getItem('${STORAGE_KEY}');if(t!=='light'&&t!=='dark')t='light';var e=document.documentElement;e.classList.remove('light','dark');e.classList.add(t);e.style.colorScheme=t;}catch(_){document.documentElement.classList.add('light');document.documentElement.style.colorScheme='light';}})();`
-
 function applyTheme(t: Theme) {
   const el = document.documentElement
   el.classList.remove('light', 'dark')
@@ -37,36 +32,31 @@ function applyTheme(t: Theme) {
   el.style.colorScheme = t
 }
 
-// Accepts (and ignores) the next-themes-style props the layout still passes
-// (attribute / enableSystem / enableColorScheme / disableTransitionOnChange)
-// so the call site didn't need to change. Only `defaultTheme` is honored.
+function readCookieTheme(): Theme | null {
+  if (typeof document === 'undefined') return null
+  const m = document.cookie.match(/(?:^|;\s*)theme=(light|dark)/)
+  return m ? (m[1] as Theme) : null
+}
+
+// `initialTheme` comes from the server (cookie) so state matches the SSR class
+// with no flash. Extra next-themes-style props are accepted and ignored so the
+// layout call site didn't need to change.
 export function ThemeProvider({
   children,
-  defaultTheme = 'light',
+  initialTheme = 'light',
 }: {
   children: React.ReactNode
-  defaultTheme?: Theme
+  initialTheme?: Theme
   attribute?: string
+  defaultTheme?: string
   enableSystem?: boolean
   enableColorScheme?: boolean
   disableTransitionOnChange?: boolean
 }) {
-  const [theme, setThemeState] = React.useState<Theme>(defaultTheme)
-
-  // On mount, adopt whatever the pre-paint script already applied (localStorage)
-  // so React state matches the DOM without causing a flash.
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored === 'light' || stored === 'dark') setThemeState(stored)
-    } catch {
-      /* localStorage blocked — stay on defaultTheme */
-    }
-  }, [])
+  const [theme, setThemeState] = React.useState<Theme>(initialTheme)
 
   const setTheme = React.useCallback((next: Theme) => {
-    // Suppress the whole-page transition sweep during the switch (mirrors
-    // next-themes' disableTransitionOnChange).
+    // Suppress the whole-page transition sweep during the switch.
     const style = document.createElement('style')
     style.appendChild(
       document.createTextNode('*,*::before,*::after{transition:none !important}'),
@@ -74,24 +64,34 @@ export function ThemeProvider({
     document.head.appendChild(style)
 
     setThemeState(next)
-    try {
-      localStorage.setItem(STORAGE_KEY, next)
-    } catch {
-      /* ignore */
-    }
+    document.cookie = `${COOKIE}=${next}; path=/; max-age=${ONE_YEAR}; samesite=lax`
     applyTheme(next)
 
     // Force a reflow so the "no transitions" style takes effect, then restore.
     ;(() => window.getComputedStyle(document.body).opacity)()
     requestAnimationFrame(() => {
-      document.head.removeChild(style)
+      style.remove()
     })
   }, [])
 
-  // Keep the DOM class in sync with state (covers the mount-time adoption above).
+  // One-time migration: users who had a theme in localStorage (from the old
+  // next-themes setup) but no cookie yet get it adopted + written to the cookie.
   React.useEffect(() => {
-    applyTheme(theme)
-  }, [theme])
+    if (readCookieTheme()) return
+    try {
+      const legacy = localStorage.getItem('theme')
+      if (legacy === 'dark' || legacy === 'light') {
+        setTheme(legacy)
+        return
+      }
+    } catch {
+      /* localStorage blocked */
+    }
+    // No cookie yet — persist the current (server-provided) theme so future SSR
+    // renders read it.
+    document.cookie = `${COOKIE}=${theme}; path=/; max-age=${ONE_YEAR}; samesite=lax`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const value = React.useMemo<ThemeContextValue>(
     () => ({ theme, resolvedTheme: theme, setTheme }),
@@ -102,8 +102,7 @@ export function ThemeProvider({
 }
 
 // Drop-in replacement for next-themes' useTheme (theme / resolvedTheme /
-// setTheme). No system theme, so resolvedTheme === theme. Falls back gracefully
-// when used outside the provider.
+// setTheme). No system theme, so resolvedTheme === theme.
 export function useTheme(): ThemeContextValue {
   const ctx = React.useContext(ThemeContext)
   if (!ctx) {

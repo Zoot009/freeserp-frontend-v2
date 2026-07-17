@@ -223,7 +223,7 @@ function ResetPasswordForm() {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <LanguageSwitcher className="text-slate-600" />
+            <LanguageSwitcher className="text-slate-600 light" />
             <p className="text-sm text-slate-500">
               {t("rememberIt")}{" "}
               <Link href="/login" className="text-blue-600 font-medium hover:text-blue-700">

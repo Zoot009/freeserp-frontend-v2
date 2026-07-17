@@ -184,7 +184,7 @@ export default function VerifyEmailPage() {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <LanguageSwitcher className="text-slate-600" />
+            <LanguageSwitcher className="text-slate-600 light" />
             <p className="text-sm text-slate-500">
               {t("wrongAccount")}{" "}
               {/* Must end the current unverified session first, or the login page

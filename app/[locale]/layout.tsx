@@ -2,6 +2,7 @@ import type React from "react"
 import { Suspense } from "react"
 import type { Metadata, Viewport } from "next"
 import { notFound } from "next/navigation"
+import { cookies } from "next/headers"
 import { Bebas_Neue } from "next/font/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
@@ -13,7 +14,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server"
 import { SmoothScroll } from "@/components/smooth-scroll"
 import { AuthProvider } from "@/lib/auth"
 import { TutorialProvider } from "@/lib/tutorial"
-import { ThemeProvider, THEME_INIT_JS } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollProgress } from "@/components/scroll-progress"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
@@ -118,22 +119,22 @@ export default async function LocaleLayout({
 
   const tCommon = await getTranslations("common")
 
+  // Theme anti-flash, done server-side: read the theme cookie and stamp the
+  // class on <html> in the initial HTML. No client <script> is rendered, so
+  // React 19 / Next 16 never emits the "script tag while rendering React
+  // component" warning, and there is no flash of the wrong theme. The client
+  // ThemeProvider (components/theme-provider.tsx) only handles runtime toggling.
+  const themeCookie = (await cookies()).get("theme")?.value
+  const theme = themeCookie === "dark" ? "dark" : "light"
+
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang={locale} className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
       <body
         className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >
-        {/* Theme anti-flash — sets the light/dark class on <html> before paint.
-            Loaded via next/script (beforeInteractive) rather than a raw inline
-            <script> so it isn't a rendered React element: React 19 / Next 16 flag
-            every rendered <script> with "scripts inside React components are never
-            executed…". Our custom ThemeProvider (components/theme-provider.tsx)
-            then adopts this state on mount — no next-themes, no flagged script. */}
-        <Script id="theme-init" strategy="beforeInteractive">
-          {THEME_INIT_JS}
-        </Script>
-        {/* Google Tag Manager — loaded via next/script (same reason as above:
-            avoids the raw-inline-<script> React 19 warning). */}
+        {/* Google Tag Manager — loaded via next/script (afterInteractive is
+            injected imperatively, so unlike a rendered inline/beforeInteractive
+            <script> it doesn't trigger React 19's script-tag warning). */}
         <Script id="gtm" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MG3XS6F6');`}
         </Script>
@@ -151,7 +152,7 @@ export default async function LocaleLayout({
           <a href="#main-content" className="skip-to-content">
             {tCommon("skipToContent")}
           </a>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} enableColorScheme disableTransitionOnChange>
+          <ThemeProvider initialTheme={theme}>
             {/* Page-wide background glow — fixed so it doesn't scroll */}
             <div aria-hidden="true" className="app-grid-glow" />
             <div className="noise-overlay" aria-hidden="true" />
