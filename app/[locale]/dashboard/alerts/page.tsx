@@ -27,6 +27,7 @@ const TYPE_META: Record<string, { labelKey: string; tone: "up" | "down" | "neutr
   SERP_FEATURE_LOST: { labelKey: "SERP_FEATURE_LOST", tone: "down" },
   BUDGET_CAP_HIT: { labelKey: "BUDGET_CAP_HIT", tone: "down" },
   DAILY_QUOTA_HIT: { labelKey: "DAILY_QUOTA_HIT", tone: "down" },
+  PAYMENT_FAILED: { labelKey: "PAYMENT_FAILED", tone: "down" },
 }
 
 function toneColor(tone: "up" | "down" | "neutral"): string {

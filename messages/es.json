@@ -267,7 +267,7 @@
     "subtitle": "Empieza gratis. Agrega workers cuando necesites más comprobaciones de ranking, automatización y análisis de IA completo.",
     "freeTitle": "Gratis",
     "perMonth": "/mes",
-    "freeForever": "Para siempre. Sin tarjeta, sin prueba.",
+    "freeForever": "3 comprobaciones para probar — sin tarjeta.",
     "currentPlan": "Plan actual",
     "freePlan": "Plan gratis",
     "workers": "Workers",
@@ -286,9 +286,9 @@
     "errorFailedStartCheckout": "No se pudo iniciar el pago",
     "errorCheckoutUrlMissing": "Falta la URL de pago",
     "errorCheckoutFailed": "Error en el pago",
-    "limitsReset": "Los límites diarios se reinician a medianoche (IST). Cancela cuando quieras desde el portal de cliente de tu proveedor de pagos.",
+    "limitsReset": "Los límites diarios se restablecen a medianoche (UTC). Cancela cuando quieras desde el portal de tu proveedor de pago.",
     "freeFeatures": [
-      "3 comprobaciones de ranking / día",
+      "3 comprobaciones de ranking gratis (prueba de 7 días)",
       "Solo comprobaciones manuales",
       "1 análisis de IA completo / día",
       "Análisis de enlaces internos: tu sitio + 1 competidor",
@@ -296,7 +296,7 @@
     ],
     "paidFeatures": [
       "Comprobaciones recurrentes automatizadas",
-      "Análisis de IA ilimitado (todas las secciones)",
+      "Análisis con IA de todas las secciones — 2/día por worker",
       "Análisis de enlaces internos para TODOS los competidores",
       "Soporte prioritario"
     ],
@@ -311,15 +311,19 @@
     "faq": [
       {
         "q": "¿Qué es una comprobación de ranking?",
-        "a": "Una palabra clave × una ubicación × un dispositivo, obtenida directamente de Google. Se almacena históricamente para que puedas seguir el movimiento a lo largo del tiempo."
+        "a": "Una keyword × una ubicación × un dispositivo, obtenida en fresco de Google y guardada históricamente para seguir los movimientos. Las comprobaciones programadas y las búsquedas Quick SERP cuentan 1 cada una; las comprobaciones instantáneas (prioritarias) cuentan 2 porque saltan la cola."
       },
       {
         "q": "¿Las comprobaciones no usadas se acumulan?",
-        "a": "No — los límites diarios se reinician a medianoche (IST). Cada worker añade 15 comprobaciones de ranking/día; agrega más workers cuando quieras para escalar tu capacidad diaria."
+        "a": "No — los límites diarios se restablecen a medianoche (UTC). Cada worker añade 15 comprobaciones/día; añade más workers cuando quieras."
       },
       {
         "q": "¿Qué es un worker?",
-        "a": "Un worker es una unidad de capacidad de búsqueda diaria: 1 worker = 15 comprobaciones de ranking/día por $1/mes. ¿Necesitas más? Agrega workers — 3 workers = 45 comprobaciones/día por $3/mes. Puedes cambiar tu número de workers cuando quieras y prorrateamos la diferencia."
+        "a": "Un worker es una unidad de capacidad diaria: 1 worker = 15 comprobaciones/día por 1 $/mes, desde 5 workers (5 $/mes = 75 comprobaciones/día). Puedes cambiar tu número de workers cuando quieras y prorrateamos la diferencia."
+      },
+      {
+        "q": "¿Hay facturación anual?",
+        "a": "Sí — paga 10 $ al año por worker en lugar de 12 $ (unos 2 meses gratis). Elige “Anual” en la tarjeta de precios antes del pago."
       },
       {
         "q": "¿Puedo cancelar cuando quiera?",
@@ -336,9 +340,9 @@
     "compareWorkers": "Workers",
     "compareRows": [
       {
-        "feature": "Comprobaciones de ranking por día",
-        "free": "3",
-        "paid": "15 / worker"
+        "feature": "Comprobaciones de ranking",
+        "free": "3 en total (prueba de 7 días)",
+        "paid": "15 / día / worker"
       },
       {
         "feature": "Comprobaciones automáticas recurrentes",
@@ -348,7 +352,7 @@
       {
         "feature": "Análisis de competencia con IA",
         "free": "1 / día",
-        "paid": "Ilimitado"
+        "paid": "2 / día / worker"
       },
       {
         "feature": "Análisis de enlaces internos",
@@ -373,7 +377,15 @@
     "errorSaveFailed": "No se pudieron actualizar tus workers",
     "ctaTitle": "¿Listo para posicionar mejor?",
     "ctaSubtitle": "Empieza gratis — sin tarjeta. Añade workers en cuanto necesites más.",
-    "ctaButton": "Empezar"
+    "ctaButton": "Empezar",
+    "intervalMonthly": "Mensual",
+    "intervalAnnual": "Anual",
+    "perYear": "/año",
+    "annualSavings": "2 meses gratis",
+    "annualUnavailable": "La facturación anual aún no está disponible en tu región — volvimos a mensual.",
+    "billedAnnually": "Facturación anual vía <b>Stripe</b>.",
+    "perWorkerEachYear": "{searches}/día · {price} $/año cada uno",
+    "getWorkersYear": "Obtener {workers, plural, one {# worker} other {# workers}} — {price} $/año →"
   },
   "billingResult": {
     "eyebrow": "Pago",
@@ -478,7 +490,8 @@
       "SERP_FEATURE_GAINED": "Función SERP ganada",
       "SERP_FEATURE_LOST": "Función SERP perdida",
       "BUDGET_CAP_HIT": "Presupuesto diario alcanzado",
-      "DAILY_QUOTA_HIT": "Límite diario de verificaciones alcanzado"
+      "DAILY_QUOTA_HIT": "Límite diario de verificaciones alcanzado",
+      "PAYMENT_FAILED": "Pago fallido"
     }
   },
   "dashBilling": {
@@ -512,14 +525,14 @@
     "usageLineFreeExhausted": "Tu prueba gratuita única ha terminado · <link>Suscríbete</link> para seguir comprobando.",
     "upgradePerks": [
       "Comprobaciones de ranking recurrentes y automáticas",
-      "Análisis de IA ilimitado (todas las secciones)",
+      "Análisis con IA de todas las secciones — 2/día por worker",
       "Análisis de enlaces internos para todos los competidores",
       "Escala la capacidad con workers — 15 comprobaciones/día cada uno"
     ],
     "upgrade": "Mejorar →",
     "removeWorker": "Quitar un worker",
     "addWorker": "Añadir un worker",
-    "workerSummary": "<strong>{checks}</strong> comprobaciones de ranking / día · <strong>{cost} $</strong>/mes",
+    "workerSummary": "<strong>{checks}</strong> comprobaciones / día · <strong>{cost} $</strong>{per}",
     "workerDeltaFrom": "{from} → {to, plural, one {# worker} other {# workers}}",
     "workerDeltaProrated": ", prorrateado hoy",
     "saving": "Guardando…",
@@ -561,7 +574,22 @@
     "cancelDialogBody": "Mantendrás el acceso completo hasta el final del periodo de facturación actual y luego pasarás al plan Gratis. Puedes volver a suscribirte cuando quieras.",
     "keepPlan": "Mantener plan",
     "choosePlan": "Elige tu plan",
-    "tierChecks": "{checks, number} comprobaciones/día"
+    "tierChecks": "{checks, number} comprobaciones/día",
+    "pastDueBanner": "Tu último pago falló. Actualiza tu método de pago para mantener tu plan activo — reintentaremos automáticamente.",
+    "pastDueCta": "Actualizar método de pago",
+    "tileYearlyCost": "Coste anual",
+    "tileBilledAnnually": "facturado anualmente",
+    "legacyTier": "Plan antiguo",
+    "previewChargeNow": "≈{amount} cobrado hoy, prorrateado",
+    "perMonthSuffix": "/mes",
+    "perYearSuffix": "/año",
+    "freePlanLineExhausted": "Tu prueba gratuita ha terminado — suscríbete para seguir ejecutando comprobaciones.",
+    "tileChecksTrial": "Comprobaciones de prueba",
+    "trialEnded": "Prueba finalizada",
+    "trialEndsOn": "La prueba termina el {date}",
+    "trialExpiredBanner": "Tu prueba gratuita ha terminado. Suscríbete abajo para seguir ejecutando comprobaciones.",
+    "trialUsage": "Uso de la prueba gratuita",
+    "usageLineFreeExhausted": "Tu prueba gratuita única ha terminado · <link>Suscríbete</link> para seguir comprobando."
   },
   "projKeywords": {
     "loadingProject": "Cargando proyecto…",
@@ -782,7 +810,7 @@
     "upgradeTitle": "Desbloquea proyectos ilimitados",
     "upgradeBody": "Has alcanzado el límite de {limit} proyecto(s) del plan Gratuito. Mejora a un plan de pago para rastrear dominios ilimitados, ejecutar comprobaciones automáticas programadas y aumentar tus límites diarios de comprobación.",
     "upgradeFeatures": [
-      "Proyectos ilimitados",
+      "Hasta 50 proyectos",
       "Comprobaciones de posición automáticas y programadas",
       "Límites diarios de comprobación más altos"
     ],
@@ -837,7 +865,7 @@
       "mobile": "Móvil",
       "checking": "Comprobando…",
       "checkRankings": "Comprobar posiciones",
-      "costNote": "Consulta de Google en vivo · usa {count} comprobaciones · ~10 segundos"
+      "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos"
     },
     "processing": {
       "withKeyword": "Consultando Google para «{keyword}»… puedes salir de esta página y volver.",
@@ -882,11 +910,11 @@
     },
     "confirm": {
       "eyebrow": "CONFIRMAR COMPROBACIÓN",
-      "title": "Esto usa {count} comprobaciones",
+      "title": "Esto usa {count, plural, one {# comprobación} other {# comprobaciones}}",
       "close": "Cerrar",
-      "body": "Ejecutar una búsqueda SERP en vivo para <strong>«{keyword}»</strong> consulta Google en tiempo real y consumirá <strong>{count} de tus comprobaciones diarias</strong>. Esto no se puede deshacer.",
+      "body": "Una búsqueda SERP en vivo para <strong>«{keyword}»</strong> consulta Google en tiempo real y consumirá <strong>{count, plural, one {# de tus comprobaciones diarias} other {# de tus comprobaciones diarias}}</strong>. No se puede deshacer.",
       "cancel": "Cancelar",
-      "confirm": "Usar {count} comprobaciones"
+      "confirm": "Usar {count, plural, one {# comprobación} other {# comprobaciones}}"
     },
     "errors": {
       "checkFailed": "La comprobación falló. Inténtalo de nuevo.",
@@ -932,7 +960,11 @@
     "trialEnded": "Prueba finalizada",
     "addWorkers": "Agregar workers",
     "buy": "Comprar",
-    "buyMore": "Comprar más comprobaciones de ranking"
+    "buyMore": "Comprar más comprobaciones de ranking",
+    "checksTotal": "comprobaciones usadas",
+    "chipTitleTrial": "Prueba gratuita — {used}/{limit} comprobaciones usadas",
+    "trialDaysLeft": "{days, plural, one {queda # día} other {quedan # días}}",
+    "trialEnded": "Prueba finalizada"
   },
   "dashSearchConsole": {
     "backToProject": "Volver al proyecto",
@@ -984,5 +1016,29 @@
     "device": "Dispositivo",
     "appearance": "Aspecto",
     "date": "Fecha"
+  },
+  "quotaUpsell": {
+    "eyebrow": "Mejorar plan",
+    "titleFree": "Se acabaron tus comprobaciones gratis",
+    "titlePaid": "Has alcanzado el límite de comprobaciones de hoy",
+    "bodyDailyQuota": "Has usado {used} de {limit} comprobaciones hoy. Tu límite se restablece a medianoche (UTC) — o añade workers ahora y sigue comprobando al instante.",
+    "bodyFreeTrial": "Tu prueba gratuita única se ha agotado. Suscríbete para seguir rastreando tus rankings — planes desde 5 $/mes.",
+    "bodyProjectLimit": "Has alcanzado el límite de proyectos de tu plan. Mejora tu plan para rastrear más sitios.",
+    "bodyKeywordLimit": "Has alcanzado el límite de keywords de tu plan para este proyecto. Mejora tu plan para rastrear más keywords.",
+    "nextTier": "{workers} workers — {checks, number} comprobaciones/día",
+    "proratedNow": "≈{amount} cobrado ahora (prorrateado por el resto del período)",
+    "thenRecurring": "después {amount}{interval}",
+    "perMonth": "/mes",
+    "perYear": "/año",
+    "proratedGeneric": "Prorrateado — solo pagas la diferencia por el resto del período.",
+    "maxTier": "Ya tienes el plan más grande. Contacta con soporte si necesitas más capacidad.",
+    "notNow": "Ahora no",
+    "close": "Cerrar",
+    "working": "Actualizando…",
+    "upgradeCta": "Subir a {workers} workers",
+    "subscribeCta": "Ver planes",
+    "upgraded": "Plan actualizado a {workers} workers — {checks, number} comprobaciones/día.",
+    "upgradeFailed": "No se pudo actualizar tu plan. Inténtalo de nuevo.",
+    "bodyAiLimit": "Has usado todos los análisis con IA de hoy ({used} de {limit}). Cada worker añade 2 análisis al día — añade workers para subir el límite o inténtalo mañana."
   }
 }

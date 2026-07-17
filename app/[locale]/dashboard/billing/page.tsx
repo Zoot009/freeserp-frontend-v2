@@ -9,7 +9,7 @@ import { api, ApiError, getAccessToken } from "@/lib/api"
 import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
-import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD } from "@/lib/pricing"
+import { TIERS, SEARCHES_PER_WORKER, tierPriceUsd, type BillingInterval } from "@/lib/pricing"
 
 interface Usage {
   plan: "free" | "paid" | string
@@ -34,6 +34,17 @@ interface Subscription {
   stripeSubscriptionId: string | null
   razorpaySubscriptionId: string | null
   payuMandateId: string | null
+  // Included by GET /api/billing/subscription; the slug tells us the billing
+  // interval (workers = monthly, workers-annual = yearly).
+  plan?: { slug: string } | null
+}
+
+interface WorkersPreview {
+  workerCount: number
+  interval: BillingInterval
+  currency: string
+  amountDueCents: number
+  recurringCents: number
 }
 
 interface Payment {
@@ -107,15 +118,41 @@ export default function BillingPage() {
   const trialEndsAtDate = !isPaid && usage?.freeCheckTrialEndsAt ? new Date(usage.freeCheckTrialEndsAt) : null
   const perWorker = usage?.perWorkerDailyChecks ?? SEARCHES_PER_WORKER
   const currentWorkers = usage?.workerCount ?? 1
+  // Billing interval is derived from the subscription's plan slug (there is no
+  // interval column) — annual subs are billed once a year at $10/worker.
+  const interval: BillingInterval = sub?.plan?.slug === "workers-annual" ? "year" : "month"
+  const perSuffix = interval === "year" ? t("perYearSuffix") : t("perMonthSuffix")
+  // A grandfathered (pre-minimum-tier) worker count, e.g. the retired $1 tier —
+  // shown as its own locked tile since it no longer matches a purchasable tier.
+  const isLegacyCount = isPaid && !TIERS.some((tier) => tier.workers === currentWorkers)
   const dirty = isPaid && workers !== currentWorkers
   const searchesPerDay = workers * perWorker
-  const monthlyUsd = workers * PRICE_PER_WORKER_USD
-  const monthlyDelta = (workers - currentWorkers) * PRICE_PER_WORKER_USD
+  const priceUsd = tierPriceUsd(workers, interval)
+  const priceDelta = tierPriceUsd(workers, interval) - tierPriceUsd(currentWorkers, interval)
   const usedPct = usage && usage.dailyLimit > 0 ? Math.min(100, Math.round((usage.dailyUsed / usage.dailyLimit) * 100)) : 0
   // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
   const canResume = sub?.provider === "stripe"
+  // Stripe flips the sub to past_due while its dunning retries run; the user's
+  // plan is already degraded to free, so this must render independent of isPaid.
+  const isPastDue = sub?.status === "past_due"
 
   const refreshMeter = () => window.dispatchEvent(new Event("usage:refresh"))
+
+  // Live "charged now" proration preview while the tier selection is dirty.
+  // Debounced; absence (PayU or a transient error) falls back to the static
+  // price-difference line.
+  const [preview, setPreview] = useState<WorkersPreview | null>(null)
+  useEffect(() => {
+    setPreview(null)
+    if (!dirty) return
+    const timer = setTimeout(() => {
+      api
+        .get<WorkersPreview>("/api/billing/workers/preview", { query: { workerCount: workers } })
+        .then((p) => setPreview(p.workerCount === workers ? p : null))
+        .catch(() => setPreview(null))
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [dirty, workers])
 
   const applyWorkerChange = async () => {
     if (!dirty) return
@@ -228,11 +265,29 @@ export default function BillingPage() {
         </div>
       )}
 
+      {isPastDue && (
+        <div
+          className="tiny"
+          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+        >
+          <span style={{ flex: 1, minWidth: 220 }}>{t("pastDueBanner")}</span>
+          {sub?.provider === "stripe" && (
+            <button className="btn" onClick={openPortal} disabled={busy} style={{ flexShrink: 0 }}>
+              {t("pastDueCta")}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Overview tiles */}
       <div className="grid g-4" style={{ marginBottom: 16 }}>
         <StatTile lbl={t("tilePlan")} val={isPaid ? t("workers") : t("free")} tip={isPaid ? t("tilePlanActive", { count: usage?.workerCount ?? 0 }) : t("tilePlanManual")} />
         <StatTile lbl={t("workers")} val={isPaid ? (usage?.workerCount ?? 1) : "—"} tip={isPaid ? t("tileWorkersEach", { count: perWorker }) : undefined} />
-        <StatTile lbl={t("tileMonthlyCost")} val={isPaid ? `$${(usage?.workerCount ?? 1) * PRICE_PER_WORKER_USD}` : "$0"} tip={isPaid ? t("tileBilledMonthly") : t("tileFreeForever")} />
+        <StatTile
+          lbl={interval === "year" ? t("tileYearlyCost") : t("tileMonthlyCost")}
+          val={isPaid ? `$${tierPriceUsd(currentWorkers, interval)}` : "$0"}
+          tip={isPaid ? (interval === "year" ? t("tileBilledAnnually") : t("tileBilledMonthly")) : t("tileFreeForever")}
+        />
         <StatTile
           lbl={isPaid ? t("tileChecksToday") : t("tileChecksTrial")}
           val={`${usage?.dailyUsed ?? 0} / ${usage?.dailyLimit ?? 0}`}
@@ -272,6 +327,32 @@ export default function BillingPage() {
           ) : (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {isLegacyCount && (
+                  // Grandfathered pre-minimum tier (e.g. the retired $1/1-worker
+                  // plan): shown but not re-selectable — the only move is up.
+                  <button
+                    type="button"
+                    aria-pressed={workers === currentWorkers}
+                    className="btn"
+                    disabled
+                    style={{
+                      flexDirection: "column",
+                      gap: 2,
+                      padding: "9px 4px",
+                      height: "auto",
+                      borderColor: workers === currentWorkers ? "var(--brand)" : "var(--border)",
+                      background: workers === currentWorkers ? "var(--brand-soft)" : "var(--bg-elev)",
+                      color: workers === currentWorkers ? "var(--brand)" : "var(--text)",
+                      boxShadow: workers === currentWorkers ? "inset 0 0 0 1px var(--brand)" : "none",
+                      opacity: 1,
+                    }}
+                  >
+                    <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                      ${tierPriceUsd(currentWorkers, interval)}
+                    </span>
+                    <span className="tiny muted">{t("legacyTier")}</span>
+                  </button>
+                )}
                 {TIERS.map(tier => {
                   const active = tier.workers === workers
                   return (
@@ -293,7 +374,9 @@ export default function BillingPage() {
                         boxShadow: active ? "inset 0 0 0 1px var(--brand)" : "none",
                       }}
                     >
-                      <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${tier.usd}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                        ${tierPriceUsd(tier.workers, interval)}
+                      </span>
                       <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>{t("tierChecks", { checks: tier.checks })}</span>
                     </button>
                   )
@@ -302,17 +385,26 @@ export default function BillingPage() {
               <p className="tiny muted" style={{ marginTop: 12 }}>
                 {t.rich("workerSummary", {
                   checks: searchesPerDay.toLocaleString(),
-                  cost: monthlyUsd,
+                  cost: priceUsd,
+                  per: perSuffix,
                   strong: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span>,
                 })}
               </p>
               {dirty && (
                 <p className="tiny" style={{ marginTop: 8, padding: "8px 10px", borderRadius: "var(--r-sm)", background: "var(--bg-inset)" }}>
                   <span className="muted">{t("workerDeltaFrom", { from: currentWorkers, to: workers })} · </span>
-                  <span style={{ color: monthlyDelta >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
-                    {monthlyDelta >= 0 ? "+" : "−"}${Math.abs(monthlyDelta)}/mo
-                  </span>
-                  <span className="muted">{t("workerDeltaProrated")}</span>
+                  {preview ? (
+                    <span style={{ color: preview.amountDueCents >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
+                      {t("previewChargeNow", { amount: formatMoney(preview.amountDueCents, preview.currency) })}
+                    </span>
+                  ) : (
+                    <>
+                      <span style={{ color: priceDelta >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
+                        {priceDelta >= 0 ? "+" : "−"}${Math.abs(priceDelta)}{perSuffix}
+                      </span>
+                      <span className="muted">{t("workerDeltaProrated")}</span>
+                    </>
+                  )}
                 </p>
               )}
               <button className="btn primary" onClick={applyWorkerChange} disabled={!dirty || saving} style={{ marginTop: 14 }}>
