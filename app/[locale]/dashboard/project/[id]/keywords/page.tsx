@@ -60,9 +60,11 @@ interface Keyword {
   position: number | null
   // First (oldest) rank ever recorded for this keyword — drives the "First check" column.
   firstPosition: number | null
-  // Position deltas over the 1/7-day windows (positive = rank improved).
+  // Position deltas over the 1/7/15/30-day windows (positive = rank improved).
   d1: number | null
   d7: number | null
+  d15: number | null
+  d30: number | null
   url: string | null
   monthlyTraffic: number | null
   searchVolume: number | null
@@ -641,6 +643,8 @@ export default function ProjectKeywordsPage() {
   // shows one device at a time. Defaults to desktop; auto-flips to mobile once
   // (on first load) if the project only has mobile keywords.
   const [deviceTab, setDeviceTab] = useState<"desktop" | "mobile">("desktop")
+  // Time window for the "Rankings improved" card (1/7/15/30-day deltas).
+  const [rankPeriod, setRankPeriod] = useState<"d1" | "d7" | "d15" | "d30">("d1")
   const deviceTabInit = useRef(false)
 
   // Auth gate
@@ -1052,6 +1056,17 @@ export default function ProjectKeywordsPage() {
         : null,
     }
   }, [scoped])
+
+  // Rankings-improved movement for the selected time window (1/7/15/30 days).
+  const movement = useMemo(() => {
+    const ranked = scoped.filter((k) => k.position != null)
+    const delta = (k: Keyword) => k[rankPeriod] ?? 0
+    return {
+      gained: ranked.filter((k) => delta(k) > 0).length,
+      lost: ranked.filter((k) => delta(k) < 0).length,
+      noChange: ranked.filter((k) => delta(k) === 0).length,
+    }
+  }, [scoped, rankPeriod])
 
   // Filter + sort the keyword list.
   const filtered = useMemo(() => {
@@ -1516,6 +1531,50 @@ export default function ProjectKeywordsPage() {
           {/* Insight rail */}
           <div className="col" style={{ gap: 14, minWidth: 0 }}>
             <div className="card">
+              <div className="card-h" style={{ marginBottom: 10 }}>
+                <div className="t">{t("rankingsImproved")}</div>
+                {/* Time-window tabs — 1d / 7d / 15d / 30d */}
+                <div className="pill-toggle" style={{ padding: 2 }}>
+                  {(["d1", "d7", "d15", "d30"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={rankPeriod === p ? "active" : ""}
+                      onClick={() => setRankPeriod(p)}
+                      style={{ padding: "3px 8px", fontSize: 11.5 }}
+                    >
+                      {p === "d1" ? "1d" : p === "d7" ? "7d" : p === "d15" ? "15d" : "30d"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
+                  {movement.gained}
+                </span>
+                <span className="tiny muted">{t(rankPeriod === "d1" ? "vs24h" : rankPeriod === "d7" ? "vs7d" : rankPeriod === "d15" ? "vs15d" : "vs30d")}</span>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <div className="insight-row">
+                  <span className="muted">{t("gained")}</span>
+                  <span className="b tabular" style={{ color: "var(--pos)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {movement.gained} <Icon.arrowUp />
+                  </span>
+                </div>
+                <div className="insight-row">
+                  <span className="muted">{t("lost")}</span>
+                  <span className="b tabular" style={{ color: "var(--neg)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {movement.lost} <Icon.arrowDown />
+                  </span>
+                </div>
+                <div className="insight-row">
+                  <span className="muted">{t("noChange")}</span>
+                  <span className="b tabular" style={{ color: "var(--text-soft)" }}>{movement.noChange} →</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
               <div className="card-h"><div className="t">{t("keywordVisibility")}</div></div>
               <div className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
                 {stats.total ? `${Math.round((stats.top100 / stats.total) * 100)}%` : "—"}
@@ -1534,34 +1593,6 @@ export default function ProjectKeywordsPage() {
               <div className="insight-row">
                 <span className="muted">{t("top100")}</span>
                 <span className="b tabular">{stats.top100}</span>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-h"><div className="t">{t("rankingsImproved")}</div></div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-                  {stats.gained}
-                </span>
-                <span className="tiny muted">{t("vs24h")}</span>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <div className="insight-row">
-                  <span className="muted">{t("gained")}</span>
-                  <span className="b tabular" style={{ color: "var(--pos)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    {stats.gained} <Icon.arrowUp />
-                  </span>
-                </div>
-                <div className="insight-row">
-                  <span className="muted">{t("lost")}</span>
-                  <span className="b tabular" style={{ color: "var(--neg)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    {stats.lost} <Icon.arrowDown />
-                  </span>
-                </div>
-                <div className="insight-row">
-                  <span className="muted">{t("noChange")}</span>
-                  <span className="b tabular" style={{ color: "var(--text-soft)" }}>{stats.noChange} →</span>
-                </div>
               </div>
             </div>
           </div>
@@ -1637,7 +1668,7 @@ export default function ProjectKeywordsPage() {
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl" style={{ minWidth: 1080 }}>
+            <table className="tbl" style={{ minWidth: 980 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -1653,8 +1684,14 @@ export default function ProjectKeywordsPage() {
                   <th style={{ whiteSpace: "nowrap", width: 100 }}>{t("colFirstCheck")}</th>
                   <SortHeader label={t("colVolume")} k="vol" sort={sort} onClick={clickSort} width={100} />
                   <th style={{ width: "22%" }}>{t("colUrl")}</th>
-                  <th style={{ width: 110, whiteSpace: "nowrap" }}>{t("colPageScore")}</th>
-                  <SortHeader label={t("colKeywordScore")} k="score" sort={sort} onClick={clickSort} width={130} />
+                  <SortHeader
+                    label={`${t("colPageScoreAbbr")} / ${t("colKeywordScoreAbbr")}`}
+                    title={`${t("colPageScore")} / ${t("colKeywordScore")}`}
+                    k="score"
+                    sort={sort}
+                    onClick={clickSort}
+                    width={120}
+                  />
                   <SortHeader label={t("colLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={140} />
                   <th style={{ width: 190, whiteSpace: "nowrap" }}>{t("colActions")}</th>
                 </tr>
@@ -1724,31 +1761,33 @@ export default function ProjectKeywordsPage() {
                           <span className="tiny muted" title="No URL — keyword is ranking deeper than the top 100">—</span>
                         )}
                       </td>
+                      {/* P.S / K.S combined into one column to save space. */}
                       <td>
-                        <AuditBadge
-                          score={kw.pageAuditScore}
-                          loading={auditingKwId === kw.id}
-                          onClick={
-                            kw.pageScoreUrl
-                              ? () => openAuditReport(kw.pageScoreUrl!, kw.id)
-                              : undefined
-                          }
-                        />
-                      </td>
-                      <td>
-                        <ScoreBadge
-                          score={kw.pageScore}
-                          grade={kw.pageScoreGrade}
-                          label={kw.pageScoreLabel}
-                          loading={openingReportKwId === kw.id}
-                          onClick={() => openKeywordReport(kw)}
-                          emptyTitle="Not ranking yet — click to score a page for this keyword"
-                          onEmptyClick={() =>
-                            router.push(
-                              `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}`
-                            )
-                          }
-                        />
+                        <div className="row" style={{ gap: 7, alignItems: "center" }}>
+                          <AuditBadge
+                            score={kw.pageAuditScore}
+                            loading={auditingKwId === kw.id}
+                            onClick={
+                              kw.pageScoreUrl
+                                ? () => openAuditReport(kw.pageScoreUrl!, kw.id)
+                                : undefined
+                            }
+                          />
+                          <span className="tiny muted" aria-hidden style={{ opacity: 0.5 }}>/</span>
+                          <ScoreBadge
+                            score={kw.pageScore}
+                            grade={kw.pageScoreGrade}
+                            label={kw.pageScoreLabel}
+                            loading={openingReportKwId === kw.id}
+                            onClick={() => openKeywordReport(kw)}
+                            emptyTitle="Not ranking yet — click to score a page for this keyword"
+                            onEmptyClick={() =>
+                              router.push(
+                                `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}`
+                              )
+                            }
+                          />
+                        </div>
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -2388,17 +2427,20 @@ function SortHeader({
   sort,
   onClick,
   width,
+  title,
 }: {
   label: string
   k: SortKey
   sort: { key: SortKey; dir: "asc" | "desc" }
   onClick: (k: SortKey) => void
   width?: number | string
+  title?: string
 }) {
   const active = sort.key === k
   return (
     <th
       onClick={() => onClick(k)}
+      title={title}
       style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", width }}
     >
       {label}
