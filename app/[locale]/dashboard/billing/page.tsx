@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
@@ -80,9 +80,20 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [workers, setWorkers] = useState(1)
+  // Null = keep the current billing interval; set when the user picks the other
+  // one (monthly↔annual switch on a live Stripe subscription).
+  const [targetInterval, setTargetInterval] = useState<BillingInterval | null>(null)
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const workerCardRef = useRef<HTMLDivElement>(null)
+
+  const switchToAnnual = () => {
+    setTargetInterval("year")
+    // Take the user straight to the tier card where Save (with the prorated
+    // preview) lives — the nudge banner is above the fold, the card isn't.
+    requestAnimationFrame(() => workerCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }))
+  }
 
   const load = useCallback(async () => {
     if (!getAccessToken()) {
@@ -118,17 +129,39 @@ export default function BillingPage() {
   const trialEndsAtDate = !isPaid && usage?.freeCheckTrialEndsAt ? new Date(usage.freeCheckTrialEndsAt) : null
   const perWorker = usage?.perWorkerDailyChecks ?? SEARCHES_PER_WORKER
   const currentWorkers = usage?.workerCount ?? 1
-  // Billing interval is derived from the subscription's plan slug (there is no
-  // interval column) — annual subs are billed once a year at $10/worker.
-  const interval: BillingInterval = sub?.plan?.slug === "workers-annual" ? "year" : "month"
+  // Current billing interval, derived from the subscription's plan slug (there is
+  // no interval column) — annual subs are billed once a year at $10/worker.
+  const currentInterval: BillingInterval = sub?.plan?.slug === "workers-annual" ? "year" : "month"
+  // Interval switching in-place is Stripe-only (PayU mandates are monthly).
+  const canSwitchInterval = isPaid && sub?.provider === "stripe"
+  const interval = targetInterval ?? currentInterval
+  const intervalChanged = isPaid && interval !== currentInterval
   const perSuffix = interval === "year" ? t("perYearSuffix") : t("perMonthSuffix")
   // A grandfathered (pre-minimum-tier) worker count, e.g. the retired $1 tier —
   // shown as its own locked tile since it no longer matches a purchasable tier.
   const isLegacyCount = isPaid && !TIERS.some((tier) => tier.workers === currentWorkers)
-  const dirty = isPaid && workers !== currentWorkers
+  const dirty = isPaid && (workers !== currentWorkers || intervalChanged)
   const searchesPerDay = workers * perWorker
   const priceUsd = tierPriceUsd(workers, interval)
-  const priceDelta = tierPriceUsd(workers, interval) - tierPriceUsd(currentWorkers, interval)
+  const priceDelta = tierPriceUsd(workers, interval) - tierPriceUsd(currentWorkers, currentInterval)
+  // Annual discount vs 12× the monthly rate for the selected tier.
+  const annualSaveUsd = Math.max(0, tierPriceUsd(workers, "month") * 12 - tierPriceUsd(workers, "year"))
+  const annualSavePct =
+    tierPriceUsd(workers, "month") * 12 > 0
+      ? Math.round((annualSaveUsd / (tierPriceUsd(workers, "month") * 12)) * 100)
+      : 0
+  // Proactive nudge for monthly subscribers — savings at their CURRENT worker
+  // count if they switched to annual (stable regardless of the tier stepper).
+  const currentAnnualSaveUsd = Math.max(
+    0,
+    tierPriceUsd(currentWorkers, "month") * 12 - tierPriceUsd(currentWorkers, "year"),
+  )
+  const currentAnnualSavePct =
+    tierPriceUsd(currentWorkers, "month") * 12 > 0
+      ? Math.round((currentAnnualSaveUsd / (tierPriceUsd(currentWorkers, "month") * 12)) * 100)
+      : 0
+  const showAnnualNudge =
+    canSwitchInterval && currentInterval === "month" && !intervalChanged && currentAnnualSaveUsd > 0
   const usedPct = usage && usage.dailyLimit > 0 ? Math.min(100, Math.round((usage.dailyUsed / usage.dailyLimit) * 100)) : 0
   // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
   const canResume = sub?.provider === "stripe"
@@ -138,28 +171,34 @@ export default function BillingPage() {
 
   const refreshMeter = () => window.dispatchEvent(new Event("usage:refresh"))
 
-  // Live "charged now" proration preview while the tier selection is dirty.
-  // Debounced; absence (PayU or a transient error) falls back to the static
-  // price-difference line.
+  // Live "charged now" proration preview while the tier/interval selection is
+  // dirty. Debounced; absence (PayU or a transient error) falls back to the
+  // static price-difference line.
   const [preview, setPreview] = useState<WorkersPreview | null>(null)
   useEffect(() => {
     setPreview(null)
     if (!dirty) return
+    const query: Record<string, string | number> = { workerCount: workers }
+    if (intervalChanged) query.interval = interval
     const timer = setTimeout(() => {
       api
-        .get<WorkersPreview>("/api/billing/workers/preview", { query: { workerCount: workers } })
+        .get<WorkersPreview>("/api/billing/workers/preview", { query })
         .then((p) => setPreview(p.workerCount === workers ? p : null))
         .catch(() => setPreview(null))
     }, 350)
     return () => clearTimeout(timer)
-  }, [dirty, workers])
+  }, [dirty, workers, interval, intervalChanged])
 
   const applyWorkerChange = async () => {
     if (!dirty) return
     setSaving(true)
     try {
-      await api.patch("/api/billing/workers", { workerCount: workers })
+      await api.patch("/api/billing/workers", {
+        workerCount: workers,
+        ...(intervalChanged ? { interval } : {}),
+      })
       toast.success(t("workersUpdated", { count: workers, checks: searchesPerDay.toLocaleString() }))
+      setTargetInterval(null)
       await load()
       refreshMeter()
     } catch (err) {
@@ -279,14 +318,32 @@ export default function BillingPage() {
         </div>
       )}
 
+      {showAnnualNudge && (
+        <div
+          className="tiny"
+          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--pos-soft, var(--brand-soft))", color: "var(--pos)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+        >
+          <span style={{ flex: 1, minWidth: 220, fontWeight: 600 }}>
+            {t("annualNudge", { save: currentAnnualSaveUsd, pct: currentAnnualSavePct })}
+          </span>
+          <button
+            className="btn"
+            onClick={switchToAnnual}
+            style={{ flexShrink: 0, borderColor: "var(--pos)", color: "var(--pos)" }}
+          >
+            {t("annualNudgeCta")}
+          </button>
+        </div>
+      )}
+
       {/* Overview tiles */}
       <div className="grid g-4" style={{ marginBottom: 16 }}>
         <StatTile lbl={t("tilePlan")} val={isPaid ? t("workers") : t("free")} tip={isPaid ? t("tilePlanActive", { count: usage?.workerCount ?? 0 }) : t("tilePlanManual")} />
         <StatTile lbl={t("workers")} val={isPaid ? (usage?.workerCount ?? 1) : "—"} tip={isPaid ? t("tileWorkersEach", { count: perWorker }) : undefined} />
         <StatTile
-          lbl={interval === "year" ? t("tileYearlyCost") : t("tileMonthlyCost")}
-          val={isPaid ? `$${tierPriceUsd(currentWorkers, interval)}` : "$0"}
-          tip={isPaid ? (interval === "year" ? t("tileBilledAnnually") : t("tileBilledMonthly")) : t("tileFreeForever")}
+          lbl={currentInterval === "year" ? t("tileYearlyCost") : t("tileMonthlyCost")}
+          val={isPaid ? `$${tierPriceUsd(currentWorkers, currentInterval)}` : "$0"}
+          tip={isPaid ? (currentInterval === "year" ? t("tileBilledAnnually") : t("tileBilledMonthly")) : t("tileFreeForever")}
         />
         <StatTile
           lbl={isPaid ? t("tileChecksToday") : t("tileChecksTrial")}
@@ -297,7 +354,7 @@ export default function BillingPage() {
 
       <div className="grid g-21" style={{ marginBottom: 16, alignItems: "start" }}>
         {/* Plan & workers */}
-        <div className="card">
+        <div className="card" ref={workerCardRef}>
           <div className="card-h">
             <div>
               <div className="t">{isPaid ? t("workers") : t("yourPlan")}</div>
@@ -324,8 +381,41 @@ export default function BillingPage() {
               </ul>
               <Link href="/pricing?clicked-buy-button"><button className="btn primary">{t("upgrade")}</button></Link>
             </div>
+          ) : !sub ? (
+            // Paid via an admin grant (no billing subscription) — there's no
+            // provider subscription to adjust, so offer to start a real one
+            // instead of a Save button that can only 404.
+            <div>
+              <p className="tiny muted" style={{ marginBottom: 14, lineHeight: 1.6 }}>{t("grantedNoSub")}</p>
+              <Link href="/pricing?clicked-buy-button"><button className="btn primary">{t("startSubscription")}</button></Link>
+            </div>
           ) : (
             <div>
+              {/* Monthly / annual interval switch (Stripe subs only) — prorated
+                  price swap on the live subscription. */}
+              {canSwitchInterval && (
+                <div className="row" style={{ gap: 6, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    aria-pressed={interval === "month"}
+                    onClick={() => setTargetInterval("month")}
+                    style={interval === "month" ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : undefined}
+                  >
+                    {t("intervalMonthly")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    aria-pressed={interval === "year"}
+                    onClick={() => setTargetInterval("year")}
+                    style={interval === "year" ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : undefined}
+                  >
+                    {t("intervalAnnual")}
+                    <span className="tiny" style={{ marginLeft: 6, color: "var(--pos)", fontWeight: 600 }}>{t("annualSavings")}</span>
+                  </button>
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                 {isLegacyCount && (
                   // Grandfathered pre-minimum tier (e.g. the retired $1/1-worker
@@ -390,6 +480,11 @@ export default function BillingPage() {
                   strong: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span>,
                 })}
               </p>
+              {interval === "year" && annualSaveUsd > 0 && (
+                <p className="tiny" style={{ marginTop: 6, color: "var(--pos)", fontWeight: 600 }}>
+                  {t("annualSaveNote", { save: annualSaveUsd, pct: annualSavePct })}
+                </p>
+              )}
               {dirty && (
                 <p className="tiny" style={{ marginTop: 8, padding: "8px 10px", borderRadius: "var(--r-sm)", background: "var(--bg-inset)" }}>
                   <span className="muted">{t("workerDeltaFrom", { from: currentWorkers, to: workers })} · </span>

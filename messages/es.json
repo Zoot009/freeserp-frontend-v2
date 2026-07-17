@@ -385,7 +385,8 @@
     "annualUnavailable": "La facturación anual aún no está disponible en tu región — volvimos a mensual.",
     "billedAnnually": "Facturación anual vía <b>Stripe</b>.",
     "perWorkerEachYear": "{searches}/día · {price} $/año cada uno",
-    "getWorkersYear": "Obtener {workers, plural, one {# worker} other {# workers}} — {price} $/año →"
+    "getWorkersYear": "Obtener {workers, plural, one {# worker} other {# workers}} — {price} $/año →",
+    "annualSaveNote": "Ahorra {save} $/año frente a mensual ({pct}% de descuento)"
   },
   "billingResult": {
     "eyebrow": "Pago",
@@ -517,8 +518,8 @@
     "workerCardHintFree": "Mejora tu plan para escalar tus comprobaciones diarias",
     "freePlanLine": "Estás en el plan Gratis — {count} comprobaciones de ranking/día, solo manuales.",
     "tileChecksTrial": "Comprobaciones de prueba",
-    "freePlanLineExhausted": "Tu prueba gratuita ha terminado — suscríbete para seguir haciendo comprobaciones.",
-    "trialExpiredBanner": "Tu prueba gratuita ha terminado. Suscríbete abajo para seguir haciendo comprobaciones.",
+    "freePlanLineExhausted": "Tu prueba gratuita ha terminado — suscríbete para seguir ejecutando comprobaciones.",
+    "trialExpiredBanner": "Tu prueba gratuita ha terminado. Suscríbete abajo para seguir ejecutando comprobaciones.",
     "trialUsage": "Uso de la prueba gratuita",
     "trialEndsOn": "La prueba termina el {date}",
     "trialEnded": "Prueba finalizada",
@@ -583,13 +584,14 @@
     "previewChargeNow": "≈{amount} cobrado hoy, prorrateado",
     "perMonthSuffix": "/mes",
     "perYearSuffix": "/año",
-    "freePlanLineExhausted": "Tu prueba gratuita ha terminado — suscríbete para seguir ejecutando comprobaciones.",
-    "tileChecksTrial": "Comprobaciones de prueba",
-    "trialEnded": "Prueba finalizada",
-    "trialEndsOn": "La prueba termina el {date}",
-    "trialExpiredBanner": "Tu prueba gratuita ha terminado. Suscríbete abajo para seguir ejecutando comprobaciones.",
-    "trialUsage": "Uso de la prueba gratuita",
-    "usageLineFreeExhausted": "Tu prueba gratuita única ha terminado · <link>Suscríbete</link> para seguir comprobando."
+    "intervalMonthly": "Mensual",
+    "intervalAnnual": "Anual",
+    "annualSavings": "2 meses gratis",
+    "annualSaveNote": "Ahorra {save} $/año frente a mensual ({pct}% de descuento)",
+    "annualNudge": "Pagas mensualmente — cambia a anual y ahorra {save} $/año ({pct}% de descuento).",
+    "annualNudgeCta": "Cambiar a anual",
+    "grantedNoSub": "Tu plan se activó directamente (sin suscripción de facturación), por lo que los cambios de workers y facturación no están disponibles aquí. Inicia una suscripción para gestionar workers.",
+    "startSubscription": "Iniciar suscripción"
   },
   "projKeywords": {
     "loadingProject": "Cargando proyecto…",
@@ -956,15 +958,11 @@
     "chipTitleTrial": "Prueba gratuita — {used}/{limit} comprobaciones usadas",
     "checksToday": "comprobaciones hoy",
     "checksTotal": "comprobaciones usadas",
-    "trialDaysLeft": "{days, plural, one {# día restante} other {# días restantes}}",
+    "trialDaysLeft": "{days, plural, one {queda # día} other {quedan # días}}",
     "trialEnded": "Prueba finalizada",
     "addWorkers": "Agregar workers",
     "buy": "Comprar",
-    "buyMore": "Comprar más comprobaciones de ranking",
-    "checksTotal": "comprobaciones usadas",
-    "chipTitleTrial": "Prueba gratuita — {used}/{limit} comprobaciones usadas",
-    "trialDaysLeft": "{days, plural, one {queda # día} other {quedan # días}}",
-    "trialEnded": "Prueba finalizada"
+    "buyMore": "Comprar más comprobaciones de ranking"
   },
   "dashSearchConsole": {
     "backToProject": "Volver al proyecto",

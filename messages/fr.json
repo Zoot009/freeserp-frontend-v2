@@ -385,7 +385,8 @@
     "annualUnavailable": "La facturation annuelle n'est pas encore disponible dans votre région — retour au mensuel.",
     "billedAnnually": "Facturation annuelle via <b>Stripe</b>.",
     "perWorkerEachYear": "{searches}/jour · {price} $/an chacun",
-    "getWorkersYear": "Obtenir {workers, plural, one {# worker} other {# workers}} — {price} $/an →"
+    "getWorkersYear": "Obtenir {workers, plural, one {# worker} other {# workers}} — {price} $/an →",
+    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)"
   },
   "billingResult": {
     "eyebrow": "Paiement",
@@ -517,12 +518,12 @@
     "workerCardHintFree": "Passez à une offre supérieure pour augmenter vos vérifications quotidiennes",
     "freePlanLine": "Vous êtes sur le forfait Gratuit — {count} vérifications de classement/jour, en manuel uniquement.",
     "tileChecksTrial": "Vérifications d'essai",
-    "freePlanLineExhausted": "Votre essai gratuit est terminé — abonnez-vous pour continuer à lancer des vérifications.",
-    "trialExpiredBanner": "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour continuer à lancer des vérifications.",
+    "freePlanLineExhausted": "Votre essai gratuit est terminé — abonnez-vous pour continuer les vérifications.",
+    "trialExpiredBanner": "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour continuer les vérifications.",
     "trialUsage": "Utilisation de l'essai gratuit",
     "trialEndsOn": "L'essai se termine le {date}",
     "trialEnded": "Essai terminé",
-    "usageLineFreeExhausted": "Votre essai gratuit unique est terminé · <link>Abonnez-vous</link> pour continuer à vérifier.",
+    "usageLineFreeExhausted": "Votre essai gratuit unique est terminé · <link>Abonnez-vous</link> pour continuer.",
     "upgradePerks": [
       "Vérifications de classement récurrentes et automatiques",
       "Analyse IA de toutes les sections — 2/jour par worker",
@@ -583,13 +584,14 @@
     "previewChargeNow": "≈{amount} facturé aujourd'hui, au prorata",
     "perMonthSuffix": "/mois",
     "perYearSuffix": "/an",
-    "freePlanLineExhausted": "Votre essai gratuit est terminé — abonnez-vous pour continuer les vérifications.",
-    "tileChecksTrial": "Vérifications d'essai",
-    "trialEnded": "Essai terminé",
-    "trialEndsOn": "L'essai se termine le {date}",
-    "trialExpiredBanner": "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour continuer les vérifications.",
-    "trialUsage": "Utilisation de l'essai gratuit",
-    "usageLineFreeExhausted": "Votre essai gratuit unique est terminé · <link>Abonnez-vous</link> pour continuer."
+    "intervalMonthly": "Mensuel",
+    "intervalAnnual": "Annuel",
+    "annualSavings": "2 mois offerts",
+    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)",
+    "annualNudge": "Vous payez au mois — passez à l'annuel et économisez {save} $/an ({pct}% de réduction).",
+    "annualNudgeCta": "Passer à l'annuel",
+    "grantedNoSub": "Votre forfait a été activé directement (sans abonnement de facturation), les modifications de workers et de facturation ne sont donc pas disponibles ici. Démarrez un abonnement pour gérer les workers.",
+    "startSubscription": "Démarrer l'abonnement"
   },
   "projKeywords": {
     "loadingProject": "Chargement du projet…",
@@ -960,11 +962,7 @@
     "trialEnded": "Essai terminé",
     "addWorkers": "Ajouter des workers",
     "buy": "Acheter",
-    "buyMore": "Acheter plus de vérifications de classement",
-    "checksTotal": "vérifications utilisées",
-    "chipTitleTrial": "Essai gratuit — {used}/{limit} vérifications utilisées",
-    "trialDaysLeft": "{days, plural, one {# jour restant} other {# jours restants}}",
-    "trialEnded": "Essai terminé"
+    "buyMore": "Acheter plus de vérifications de classement"
   },
   "dashSearchConsole": {
     "backToProject": "Retour au projet",

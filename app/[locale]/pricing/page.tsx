@@ -21,6 +21,8 @@ interface Status {
   planExpiresAt: string | null
   subscriptionId: string | null
   workerCount?: number
+  interval?: BillingInterval
+  provider?: string | null
 }
 
 const Check = () => (
@@ -66,9 +68,13 @@ export default function PricingPage() {
   useEffect(() => {
     void fetchBillingConfig().then(setCfg)
   }, [])
-  // Monthly vs annual billing for NEW subscriptions. Existing paid users manage
-  // quantity only — interval switching mid-subscription is not offered here.
+  // Monthly vs annual billing. New users pick it at checkout; existing paid
+  // Stripe subscribers can switch their live subscription's interval in place
+  // (prorated price swap). Initialized to the user's current interval below.
   const [interval, setBillingInterval] = useState<BillingInterval>("month")
+  // The interval the user is CURRENTLY billed at (paid users only) — lets the
+  // Save button detect an interval switch and the toggle open on the right side.
+  const [currentInterval, setCurrentInterval] = useState<BillingInterval | null>(null)
   const perWorkerUsd = (cfg.pricePerWorkerCents[interval] ?? 100) / 100
   const tiers = useMemo<TierInfo[]>(
     () => cfg.tiers.map((w) => ({ usd: w, workers: w, checks: w * cfg.perWorkerDailyChecks })),
@@ -87,6 +93,12 @@ export default function PricingPage() {
   const atMin = tierIndex <= 0
   const atMax = tierIndex >= tiers.length - 1
   const perLabel = interval === "year" ? t("perYear") : t("perMonth")
+  // Annual discount vs paying 12× the monthly rate, for the selected tier.
+  const monthlyYearUsd = workers * (cfg.pricePerWorkerCents.month / 100) * 12
+  const annualUsd = workers * (cfg.pricePerWorkerCents.year / 100)
+  const annualSaveUsd = Math.max(0, monthlyYearUsd - annualUsd)
+  const annualSavePct = monthlyYearUsd > 0 ? Math.round((annualSaveUsd / monthlyYearUsd) * 100) : 0
+  const showAnnualSavings = interval === "year" && annualSaveUsd > 0
 
   // Load plan status; for paid users also resolve the current worker count so the
   // stepper opens on their tier and the Save button can detect changes.
@@ -118,6 +130,12 @@ export default function PricingPage() {
             if (Math.abs(tiers[i].workers - count) < Math.abs(tiers[best].workers - count)) best = i
           }
           setTierIndex(best)
+        }
+        // Open the toggle on the user's current interval so "Save" only fires on
+        // an actual change.
+        if (d.interval === "month" || d.interval === "year") {
+          setCurrentInterval(d.interval)
+          setBillingInterval(d.interval)
         }
       }
     } catch {
@@ -168,9 +186,21 @@ export default function PricingPage() {
     status?.plan === "paid" &&
     (!status.planExpiresAt || new Date(status.planExpiresAt).getTime() > Date.now())
 
-  // Paid users adjust their worker count right here — prorated, mirroring the
-  // billing dashboard's PATCH. Only enabled once the picked tier differs.
-  const dirty = Boolean(isPaid && currentWorkers != null && workers !== currentWorkers)
+  // A paid user only has a MANAGEABLE plan when a real provider subscription
+  // exists. Admin-granted paid accounts have plan='paid' but no subscription,
+  // so worker/interval changes (PATCH /workers) would 404 — those users get the
+  // checkout flow instead, to start a real subscription.
+  const manageable = isPaid && Boolean(status?.subscriptionId)
+
+  // Interval switching in-place is Stripe-only (PayU mandates are monthly).
+  const canSwitchInterval = manageable && status?.provider === "stripe"
+  const intervalChanged = Boolean(isPaid && currentInterval != null && interval !== currentInterval)
+
+  // Paid users adjust worker count and/or billing interval right here — prorated,
+  // mirroring the billing dashboard's PATCH. Enabled once either differs.
+  const dirty = Boolean(
+    isPaid && ((currentWorkers != null && workers !== currentWorkers) || intervalChanged),
+  )
 
   const handleSaveWorkers = async () => {
     if (!dirty || !token) return
@@ -178,12 +208,14 @@ export default function PricingPage() {
     try {
       await axios.patch(
         `${API_URL}/api/billing/workers`,
-        { workerCount: workers },
+        // Only send interval when it actually changed (avoids a no-op price swap).
+        { workerCount: workers, ...(intervalChanged ? { interval } : {}) },
         { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
       )
       toast.success(t("savedToast", { workers, checks: searchesPerDay }))
       window.dispatchEvent(new Event("usage:refresh"))
       setCurrentWorkers(workers)
+      setCurrentInterval(interval)
       void loadStatus()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("errorSaveFailed"))
@@ -302,9 +334,12 @@ export default function PricingPage() {
               <span className="price-ribbon"><Icon.star size={11} /> {t("recommended")}</span>
             </div>
 
-            {/* Monthly / annual toggle — new subscriptions only. Existing paid users
-                manage quantity here; interval switching isn't offered in-place. */}
-            {!isPaid && (
+            {/* Monthly / annual toggle — shown whenever the user will CHECKOUT a
+                new subscription (`!manageable`: free, unauthenticated, or an
+                admin-granted paid account with no real subscription) AND for
+                existing paid Stripe subs (in-place prorated interval switch).
+                Managed PayU subs stay monthly, so it's hidden for them. */}
+            {(!manageable || canSwitchInterval) && (
               <div className="row" style={{ gap: 6, marginTop: 16 }}>
                 <button
                   type="button"
@@ -330,9 +365,17 @@ export default function PricingPage() {
 
             {/* Price scales with worker count: $1/worker/mo or $10/worker/yr. */}
             <div style={{ marginTop: 18, display: "flex", alignItems: "baseline", gap: 6 }}>
+              {showAnnualSavings && (
+                <span className="muted" style={{ fontSize: 18, textDecoration: "line-through", opacity: 0.6 }}>${monthlyYearUsd}</span>
+              )}
               <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>${priceUsd}</span>
               <span className="muted" style={{ fontSize: 13 }}>{perLabel}</span>
             </div>
+            {showAnnualSavings && (
+              <p className="tiny" style={{ marginTop: 6, color: "var(--pos)", fontWeight: 600 }}>
+                {t("annualSaveNote", { save: annualSaveUsd, pct: annualSavePct })}
+              </p>
+            )}
             <p className="tiny muted" style={{ marginTop: 6 }}>
               {t.rich("rankChecksPerDay", {
                 searches: searchesPerDay,
@@ -441,8 +484,9 @@ export default function PricingPage() {
               <button className="btn primary" disabled style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: 0.7 }}>
                 {t("loading")}
               </button>
-            ) : isPaid ? (
-              // Paid — let them re-tier their workers in place (prorated) instead of a dead end.
+            ) : manageable ? (
+              // Paid with a real subscription — re-tier workers in place (prorated).
+              // Admin-granted paid (no subscription) falls through to checkout below.
               <button
                 className="btn primary"
                 onClick={handleSaveWorkers}

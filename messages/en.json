@@ -385,7 +385,8 @@
     "annualUnavailable": "Annual billing isn't available in your region yet — switched back to monthly.",
     "billedAnnually": "Billed yearly via <b>Stripe</b>.",
     "perWorkerEachYear": "{searches}/day · ${price}/yr each",
-    "getWorkersYear": "Get {workers, plural, one {# worker} other {# workers}} — ${price}/yr →"
+    "getWorkersYear": "Get {workers, plural, one {# worker} other {# workers}} — ${price}/yr →",
+    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)"
   },
   "billingResult": {
     "eyebrow": "Payment",
@@ -582,7 +583,15 @@
     "legacyTier": "Legacy tier",
     "previewChargeNow": "≈{amount} charged today, prorated",
     "perMonthSuffix": "/mo",
-    "perYearSuffix": "/yr"
+    "perYearSuffix": "/yr",
+    "intervalMonthly": "Monthly",
+    "intervalAnnual": "Annual",
+    "annualSavings": "2 months free",
+    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)",
+    "annualNudge": "You're billed monthly — switch to annual and save ${save}/yr ({pct}% off).",
+    "annualNudgeCta": "Switch to annual",
+    "grantedNoSub": "Your plan was activated directly (no billing subscription), so worker and billing changes aren't available here. Start a subscription to manage workers.",
+    "startSubscription": "Start subscription"
   },
   "projKeywords": {
     "loadingProject": "Loading project…",
