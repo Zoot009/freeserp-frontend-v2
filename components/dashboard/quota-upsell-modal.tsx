@@ -125,7 +125,7 @@ export function QuotaUpsellModal() {
     try {
       await api.patch("/api/billing/workers", { workerCount: nextTier })
       window.dispatchEvent(new Event("usage:refresh"))
-      toast.success(t("upgraded", { workers: nextTier, checks: nextTier * checksPerDay }))
+      toast.success(t("upgraded", { checks: nextTier * checksPerDay }))
       close()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("upgradeFailed"))
@@ -182,7 +182,7 @@ export function QuotaUpsellModal() {
                 style={{ borderColor: "var(--brand)", background: "var(--brand-soft)", display: "flex", flexDirection: "column", gap: 8 }}
               >
                 <div className="b" style={{ fontSize: 14 }}>
-                  {t("nextTier", { workers: nextTier, checks: nextTier * checksPerDay })}
+                  {t("nextTier", { checks: nextTier * checksPerDay })}
                 </div>
                 {preview ? (
                   <div className="tiny muted" style={{ lineHeight: 1.55 }}>
@@ -210,7 +210,7 @@ export function QuotaUpsellModal() {
             </button>
             {isPaid && nextTier !== null ? (
               <button type="button" className="btn primary" onClick={confirmUpgrade} disabled={busy}>
-                {busy ? t("working") : t("upgradeCta", { workers: nextTier })}
+                {busy ? t("working") : t("upgradeCta", { checks: nextTier * checksPerDay })}
               </button>
             ) : (
               <Link href="/pricing?clicked-buy-button" onClick={close}>

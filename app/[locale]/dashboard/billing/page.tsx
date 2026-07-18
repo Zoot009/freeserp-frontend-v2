@@ -197,12 +197,12 @@ export default function BillingPage() {
         workerCount: workers,
         ...(intervalChanged ? { interval } : {}),
       })
-      toast.success(t("workersUpdated", { count: workers, checks: searchesPerDay.toLocaleString() }))
+      toast.success(t("planUpdated", { checks: searchesPerDay.toLocaleString() }))
       setTargetInterval(null)
       await load()
       refreshMeter()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("workersUpdateError"))
+      toast.error(err instanceof ApiError ? err.message : t("planUpdateError"))
     } finally {
       setSaving(false)
     }
@@ -338,8 +338,8 @@ export default function BillingPage() {
 
       {/* Overview tiles */}
       <div className="grid g-4" style={{ marginBottom: 16 }}>
-        <StatTile lbl={t("tilePlan")} val={isPaid ? t("workers") : t("free")} tip={isPaid ? t("tilePlanActive", { count: usage?.workerCount ?? 0 }) : t("tilePlanManual")} />
-        <StatTile lbl={t("workers")} val={isPaid ? (usage?.workerCount ?? 1) : "—"} tip={isPaid ? t("tileWorkersEach", { count: perWorker }) : undefined} />
+        <StatTile lbl={t("tilePlan")} val={isPaid ? t("paidPlanName") : t("free")} tip={isPaid ? t("tilePlanActive", { count: currentWorkers * perWorker }) : t("tilePlanManual")} />
+        <StatTile lbl={t("tileChecksPerDay")} val={isPaid ? (currentWorkers * perWorker).toLocaleString() : "—"} tip={isPaid ? t("tileChecksEach", { count: perWorker }) : undefined} />
         <StatTile
           lbl={currentInterval === "year" ? t("tileYearlyCost") : t("tileMonthlyCost")}
           val={isPaid ? `$${tierPriceUsd(currentWorkers, currentInterval)}` : "$0"}
@@ -357,8 +357,8 @@ export default function BillingPage() {
         <div className="card" ref={workerCardRef}>
           <div className="card-h">
             <div>
-              <div className="t">{isPaid ? t("workers") : t("yourPlan")}</div>
-              <div className="tiny muted">{isPaid ? t("workerCardHintPaid") : t("workerCardHintFree")}</div>
+              <div className="t">{isPaid ? t("paidPlanName") : t("yourPlan")}</div>
+              <div className="tiny muted">{isPaid ? t("planCardHintPaid") : t("planCardHintFree")}</div>
             </div>
           </div>
 
@@ -473,7 +473,7 @@ export default function BillingPage() {
                 })}
               </div>
               <p className="tiny muted" style={{ marginTop: 12 }}>
-                {t.rich("workerSummary", {
+                {t.rich("planSummary", {
                   checks: searchesPerDay.toLocaleString(),
                   cost: priceUsd,
                   per: perSuffix,
@@ -487,7 +487,7 @@ export default function BillingPage() {
               )}
               {dirty && (
                 <p className="tiny" style={{ marginTop: 8, padding: "8px 10px", borderRadius: "var(--r-sm)", background: "var(--bg-inset)" }}>
-                  <span className="muted">{t("workerDeltaFrom", { from: currentWorkers, to: workers })} · </span>
+                  <span className="muted">{t("planDeltaFrom", { from: currentWorkers * perWorker, to: searchesPerDay })} · </span>
                   {preview ? (
                     <span style={{ color: preview.amountDueCents >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
                       {t("previewChargeNow", { amount: formatMoney(preview.amountDueCents, preview.currency) })}
@@ -497,7 +497,7 @@ export default function BillingPage() {
                       <span style={{ color: priceDelta >= 0 ? "var(--pos)" : "var(--neg)", fontWeight: 600 }}>
                         {priceDelta >= 0 ? "+" : "−"}${Math.abs(priceDelta)}{perSuffix}
                       </span>
-                      <span className="muted">{t("workerDeltaProrated")}</span>
+                      <span className="muted">{t("planDeltaProrated")}</span>
                     </>
                   )}
                 </p>
@@ -578,7 +578,7 @@ export default function BillingPage() {
           <div className="bar thick"><span style={{ width: `${usedPct}%`, background: usedPct >= 100 ? "var(--neg)" : "var(--brand)" }} /></div>
           <div className="tiny muted" style={{ marginTop: 8 }}>
             {isPaid ? (
-              t("usageLinePaid", { remaining: usage.dailyRemaining, count: usage.workerCount, perWorker })
+              t("usageLinePaid", { remaining: usage.dailyRemaining, limit: usage.dailyLimit })
             ) : usage.freeCheckTrialExhausted ? (
               t.rich("usageLineFreeExhausted", {
                 link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,

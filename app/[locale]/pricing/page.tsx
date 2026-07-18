@@ -7,13 +7,16 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Icon } from "@/components/dashboard/icons"
 import { useAuth } from "@/lib/auth"
-import axios from "@/lib/axios"
+// Shared API client (not raw axios): it attaches the access token and, on a 401,
+// transparently refreshes + retries. The pricing page previously used raw axios
+// with a manually-attached bearer, so an expired token surfaced as a hard
+// "Invalid or expired token" mid-checkout instead of silently refreshing.
+import { api, ApiError } from "@/lib/api"
 import { trackEvent } from "@/lib/track"
 import { track } from "@/lib/analytics"
 import { type BillingInterval, type TierInfo } from "@/lib/pricing"
 import { fetchBillingConfig, FALLBACK_BILLING_CONFIG, type BillingConfig } from "@/lib/billing-config"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
 interface Status {
   configured: boolean
@@ -25,20 +28,11 @@ interface Status {
   provider?: string | null
 }
 
+// A compare row is either a section header or a feature comparison.
+type CompareRow = { group: string } | { feature: string; free: string; paid: string }
+
 const Check = () => (
-  <span
-    style={{
-      display: "grid",
-      placeItems: "center",
-      width: 18,
-      height: 18,
-      flexShrink: 0,
-      borderRadius: 6,
-      background: "var(--brand-soft)",
-      color: "var(--brand)",
-      marginTop: 1,
-    }}
-  >
+  <span className="feat-check">
     <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
       <path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -49,11 +43,13 @@ export default function PricingPage() {
   const t = useTranslations("pricing")
   const freeFeatures = t.raw("freeFeatures") as string[]
   const paidFeatures = t.raw("paidFeatures") as string[]
-  const compareRows = t.raw("compareRows") as { feature: string; free: string; paid: string }[]
+  // Rows are either a section header ({ group }) or a feature row. The compare
+  // table groups ~17 rows under three headings so it stays scannable.
+  const compareRows = t.raw("compareRows") as CompareRow[]
   const stats = [
     { label: t("statMarketsLabel"), value: t("statMarketsValue"), icon: <Icon.globe /> },
     { label: t("statResultTimeLabel"), value: t("statResultTimeValue"), icon: <Icon.zap /> },
-    { label: t("statCommitmentLabel"), value: t("statCommitmentValue"), icon: <Icon.refresh /> },
+    { label: t("statCommitmentLabel"), value: t("statCommitmentValue"), icon: <Icon.shield /> },
   ]
   const faq = t.raw("faq") as { q: string; a: string }[]
   const { user, token, loading } = useAuth()
@@ -104,18 +100,15 @@ export default function PricingPage() {
   // stepper opens on their tier and the Save button can detect changes.
   const loadStatus = useCallback(async () => {
     if (!token) return
-    const headers = { Authorization: `Bearer ${token}` }
     try {
-      const r = await axios.get(`${API_URL}/api/payments/status`, { headers })
-      if (r.status < 200 || r.status >= 300) return
-      const d = r.data as Status
+      const d = await api.get<Status>("/api/payments/status")
       setStatus(d)
       if (d?.plan === "paid") {
         let wc = typeof d.workerCount === "number" ? d.workerCount : null
         if (wc == null) {
           try {
-            const u = await axios.get(`${API_URL}/api/usage`, { headers })
-            if (typeof u.data?.workerCount === "number") wc = u.data.workerCount
+            const u = await api.get<{ workerCount?: number }>("/api/usage")
+            if (typeof u?.workerCount === "number") wc = u.workerCount
           } catch {
             /* usage is best-effort; fall back to leaving the stepper at tier 0 */
           }
@@ -158,24 +151,19 @@ export default function PricingPage() {
     setError("")
     setCheckoutLoading(true)
     try {
-      const res = await axios.post(
-        `${API_URL}/api/payments/checkout`,
-        { workerCount: workers, interval },
-        { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
-      )
-      const data = res.data as { url?: string; error?: { code?: string; message?: string } }
-      if (res.status < 200 || res.status >= 300) {
-        // Annual is Stripe-only; PayU-billed regions get bounced back to monthly.
-        if (data?.error?.code === "annual_unavailable") {
-          setBillingInterval("month")
-          toast.error(t("annualUnavailable"))
-          return
-        }
-        throw new Error(data?.error?.message || t("errorFailedStartCheckout"))
-      }
+      const data = await api.post<{ url?: string }>("/api/payments/checkout", {
+        workerCount: workers,
+        interval,
+      })
       if (!data?.url) throw new Error(t("errorCheckoutUrlMissing"))
       window.location.href = data.url
     } catch (err) {
+      // Annual is Stripe-only; PayU-billed regions get bounced back to monthly.
+      if (err instanceof ApiError && err.code === "annual_unavailable") {
+        setBillingInterval("month")
+        toast.error(t("annualUnavailable"))
+        return
+      }
       setError(err instanceof Error ? err.message : t("errorCheckoutFailed"))
     } finally {
       setCheckoutLoading(false)
@@ -206,13 +194,12 @@ export default function PricingPage() {
     if (!dirty || !token) return
     setSaving(true)
     try {
-      await axios.patch(
-        `${API_URL}/api/billing/workers`,
-        // Only send interval when it actually changed (avoids a no-op price swap).
-        { workerCount: workers, ...(intervalChanged ? { interval } : {}) },
-        { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
-      )
-      toast.success(t("savedToast", { workers, checks: searchesPerDay }))
+      // Only send interval when it actually changed (avoids a no-op price swap).
+      await api.patch("/api/billing/workers", {
+        workerCount: workers,
+        ...(intervalChanged ? { interval } : {}),
+      })
+      toast.success(t("savedToast", { checks: searchesPerDay }))
       window.dispatchEvent(new Event("usage:refresh"))
       setCurrentWorkers(workers)
       setCurrentInterval(interval)
@@ -234,10 +221,24 @@ export default function PricingPage() {
     flexShrink: 0,
   }
 
-  // Renders a comparison cell: check / dash get iconography, everything else is text.
+  // Renders a comparison cell. "✓" / "—" are sentinels the message files use for
+  // included / not-included — everything else renders as plain text. Translators
+  // must preserve those two glyphs exactly.
   const cmpCell = (v: string) => {
-    if (v === "✓") return <span className="cmp-yes" aria-label="Included"><Icon.check size={16} /></span>
-    if (v === "—") return <span className="cmp-no" aria-hidden>—</span>
+    if (v === "✓")
+      return (
+        <span className="cmp-yes" role="img" aria-label={t("compareIncluded")}>
+          <Icon.check size={14} />
+        </span>
+      )
+    if (v === "—")
+      return (
+        <span className="cmp-no" role="img" aria-label={t("compareNotIncluded")}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+            <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+      )
     return <span>{v}</span>
   }
 
@@ -296,6 +297,18 @@ export default function PricingPage() {
       </div>
 
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "36px 24px 72px" }}>
+        {/* Free-trial callout — the offer is 3 checks within 7 days, not a
+            recurring allowance, so it's worth stating plainly. Paid users have
+            already consumed it, so it's hidden for them. */}
+        {!isPaid && (
+          <p className="trial-banner">
+            <Icon.zap />
+            <span>
+              <b>{t("trialBannerLead")}</b> {t("trialBannerRest")}
+            </span>
+          </p>
+        )}
+
         {/* Pricing cards */}
         <div className="grid g-2" style={{ alignItems: "stretch" }}>
           {/* Free */}
@@ -309,9 +322,9 @@ export default function PricingPage() {
 
             <div style={{ height: 1, background: "var(--border)", margin: "22px 0" }} />
 
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+            <ul className="price-feats">
               {freeFeatures.map(f => (
-                <li key={f} className="row" style={{ alignItems: "flex-start", gap: 10, fontSize: 13 }}>
+                <li key={f}>
                   <Check />
                   <span>{f}</span>
                 </li>
@@ -328,9 +341,9 @@ export default function PricingPage() {
           </div>
 
           {/* Workers */}
-          <div className="card price-card featured" style={{ padding: 28 }}>
+          <div className="card price-card featured" style={{ padding: 28, display: "flex", flexDirection: "column" }}>
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <span className="chip brand">{t("workers")}</span>
+              <span className="chip brand">{t("paidTitle")}</span>
               <span className="price-ribbon"><Icon.star size={11} /> {t("recommended")}</span>
             </div>
 
@@ -385,26 +398,17 @@ export default function PricingPage() {
             </p>
 
             {/* Fixed pricing tiers — pick an amount (no custom values) */}
-            <div
-              style={{
-                marginTop: 20,
-                padding: 14,
-                borderRadius: "var(--r-md)",
-                background: "var(--bg-inset)",
-                border: "1px solid var(--border)",
-              }}
-            >
+            <div className="tier-picker">
               <div className="row between" style={{ marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-mute)" }}>
-                  {isPaid ? t("manageTitle") : t("choosePlan")}
-                </span>
+                <span className="tier-picker-h">{isPaid ? t("manageTitle") : t("choosePlan")}</span>
                 <span className="tiny muted">
                   {interval === "year"
-                    ? t("perWorkerEachYear", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })
-                    : t("perWorkerEach", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })}
+                    ? t("perDollarEachYear", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })
+                    : t("perDollarEach", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })}
                 </span>
               </div>
-              {/* Incremental stepper — −/+ move between the fixed tiers */}
+              {/* Incremental stepper — −/+ move between the fixed tiers. Checks/day
+                  leads, price is secondary: capacity is what's being bought. */}
               <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
                 <button
                   type="button"
@@ -416,22 +420,9 @@ export default function PricingPage() {
                 >
                   −
                 </button>
-                <div
-                  style={{
-                    flex: 1,
-                    display: "grid",
-                    placeItems: "center",
-                    gap: 2,
-                    padding: "6px 4px",
-                    borderRadius: "var(--r-sm)",
-                    background: "var(--bg-elev)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <span style={{ fontSize: 20, fontWeight: 700, color: "var(--brand)", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
-                    {t("tierChecks", { checks: searchesPerDay })}
-                  </span>
-                  <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+                <div className="tier-readout">
+                  <span className="tier-readout-checks">{t("tierChecks", { checks: searchesPerDay })}</span>
+                  <span className="tiny muted tabular">
                     ${priceUsd}{perLabel}
                   </span>
                 </div>
@@ -471,17 +462,19 @@ export default function PricingPage() {
               </p>
             </div>
 
-            <ul style={{ listStyle: "none", margin: "20px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+            <ul className="price-feats" style={{ marginTop: 20 }}>
               {paidFeatures.map(f => (
-                <li key={f} className="row" style={{ alignItems: "flex-start", gap: 10, fontSize: 13 }}>
+                <li key={f}>
                   <Check />
                   <span>{f}</span>
                 </li>
               ))}
             </ul>
 
+            {/* marginTop:auto keeps this CTA level with the Free card's button */}
+            <div style={{ marginTop: "auto", paddingTop: 18 }}>
             {loading ? (
-              <button className="btn primary" disabled style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: 0.7 }}>
+              <button className="btn primary" disabled style={{ width: "100%", justifyContent: "center", opacity: 0.7 }}>
                 {t("loading")}
               </button>
             ) : manageable ? (
@@ -491,7 +484,7 @@ export default function PricingPage() {
                 className="btn primary"
                 onClick={handleSaveWorkers}
                 disabled={saving || !dirty}
-                style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: saving || !dirty ? 0.85 : 1 }}
+                style={{ width: "100%", justifyContent: "center", opacity: saving || !dirty ? 0.85 : 1 }}
               >
                 {saving ? (
                   <>
@@ -512,7 +505,7 @@ export default function PricingPage() {
                 className="btn primary"
                 onClick={handleUpgrade}
                 disabled={checkoutLoading || (status && !status.configured) || undefined}
-                style={{ width: "100%", justifyContent: "center", marginTop: 18 }}
+                style={{ width: "100%", justifyContent: "center" }}
               >
                 {checkoutLoading ? (
                   <>
@@ -533,8 +526,8 @@ export default function PricingPage() {
                   t("paymentsNotConfigured")
                 ) : user ? (
                   interval === "year"
-                    ? t("getWorkersYear", { workers, price: priceUsd })
-                    : t("getWorkers", { workers, price: priceUsd })
+                    ? t("getChecksYear", { checks: searchesPerDay, price: priceUsd })
+                    : t("getChecks", { checks: searchesPerDay, price: priceUsd })
                 ) : (
                   t("signInToUpgrade")
                 )}
@@ -556,6 +549,7 @@ export default function PricingPage() {
                 {error}
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -575,15 +569,19 @@ export default function PricingPage() {
             <div className="cmp-row cmp-head">
               <span />
               <span className="cmp-val">{t("compareFree")}</span>
-              <span className="cmp-val" style={{ color: "var(--brand)", fontWeight: 700 }}>{t("compareWorkers")}</span>
+              <span className="cmp-val" style={{ color: "var(--brand)", fontWeight: 700 }}>{t("comparePaid")}</span>
             </div>
-            {compareRows.map(r => (
-              <div className="cmp-row" key={r.feature}>
-                <span className="cmp-feat">{r.feature}</span>
-                <span className="cmp-val">{cmpCell(r.free)}</span>
-                <span className="cmp-val paid">{cmpCell(r.paid)}</span>
-              </div>
-            ))}
+            {compareRows.map(r =>
+              "group" in r ? (
+                <div className="cmp-group" key={r.group}>{r.group}</div>
+              ) : (
+                <div className="cmp-row" key={r.feature}>
+                  <span className="cmp-feat">{r.feature}</span>
+                  <span className="cmp-val">{cmpCell(r.free)}</span>
+                  <span className="cmp-val paid">{cmpCell(r.paid)}</span>
+                </div>
+              ),
+            )}
           </div>
         </div>
 

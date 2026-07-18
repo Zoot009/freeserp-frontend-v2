@@ -58,8 +58,7 @@ export function UsageMeter() {
   const isPaid = usage.plan === "paid"
   const exhausted = usage.dailyRemaining <= 0
   const countColor = exhausted ? "var(--neg)" : "var(--text)"
-  const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
-  const buyLabel = isPaid ? t("addWorkers") : t("buyMore")
+  const buyLabel = isPaid ? t("addChecks") : t("buyMore")
 
   // Free plan: a one-time trial (FREE_TRIAL_WINDOW_DAYS), not a daily
   // allowance — show days remaining (or "Trial ended") instead of "checks today".
@@ -74,7 +73,6 @@ export function UsageMeter() {
   const chipTitle = isPaid
     ? t("chipTitle", {
         plan: t("planPro"),
-        workerSuffix,
         used: usage.dailyUsed,
         limit: usage.dailyLimit,
       })

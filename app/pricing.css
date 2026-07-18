@@ -45,6 +45,61 @@
 }
 .fs-app .trust-pill .spark { color: var(--brand); }
 
+/* Long stat labels ("69 countries · 30 languages") must wrap on narrow screens
+   rather than push the pill row out of the viewport. */
+@media (max-width: 560px) {
+  .fs-app .trust-pill { white-space: normal; text-align: center; }
+}
+
+/* ---- Free-trial callout above the cards ---- */
+.fs-app .trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 12px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+  background: var(--brand-soft);
+  color: var(--text-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+.fs-app .trial-banner b { color: var(--brand); font-weight: 600; }
+.fs-app .trial-banner > svg { color: var(--brand); flex-shrink: 0; }
+@media (max-width: 560px) {
+  .fs-app .trial-banner { flex-direction: column; gap: 6px; }
+}
+
+/* ---- Feature bullet lists on the cards ---- */
+.fs-app .price-feats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fs-app .price-feats li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+.fs-app .feat-check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
 /* ---- Pricing cards ---- */
 .fs-app .price-card {
   position: relative;
@@ -76,6 +131,38 @@
   color: #fff;
   background: linear-gradient(135deg, var(--brand), var(--brand-deep));
   box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--brand) 65%, transparent);
+}
+
+/* ---- Tier picker ----
+   One surface, not two nested bordered boxes: the readout sits directly on the
+   inset background so the card reads as a single block. */
+.fs-app .tier-picker {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+}
+.fs-app .tier-picker-h {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.fs-app .tier-readout {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+}
+.fs-app .tier-readout-checks {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Segmented tier scale (animated fill) */
@@ -127,12 +214,45 @@
   border-radius: var(--r-sm);
   padding: 4px 6px;
 }
-.fs-app .cmp-yes { color: var(--brand); }
-.fs-app .cmp-no { color: var(--text-mute); }
+/* A not-included cell must never carry the "paid column" brand wash — that read
+   as included at a glance. */
+.fs-app .cmp-val.paid:has(.cmp-no) { background: none; }
+
+/* Section headings grouping the ~17 comparison rows */
+.fs-app .cmp-group {
+  padding: 10px 18px;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+
+/* Included / not-included badges — same 18px footprint so the column stays
+   aligned, but unmistakably different in weight and colour. */
+.fs-app .cmp-yes,
+.fs-app .cmp-no {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+}
+.fs-app .cmp-yes {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.fs-app .cmp-no {
+  color: var(--text-mute);
+  background: color-mix(in srgb, var(--text-mute) 12%, transparent);
+}
 
 @media (max-width: 560px) {
   .fs-app .cmp-row { grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; padding: 12px; font-size: 12.5px; }
   .fs-app .cmp-val.paid { padding: 3px 4px; }
+  .fs-app .cmp-group { padding: 9px 12px; }
 }
 
 /* ---- Stats band ---- */
