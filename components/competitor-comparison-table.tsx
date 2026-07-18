@@ -3,12 +3,47 @@
 import React, { useState } from "react"
 import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
 import type { AnalysisData } from "@/types/competitor-analysis"
-import { computeSeoScore, scoreColor, scoreBarBg, type SeoScoreBreakdown } from "@/lib/seoScorer"
+import { computeSeoScore, scoreColor, type SeoScoreBreakdown } from "@/lib/seoScorer"
 
 interface Props {
   analysis: AnalysisData
   onRecrawl?: (domain: string) => void
   recrawlingDomains?: Set<string>
+}
+
+// Circular score gauge (donut) for the SEO Score panel. Color-coded by the same
+// thresholds as scoreColor (>=80 pos / >=60 warn / else neg). The arc animates
+// in. Renders "—" when the score is null (crawl failed / no data).
+function ScoreDonut({ score, grade, label }: { score: number | null; grade?: string | null; label?: string | null }) {
+  if (score == null) {
+    return <span className="text-[14px] text-[color:var(--text-mute)]">—</span>
+  }
+  const color = score >= 80 ? 'var(--pos)' : score >= 60 ? 'var(--warn)' : 'var(--neg)'
+  const R = 38
+  const C = 2 * Math.PI * R
+  const dash = (score / 100) * C
+  return (
+    <div className="inline-flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: 84, height: 84 }}>
+        <svg width="84" height="84" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }} aria-hidden>
+          <circle cx="44" cy="44" r={R} fill="none" stroke="var(--bg-inset)" strokeWidth="7" />
+          <circle
+            cx="44" cy="44" r={R} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
+            strokeDasharray={`${dash} ${C}`}
+            style={{ transition: 'stroke-dasharray .6s cubic-bezier(.16,1,.3,1)' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="font-sans font-semibold tabular-nums text-[24px] leading-none" style={{ color }}>{score}</span>
+        </div>
+      </div>
+      {(grade || label) && (
+        <div className="text-[11px] text-[color:var(--text-mute)] text-center leading-tight">
+          {grade}{grade && label ? ' · ' : ''}{label}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomains = new Set() }: Props) {
@@ -45,13 +80,13 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
 
   return (
               <div
-                className="w-full overflow-x-auto border border-[color:var(--border)] bg-[color:var(--bg-elev)]"
+                className="cmp-compare oa-fade-up w-full overflow-x-auto border border-[color:var(--border)] bg-[color:var(--bg-sub)]"
                 style={{ borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)', WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain' }}
               >
                 {/* min-width keeps columns readable on small screens — the table
                     scrolls horizontally with the metric-label column pinned. */}
                 <table
-                  className="w-full border-collapse table-fixed"
+                  className="w-full border-separate table-fixed"
                   style={{ minWidth: `${(analysis.competitors.length + 2) * 150}px` }}
                 >
                   <colgroup>
@@ -62,23 +97,25 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                   <thead>
                     <tr className="align-top">
 
-                      {/* Corner — pinned with the label column */}
-                      <th className="sticky left-0 z-[3] border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] p-2.5 sm:p-5 text-left align-middle shadow-[2px_0_4px_-2px_rgba(11,13,18,0.12)]" />
+                      {/* Corner — pinned top + left; CSS (.cmp-corner) owns its styling */}
+                      <th className="cmp-corner" />
 
-                      {/* Your Business */}
-                      <th className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
-                        <div className="h-[3px] w-full bg-[color:var(--brand)]" />
-                        <div className="px-2 pt-2.5 pb-2.5 sm:px-3 sm:pt-3 sm:pb-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--brand)] mb-1">Your Business</p>
-                          <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={analysis.yourDomain}>
-                            {analysis.yourDomain}
-                          </p>
-                          <p className={`font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none ${rankText(analysis.yourPosition)}`}>
-                            {analysis.yourPosition ? `#${analysis.yourPosition}` : '—'}
-                          </p>
-                          <p className="text-[11px] text-[color:var(--text-mute)] mt-1">
-                            {analysis.yourPosition ? 'SERP Position' : 'Not Ranked'}
-                          </p>
+                      {/* Your Business — brand-tinted floating card, anchored vs competitors. */}
+                      <th className="cmp-you text-center align-top">
+                        <div className="cmp-head-tile you">
+                          <div className="h-[3px] w-full bg-[color:var(--brand)]" />
+                          <div className="px-2 pt-2.5 pb-2.5 sm:px-3 sm:pt-3 sm:pb-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--brand)] mb-1">Your Business</p>
+                            <p className="font-sans font-medium text-[13.5px] text-[color:var(--text)] leading-tight mb-2 truncate" title={analysis.yourDomain}>
+                              {analysis.yourDomain}
+                            </p>
+                            <p className={`font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none ${rankText(analysis.yourPosition)}`}>
+                              {analysis.yourPosition ? `#${analysis.yourPosition}` : '—'}
+                            </p>
+                            <p className="text-[11px] text-[color:var(--text-mute)] mt-1">
+                              {analysis.yourPosition ? 'SERP Position' : 'Not Ranked'}
+                            </p>
+                          </div>
                         </div>
                       </th>
 
@@ -87,7 +124,8 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                         const isFailed = comp.crawlMethod === 'failed' || comp.crawlMethod === 'minimal' || comp.wordCount === 0
                         const isRecrawling = recrawlingDomains.has(comp.domain)
                         return (
-                          <th key={i} className="border-r last:border-r-0 border-b border-[color:var(--border)] bg-[color:var(--bg-elev)] text-center p-0 align-top">
+                          <th key={i} className="text-center align-top">
+                            <div className={`cmp-head-tile${isFailed ? ' failed' : ''}`}>
                             <div className={`h-[3px] w-full ${isFailed ? 'bg-[color:var(--neg)]' : rankStripe(comp.position)}`} />
                             <div className="px-2 pt-2.5 pb-2.5 sm:px-3 sm:pt-3 sm:pb-3">
                               {/* invisible spacer to keep header heights aligned with the "Your Business" cell */}
@@ -129,6 +167,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                 </>
                               )}
                             </div>
+                            </div>
                           </th>
                         )
                       })}
@@ -153,13 +192,15 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       )
 
                       const SectionRow = ({ title, colSpan }: { title: string; colSpan: number }) => (
-                        <tr>
-                          <td
-                            colSpan={colSpan}
-                            className="border-y border-[color:var(--border)] bg-[color:var(--bg-sub)] px-3 sm:px-5 py-2.5"
-                          >
-                            {/* Pinned left so the section title stays visible while scrolling. */}
-                            <span className="sticky left-3 sm:left-5 inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--text-mute)]">{title}</span>
+                        <tr className="cmp-section">
+                          <td colSpan={colSpan}>
+                            {/* Elevated panel header bar; title stays pinned left while scrolling. */}
+                            <div className="cmp-section-head">
+                              <span className="cmp-section-title">
+                                <span className="cmp-section-tick" />
+                                {title}
+                              </span>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -362,9 +403,16 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       const SubScoreRow = ({ label, sub, pick }: { label: string; sub?: string; pick: (s: SeoScoreBreakdown) => number | null }) => {
                         const cell = (s: SeoScoreBreakdown | null) => {
                           const v = s ? pick(s) : null
-                          return v != null
-                            ? <span className={`font-sans font-semibold tabular-nums text-lg ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
-                            : <span className="text-[13px] text-[color:var(--text-mute)]">—</span>
+                          if (v == null) return <span className="text-[13px] text-[color:var(--text-mute)]">—</span>
+                          const barColor = v >= 80 ? 'var(--pos)' : v >= 60 ? 'var(--warn)' : 'var(--neg)'
+                          return (
+                            <div className="inline-flex flex-col items-center gap-1.5 w-full max-w-[120px] mx-auto">
+                              <span className={`font-sans font-semibold tabular-nums text-lg ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
+                              <div className="w-full bg-[color:var(--bg-inset)] rounded-full h-1.5 overflow-hidden">
+                                <div className="h-1.5 rounded-full" style={{ width: `${v}%`, background: barColor, transition: 'width .6s cubic-bezier(.16,1,.3,1)' }} />
+                              </div>
+                            </div>
+                          )
                         }
                         return (
                           <tr>
@@ -401,7 +449,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           <SectionRow title="SEO Score" colSpan={totalCols} />
                           {/* Overall score row — click label to toggle breakdown */}
                           <tr>
-                            <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle">
+                            <td className="sticky left-0 z-[2] border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle shadow-[2px_0_4px_-2px_rgba(11,13,18,0.12)]">
                               <button
                                 onClick={() => setScoreBreakdownOpen(o => !o)}
                                 className="flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text)] hover:text-[color:var(--brand)] transition-colors"
@@ -413,38 +461,14 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                               </button>
                               <div className="text-[11px] text-[color:var(--text-mute)] mt-0.5">out of 100</div>
                             </td>
-                            {/* your score */}
+                            {/* your score — circular gauge */}
                             <td className="border-r border-b border-[color:var(--border)] p-4 text-center align-middle">
-                              {yourScore ? (
-                                <div>
-                                  <span className={`font-sans font-semibold tabular-nums text-4xl tracking-tight leading-none ${scoreColor(yourScore.total)}`}>
-                                    {yourScore.total}
-                                  </span>
-                                  <div className="mt-1 text-[11px] text-[color:var(--text-mute)]">
-                                    {yourScore.grade} · {yourScore.label}
-                                  </div>
-                                  <div className="mt-2 w-full bg-[color:var(--bg-inset)] rounded-full h-1.5 overflow-hidden">
-                                    <div className={`h-1.5 rounded-full ${scoreBarBg(yourScore.total)}`} style={{ width: `${yourScore.total}%` }} />
-                                  </div>
-                                </div>
-                              ) : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
+                              <ScoreDonut score={yourScore?.total ?? null} grade={yourScore?.grade} label={yourScore?.label} />
                             </td>
-                            {/* competitor scores */}
+                            {/* competitor scores — circular gauges */}
                             {analysis.competitors.map((_, i) => (
                               <td key={i} className="border-r last:border-r-0 border-b border-[color:var(--border)] p-4 text-center align-middle">
-                                {compScores[i] ? (
-                                  <div>
-                                    <span className={`font-sans font-semibold tabular-nums text-4xl tracking-tight leading-none ${scoreColor(compScores[i]!.total)}`}>
-                                      {compScores[i]!.total}
-                                    </span>
-                                    <div className="mt-1 text-[11px] text-[color:var(--text-mute)]">
-                                      {compScores[i]!.grade} · {compScores[i]!.label}
-                                    </div>
-                                    <div className="mt-2 w-full bg-[color:var(--bg-inset)] rounded-full h-1.5 overflow-hidden">
-                                      <div className={`h-1.5 rounded-full ${scoreBarBg(compScores[i]!.total)}`} style={{ width: `${compScores[i]!.total}%` }} />
-                                    </div>
-                                  </div>
-                                ) : <span className="text-[14px] text-[color:var(--text-mute)]">—</span>}
+                                <ScoreDonut score={compScores[i]?.total ?? null} grade={compScores[i]?.grade} label={compScores[i]?.label} />
                               </td>
                             ))}
                           </tr>
@@ -454,7 +478,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                           {/* Breakdown row — only rendered when open */}
                           {scoreBreakdownOpen && (
                             <tr>
-                              <td className="border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle">
+                              <td className="sticky left-0 z-[2] border-r border-b border-[color:var(--border)] bg-[color:var(--bg-sub)] p-4 align-middle shadow-[2px_0_4px_-2px_rgba(11,13,18,0.12)]">
                                 <div className="text-[12px] font-medium text-[color:var(--text)]">Score Breakdown</div>
                                 <div className="text-[11px] text-[color:var(--text-mute)] mt-0.5">by category</div>
                               </td>

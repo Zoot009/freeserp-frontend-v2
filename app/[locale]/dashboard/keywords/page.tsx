@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { Flag } from "@/components/flag"
+import { Dropdown } from "@/components/dashboard/dropdown"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import {
   FeatChip,
@@ -57,6 +59,7 @@ type EnrichedRow = KeywordRow & {
   device: string | null
   traffic: number | null
   status: string | null
+  checkedAt: string | null
   trend5: "winning" | "losing" | "neutral"
 }
 
@@ -119,6 +122,7 @@ export default function KeywordsListPage() {
               device: k.device,
               traffic: k.monthlyTraffic,
               status: k.status,
+              checkedAt: k.checkedAt,
               trend5: k.trend5 ?? "neutral",
             })
           }
@@ -189,15 +193,17 @@ export default function KeywordsListPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="crumbs" style={{ marginBottom: 6, fontSize: 12 }}>
-            <span>{project ? project.domain : t("allProjects")}</span>
-            <span className="sep">/</span>
-            <span className="here">{t("breadcrumbKeywords")}</span>
-          </div>
+          <div className="eyebrow"><span className="spark"><Icon.spark /></span> {t("headerEyebrow")}</div>
           <h1>
-            {loaded
-              ? t("trackedCount", { count: filtered.length })
-              : t("loadingKeywords")}
+            {loaded ? (
+              t("trackedCount", { count: filtered.length })
+            ) : (
+              <span
+                className="skeleton"
+                aria-label={t("loadingKeywords")}
+                style={{ display: "inline-block", width: 280, height: 28, borderRadius: 8, verticalAlign: "middle" }}
+              />
+            )}
           </h1>
           <div className="sub">
             {error
@@ -208,7 +214,6 @@ export default function KeywordsListPage() {
           </div>
         </div>
         <div className="row">
-          <button className="btn"><Icon.download /> {t("exportCsv")}</button>
           <button className="btn primary" onClick={() => router.push("/dashboard/projects")}>
             <Icon.plus /> {t("addKeywords")}
           </button>
@@ -218,7 +223,7 @@ export default function KeywordsListPage() {
       {/* Filter bar */}
       <div className="filter-row">
         <div style={{ position: "relative", width: 260 }}>
-          <span style={{ position: "absolute", left: 10, top: 9, color: "var(--text-mute)" }}><Icon.search /></span>
+          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", color: "var(--text-mute)" }}><Icon.search /></span>
           <input
             className="input"
             style={{ paddingLeft: 32 }}
@@ -227,17 +232,16 @@ export default function KeywordsListPage() {
             onChange={(e) => setFilter(e.target.value)}
           />
         </div>
-        <select
-          className="input"
-          style={{ width: "auto", paddingRight: 28 }}
+        <Dropdown
+          menuAlign="left"
           value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-        >
-          <option value="all">{t("allProjectsCount", { count: projects.length })}</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.domain}</option>
-          ))}
-        </select>
+          options={[
+            { value: "all", label: t("allProjectsCount", { count: projects.length }) },
+            ...projects.map((p) => ({ value: p.id, label: p.domain })),
+          ]}
+          onChange={setProjectFilter}
+          ariaLabel={t("allProjectsCount", { count: projects.length })}
+        />
         <div className="pill-toggle">
           {(["all", "desktop", "mobile"] as const).map((d) => (
             <button key={d} className={deviceFilter === d ? "active" : ""} onClick={() => setDeviceFilter(d)}>
@@ -245,7 +249,6 @@ export default function KeywordsListPage() {
             </button>
           ))}
         </div>
-        <button className="btn sm" disabled title={t("moreFiltersTitle")}><Icon.filter /> {t("moreFilters")}</button>
         {/* Trend filter pushed to the far right of the bar. */}
         <div className="pill-toggle" style={{ marginLeft: "auto" }}>
           {(["all", "winning", "losing"] as const).map((tr) => (
@@ -261,17 +264,43 @@ export default function KeywordsListPage() {
       </div>
 
       {/* Summary chips */}
-      <div className="row" style={{ marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
-        <SummaryChip lbl={t("chipShowing")} val={filtered.length.toString()} total={rows.length} ofLabel={t("ofTotal", { total: rows.length })} />
-        <SummaryChip lbl={t("chipAvgPosition")} val={avgPos ? `#${avgPos.toFixed(1)}` : "—"} />
-        <SummaryChip lbl={t("chipTop3")} val={top3.toString()} pct={positions.length ? Math.round((top3 / positions.length) * 100) : 0} />
-        <SummaryChip lbl={t("chipTop10")} val={top10.toString()} pct={positions.length ? Math.round((top10 / positions.length) * 100) : 0} />
-        <SummaryChip lbl={t("chipEstTraffic")} val={estTraffic.toLocaleString()} />
-      </div>
+      {!loaded ? (
+        <div className="row" style={{ marginBottom: 14, gap: 10, flexWrap: "wrap" }} aria-hidden="true">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span key={i} className="skeleton" style={{ width: 128, height: 35, borderRadius: 10 }} />
+          ))}
+        </div>
+      ) : (
+        <div className="row" style={{ marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
+          <SummaryChip lbl={t("chipShowing")} val={filtered.length.toString()} total={rows.length} ofLabel={t("ofTotal", { total: rows.length })} />
+          <SummaryChip lbl={t("chipAvgPosition")} val={avgPos ? `#${avgPos.toFixed(1)}` : "—"} />
+          <SummaryChip lbl={t("chipTop3")} val={top3.toString()} pct={positions.length ? Math.round((top3 / positions.length) * 100) : 0} />
+          <SummaryChip lbl={t("chipTop10")} val={top10.toString()} pct={positions.length ? Math.round((top10 / positions.length) * 100) : 0} />
+          <SummaryChip lbl={t("chipEstTraffic")} val={estTraffic.toLocaleString()} />
+        </div>
+      )}
 
       {!loaded ? (
-        <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          {t("loadingKeywords")}
+        <div className="card" style={{ padding: "8px 16px" }} aria-busy="true" aria-label={t("loadingKeywords")}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="row"
+              style={{
+                gap: 16,
+                padding: "14px 0",
+                borderBottom: i < 5 ? "1px solid var(--border)" : "none",
+              }}
+            >
+              <span className="skeleton" style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0 }} />
+              <span className="skeleton" style={{ width: "16%", height: 13 }} />
+              <span className="skeleton" style={{ width: 44, height: 22, borderRadius: 6, flexShrink: 0 }} />
+              <span className="skeleton" style={{ width: "14%", height: 12 }} />
+              <span className="skeleton" style={{ width: 56, height: 12, flexShrink: 0 }} />
+              <span className="skeleton" style={{ width: "12%", height: 12 }} />
+              <span className="skeleton" style={{ flex: 1, height: 12 }} />
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div
@@ -332,7 +361,7 @@ export default function KeywordsListPage() {
                     {(r.location || r.device) && (
                       <div className="row tiny muted" style={{ marginTop: 2, gap: 6, alignItems: "center" }}>
                         {r.location && (
-                          <span className="mono" style={{ textTransform: "uppercase" }}>{r.location}</span>
+                          <Flag code={r.location} size={14} title={r.location.toUpperCase()} />
                         )}
                         {r.device && (
                           <span className="row" style={{ gap: 3, alignItems: "center" }}>
@@ -347,6 +376,7 @@ export default function KeywordsListPage() {
                     <PosCell
                       position={r.pos}
                       processing={r.status === "PENDING" || r.status === "PROCESSING"}
+                      checked={!!r.checkedAt}
                     />
                   </td>
                   <td>
@@ -427,13 +457,11 @@ function SortHeader({
 
 function SummaryChip({ lbl, val, total, pct, ofLabel }: { lbl: string; val: string; total?: number; pct?: number; ofLabel?: string }) {
   return (
-    <div className="card tight" style={{ padding: "8px 14px", flex: "0 0 auto" }}>
-      <div className="tiny muted">{lbl}</div>
-      <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-        <span className="b tabular" style={{ fontSize: 16 }}>{val}</span>
-        {total != null && <span className="tiny muted">{ofLabel}</span>}
-        {pct != null && pct > 0 && <span className="tiny muted">({pct}%)</span>}
-      </div>
+    <div className="card tight row" style={{ padding: "8px 14px", flex: "0 0 auto", gap: 8, alignItems: "baseline", whiteSpace: "nowrap" }}>
+      <span className="tiny muted">{lbl}</span>
+      <span className="b tabular" style={{ fontSize: 15 }}>{val}</span>
+      {total != null && <span className="tiny muted">{ofLabel}</span>}
+      {pct != null && pct > 0 && <span className="tiny muted">({pct}%)</span>}
     </div>
   )
 }

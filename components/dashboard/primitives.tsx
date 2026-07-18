@@ -65,9 +65,14 @@ export function PosBadge({ pos }: { pos: number | null | undefined }) {
 export function PosCell({
   position,
   processing = false,
+  checked = true,
 }: {
   position: number | null | undefined
   processing?: boolean
+  /** Whether a rank check has actually completed for this keyword. When false
+      and there's no position, render "—" (not checked yet) instead of "100+"
+      (checked, not in the top 100) — they mean very different things. */
+  checked?: boolean
 }) {
   const t = useTranslations("dashPrimitives")
   if (processing) {
@@ -93,6 +98,13 @@ export function PosCell({
   }
   if (position != null && Number.isFinite(position)) {
     return <PosBadge pos={position} />
+  }
+  if (!checked) {
+    return (
+      <span className="tiny muted" title="Not checked yet">
+        —
+      </span>
+    )
   }
   return (
     <span
@@ -122,12 +134,18 @@ export function Sparkline({
   h = 28,
   color = "var(--brand)",
   invert = false,
+  fullWidth = false,
 }: {
   data: number[]
   w?: number
   h?: number
   color?: string
   invert?: boolean
+  // Stretch the line to fill the container width (the `w` becomes only the
+  // internal coordinate resolution). Uses preserveAspectRatio="none" so the
+  // path spans the full width, with a non-scaling stroke so the line stays
+  // crisp at 1.5px regardless of the horizontal stretch.
+  fullWidth?: boolean
 }) {
   if (!data || data.length === 0) return null
   const min = Math.min(...data)
@@ -145,7 +163,14 @@ export function Sparkline({
   const area = path + ` L ${w} ${h} L 0 ${h} Z`
   const gid = "sg" + Math.random().toString(36).slice(2, 8)
   return (
-    <svg className="spark-svg" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+    <svg
+      className="spark-svg"
+      width={fullWidth ? "100%" : w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio={fullWidth ? "none" : undefined}
+      style={fullWidth ? { display: "block" } : undefined}
+    >
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.25" />
@@ -153,7 +178,15 @@ export function Sparkline({
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${gid})`} />
-      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect={fullWidth ? "non-scaling-stroke" : undefined}
+      />
     </svg>
   )
 }

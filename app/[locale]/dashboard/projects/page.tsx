@@ -204,15 +204,15 @@ function ProjectsList({
   // Real average-position trend sparkline (lower position is better, hence
   // `invert`). Projects with fewer than two data points have no meaningful line
   // to draw yet, so we show a muted placeholder instead of a misleading graph.
-  const renderSpark = (trend: number[] | undefined, color: string, w?: number, h?: number) =>
+  const renderSpark = (trend: number[] | undefined, color: string, w?: number, h?: number, fullWidth?: boolean) =>
     trend && trend.length >= 2 ? (
-      <Sparkline data={trend} color={color} w={w} h={h} invert />
+      <Sparkline data={trend} color={color} w={w} h={h} invert fullWidth={fullWidth} />
     ) : (
       <div
         className="tiny muted"
-        style={{ display: "grid", placeItems: "center", width: w, height: h ?? 28 }}
+        style={{ display: "grid", placeItems: "center", width: fullWidth ? "100%" : w, height: h ?? 28 }}
       >
-        {(w ?? 0) >= 160 ? t("noRankDataYet") : t("noData")}
+        {fullWidth || (w ?? 0) >= 160 ? t("noRankDataYet") : t("noData")}
       </div>
     )
 
@@ -329,7 +329,7 @@ function ProjectsList({
                     </div>
                   </div>
                 </div>
-                {renderSpark(p.trend, color, 260, 32)}
+                {renderSpark(p.trend, color, 260, 40, true)}
               </div>
             )
           })}

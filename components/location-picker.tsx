@@ -18,8 +18,8 @@ import {
   POPULAR_LOCATIONS,
   ALL_LOCATIONS,
   LOCATION_NAMES,
-  flagFor,
 } from "@/lib/locations"
+import { Flag } from "@/components/flag"
 
 type Variant = "mono" | "default" | "dashboard"
 
@@ -58,7 +58,7 @@ function TriggerContents({ value, showFlags }: { value: string; showFlags: boole
   return (
     <>
       <span className="truncate">
-        {showFlags && <span className="mr-2">{flagFor(value)}</span>}
+        {showFlags && <span className="mr-2 inline-flex align-middle"><Flag code={value} size={15} /></span>}
         {selectedName}
       </span>
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -107,7 +107,7 @@ function LocationCommand({
               onSelect={() => onSelect(l.code)}
               className={itemClass}
             >
-              {showFlags && <span className="mr-2">{flagFor(l.code)}</span>}
+              {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
               <span className="flex-1">{l.name}</span>
               <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
             </CommandItem>
@@ -121,7 +121,7 @@ function LocationCommand({
               onSelect={() => onSelect(l.code)}
               className={itemClass}
             >
-              {showFlags && <span className="mr-2">{flagFor(l.code)}</span>}
+              {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
               <span className="flex-1">{l.name}</span>
               <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
             </CommandItem>

@@ -123,11 +123,9 @@ export default async function LocaleLayout({
       <body
         className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >
-        {/* Google Tag Manager — loaded via next/script. A raw inline <script> in
-            the document tree triggers React 19's "scripts inside React components
-            are never executed when rendering on the client" error on fresh loads
-            (e.g. opening a shared report link). Theme flash is handled by
-            next-themes (ThemeProvider), so no manual pre-paint script is needed. */}
+        {/* Google Tag Manager — loaded via next/script (afterInteractive is
+            injected imperatively, so unlike a rendered inline/beforeInteractive
+            <script> it doesn't trigger React 19's script-tag warning). */}
         <Script id="gtm" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MG3XS6F6');`}
         </Script>
@@ -145,7 +143,7 @@ export default async function LocaleLayout({
           <a href="#main-content" className="skip-to-content">
             {tCommon("skipToContent")}
           </a>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} enableColorScheme disableTransitionOnChange>
+          <ThemeProvider>
             {/* Page-wide background glow — fixed so it doesn't scroll */}
             <div aria-hidden="true" className="app-grid-glow" />
             <div className="noise-overlay" aria-hidden="true" />

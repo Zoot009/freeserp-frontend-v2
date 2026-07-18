@@ -16,7 +16,14 @@
  * guide's black top-level CTA. The guide's own semantic names (brand,
  * pos/neg/warn, elevated/inset/subtle) are exposed below for new code.
  */
-:root {
+/* `.light` re-declares the light token set too, so an always-light subtree
+   (auth + marketing pages, which hardcode a white background) can opt out of a
+   dark <html class="dark"> for its shared, token-driven components — e.g. the
+   language dropdown. Applying `light` to such a page's root makes tokens like
+   --brand-soft resolve to their light values for that subtree. */
+:root,
+.light {
+  color-scheme: light;
   --background: #f7f8fa; /* bg-sub — page canvas behind cards */
   --foreground: #0b0d12; /* text */
   --card: #ffffff; /* bg-elev */

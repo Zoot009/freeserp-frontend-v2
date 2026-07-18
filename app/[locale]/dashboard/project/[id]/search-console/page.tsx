@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { LineChart } from "@/components/dashboard/primitives"
+import { Dropdown } from "@/components/dashboard/dropdown"
 import { downloadCSV } from "@/lib/csv"
 
 const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
@@ -66,6 +67,9 @@ export default function SearchConsolePage() {
   const [siteUrl, setSiteUrl] = useState<string | null>(null)
   const [projectDomain, setProjectDomain] = useState<string>("")
   const [sites, setSites] = useState<Site[] | null>(null)
+  // Property picked in the "link a property" dropdown; null = not touched yet
+  // (falls back to the suggested match for the project domain).
+  const [chosenSite, setChosenSite] = useState<string | null>(null)
   const [perf, setPerf] = useState<Performance | null>(null)
 
   const [range, setRange] = useState<RangeState>({ mode: "preset", days: 90 })
@@ -307,25 +311,24 @@ export default function SearchConsolePage() {
           {sites && sites.length === 0 && <p className="muted" style={{ fontSize: 13 }}>{t("noProperties")}</p>}
           {sites && sites.length > 0 && (
             <div className="row" style={{ gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-              <select
-                className="input"
-                style={{ width: "auto", minWidth: 280 }}
-                defaultValue={suggestedSite ?? ""}
-                id="gsc-site-select"
+              <Dropdown
+                menuAlign="left"
+                style={{ minWidth: 280 }}
+                block
+                value={chosenSite ?? suggestedSite ?? ""}
+                placeholder={t("choosePropertyPlaceholder")}
+                options={sites.map((s) => ({ value: s.siteUrl, label: siteHost(s.siteUrl) }))}
+                onChange={setChosenSite}
                 disabled={busy}
-              >
-                <option value="" disabled>{t("choosePropertyPlaceholder")}</option>
-                {sites.map((s) => (
-                  <option key={s.siteUrl} value={s.siteUrl}>{siteHost(s.siteUrl)}</option>
-                ))}
-              </select>
+                ariaLabel={t("choosePropertyPlaceholder")}
+              />
               <button
                 type="button"
                 className="btn primary"
-                disabled={busy}
+                disabled={busy || !(chosenSite ?? suggestedSite)}
                 onClick={() => {
-                  const el = document.getElementById("gsc-site-select") as HTMLSelectElement | null
-                  if (el?.value) linkSite(el.value)
+                  const site = chosenSite ?? suggestedSite
+                  if (site) linkSite(site)
                 }}
               >
                 {t("linkCta")}

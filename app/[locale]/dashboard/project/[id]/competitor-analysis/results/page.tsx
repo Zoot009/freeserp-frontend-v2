@@ -12,6 +12,7 @@ import { CompetitorComparisonTable } from "@/components/competitor-comparison-ta
 import { ShareReportDialog } from "@/components/share-report-dialog"
 import { AiChatPanel } from "@/components/ai-chat-panel"
 import { AskAnalystUpsell } from "@/components/ai-chat-upsell"
+import { SeoQuoteOfDay } from "@/components/seo-quote"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
 import axios from "@/lib/axios"
@@ -408,10 +409,10 @@ function CompetitorAnalysisResultsContent() {
       {/* Header */}
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          <Link href={`/dashboard/project/${projectId}/keywords`} className="kd-back" style={{ display: "inline-flex" }}>
+          <Link href={`/dashboard/project/${projectId}/keywords`} className="kd-back" style={{ display: "flex", width: "fit-content", marginBottom: 10 }}>
             ← Back to keywords
           </Link>
-          <div className="eyebrow" style={{ marginTop: 4 }}><span className="spark"><Icon.spark /></span> COMPETITOR ANALYSIS</div>
+          <div className="eyebrow"><span className="spark"><Icon.spark /></span> COMPETITOR ANALYSIS</div>
           <h1>Analysis results</h1>
           <div className="sub">
             Keyword: <span className="b" style={{ color: "var(--text)" }}>{keyword || analysis?.keyword || "—"}</span>
@@ -504,11 +505,12 @@ function CompetitorAnalysisResultsContent() {
           main is ready the comparison view renders below and this banner is
           replaced by the Stage 2 progress strip. */}
       {loading && (
-        <div className="card" style={{ padding: 32, marginBottom: 14 }}>
+        <div className="card oa-fade-up" style={{ padding: 32, marginBottom: 14 }}>
           <div className="col" style={{ alignItems: "center", gap: 18 }}>
-            {/* Animated pulsing rings around a spinning icon. */}
+            {/* Rotating gradient ring + pulse rings around a brand disc. */}
             <div className="ca-loader" aria-hidden>
-              <span className="ca-loader-icon spin"><Icon.spark /></span>
+              <span className="ca-loader-ring" />
+              <span className="ca-loader-icon"><Icon.spark /></span>
             </div>
             <div className="eyebrow" style={{ justifyContent: "center" }}>
               <span className="spark"><Icon.spark /></span> ANALYSIS IN PROGRESS
@@ -531,13 +533,24 @@ function CompetitorAnalysisResultsContent() {
                 { label: "Mapping internal links", done: internalDone, active: mainDone && !internalDone },
               ]
               return (
-                <div className="col" style={{ gap: 8, width: "100%", maxWidth: 340 }}>
+                <div className="col ca-steps" style={{ gap: 4, width: "100%", maxWidth: 360 }}>
                   {steps.map((s) => (
-                    <div key={s.label} className="row" style={{ gap: 10, alignItems: "center" }}>
+                    <div
+                      key={s.label}
+                      className="row"
+                      style={{
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        background: s.active ? "var(--brand-soft)" : "transparent",
+                        transition: "background .2s ease",
+                      }}
+                    >
                       <span
                         style={{
-                          width: 16,
-                          height: 16,
+                          width: 18,
+                          height: 18,
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -547,14 +560,27 @@ function CompetitorAnalysisResultsContent() {
                       >
                         {s.done ? <Icon.check /> : s.active ? <span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> : <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", opacity: 0.5 }} />}
                       </span>
-                      <span className="tiny" style={{ color: s.done ? "var(--text)" : s.active ? "var(--text)" : "var(--text-mute)", fontWeight: s.active ? 600 : 400 }}>
+                      <span style={{ fontSize: 13, color: s.done || s.active ? "var(--text)" : "var(--text-mute)", fontWeight: s.active ? 600 : 500 }}>
                         {s.label}
                       </span>
+                      {s.active && (
+                        <span className="tiny" style={{ marginLeft: "auto", color: "var(--brand)", fontWeight: 600 }}>
+                          working…
+                        </span>
+                      )}
+                      {s.done && (
+                        <span className="tiny" style={{ marginLeft: "auto", color: "var(--pos)", fontWeight: 600 }}>
+                          done
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               )
             })()}
+
+            {/* SEO quote of the day — keeps the wait from feeling empty. */}
+            <SeoQuoteOfDay />
 
             {(() => {
               const progress = analysis?.progress

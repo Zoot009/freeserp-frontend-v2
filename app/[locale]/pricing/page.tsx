@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -10,7 +10,8 @@ import { useAuth } from "@/lib/auth"
 import axios from "@/lib/axios"
 import { trackEvent } from "@/lib/track"
 import { track } from "@/lib/analytics"
-import { TIERS, SEARCHES_PER_WORKER, PRICE_PER_WORKER_USD, nearestTier } from "@/lib/pricing"
+import { type BillingInterval, type TierInfo } from "@/lib/pricing"
+import { fetchBillingConfig, FALLBACK_BILLING_CONFIG, type BillingConfig } from "@/lib/billing-config"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -20,6 +21,8 @@ interface Status {
   planExpiresAt: string | null
   subscriptionId: string | null
   workerCount?: number
+  interval?: BillingInterval
+  provider?: string | null
 }
 
 const Check = () => (
@@ -59,18 +62,43 @@ export default function PricingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  // Live pricing config from GET /api/billing/config (single source of truth);
+  // the imported constants only serve as the offline fallback inside it.
+  const [cfg, setCfg] = useState<BillingConfig>(FALLBACK_BILLING_CONFIG)
+  useEffect(() => {
+    void fetchBillingConfig().then(setCfg)
+  }, [])
+  // Monthly vs annual billing. New users pick it at checkout; existing paid
+  // Stripe subscribers can switch their live subscription's interval in place
+  // (prorated price swap). Initialized to the user's current interval below.
+  const [interval, setBillingInterval] = useState<BillingInterval>("month")
+  // The interval the user is CURRENTLY billed at (paid users only) — lets the
+  // Save button detect an interval switch and the toggle open on the right side.
+  const [currentInterval, setCurrentInterval] = useState<BillingInterval | null>(null)
+  const perWorkerUsd = (cfg.pricePerWorkerCents[interval] ?? 100) / 100
+  const tiers = useMemo<TierInfo[]>(
+    () => cfg.tiers.map((w) => ({ usd: w, workers: w, checks: w * cfg.perWorkerDailyChecks })),
+    [cfg],
+  )
   // Fixed pricing tiers stepped through with −/+ (no custom amounts). The selected
   // tier drives the worker quantity, price, and daily checks shown on the card.
   const [tierIndex, setTierIndex] = useState(0)
   // Paid users' current worker count — the stepper starts here and the Save button
   // is only enabled once they pick a different tier.
   const [currentWorkers, setCurrentWorkers] = useState<number | null>(null)
-  const tier = TIERS[tierIndex]
+  const tier = tiers[Math.min(tierIndex, tiers.length - 1)]
   const workers = tier.workers
   const searchesPerDay = tier.checks
-  const monthlyUsd = tier.usd
+  const priceUsd = workers * perWorkerUsd
   const atMin = tierIndex <= 0
-  const atMax = tierIndex >= TIERS.length - 1
+  const atMax = tierIndex >= tiers.length - 1
+  const perLabel = interval === "year" ? t("perYear") : t("perMonth")
+  // Annual discount vs paying 12× the monthly rate, for the selected tier.
+  const monthlyYearUsd = workers * (cfg.pricePerWorkerCents.month / 100) * 12
+  const annualUsd = workers * (cfg.pricePerWorkerCents.year / 100)
+  const annualSaveUsd = Math.max(0, monthlyYearUsd - annualUsd)
+  const annualSavePct = monthlyYearUsd > 0 ? Math.round((annualSaveUsd / monthlyYearUsd) * 100) : 0
+  const showAnnualSavings = interval === "year" && annualSaveUsd > 0
 
   // Load plan status; for paid users also resolve the current worker count so the
   // stepper opens on their tier and the Save button can detect changes.
@@ -94,13 +122,26 @@ export default function PricingPage() {
         }
         if (wc != null) {
           setCurrentWorkers(wc)
-          setTierIndex(nearestTier(Math.max(1, wc)))
+          // Snap the stepper to the tier nearest the current count (paid users may
+          // sit off-tier via proration or a grandfathered 1-worker subscription).
+          const count = Math.max(1, wc)
+          let best = 0
+          for (let i = 1; i < tiers.length; i++) {
+            if (Math.abs(tiers[i].workers - count) < Math.abs(tiers[best].workers - count)) best = i
+          }
+          setTierIndex(best)
+        }
+        // Open the toggle on the user's current interval so "Save" only fires on
+        // an actual change.
+        if (d.interval === "month" || d.interval === "year") {
+          setCurrentInterval(d.interval)
+          setBillingInterval(d.interval)
         }
       }
     } catch {
       /* status is best-effort — the page still renders with defaults */
     }
-  }, [token])
+  }, [token, tiers])
 
   useEffect(() => {
     void loadStatus()
@@ -119,11 +160,19 @@ export default function PricingPage() {
     try {
       const res = await axios.post(
         `${API_URL}/api/payments/checkout`,
-        { workerCount: workers },
+        { workerCount: workers, interval },
         { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
       )
-      const data = res.data
-      if (res.status < 200 || res.status >= 300) throw new Error(data?.error || t("errorFailedStartCheckout"))
+      const data = res.data as { url?: string; error?: { code?: string; message?: string } }
+      if (res.status < 200 || res.status >= 300) {
+        // Annual is Stripe-only; PayU-billed regions get bounced back to monthly.
+        if (data?.error?.code === "annual_unavailable") {
+          setBillingInterval("month")
+          toast.error(t("annualUnavailable"))
+          return
+        }
+        throw new Error(data?.error?.message || t("errorFailedStartCheckout"))
+      }
       if (!data?.url) throw new Error(t("errorCheckoutUrlMissing"))
       window.location.href = data.url
     } catch (err) {
@@ -137,9 +186,21 @@ export default function PricingPage() {
     status?.plan === "paid" &&
     (!status.planExpiresAt || new Date(status.planExpiresAt).getTime() > Date.now())
 
-  // Paid users adjust their worker count right here — prorated, mirroring the
-  // billing dashboard's PATCH. Only enabled once the picked tier differs.
-  const dirty = Boolean(isPaid && currentWorkers != null && workers !== currentWorkers)
+  // A paid user only has a MANAGEABLE plan when a real provider subscription
+  // exists. Admin-granted paid accounts have plan='paid' but no subscription,
+  // so worker/interval changes (PATCH /workers) would 404 — those users get the
+  // checkout flow instead, to start a real subscription.
+  const manageable = isPaid && Boolean(status?.subscriptionId)
+
+  // Interval switching in-place is Stripe-only (PayU mandates are monthly).
+  const canSwitchInterval = manageable && status?.provider === "stripe"
+  const intervalChanged = Boolean(isPaid && currentInterval != null && interval !== currentInterval)
+
+  // Paid users adjust worker count and/or billing interval right here — prorated,
+  // mirroring the billing dashboard's PATCH. Enabled once either differs.
+  const dirty = Boolean(
+    isPaid && ((currentWorkers != null && workers !== currentWorkers) || intervalChanged),
+  )
 
   const handleSaveWorkers = async () => {
     if (!dirty || !token) return
@@ -147,12 +208,14 @@ export default function PricingPage() {
     try {
       await axios.patch(
         `${API_URL}/api/billing/workers`,
-        { workerCount: workers },
+        // Only send interval when it actually changed (avoids a no-op price swap).
+        { workerCount: workers, ...(intervalChanged ? { interval } : {}) },
         { headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } },
       )
       toast.success(t("savedToast", { workers, checks: searchesPerDay }))
       window.dispatchEvent(new Event("usage:refresh"))
       setCurrentWorkers(workers)
+      setCurrentInterval(interval)
       void loadStatus()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("errorSaveFailed"))
@@ -271,11 +334,48 @@ export default function PricingPage() {
               <span className="price-ribbon"><Icon.star size={11} /> {t("recommended")}</span>
             </div>
 
-            {/* Price scales with worker count: $1/worker, 15 searches/day per worker. */}
+            {/* Monthly / annual toggle — shown whenever the user will CHECKOUT a
+                new subscription (`!manageable`: free, unauthenticated, or an
+                admin-granted paid account with no real subscription) AND for
+                existing paid Stripe subs (in-place prorated interval switch).
+                Managed PayU subs stay monthly, so it's hidden for them. */}
+            {(!manageable || canSwitchInterval) && (
+              <div className="row" style={{ gap: 6, marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="btn sm"
+                  aria-pressed={interval === "month"}
+                  onClick={() => setBillingInterval("month")}
+                  style={interval === "month" ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : undefined}
+                >
+                  {t("intervalMonthly")}
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  aria-pressed={interval === "year"}
+                  onClick={() => setBillingInterval("year")}
+                  style={interval === "year" ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : undefined}
+                >
+                  {t("intervalAnnual")}
+                  <span className="tiny" style={{ marginLeft: 6, color: "var(--pos)", fontWeight: 600 }}>{t("annualSavings")}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Price scales with worker count: $1/worker/mo or $10/worker/yr. */}
             <div style={{ marginTop: 18, display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>${monthlyUsd}</span>
-              <span className="muted" style={{ fontSize: 13 }}>{t("perMonth")}</span>
+              {showAnnualSavings && (
+                <span className="muted" style={{ fontSize: 18, textDecoration: "line-through", opacity: 0.6 }}>${monthlyYearUsd}</span>
+              )}
+              <span style={{ fontSize: "clamp(34px, 9vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1 }}>${priceUsd}</span>
+              <span className="muted" style={{ fontSize: 13 }}>{perLabel}</span>
             </div>
+            {showAnnualSavings && (
+              <p className="tiny" style={{ marginTop: 6, color: "var(--pos)", fontWeight: 600 }}>
+                {t("annualSaveNote", { save: annualSaveUsd, pct: annualSavePct })}
+              </p>
+            )}
             <p className="tiny muted" style={{ marginTop: 6 }}>
               {t.rich("rankChecksPerDay", {
                 searches: searchesPerDay,
@@ -299,7 +399,9 @@ export default function PricingPage() {
                   {isPaid ? t("manageTitle") : t("choosePlan")}
                 </span>
                 <span className="tiny muted">
-                  {t("perWorkerEach", { searches: SEARCHES_PER_WORKER, price: PRICE_PER_WORKER_USD })}
+                  {interval === "year"
+                    ? t("perWorkerEachYear", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })
+                    : t("perWorkerEach", { searches: cfg.perWorkerDailyChecks, price: perWorkerUsd })}
                 </span>
               </div>
               {/* Incremental stepper — −/+ move between the fixed tiers */}
@@ -330,14 +432,14 @@ export default function PricingPage() {
                     {t("tierChecks", { checks: searchesPerDay })}
                   </span>
                   <span className="tiny muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    ${monthlyUsd}{t("perMonth")}
+                    ${priceUsd}{perLabel}
                   </span>
                 </div>
                 <button
                   type="button"
                   aria-label={t("moreChecks")}
                   className="btn"
-                  onClick={() => setTierIndex(i => Math.min(TIERS.length - 1, i + 1))}
+                  onClick={() => setTierIndex(i => Math.min(tiers.length - 1, i + 1))}
                   disabled={atMax}
                   style={stepBtnStyle}
                 >
@@ -347,11 +449,11 @@ export default function PricingPage() {
 
               {/* Tier scale — click a segment to jump straight to that tier */}
               <div className="row" style={{ gap: 4, marginTop: 12 }}>
-                {TIERS.map((tt, i) => (
+                {tiers.map((tt, i) => (
                   <button
                     key={tt.usd}
                     type="button"
-                    aria-label={`$${tt.usd}`}
+                    aria-label={`$${tt.workers * perWorkerUsd}`}
                     aria-pressed={i === tierIndex}
                     onClick={() => setTierIndex(i)}
                     className={`tier-seg${i <= tierIndex ? " on" : ""}`}
@@ -359,11 +461,13 @@ export default function PricingPage() {
                 ))}
               </div>
               <div className="row between" style={{ marginTop: 6 }}>
-                <span className="tiny muted">${TIERS[0].usd}</span>
-                <span className="tiny muted">${TIERS[TIERS.length - 1].usd}</span>
+                <span className="tiny muted">${tiers[0].workers * perWorkerUsd}</span>
+                <span className="tiny muted">${tiers[tiers.length - 1].workers * perWorkerUsd}</span>
               </div>
               <p className="tiny muted" style={{ marginTop: 10 }}>
-                {t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}
+                {interval === "year"
+                  ? t.rich("billedAnnually", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })
+                  : t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}
               </p>
             </div>
 
@@ -380,8 +484,9 @@ export default function PricingPage() {
               <button className="btn primary" disabled style={{ width: "100%", justifyContent: "center", marginTop: 18, opacity: 0.7 }}>
                 {t("loading")}
               </button>
-            ) : isPaid ? (
-              // Paid — let them re-tier their workers in place (prorated) instead of a dead end.
+            ) : manageable ? (
+              // Paid with a real subscription — re-tier workers in place (prorated).
+              // Admin-granted paid (no subscription) falls through to checkout below.
               <button
                 className="btn primary"
                 onClick={handleSaveWorkers}
@@ -427,7 +532,9 @@ export default function PricingPage() {
                 ) : status?.configured === false ? (
                   t("paymentsNotConfigured")
                 ) : user ? (
-                  t("getWorkers", { workers, price: monthlyUsd })
+                  interval === "year"
+                    ? t("getWorkersYear", { workers, price: priceUsd })
+                    : t("getWorkers", { workers, price: priceUsd })
                 ) : (
                   t("signInToUpgrade")
                 )}

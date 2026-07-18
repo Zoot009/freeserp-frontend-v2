@@ -13,11 +13,21 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null)
 
   useEffect(() => {
+    // Inner scrollable UI (dropdown menus, modal bodies, chat panel, the
+    // location-picker popover…) must keep native wheel scrolling — Lenis
+    // otherwise swallows the wheel events and those lists can't scroll at all.
+    // `prevent` is called for every node in the event path; returning true
+    // hands the event back to the browser. data-lenis-prevent also works and
+    // is used by one-off components.
+    const NATIVE_SCROLL_CLASSES = ["dd-menu", "modal-b", "aw-body", "chatpanel-msgs", "fs-location-popover"]
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       smoothWheel: true,
+      prevent: (node) =>
+        NATIVE_SCROLL_CLASSES.some((cls) => node.classList?.contains(cls)) ||
+        node.hasAttribute?.("data-lenis-prevent"),
     })
 
     lenisRef.current = lenis

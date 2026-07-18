@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
-import { ALL_LOCATIONS, flagFor } from "@/lib/locations"
+import { fetchBillingConfig } from "@/lib/billing-config"
+import { ALL_LOCATIONS } from "@/lib/locations"
+import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
+import { Dropdown } from "@/components/dashboard/dropdown"
 import {
   StatTile,
   FeatChip,
@@ -64,9 +67,9 @@ type CheckRow = {
   createdAt: string
 }
 
-// Daily-quota cost of one live SERP lookup. Keep in sync with the backend's
-// LIVE_SERP_CHECK_UNITS (default 4).
-const LIVE_CHECK_COST = 4
+// Daily-quota cost of one live SERP lookup — offline fallback only; the live
+// value comes from GET /api/billing/config (backend LIVE_SERP_CHECK_UNITS).
+const LIVE_CHECK_COST_FALLBACK = 1
 
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -87,6 +90,13 @@ function fmtVolume(v: number | null): string {
 
 export default function SerpCheckerPage() {
   const t = useTranslations("dashSerpChecker")
+  // Live quota cost per lookup from the backend's pricing config.
+  const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
+  useEffect(() => {
+    void fetchBillingConfig().then((cfg) => {
+      if (typeof cfg.liveCheckUnits === "number") setLiveCheckCost(cfg.liveCheckUnits)
+    })
+  }, [])
   const [domain, setDomain] = useState("")
   const [keyword, setKeyword] = useState("")
   const [country, setCountry] = useState("us")
@@ -165,7 +175,7 @@ export default function SerpCheckerPage() {
   }, [loadHistory, pollCheck, stopPolling])
 
   // Submitting the form opens the confirmation step — the actual check (which
-  // spends 4 daily checks) only runs once the user confirms.
+  // spends `liveCheckCost` daily checks) only runs once the user confirms.
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
@@ -248,11 +258,14 @@ export default function SerpCheckerPage() {
           <h1>{t("title")}</h1>
           <div className="sub">{t("subtitle")}</div>
         </div>
-        <div className="row">
-          <button className="btn" disabled={!result} onClick={exportReport}>
-            <Icon.download /> {t("exportReport")}
-          </button>
-        </div>
+        {/* Export only makes sense once a check has produced a result. */}
+        {result && (
+          <div className="row">
+            <button className="btn" onClick={exportReport}>
+              <Icon.download /> {t("exportReport")}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Query form */}
@@ -276,17 +289,21 @@ export default function SerpCheckerPage() {
             />
           </Field>
           <Field label={t("form.country")}>
-            <select
-              className="input"
+            <Dropdown
+              block
+              menuAlign="left"
               value={country}
-              onChange={(e) => setCountry(e.target.value)}
-            >
-              {ALL_LOCATIONS.map((loc) => (
-                <option key={loc.code} value={loc.code}>
-                  {flagFor(loc.code)} {loc.name}
-                </option>
-              ))}
-            </select>
+              options={ALL_LOCATIONS.map((loc) => ({
+                value: loc.code,
+                label: (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Flag code={loc.code} size={15} /> {loc.name}
+                  </span>
+                ),
+              }))}
+              onChange={setCountry}
+              ariaLabel={t("form.country")}
+            />
           </Field>
           <Field label={t("form.device")}>
             <div className="pill-toggle" style={{ width: "100%" }}>
@@ -310,7 +327,7 @@ export default function SerpCheckerPage() {
           {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
         </button>
         <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
-          {t("form.costNote", { count: LIVE_CHECK_COST })}
+          {t("form.costNote", { count: liveCheckCost })}
         </div>
 
         {error && (
@@ -579,7 +596,7 @@ export default function SerpCheckerPage() {
                 <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
                   <span className="spark"><Icon.zap /></span> {t("confirm.eyebrow")}
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("confirm.title", { count: LIVE_CHECK_COST })}</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("confirm.title", { count: liveCheckCost })}</div>
               </div>
               <button onClick={() => setShowConfirm(false)} className="icon-btn" aria-label={t("confirm.close")}><Icon.close /></button>
             </div>
@@ -587,7 +604,7 @@ export default function SerpCheckerPage() {
               <div className="tiny muted">
                 {t.rich("confirm.body", {
                   keyword: keyword.trim(),
-                  count: LIVE_CHECK_COST,
+                  count: liveCheckCost,
                   strong: (chunks) => <strong>{chunks}</strong>,
                 })}
               </div>
@@ -595,7 +612,7 @@ export default function SerpCheckerPage() {
             <div className="modal-f">
               <button className="btn" onClick={() => setShowConfirm(false)}>{t("confirm.cancel")}</button>
               <button className="btn primary" onClick={() => void runCheck()}>
-                <Icon.zap /> {t("confirm.confirm", { count: LIVE_CHECK_COST })}
+                <Icon.zap /> {t("confirm.confirm", { count: liveCheckCost })}
               </button>
             </div>
           </div>

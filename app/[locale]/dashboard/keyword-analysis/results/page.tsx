@@ -300,6 +300,11 @@ function ResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id") || ""
+  // Context when launched from a project keyword's "Score" CTA — save the
+  // computed score back onto that keyword once the analysis completes.
+  const projectId = searchParams.get("projectId") || ""
+  const keywordId = searchParams.get("keywordId") || ""
+  const fromProject = !!(projectId && keywordId)
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -335,18 +340,38 @@ function ResultsContent() {
   const status = analysis?.status
   const inProgress = !analysis || status === "PENDING" || status === "PROCESSING"
 
+  // Mirror THIS report's score onto the originating keyword. The number sent is
+  // exactly the one rendered below (same computeSeoScore over the same stored
+  // crawlData), and pageScoreUrl points the keyword at the page that was scored —
+  // so the keywords table shows this exact number and later report write-backs
+  // match the same page. Idempotent: the server-side write-back normally already
+  // stored this value, so this is a no-op re-write rather than a change. Fires once.
+  const syncedRef = useRef(false)
+  useEffect(() => {
+    if (!fromProject || syncedRef.current) return
+    if (status !== "COMPLETED" || !analysis?.crawlData) return
+    syncedRef.current = true
+    const total = computeSeoScore(analysis.crawlData as CrawlData, analysis.keyword, analysis.url).total
+    api
+      .post(`/api/projects/${projectId}/keywords/${keywordId}/sync-score`, {
+        pageScore: total,
+        pageScoreUrl: analysis.url,
+      })
+      .catch(() => { /* best-effort — the report itself is still valid */ })
+  }, [status, analysis?.crawlData, analysis?.keyword, analysis?.url, fromProject, projectId, keywordId])
+
   return (
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <button
-            className="btn sm"
-            onClick={() => router.push("/dashboard/keyword-analysis")}
-            style={{ marginBottom: 12 }}
+            className="btn sm kd-back-btn"
+            onClick={() => router.push(fromProject ? `/dashboard/project/${projectId}/keywords` : "/dashboard/keyword-analysis")}
+            style={{ marginBottom: 14 }}
           >
-            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span> Back
+            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
+            {fromProject ? "Back to project" : "Back"}
           </button>
-          <div className="eyebrow"><span className="spark"><Icon.search /></span> Keyword Analysis</div>
           <h1>Page report</h1>
           {analysis && (
             <div className="sub" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -382,6 +407,34 @@ function ResultsContent() {
               <div className="tiny muted" style={{ marginTop: 6, opacity: 0.7 }}>This usually takes 10–40 seconds</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Back-to-project affordance — only when launched from a project keyword.
+          The keyword's score is computed & stored automatically on the server, so
+          this is just navigation, not a save step. */}
+      {fromProject && status === "COMPLETED" && (
+        <div
+          className="card tight"
+          style={{
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: 13,
+            borderColor: "var(--brand)",
+            background: "var(--brand-soft)",
+            color: "var(--brand)",
+          }}
+        >
+          <Icon.spark />
+          <span style={{ flex: 1 }}>This is the detailed score for your tracked keyword.</span>
+          <button
+            className="btn sm"
+            onClick={() => router.push(`/dashboard/project/${projectId}/keywords`)}
+          >
+            Back to project <Icon.chevR />
+          </button>
         </div>
       )}
 
