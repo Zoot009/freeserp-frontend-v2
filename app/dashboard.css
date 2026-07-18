@@ -441,18 +441,27 @@
 /* Stat strip — one card, cells separated by hairlines. */
 .fs-app .stat-strip {
   display: flex; align-items: stretch; flex-wrap: wrap;
-  padding: 16px 0;
-  row-gap: 16px;
+  padding: 20px 10px;
+  row-gap: 20px;
+  /* Neutral, softly-lit surface instead of flat black: a brand-tinted glow in
+     the top-right corner (echoing the welcome banner) over a gentle vertical
+     wash. color-mix keeps it subtle and theme-aware in both light and dark. */
+  background:
+    radial-gradient(130% 170% at 100% 0%, color-mix(in srgb, var(--brand) 9%, transparent), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand) 3%, var(--bg-elev)), var(--bg-elev));
 }
 .fs-app .stat-strip .cell {
   flex: 1 1 150px; min-width: 150px;
-  padding: 2px 22px;
+  padding: 4px 22px;
   border-left: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 7px;
 }
-.fs-app .stat-strip .cell:first-child { border-left: none; }
-.fs-app .stat-strip .lbl { font-size: 12px; color: var(--text-mute); font-weight: 500; }
-.fs-app .stat-strip .val { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+.fs-app .stat-strip .cell:first-child { border-left: none; padding-left: 10px; }
+.fs-app .stat-strip .lbl {
+  font-size: 11px; color: var(--text-mute); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.fs-app .stat-strip .val { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
 .fs-app .stat-strip .delta {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; font-weight: 500;
@@ -483,6 +492,42 @@
   font-size: 13px;
 }
 .fs-app .insight-row + .insight-row { border-top: 1px solid var(--border); }
+/* Competitors insight card — tracked-competitor rows. Each row links into the
+   Competitor Spy detail: favicon · (domain + ahead/behind/gaps + win bar) · remove. */
+.fs-app .cmp-track { display: flex; align-items: center; gap: 4px; }
+.fs-app .cmp-track + .cmp-track { border-top: 1px solid var(--border); }
+.fs-app .cmp-track-link {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 6px; border-radius: 8px;
+  text-decoration: none; color: inherit;
+  transition: background .12s ease;
+}
+.fs-app .cmp-track-link:hover { background: var(--bg-inset); }
+.fs-app .cmp-track .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.fs-app .cmp-track .dom {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; color: var(--text);
+}
+.fs-app .cmp-cmp {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 600; line-height: 1;
+}
+.fs-app .cmp-cmp .up { display: inline-flex; align-items: center; gap: 2px; color: var(--pos); }
+.fs-app .cmp-cmp .down { display: inline-flex; align-items: center; gap: 2px; color: var(--neg); }
+.fs-app .cmp-cmp .gap { color: var(--text-mute); font-weight: 500; }
+.fs-app .cmp-cmp .muted { color: var(--text-mute); font-weight: 500; }
+.fs-app .cmp-cmp svg { width: 11px; height: 11px; }
+.fs-app .cmp-bar { height: 4px; }
+.fs-app .cmp-track .rm {
+  background: none; border: none; color: var(--text-mute);
+  cursor: pointer; padding: 4px; border-radius: 6px;
+  display: inline-flex; flex-shrink: 0; align-self: center; opacity: 0.55;
+  transition: opacity .12s ease, color .12s ease, background .12s ease;
+}
+.fs-app .cmp-track:hover .rm { opacity: 1; }
+.fs-app .cmp-track .rm:hover { color: var(--neg); background: var(--neg-soft); }
+.fs-app .cmp-track .rm:disabled { cursor: default; opacity: 0.35; }
 /* Grid helpers */
 .fs-app .grid { display: grid; gap: 14px; }
 .fs-app .g-4 { grid-template-columns: repeat(4, 1fr); }
@@ -894,6 +939,16 @@
   margin-bottom: 12px;
 }
 .fs-app .kd-back:hover { color: var(--text); }
+/* Back button on the audit / keyword report pages — a compact pill with a
+   chevron that nudges left on hover. */
+.fs-app .kd-back-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.fs-app .kd-back-btn svg { transition: transform .15s ease; }
+.fs-app .kd-back-btn:hover svg { transform: translateX(-2px); }
 .fs-app .kd-header {
   padding: 32px var(--page-pad) 0;
   background: var(--bg);

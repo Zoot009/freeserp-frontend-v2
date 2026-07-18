@@ -308,9 +308,6 @@ function ResultsContent() {
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
-  const [savedScore, setSavedScore] = useState<number | null>(null)
-  const savedRef = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -343,38 +340,22 @@ function ResultsContent() {
   const status = analysis?.status
   const inProgress = !analysis || status === "PENDING" || status === "PROCESSING"
 
-  // Once the analysis completes, save the score back onto the originating
-  // project keyword (fires exactly once). The backend re-crawls the same URL —
-  // a cache hit — and stores the keyword + page scores on that keyword.
-  useEffect(() => {
-    if (!fromProject || savedRef.current) return
-    if (status !== "COMPLETED" || !analysis?.url) return
-    savedRef.current = true
-    setSaveState("saving")
-    ;(async () => {
-      try {
-        const res = await api.post<{ pageScore: number }>(
-          `/api/projects/${projectId}/keywords/${keywordId}/manual-score`,
-          { url: analysis.url },
-        )
-        setSavedScore(res.pageScore)
-        setSaveState("saved")
-      } catch {
-        setSaveState("error")
-      }
-    })()
-  }, [status, analysis?.url, fromProject, projectId, keywordId])
+  // NOTE: no score sync back to the keyword here. The keywords table now shows
+  // the SAME deep score computed server-side (page-score worker → computeSeoScore),
+  // so the report must NOT overwrite it — that overwrite was what made the table
+  // value "jump" after opening a report.
 
   return (
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <button
-            className="btn sm"
-            onClick={() => router.push("/dashboard/keyword-analysis")}
-            style={{ marginBottom: 12 }}
+            className="btn sm kd-back-btn"
+            onClick={() => router.push(fromProject ? `/dashboard/project/${projectId}/keywords` : "/dashboard/keyword-analysis")}
+            style={{ marginBottom: 14 }}
           >
-            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span> Back
+            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
+            {fromProject ? "Back to project" : "Back"}
           </button>
           <h1>Page report</h1>
           {analysis && (
@@ -414,8 +395,10 @@ function ResultsContent() {
         </div>
       )}
 
-      {/* Saved-to-project banner — only when launched from a project keyword. */}
-      {fromProject && status === "COMPLETED" && saveState !== "idle" && (
+      {/* Back-to-project affordance — only when launched from a project keyword.
+          The keyword's score is computed & stored automatically on the server, so
+          this is just navigation, not a save step. */}
+      {fromProject && status === "COMPLETED" && (
         <div
           className="card tight"
           style={{
@@ -424,29 +407,19 @@ function ResultsContent() {
             alignItems: "center",
             gap: 10,
             fontSize: 13,
-            borderColor: saveState === "error" ? "var(--neg)" : "var(--pos)",
-            background: saveState === "error" ? "var(--neg-soft)" : "var(--pos-soft)",
-            color: saveState === "error" ? "var(--neg)" : "var(--pos)",
+            borderColor: "var(--brand)",
+            background: "var(--brand-soft)",
+            color: "var(--brand)",
           }}
         >
-          {saveState === "saving" && (
-            <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Saving the keyword score to your project…</>
-          )}
-          {saveState === "saved" && (
-            <>
-              <Icon.check />
-              <span style={{ flex: 1 }}>
-                Keyword score{savedScore != null ? <> <b>{savedScore}</b></> : null} saved to your project.
-              </span>
-              <button
-                className="btn sm"
-                onClick={() => router.push(`/dashboard/project/${projectId}/keywords`)}
-              >
-                Back to project <Icon.chevR />
-              </button>
-            </>
-          )}
-          {saveState === "error" && <>Couldn&apos;t save the score to your project — the analysis above is still valid.</>}
+          <Icon.spark />
+          <span style={{ flex: 1 }}>This is the detailed score for your tracked keyword.</span>
+          <button
+            className="btn sm"
+            onClick={() => router.push(`/dashboard/project/${projectId}/keywords`)}
+          >
+            Back to project <Icon.chevR />
+          </button>
         </div>
       )}
 

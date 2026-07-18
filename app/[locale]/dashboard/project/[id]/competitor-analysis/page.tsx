@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
@@ -75,6 +75,11 @@ function CompetitorAnalysisContent() {
   const [domain, setDomain] = useState("")
 
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  // Synchronous double-submit guard: the button's `disabled` only updates on the
+  // next render, so a fast second click could slip a second POST through before
+  // React repaints. This ref blocks that immediately (the backend rate-limits
+  // repeat analyses, so a double-fire just errors).
+  const submittingRef = useRef(false)
   const [error, setError] = useState("")
   const [serpCompetitors, setSerpCompetitors] = useState<SerpCompetitor[]>([])
   const [loadingSerpData, setLoadingSerpData] = useState(false)
@@ -153,6 +158,10 @@ function CompetitorAnalysisContent() {
       setError("Please select exactly 3 competitors from the SERP results.")
       return
     }
+    // Block a second run the instant the first starts — before the button's
+    // disabled state has a chance to render.
+    if (submittingRef.current) return
+    submittingRef.current = true
 
     setIsAnalyzing(true)
     try {
@@ -171,8 +180,17 @@ function CompetitorAnalysisContent() {
       })
 
       if (response.status < 200 || response.status >= 300) {
-        const errorData = response.data ?? {}
-        throw new Error(errorData.error || "Failed to start competitor analysis")
+        const body = response.data ?? {}
+        // Backend errors come as { error: { code, message } }; tolerate a bare
+        // string too. Give the rate-limit its own plain-language message.
+        const raw = body.error?.message ?? body.error
+        const msg =
+          response.status === 429
+            ? "You just started an analysis — please wait a moment before starting another."
+            : typeof raw === "string" && raw
+              ? raw
+              : "Failed to start competitor analysis"
+        throw new Error(msg)
       }
 
       const { analysis } = response.data
@@ -181,10 +199,13 @@ function CompetitorAnalysisContent() {
       // Tutorial step 6 → 7 (done)
       advanceFromStep(6)
 
+      // Navigating away — deliberately leave submittingRef true so a stray
+      // click during the route transition can't re-fire.
       router.push(`/dashboard/project/${projectId}/competitor-analysis/results?analysisId=${analysisId}&keyword=${encodeURIComponent(keyword)}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start analysis")
       setIsAnalyzing(false)
+      submittingRef.current = false // real failure → allow another attempt
     }
   }
 

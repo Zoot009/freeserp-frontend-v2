@@ -349,6 +349,12 @@ function AddKeywordsModal({
   const [error, setError] = useState("")
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [suggLoading, setSuggLoading] = useState(false)
+  // Sub-seeds already fetched (so we never re-request one), and the next
+  // alphabet-expansion index — together they let the related-keyword pool keep
+  // growing ("seo" → "seo a" → "seo b" …) so the user never runs out.
+  const fetchedSeedsRef = useRef<Set<string>>(new Set())
+  const expandIdxRef = useRef(0)
+  const seedRef = useRef("")
   const taRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { taRef.current?.focus() }, [])
 
@@ -360,9 +366,10 @@ function AddKeywordsModal({
   const wouldOverflow = isFree && pendingLines.length > remaining
   const atKeywordCap = isFree && pendingLines.length >= remaining
 
-  // The keyword currently being typed — the text after the last newline/comma.
-  // We fetch related keywords for this "seed" and offer them as click-to-add chips.
-  const seed = (raw.split(/[\r\n,]/).pop() ?? "").trim()
+  // Anchor the related-keyword suggestions to the FIRST keyword entered (not the
+  // last word being typed), so they stay stable as the user clicks to add more
+  // related keywords instead of vanishing/changing on every keystroke.
+  const seed = pendingLines[0] ?? ""
 
   // Niche context to bias suggestions toward the site's topic (so "serp" on an
   // SEO site suggests "serp checker", not "serpent"). Tokenize the domain (minus
@@ -382,37 +389,82 @@ function AddKeywordsModal({
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([w]) => w)
   }, [domain, existingKeywords])
 
-  // Debounced related-keyword lookup via our local /api/keyword-suggest route
-  // (free Google autocomplete). Reached with a same-origin fetch, NOT lib/api —
-  // the api client points at the backend, which doesn't serve this path.
-  useEffect(() => {
-    if (seed.length < 2) { setSuggestions([]); setSuggLoading(false); return }
-    const ctrl = new AbortController()
+  // Fetch one batch of related keywords for a sub-seed and MERGE the unique ones
+  // into the growing pool (never replace — so the strip keeps filling up). Uses
+  // our local /api/keyword-suggest route (free Google autocomplete), reached
+  // with a same-origin fetch (NOT lib/api, which points at the backend).
+  const fetchSuggestionBatch = useCallback(async (subSeed: string) => {
+    if (fetchedSeedsRef.current.has(subSeed)) return
+    fetchedSeedsRef.current.add(subSeed)
     setSuggLoading(true)
-    const ctx = nicheTokens.join(",")
-    const t = setTimeout(() => {
-      fetch(`/api/keyword-suggest?q=${encodeURIComponent(seed)}&gl=${encodeURIComponent(location)}&ctx=${encodeURIComponent(ctx)}`, { signal: ctrl.signal })
-        .then((res) => res.json())
-        .then((data: { suggestions?: string[] }) => setSuggestions(data.suggestions ?? []))
-        .catch(() => { /* aborted or failed — keep whatever we had */ })
-        .finally(() => { if (!ctrl.signal.aborted) setSuggLoading(false) })
-    }, 300)
-    return () => { ctrl.abort(); clearTimeout(t) }
-  }, [seed, location, nicheTokens])
+    try {
+      const ctx = nicheTokens.join(",")
+      const res = await fetch(
+        `/api/keyword-suggest?q=${encodeURIComponent(subSeed)}&gl=${encodeURIComponent(location)}&ctx=${encodeURIComponent(ctx)}`,
+      )
+      const data: { suggestions?: string[] } = await res.json()
+      // Discard if the first keyword changed while this request was in flight,
+      // so old-seed results don't leak into the new pool.
+      if (!subSeed.toLowerCase().startsWith(seedRef.current.toLowerCase())) return
+      const incoming = data.suggestions ?? []
+      setSuggestions((prev) => {
+        const seen = new Set(prev.map((s) => s.toLowerCase()))
+        const merged = [...prev]
+        for (const s of incoming) {
+          const key = s.toLowerCase()
+          if (!seen.has(key)) { merged.push(s); seen.add(key) }
+        }
+        return merged
+      })
+    } catch {
+      /* aborted or failed — keep whatever we had */
+    } finally {
+      setSuggLoading(false)
+    }
+  }, [nicheTokens, location])
 
-  // Suggestions not already present in the textarea, capped for a tidy strip.
+  // Reset the pool whenever the first keyword (or location) changes.
+  useEffect(() => {
+    seedRef.current = seed
+    setSuggestions([])
+    fetchedSeedsRef.current = new Set()
+    expandIdxRef.current = 0
+  }, [seed, location])
+
+  // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
-  const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 6)
+  const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 12)
 
-  // Clicking a chip replaces the partial word being typed with the full keyword
-  // and starts a fresh line, then refocuses so the user keeps typing. Routing
-  // through `raw` means the free 10-keyword cap stays enforced automatically.
+  // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
+  // sub-seeds ("seo a", "seo b" …) whenever the visible strip runs low — so the
+  // user always has fresh related keywords to add and never runs out.
+  useEffect(() => {
+    if (seed.length < 2) { setSuggLoading(false); return }
+    const t = setTimeout(() => {
+      if (!fetchedSeedsRef.current.has(seed)) { void fetchSuggestionBatch(seed); return }
+      if (visibleSuggestions.length < 6) {
+        const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+        while (expandIdxRef.current < letters.length) {
+          const sub = `${seed} ${letters[expandIdxRef.current]}`
+          expandIdxRef.current++
+          if (!fetchedSeedsRef.current.has(sub)) { void fetchSuggestionBatch(sub); break }
+        }
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [seed, visibleSuggestions.length, fetchSuggestionBatch])
+
+  // Clicking a chip APPENDS the related keyword as a new line (keeping everything
+  // already entered, including the first/seed keyword) and refocuses. It does NOT
+  // clear the suggestions — the strip stays anchored to the first keyword so the
+  // user can keep adding related ones (each added chip is filtered out below).
+  // Routing through `raw` keeps the free keyword cap enforced automatically.
   const addSuggestion = (kw: string) => {
     if (atKeywordCap) return
-    const idx = Math.max(raw.lastIndexOf("\n"), raw.lastIndexOf(","))
-    const head = idx >= 0 ? raw.slice(0, idx + 1) : ""
-    setRaw(head + kw + "\n")
-    setSuggestions([])
+    setRaw((prev) => {
+      const base = prev.replace(/[\s,]+$/, "")
+      return (base ? base + "\n" : "") + kw + "\n"
+    })
     taRef.current?.focus()
   }
 
@@ -717,7 +769,7 @@ export default function ProjectKeywordsPage() {
       // /open reuses a recent audit for the same URL instead of paying for a
       // fresh external run on every click.
       const res = await api.post<{ audit: { id: string } }>("/api/on-page-audit/open", { url })
-      router.push(`/dashboard/onpage-audit/results?id=${res.audit.id}`)
+      router.push(`/dashboard/onpage-audit/results?id=${res.audit.id}&projectId=${projectId}&keywordId=${kwId}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to open the audit report.")
       setAuditingKwId(null)
@@ -738,7 +790,7 @@ export default function ProjectKeywordsPage() {
         keyword: kw.keyword,
         url: kw.pageScoreUrl,
       })
-      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}`)
+      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}&projectId=${projectId}&keywordId=${kw.id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to open the detailed report.")
       setOpeningReportKwId(null)
@@ -1471,6 +1523,45 @@ export default function ProjectKeywordsPage() {
           </div>
           <span className="tiny muted">{t("monthlyModelled")}</span>
         </div>
+        {(() => {
+          const da = project.domainAuthority
+          // DA strength → bar color (Moz-style bands): <20 red, 20–39 amber,
+          // 40+ green. The color alone conveys strength; no label needed.
+          const barColor =
+            da == null ? "var(--brand)"
+            : da >= 40 ? "var(--pos)"
+            : da >= 20 ? "var(--warn)"
+            : "var(--neg)"
+          return (
+            <div className="cell">
+              <div className="lbl">{t("statDomainAuthority")}</div>
+              <div className="val tabular">
+                {da ?? "—"}
+                {da != null && (
+                  <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-mute)" }}> / 100</span>
+                )}
+              </div>
+              {da != null ? (
+                <div
+                  title="Domain Authority (0–100)"
+                  style={{ height: 5, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden", marginTop: 7, maxWidth: 120 }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.max(4, da)}%`,
+                      background: barColor,
+                      borderRadius: 999,
+                      transition: "width .6s cubic-bezier(.16,1,.3,1)",
+                    }}
+                  />
+                </div>
+              ) : (
+                <span className="tiny muted">{t("daOutOf100")}</span>
+              )}
+            </div>
+          )
+        })()}
         <div className="cell">
           <div className="lbl">{t("backlinks")}</div>
           <div className="val tabular">
@@ -1480,11 +1571,7 @@ export default function ProjectKeywordsPage() {
                 : project.domainBacklinks.toLocaleString()
               : "—"}
           </div>
-          <span className="tiny muted">
-            {project.domainAuthority != null
-              ? t("domainAuthority", { n: project.domainAuthority })
-              : t("siteWide")}
-          </span>
+          <span className="tiny muted">{t("siteWide")}</span>
         </div>
       </div>
 
@@ -1574,27 +1661,7 @@ export default function ProjectKeywordsPage() {
               </div>
             </div>
 
-            <div className="card">
-              <div className="card-h"><div className="t">{t("keywordVisibility")}</div></div>
-              <div className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
-                {stats.total ? `${Math.round((stats.top100 / stats.total) * 100)}%` : "—"}
-              </div>
-              <div className="tiny muted" style={{ marginTop: 4, marginBottom: 10 }}>
-                {t("visibilitySub", { device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile") })}
-              </div>
-              <div className="insight-row">
-                <span className="muted">{t("top3")}</span>
-                <span className="b tabular">{stats.top3}</span>
-              </div>
-              <div className="insight-row">
-                <span className="muted">{t("top10")}</span>
-                <span className="b tabular">{stats.top10}</span>
-              </div>
-              <div className="insight-row">
-                <span className="muted">{t("top100")}</span>
-                <span className="b tabular">{stats.top100}</span>
-              </div>
-            </div>
+            <CompetitorsCard projectId={project.id} />
           </div>
 
           {/* Right column — empty "Start tracking" state before any keywords
@@ -1766,7 +1833,7 @@ export default function ProjectKeywordsPage() {
                         <div className="row" style={{ gap: 7, alignItems: "center" }}>
                           <AuditBadge
                             score={kw.pageAuditScore}
-                            loading={auditingKwId === kw.id}
+                            loading={auditingKwId === kw.id || (isActive && kw.pageAuditScore == null)}
                             onClick={
                               kw.pageScoreUrl
                                 ? () => openAuditReport(kw.pageScoreUrl!, kw.id)
@@ -1778,12 +1845,12 @@ export default function ProjectKeywordsPage() {
                             score={kw.pageScore}
                             grade={kw.pageScoreGrade}
                             label={kw.pageScoreLabel}
-                            loading={openingReportKwId === kw.id}
+                            loading={openingReportKwId === kw.id || (isActive && kw.pageScore == null)}
                             onClick={() => openKeywordReport(kw)}
                             emptyTitle="Not ranking yet — click to score a page for this keyword"
                             onEmptyClick={() =>
                               router.push(
-                                `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}`
+                                `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}&domain=${encodeURIComponent(project.domain)}`
                               )
                             }
                           />
@@ -1842,7 +1909,13 @@ export default function ProjectKeywordsPage() {
                           >
                             <Icon.dots />
                           </button>
-                          {(kw.position === null || kw.position > 1) && (
+                          {/* Only offer "improve to #1" once we actually have rank
+                              data. A keyword still being checked (no position yet)
+                              must NOT show "#100+ → #1" — we don't know its rank
+                              until the check lands, so it would be a made-up target. */}
+                          {(kw.position != null
+                            ? kw.position > 1
+                            : !!kw.checkedAt && !isActive) && (
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
                               onClick={() => {
@@ -2418,6 +2491,177 @@ function DeltaPill({ value, format }: { value: number | null; format?: (n: numbe
     <span className={"delta " + (up ? "up" : "down")}>
       {up ? <Icon.arrowUp /> : <Icon.arrowDown />} {text}
     </span>
+  )
+}
+
+// Competitors card for the insight rail. Competitors can ONLY be added from the
+// domains found in the project's own SERP results (the /suggestions endpoint) —
+// there's no free-text entry, so users pick from who actually ranks alongside
+// them. Add/remove hit the competitor-spy API; the list refreshes after each.
+type CompetitorRow = {
+  id: string
+  domain: string
+  // Head-to-head counts across your tracked keywords (from the competitor-spy
+  // overview): shared = you both rank; rankHigher = you outrank them (you're
+  // ahead); gap = they rank and you don't. "Behind" is derived as shared −
+  // rankHigher (shared keywords where they outrank you).
+  sharedCount: number
+  gapCount: number
+  rankHigherCount: number
+}
+type CompetitorSuggestion = { domain: string; sharedCount: number }
+
+function CompetitorsCard({ projectId }: { projectId: string }) {
+  const t = useTranslations("projKeywords")
+  const [tracked, setTracked] = useState<CompetitorRow[]>([])
+  const [suggestions, setSuggestions] = useState<CompetitorSuggestion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const [ov, sg] = await Promise.all([
+        api.get<{ competitors: CompetitorRow[] }>(`/api/projects/${projectId}/competitors`),
+        api.get<{ suggestions: CompetitorSuggestion[] }>(`/api/projects/${projectId}/competitors/suggestions`),
+      ])
+      setTracked(ov.competitors ?? [])
+      setSuggestions(sg.suggestions ?? [])
+    } catch {
+      /* leave empty on failure */
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId])
+
+  useEffect(() => { void load() }, [load])
+
+  const add = async (domain: string) => {
+    if (!domain || busy) return
+    setBusy(true)
+    try {
+      await api.post(`/api/projects/${projectId}/competitors`, { domain })
+      await load()
+    } catch { /* ignore */ } finally { setBusy(false) }
+  }
+  const remove = async (id: string) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await api.delete(`/api/projects/${projectId}/competitors/${id}`)
+      await load()
+    } catch { /* ignore */ } finally { setBusy(false) }
+  }
+
+  // Only offer suggestions not already tracked.
+  const trackedDomains = new Set(tracked.map((c) => c.domain))
+  const available = suggestions.filter((s) => !trackedDomains.has(s.domain))
+
+  return (
+    <div className="card">
+      <div className="card-h">
+        <div className="t">{t("competitors")}</div>
+        {tracked.length > 0 && <span className="tiny muted tabular">{tracked.length}</span>}
+      </div>
+      <Dropdown
+        block
+        value=""
+        placeholder={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <Icon.plus /> {t("addCompetitor")}
+          </span>
+        }
+        options={available.map((s) => ({
+          value: s.domain,
+          label: (
+            <span style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minWidth: 0 }}>
+              <Favicon domain={s.domain} size={20} fallbackColor="var(--brand)" />
+              <span
+                className="mono"
+                style={{ flex: 1, minWidth: 0, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {s.domain}
+              </span>
+              <span
+                className="tiny muted"
+                style={{ flexShrink: 0 }}
+                title={t("sharedCountTip", { count: s.sharedCount })}
+              >
+                {t("sharedCount", { count: s.sharedCount })}
+              </span>
+            </span>
+          ),
+        }))}
+        onChange={add}
+        disabled={busy || available.length === 0}
+        ariaLabel={t("addCompetitor")}
+      />
+      <div style={{ marginTop: 12 }}>
+        {loading ? (
+          <div className="tiny muted" style={{ padding: "4px 2px" }}>…</div>
+        ) : tracked.length === 0 ? (
+          <div className="tiny muted" style={{ padding: "4px 2px", lineHeight: 1.5 }}>
+            {available.length === 0 ? t("noCompetitorSuggestions") : t("noCompetitors")}
+          </div>
+        ) : (
+          <div>
+            {tracked.map((c) => {
+              // Spy-consistent terms: "ahead" = you outrank them (good, green),
+              // "behind" = they outrank you (bad, red), "gaps" = they rank, you don't.
+              const ahead = c.rankHigherCount
+              const behind = Math.max(0, c.sharedCount - c.rankHigherCount)
+              const winPct = c.sharedCount > 0 ? Math.round((ahead / c.sharedCount) * 100) : 0
+              const hasOverlap = c.sharedCount > 0 || c.gapCount > 0
+              return (
+                <div key={c.id} className="cmp-track">
+                  <Link
+                    href={`/dashboard/project/${projectId}/competitor-spy?competitor=${c.id}`}
+                    className="cmp-track-link"
+                    title={t("viewInSpy")}
+                  >
+                  <Favicon domain={c.domain} size={28} fallbackColor="var(--brand)" />
+                  <div className="meta">
+                    <span className="mono dom">{c.domain}</span>
+                    <span className="cmp-cmp">
+                      {hasOverlap ? (
+                        <>
+                          {ahead > 0 && (
+                            <span className="up"><Icon.arrowUp />{t("cmpAhead", { count: ahead })}</span>
+                          )}
+                          {behind > 0 && (
+                            <span className="down"><Icon.arrowDown />{t("cmpBehind", { count: behind })}</span>
+                          )}
+                          {c.gapCount > 0 && (
+                            <span className="gap">{t("cmpGaps", { count: c.gapCount })}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="muted">{t("noOverlapYet")}</span>
+                      )}
+                    </span>
+                    {c.sharedCount > 0 && (
+                      <span className="bar cmp-bar" title={t("winRateTip", { win: ahead, total: c.sharedCount })}>
+                        <span style={{ width: `${winPct}%`, background: "var(--pos)" }} />
+                      </span>
+                    )}
+                  </div>
+                  </Link>
+                  <button
+                    type="button"
+                    className="rm"
+                    onClick={() => remove(c.id)}
+                    disabled={busy}
+                    title={t("removeCompetitor")}
+                    aria-label={t("removeCompetitor")}
+                  >
+                    <Icon.close />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 

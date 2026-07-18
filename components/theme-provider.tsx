@@ -74,22 +74,27 @@ export function ThemeProvider({
     })
   }, [])
 
-  // One-time migration: users who had a theme in localStorage (from the old
-  // next-themes setup) but no cookie yet get it adopted + written to the cookie.
+  // On mount, adopt the stored theme (cookie, or legacy next-themes
+  // localStorage) and apply the class. The server renders the default (light)
+  // — reading the cookie server-side would force the [locale] layout dynamic
+  // and conflict with setRequestLocale (breaks the root-layout render), so the
+  // theme is applied client-side here. A dark-mode user may see a brief flash
+  // on a hard reload; light (the default) never flashes.
   React.useEffect(() => {
-    if (readCookieTheme()) return
-    try {
-      const legacy = localStorage.getItem('theme')
-      if (legacy === 'dark' || legacy === 'light') {
-        setTheme(legacy)
-        return
+    let stored: Theme | null = readCookieTheme()
+    if (!stored) {
+      try {
+        const legacy = localStorage.getItem('theme')
+        if (legacy === 'dark' || legacy === 'light') stored = legacy
+      } catch {
+        /* localStorage blocked */
       }
-    } catch {
-      /* localStorage blocked */
     }
-    // No cookie yet — persist the current (server-provided) theme so future SSR
-    // renders read it.
-    document.cookie = `${COOKIE}=${theme}; path=/; max-age=${ONE_YEAR}; samesite=lax`
+    if (stored && stored !== theme) {
+      setTheme(stored)
+    } else {
+      applyTheme(theme)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

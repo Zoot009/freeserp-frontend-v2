@@ -12,6 +12,7 @@ import { CompetitorComparisonTable } from "@/components/competitor-comparison-ta
 import { ShareReportDialog } from "@/components/share-report-dialog"
 import { AiChatPanel } from "@/components/ai-chat-panel"
 import { AskAnalystUpsell } from "@/components/ai-chat-upsell"
+import { SeoQuoteOfDay } from "@/components/seo-quote"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
 import axios from "@/lib/axios"
@@ -577,6 +578,9 @@ function CompetitorAnalysisResultsContent() {
                 </div>
               )
             })()}
+
+            {/* SEO quote of the day — keeps the wait from feeling empty. */}
+            <SeoQuoteOfDay />
 
             {(() => {
               const progress = analysis?.progress

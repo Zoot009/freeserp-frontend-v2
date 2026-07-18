@@ -509,9 +509,16 @@ export default function CompetitorSpyPage() {
     try {
       const data = await api.get<OverviewResponse>(`/api/projects/${projectId}/competitors`)
       setOverview(data)
-      // Keep a competitor selected: the current one if still present, else the first.
+      // A ?competitor=<id> query param (e.g. arriving from the project's
+      // Competitors insight card) preselects that competitor on first load.
+      const fromUrl = typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("competitor")
+        : null
+      // Keep a competitor selected: the current one if still present, else the
+      // one named in the URL, else the first.
       setSelectedId((prev) => {
         if (prev && data.competitors.some((c) => c.id === prev)) return prev
+        if (fromUrl && data.competitors.some((c) => c.id === fromUrl)) return fromUrl
         return data.competitors[0]?.id ?? null
       })
     } catch (err: unknown) {

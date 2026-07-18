@@ -200,6 +200,11 @@ function ResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id") || ""
+  // When opened from a project keyword's Page-score, these carry the origin so
+  // Back returns there (and the score is saved onto that keyword on completion).
+  const projectId = searchParams.get("projectId") || ""
+  const keywordId = searchParams.get("keywordId") || ""
+  const backHref = projectId ? `/dashboard/project/${projectId}/keywords` : "/dashboard/onpage-audit"
 
   const [audit, setAudit] = useState<Audit | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -235,22 +240,28 @@ function ResultsContent() {
   const status = audit?.status
   const inProgress = !audit || status === "PENDING" || status === "PROCESSING"
 
+  // NOTE: no Page-score sync back to the keyword. The keywords table's Page score
+  // is a fast on-page-health score kept stable on the server; this detailed audit
+  // (a separate, deeper external check) must NOT overwrite it, or the table value
+  // would "jump" after the audit is opened.
+
   return (
     <div className="page">
       <div className="halo">
         <div className="page-h" style={{ marginBottom: 0 }}>
           <div style={{ minWidth: 0 }}>
             <button
-              className="btn sm"
-              onClick={() => router.push("/dashboard/onpage-audit")}
-              style={{ marginBottom: 12 }}
+              className="btn sm kd-back-btn"
+              onClick={() => router.push(backHref)}
+              style={{ marginBottom: 20 }}
             >
-              <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span> Back
+              <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
+              {projectId ? "Back to project" : "Back"}
             </button>
-            <div className="eyebrow"><span className="spark"><Icon.monitor /></span> On-Page Audit</div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}><span className="spark"><Icon.monitor /></span> On-Page Audit</div>
             <h1>Audit report</h1>
             {audit && (
-              <div className="sub">
+              <div className="sub" style={{ marginTop: 7 }}>
                 <a className="url" href={audit.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)" }}>
                   {audit.url.replace(/^https?:\/\//, "")}
                 </a>

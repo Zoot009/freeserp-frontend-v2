@@ -2,7 +2,6 @@ import type React from "react"
 import { Suspense } from "react"
 import type { Metadata, Viewport } from "next"
 import { notFound } from "next/navigation"
-import { cookies } from "next/headers"
 import { Bebas_Neue } from "next/font/google"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
@@ -119,16 +118,8 @@ export default async function LocaleLayout({
 
   const tCommon = await getTranslations("common")
 
-  // Theme anti-flash, done server-side: read the theme cookie and stamp the
-  // class on <html> in the initial HTML. No client <script> is rendered, so
-  // React 19 / Next 16 never emits the "script tag while rendering React
-  // component" warning, and there is no flash of the wrong theme. The client
-  // ThemeProvider (components/theme-provider.tsx) only handles runtime toggling.
-  const themeCookie = (await cookies()).get("theme")?.value
-  const theme = themeCookie === "dark" ? "dark" : "light"
-
   return (
-    <html lang={locale} className={theme} style={{ colorScheme: theme }} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >
@@ -152,7 +143,7 @@ export default async function LocaleLayout({
           <a href="#main-content" className="skip-to-content">
             {tCommon("skipToContent")}
           </a>
-          <ThemeProvider initialTheme={theme}>
+          <ThemeProvider>
             {/* Page-wide background glow — fixed so it doesn't scroll */}
             <div aria-hidden="true" className="app-grid-glow" />
             <div className="noise-overlay" aria-hidden="true" />
