@@ -16,7 +16,15 @@ export interface BillingConfig {
   perWorkerDailyChecks: number
   pricePerWorkerCents: { month: number; year: number }
   intervals: readonly ("month" | "year")[]
-  freeTrial: { totalChecks: number; windowDays: number }
+  // extensionDays/extensionChecks describe the one-time trial extension. Optional
+  // because a backend deployed before that feature omits them — call sites fall
+  // back rather than rendering "extend by undefined days" mid-rollout.
+  freeTrial: {
+    totalChecks: number
+    windowDays: number
+    extensionDays?: number
+    extensionChecks?: number
+  }
   /** Daily-quota units one live Quick-SERP lookup consumes. */
   liveCheckUnits?: number
   /** Daily-quota units each interactive (priority) tracked check consumes. */
@@ -29,7 +37,7 @@ export const FALLBACK_BILLING_CONFIG: BillingConfig = {
   perWorkerDailyChecks: SEARCHES_PER_WORKER,
   pricePerWorkerCents: { month: PRICE_PER_WORKER_USD * 100, year: PRICE_PER_WORKER_YEAR_USD * 100 },
   intervals: ["month", "year"],
-  freeTrial: { totalChecks: 3, windowDays: 7 },
+  freeTrial: { totalChecks: 3, windowDays: 7, extensionDays: 2, extensionChecks: 2 },
   liveCheckUnits: 1,
   priorityCheckUnits: 2,
 }

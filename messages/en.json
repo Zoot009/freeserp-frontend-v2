@@ -345,26 +345,100 @@
     "compareFree": "Free",
     "comparePaid": "Paid",
     "compareRows": [
-      { "group": "Limits" },
-      { "feature": "Rank checks", "free": "3 total (7-day trial)", "paid": "15 / day per $1" },
-      { "feature": "Projects", "free": "1", "paid": "50" },
-      { "feature": "Keywords per project", "free": "10", "paid": "Unlimited" },
-      { "feature": "69 countries & both devices", "free": "✓", "paid": "✓" },
-      { "group": "Automation & reporting" },
-      { "feature": "Automated recurring checks", "free": "—", "paid": "✓" },
-      { "feature": "Rank & SERP-feature alerts", "free": "—", "paid": "✓" },
-      { "feature": "Email alerts & digests", "free": "—", "paid": "✓" },
-      { "feature": "PDF reports", "free": "—", "paid": "✓" },
-      { "feature": "Priority support", "free": "—", "paid": "✓" },
-      { "group": "Analysis tools" },
-      { "feature": "AI competitor analysis", "free": "1 / day", "paid": "2 / day per $1" },
-      { "feature": "AI Audit Co-Pilot chat", "free": "—", "paid": "✓" },
-      { "feature": "Competitor Spy", "free": "✓", "paid": "✓" },
-      { "feature": "Quick SERP checker", "free": "✓", "paid": "✓" },
-      { "feature": "On-page & keyword analysis", "free": "✓", "paid": "✓" },
-      { "feature": "Google Search Console", "free": "✓", "paid": "✓" },
-      { "feature": "12-month rank history", "free": "✓", "paid": "✓" },
-      { "feature": "CSV export & share links", "free": "✓", "paid": "✓" }
+      {
+        "group": "Limits"
+      },
+      {
+        "feature": "Rank checks",
+        "free": "3 total (7-day trial)",
+        "paid": "15 / day per $1"
+      },
+      {
+        "feature": "Projects",
+        "free": "1",
+        "paid": "50"
+      },
+      {
+        "feature": "Keywords per project",
+        "free": "10",
+        "paid": "Unlimited"
+      },
+      {
+        "feature": "69 countries & both devices",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automation & reporting"
+      },
+      {
+        "feature": "Automated recurring checks",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Rank & SERP-feature alerts",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Email alerts & digests",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "PDF reports",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Priority support",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "group": "Analysis tools"
+      },
+      {
+        "feature": "AI competitor analysis",
+        "free": "1 / day",
+        "paid": "2 / day per $1"
+      },
+      {
+        "feature": "AI Audit Co-Pilot chat",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP checker",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "On-page & keyword analysis",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "12-month rank history",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "CSV export & share links",
+        "free": "✓",
+        "paid": "✓"
+      }
     ],
     "compareIncluded": "Included",
     "compareNotIncluded": "Not included",
@@ -519,6 +593,12 @@
     "freePlanLine": "You're on the Free plan — {count} rank checks total, free through {date}.",
     "freePlanLineExhausted": "Your free trial has ended — subscribe to keep running checks.",
     "trialExpiredBanner": "Your free trial has ended. Subscribe below to keep running checks.",
+    "trialExtendOffer": "Your free trial has ended. Extend it once, or subscribe to keep going.",
+    "trialExtendUsed": "Your extended trial has ended. Subscribe to keep running checks.",
+    "trialExtendCta": "Extend my trial",
+    "trialSubscribeCta": "See plans",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendError": "Couldn't extend your trial. Please try again.",
     "upgradePerks": [
       "Automated recurring rank checks",
       "Rank & SERP-feature alerts by email",
@@ -557,6 +637,14 @@
     "usageLinePaid": "{remaining} checks remaining today · {limit, number}/day on your plan",
     "usageLineFree": "{remaining} of {limit} checks left this trial · <link>Subscribe</link> to keep checking after it ends.",
     "usageLineFreeExhausted": "Your one-time free trial has ended · <link>Subscribe</link> to keep checking.",
+    "aiUsage": "AI analyses",
+    "usageAnalyses": "{used} / {limit} analyses",
+    "aiUnlimited": "Unlimited",
+    "aiLineUnlimited": "No daily limit on AI analyses for your plan.",
+    "aiLinePaid": "{remaining} analyses remaining today · {limit, number}/day on your plan",
+    "aiLinePaidExhausted": "You've used all {limit, number} AI analyses today · <link>Add workers</link> to raise the limit, or try again tomorrow.",
+    "aiLineFree": "{remaining} full analysis left today · after that, new analyses run as previews. <link>Subscribe</link> for full analyses every time.",
+    "aiLineFreeUsed": "You've used today's full analysis · new analyses run as previews until midnight UTC. <link>Subscribe</link> for full analyses every time.",
     "paymentHistory": "Payment history",
     "noPayments": "No payments yet.",
     "noPaymentsHint": "Invoices and receipts will appear here after your first payment.",
@@ -963,15 +1051,19 @@
   "usageMeter": {
     "planPro": "Pro",
     "planFree": "Free",
-    "chipTitle": "{plan} plan — {used}/{limit} rank checks used today",
-    "chipTitleTrial": "Free trial — {used}/{limit} checks used",
-    "checksToday": "checks today",
-    "checksTotal": "checks used",
     "trialDaysLeft": "{days, plural, one {# day left} other {# days left}}",
     "trialEnded": "Trial ended",
-    "addChecks": "Add checks",
-    "buy": "Buy",
-    "buyMore": "Buy more rank checks"
+    "todaysUsage": "Today's usage",
+    "resetsUtc": "Resets 00:00 UTC",
+    "rankChecks": "Rank checks",
+    "aiAnalyses": "AI analyses",
+    "leftToday": "{n, plural, one {# left today} other {# left today}}",
+    "leftInTrial": "{n, plural, one {# left in trial} other {# left in trial}}",
+    "aiFullLeft": "{n, plural, one {# full analysis left today} other {# full analyses left today}}",
+    "aiPreviewsNow": "New analyses run as previews until midnight UTC",
+    "upgradeCta": "Upgrade for higher limits",
+    "chipLabelBoth": "Usage — {checksUsed}/{checksLimit} rank checks, {aiUsed}/{aiLimit} AI analyses today",
+    "chipLabelChecks": "Usage — {used}/{limit} rank checks today"
   },
   "dashSearchConsole": {
     "backToProject": "Back to project",
@@ -1030,6 +1122,12 @@
     "titlePaid": "You've hit today's check limit",
     "bodyDailyQuota": "You've used {used} of {limit} checks today. Your limit resets at midnight UTC — or add more checks now and keep going immediately.",
     "bodyFreeTrial": "Your one-time free trial is used up. Subscribe to keep tracking your rankings — plans start at $5/month.",
+    "extendTitle": "Need a little longer? Add {days} days",
+    "extendBody": "Get {days} more days and {checks} more rank checks, free.",
+    "extendOnce": "One-time offer — available once per account.",
+    "extendCta": "Extend {days} days",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendFailed": "Couldn't extend your trial. Please try again.",
     "bodyProjectLimit": "You've reached your plan's project limit. Upgrade to track more websites.",
     "bodyKeywordLimit": "You've reached your plan's keyword limit for this project. Upgrade to track more keywords.",
     "nextTier": "Move up to {checks, number} checks/day",
@@ -1047,5 +1145,23 @@
     "upgraded": "Upgraded to {checks, number} checks/day.",
     "upgradeFailed": "Could not update your plan. Please try again.",
     "bodyAiLimit": "You've used all of today's AI analyses ({used} of {limit}). Every $1/month adds 2 analyses per day — raise your plan to lift the limit, or try again tomorrow."
+  },
+  "trialCountdown": {
+    "daysLeft": "{days, plural, one {# day} other {# days}} left in your free trial",
+    "hoursLeft": "{hours, plural, one {# hour} other {# hours}} left in your free trial",
+    "checksLeft": "{checks, plural, one {# rank check} other {# rank checks}} still available",
+    "cta": "See plans",
+    "dismiss": "Dismiss"
+  },
+  "trialGate": {
+    "title": "Your free trial has ended",
+    "body": "Subscribe to keep tracking your rankings. Your projects and history are safe — they'll pick up right where they left off.",
+    "bodyCanExtend": "Subscribe to keep tracking your rankings, or take your one-time extension to finish what you started. Your projects and history are safe.",
+    "extendCta": "Extend my trial",
+    "plansCta": "See plans",
+    "working": "Working…",
+    "alreadyExtended": "You've already used your one free extension.",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendError": "Couldn't extend your trial. Please try again."
   }
 }

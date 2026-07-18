@@ -22,6 +22,28 @@ interface Usage {
   // One-time, non-recurring free-plan trial state. Always null/false for paid.
   freeCheckTrialEndsAt: string | null
   freeCheckTrialExhausted: boolean
+  // One-time trial extension. Optional so a backend predating the feature simply
+  // hides the offer rather than rendering a broken CTA.
+  freeTrialExtensionAvailable?: boolean
+  freeTrialExtended?: boolean
+  aiAnalyses?: AiAnalyses
+}
+
+/**
+ * Today's AI-analysis allowance. `unlimited` and `degrades` qualify `remaining`
+ * and must be read with it: on free plans running out degrades new analyses to
+ * previews rather than blocking, so free users are never "out".
+ *
+ * Counts competitor analyses only — rerunning one or regenerating its AI plan
+ * spends tokens without moving this number, matching what the cap enforces.
+ */
+interface AiAnalyses {
+  used: number
+  limit: number
+  remaining: number | null
+  perWorkerPerDay: number
+  unlimited: boolean
+  degrades: boolean
 }
 
 interface Subscription {
@@ -163,6 +185,13 @@ export default function BillingPage() {
   const showAnnualNudge =
     canSwitchInterval && currentInterval === "month" && !intervalChanged && currentAnnualSaveUsd > 0
   const usedPct = usage && usage.dailyLimit > 0 ? Math.min(100, Math.round((usage.dailyUsed / usage.dailyLimit) * 100)) : 0
+  // Older backends don't send aiAnalyses; the whole card is hidden rather than
+  // rendered as 0/0. An unlimited cap has no bar to fill, so it stays at 0 too.
+  const ai = usage?.aiAnalyses
+  const aiUsedPct = ai && !ai.unlimited && ai.limit > 0 ? Math.min(100, Math.round((ai.used / ai.limit) * 100)) : 0
+  // Free users degrade to previews instead of being blocked, so a full bar is a
+  // nudge, not an error — reserve the red only for paid users who are hard-stopped.
+  const aiBarColor = ai && !ai.degrades && aiUsedPct >= 100 ? "var(--neg)" : "var(--brand)"
   // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
   const canResume = sub?.provider === "stripe"
   // Stripe flips the sub to past_due while its dunning retries run; the user's
@@ -247,6 +276,24 @@ export default function BillingPage() {
     }
   }
 
+  // Redeem the one-time trial extension. Reloads rather than patching state
+  // locally so the meter, the trial-ends date and the banner all re-derive from
+  // the server's summary — the same numbers the backend will enforce.
+  const extendTrial = async () => {
+    setBusy(true)
+    try {
+      const { extension } = await api.post<{ extension: { days: number; checks: number } }>(
+        "/api/billing/trial/extend",
+      )
+      toast.success(t("extendSuccess", { days: extension.days, checks: extension.checks }))
+      await load()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("extendError"))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const Header = (
     <div className="page-h">
       <div>
@@ -295,12 +342,43 @@ export default function BillingPage() {
       {/* Header */}
       {Header}
 
-      {trialExpiredRedirect && !isPaid && (
+      {/* Yields to the offer banner below, which carries the same message plus the
+          CTAs — otherwise an expiry redirect stacks two near-identical warnings. */}
+      {trialExpiredRedirect && !isPaid && !usage?.freeCheckTrialExhausted && (
         <div
           className="tiny"
           style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)" }}
         >
           {t("trialExpiredBanner")}
+        </div>
+      )}
+
+      {/* Post-expiry offer: extend once, or go straight to a plan. Persistent
+          counterpart to the QuotaUpsellModal, which only fires on a live 402. */}
+      {!isPaid && usage?.freeCheckTrialExhausted && (
+        <div
+          className="tiny"
+          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+        >
+          <span style={{ flex: 1, minWidth: 220 }}>
+            {usage.freeTrialExtensionAvailable
+              ? t("trialExtendOffer")
+              : usage.freeTrialExtended
+                ? t("trialExtendUsed")
+                : t("trialExpiredBanner")}
+          </span>
+          {usage.freeTrialExtensionAvailable && (
+            <button className="btn" onClick={extendTrial} disabled={busy} style={{ flexShrink: 0 }}>
+              {busy ? t("saving") : t("trialExtendCta")}
+            </button>
+          )}
+          <button
+            className="btn primary"
+            onClick={() => workerCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+            style={{ flexShrink: 0 }}
+          >
+            {t("trialSubscribeCta")}
+          </button>
         </div>
       )}
 
@@ -589,6 +667,43 @@ export default function BillingPage() {
                 limit: usage.dailyLimit,
                 link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
               })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI analyses — separate allowance from daily checks, also resets at UTC midnight. */}
+      {ai && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-h">
+            <div>
+              <div className="t">{t("aiUsage")}</div>
+              <div className="tiny muted">{t("resetsMidnight")}</div>
+            </div>
+            <div className="tiny muted tabular">
+              {ai.unlimited ? t("aiUnlimited") : t("usageAnalyses", { used: ai.used, limit: ai.limit })}
+            </div>
+          </div>
+          {!ai.unlimited && (
+            <div className="bar thick"><span style={{ width: `${aiUsedPct}%`, background: aiBarColor }} /></div>
+          )}
+          <div className="tiny muted" style={{ marginTop: 8 }}>
+            {ai.unlimited ? (
+              t("aiLineUnlimited")
+            ) : ai.degrades ? (
+              // Free plan: the cap doesn't block, it downgrades. Say what actually
+              // happens next rather than showing a scary "0 remaining".
+              t.rich(ai.remaining === 0 ? "aiLineFreeUsed" : "aiLineFree", {
+                remaining: ai.remaining ?? 0,
+                link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
+              })
+            ) : ai.remaining === 0 ? (
+              t.rich("aiLinePaidExhausted", {
+                limit: ai.limit,
+                link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
+              })
+            ) : (
+              t("aiLinePaid", { remaining: ai.remaining ?? 0, limit: ai.limit })
             )}
           </div>
         </div>

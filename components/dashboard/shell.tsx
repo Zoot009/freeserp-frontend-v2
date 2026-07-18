@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Sidebar } from "./sidebar"
 import { Topbar } from "./topbar"
+import { TrialCountdownBanner } from "./trial-countdown-banner"
+import { TrialEndedGate } from "./trial-ended-gate"
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -57,7 +59,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
         <div className="main">
           <Topbar onMenuClick={() => setNavOpen(true)} />
-          {children}
+          {/* Countdown while the trial runs; once it ends the gate replaces the
+              page body entirely. Nav and topbar stay mounted either way so a
+              gated user can still reach billing and sign-out. */}
+          <TrialCountdownBanner />
+          <TrialEndedGate>{children}</TrialEndedGate>
         </div>
       </div>
     </div>

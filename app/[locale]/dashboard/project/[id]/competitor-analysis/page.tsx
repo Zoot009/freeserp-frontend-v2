@@ -58,6 +58,23 @@ function isOwn(competitorDomain: string, yourDomain: string): boolean {
   return a === b || a.endsWith(`.${b}`) || a.includes(b)
 }
 
+// Turns a 429's rate-limit headers into a human wait time. express-rate-limit's
+// draft-7 mode sends a combined `RateLimit: limit=10, remaining=0, reset=3542`
+// (seconds until the window clears); older drafts send `Retry-After`. Both are
+// only readable cross-origin because the API's CORS config exposes them.
+// Returns null when neither is present, so callers can fall back to vaguer copy.
+function retryAfterPhrase(headers: Record<string, unknown>): string | null {
+  const combined = String(headers["ratelimit"] ?? "")
+  const fromCombined = combined.match(/reset\s*=\s*(\d+)/i)?.[1]
+  const seconds = Number.parseInt(fromCombined ?? String(headers["retry-after"] ?? ""), 10)
+  if (!Number.isFinite(seconds) || seconds <= 0) return null
+  if (seconds < 90) return "less than a minute"
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes < 60) return `about ${minutes} minutes`
+  const hours = Math.ceil(minutes / 60)
+  return hours === 1 ? "about an hour" : `about ${hours} hours`
+}
+
 function CompetitorAnalysisContent() {
   const params = useParams()
   const router = useRouter()
@@ -81,6 +98,10 @@ function CompetitorAnalysisContent() {
   // repeat analyses, so a double-fire just errors).
   const submittingRef = useRef(false)
   const [error, setError] = useState("")
+  // Set once the server reports the daily analysis quota is spent (402). Keeps
+  // the button off for the rest of the session, since no retry can succeed until
+  // the UTC day rolls over.
+  const [quotaBlocked, setQuotaBlocked] = useState(false)
   const [serpCompetitors, setSerpCompetitors] = useState<SerpCompetitor[]>([])
   const [loadingSerpData, setLoadingSerpData] = useState(false)
   // Selection is keyed by each result's full ranking-page URL (c.url), not its
@@ -182,15 +203,34 @@ function CompetitorAnalysisContent() {
       if (response.status < 200 || response.status >= 300) {
         const body = response.data ?? {}
         // Backend errors come as { error: { code, message } }; tolerate a bare
-        // string too. Give the rate-limit its own plain-language message.
+        // string too.
         const raw = body.error?.message ?? body.error
-        const msg =
-          response.status === 429
-            ? "You just started an analysis — please wait a moment before starting another."
-            : typeof raw === "string" && raw
-              ? raw
-              : "Failed to start competitor analysis"
-        throw new Error(msg)
+        const serverMsg = typeof raw === "string" && raw ? raw : ""
+
+        if (response.status === 402) {
+          // The daily analysis quota is spent. Retrying cannot succeed until the
+          // UTC day rolls over, so latch the button off instead of re-arming it.
+          // Re-arming is what caused the 429s: users disbelieved the cap, retried,
+          // and each rejected attempt still spent an hourly rate-limit token until
+          // the honest 402 became a 429 claiming analyses had been "started".
+          setQuotaBlocked(true)
+          setError(serverMsg || "You've used all your AI analyses for today. Try again tomorrow.")
+        } else if (response.status === 429) {
+          // Genuinely started too many. Quote the real window from the server
+          // rather than implying a short wait — this limiter's window is an hour.
+          const wait = retryAfterPhrase(response.headers ?? {})
+          setError(
+            wait
+              ? `You've started several analyses recently. Please try again in ${wait}.`
+              : "You've started several analyses recently. Please wait before starting another.",
+          )
+        } else {
+          setError(serverMsg || "Failed to start competitor analysis")
+        }
+
+        setIsAnalyzing(false)
+        submittingRef.current = false
+        return
       }
 
       const { analysis } = response.data
@@ -252,11 +292,13 @@ function CompetitorAnalysisContent() {
             type="button"
             data-tutorial="analyze-btn"
             onClick={handleAnalyze}
-            disabled={isAnalyzing || selectedSerpUrls.size !== 3 || serpCompetitors.length === 0}
+            disabled={isAnalyzing || quotaBlocked || selectedSerpUrls.size !== 3 || serpCompetitors.length === 0}
             className="btn primary"
           >
             {isAnalyzing ? (
               "Analyzing…"
+            ) : quotaBlocked ? (
+              "Daily limit reached"
             ) : (
               <>
                 <Icon.zap />
