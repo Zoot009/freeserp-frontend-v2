@@ -267,7 +267,7 @@
     "subtitle": "Start free. Add workers when you need more rank checks, automation, and full AI analysis.",
     "freeTitle": "Free",
     "perMonth": "/month",
-    "freeForever": "Forever. No card, no trial.",
+    "freeForever": "3 checks to try it out — no card required.",
     "currentPlan": "Current Plan",
     "freePlan": "Free Plan",
     "workers": "Workers",
@@ -286,9 +286,9 @@
     "errorFailedStartCheckout": "Failed to start checkout",
     "errorCheckoutUrlMissing": "Checkout URL missing",
     "errorCheckoutFailed": "Checkout failed",
-    "limitsReset": "Daily limits reset at midnight IST. Cancel anytime from your payment provider's customer portal.",
+    "limitsReset": "Daily limits reset at midnight UTC. Cancel anytime from your payment provider's customer portal.",
     "freeFeatures": [
-      "3 rank checks / day",
+      "3 free rank checks (7-day trial)",
       "Manual checks only",
       "1 full AI analysis / day",
       "Internal link analysis: your site + 1 competitor",
@@ -296,7 +296,7 @@
     ],
     "paidFeatures": [
       "Automated recurring checks",
-      "Unlimited AI analysis (all sections)",
+      "AI analysis for every section — 2/day per worker",
       "Internal link analysis for ALL competitors",
       "Priority support"
     ],
@@ -311,15 +311,19 @@
     "faq": [
       {
         "q": "What is a rank check?",
-        "a": "One keyword × one location × one device, fetched fresh from Google. Stored historically so you can track movement over time."
+        "a": "One keyword × one location × one device, fetched fresh from Google and stored historically so you can track movement over time. Scheduled checks and Quick SERP lookups count as 1 check each; instant (priority) checks count as 2 because they jump the queue."
       },
       {
         "q": "Do unused checks roll over?",
-        "a": "No — daily limits reset at midnight IST. Each worker adds 15 rank checks/day; add more workers any time to scale your daily capacity."
+        "a": "No — daily limits reset at midnight UTC. Each worker adds 15 rank checks/day; add more workers any time to scale your daily capacity."
       },
       {
         "q": "What is a worker?",
-        "a": "A worker is a unit of daily search capacity: 1 worker = 15 rank checks/day for $1/month. Need more? Add workers — 3 workers = 45 checks/day for $3/month. You can change your worker count anytime and we prorate the difference."
+        "a": "A worker is a unit of daily search capacity: 1 worker = 15 rank checks/day for $1/month, starting at 5 workers ($5/month = 75 checks/day). You can change your worker count anytime and we prorate the difference."
+      },
+      {
+        "q": "Is there annual billing?",
+        "a": "Yes — pay yearly at $10 per worker instead of $12 (about 2 months free). Pick “Annual” on the pricing card before checkout."
       },
       {
         "q": "Can I cancel anytime?",
@@ -336,9 +340,9 @@
     "compareWorkers": "Workers",
     "compareRows": [
       {
-        "feature": "Rank checks per day",
-        "free": "3",
-        "paid": "15 / worker"
+        "feature": "Rank checks",
+        "free": "3 total (7-day trial)",
+        "paid": "15 / day / worker"
       },
       {
         "feature": "Automated recurring checks",
@@ -348,7 +352,7 @@
       {
         "feature": "AI competitor analysis",
         "free": "1 / day",
-        "paid": "Unlimited"
+        "paid": "2 / day / worker"
       },
       {
         "feature": "Internal link analysis",
@@ -373,7 +377,16 @@
     "errorSaveFailed": "Could not update your workers",
     "ctaTitle": "Ready to rank higher?",
     "ctaSubtitle": "Start free — no card required. Add workers the moment you need more.",
-    "ctaButton": "Get started"
+    "ctaButton": "Get started",
+    "intervalMonthly": "Monthly",
+    "intervalAnnual": "Annual",
+    "perYear": "/year",
+    "annualSavings": "2 months free",
+    "annualUnavailable": "Annual billing isn't available in your region yet — switched back to monthly.",
+    "billedAnnually": "Billed yearly via <b>Stripe</b>.",
+    "perWorkerEachYear": "{searches}/day · ${price}/yr each",
+    "getWorkersYear": "Get {workers, plural, one {# worker} other {# workers}} — ${price}/yr →",
+    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)"
   },
   "billingResult": {
     "eyebrow": "Payment",
@@ -478,7 +491,8 @@
       "SERP_FEATURE_GAINED": "SERP feature gained",
       "SERP_FEATURE_LOST": "SERP feature lost",
       "BUDGET_CAP_HIT": "Daily budget reached",
-      "DAILY_QUOTA_HIT": "Daily check limit reached"
+      "DAILY_QUOTA_HIT": "Daily check limit reached",
+      "PAYMENT_FAILED": "Payment failed"
     }
   },
   "dashBilling": {
@@ -508,14 +522,14 @@
     "trialExpiredBanner": "Your free trial has ended. Subscribe below to keep running checks.",
     "upgradePerks": [
       "Automated recurring rank checks",
-      "Unlimited AI analysis (all sections)",
+      "AI analysis for every section — 2/day per worker",
       "Internal link analysis for all competitors",
       "Scale capacity with workers — 15 checks/day each"
     ],
     "upgrade": "Upgrade →",
     "removeWorker": "Remove a worker",
     "addWorker": "Add a worker",
-    "workerSummary": "<strong>{checks}</strong> rank checks / day · <strong>${cost}</strong>/month",
+    "workerSummary": "<strong>{checks}</strong> rank checks / day · <strong>${cost}</strong>{per}",
     "workerDeltaFrom": "{from} → {to, plural, one {# worker} other {# workers}}",
     "workerDeltaProrated": ", prorated today",
     "saving": "Saving…",
@@ -561,7 +575,23 @@
     "cancelDialogBody": "You'll keep full access until the end of the current billing period, then drop to the Free plan. You can resubscribe anytime.",
     "keepPlan": "Keep plan",
     "choosePlan": "Choose your plan",
-    "tierChecks": "{checks, number} checks/day"
+    "tierChecks": "{checks, number} checks/day",
+    "pastDueBanner": "Your last payment failed. Update your payment method to keep your plan active — we'll retry automatically in the meantime.",
+    "pastDueCta": "Update payment method",
+    "tileYearlyCost": "Yearly cost",
+    "tileBilledAnnually": "billed yearly",
+    "legacyTier": "Legacy tier",
+    "previewChargeNow": "≈{amount} charged today, prorated",
+    "perMonthSuffix": "/mo",
+    "perYearSuffix": "/yr",
+    "intervalMonthly": "Monthly",
+    "intervalAnnual": "Annual",
+    "annualSavings": "2 months free",
+    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)",
+    "annualNudge": "You're billed monthly — switch to annual and save ${save}/yr ({pct}% off).",
+    "annualNudgeCta": "Switch to annual",
+    "grantedNoSub": "Your plan was activated directly (no billing subscription), so worker and billing changes aren't available here. Start a subscription to manage workers.",
+    "startSubscription": "Start subscription"
   },
   "projKeywords": {
     "loadingProject": "Loading project…",
@@ -792,7 +822,7 @@
     "upgradeTitle": "Unlock unlimited projects",
     "upgradeBody": "You've reached the {limit}-project limit on the Free plan. Upgrade to a paid plan to track unlimited domains, run automated scheduled checks, and lift your daily check limits.",
     "upgradeFeatures": [
-      "Unlimited projects",
+      "Up to 50 projects",
       "Automated scheduled rank checks",
       "Higher daily check limits"
     ],
@@ -847,7 +877,7 @@
       "mobile": "Mobile",
       "checking": "Checking…",
       "checkRankings": "Check Rankings",
-      "costNote": "Live Google query · uses {count} checks · ~10 seconds"
+      "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds"
     },
     "processing": {
       "withKeyword": "Querying Google for “{keyword}”… you can leave this page and come back.",
@@ -892,11 +922,11 @@
     },
     "confirm": {
       "eyebrow": "CONFIRM CHECK",
-      "title": "This uses {count} checks",
+      "title": "This uses {count, plural, one {# check} other {# checks}}",
       "close": "Close",
-      "body": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and will consume <strong>{count} of your daily checks</strong>. This can’t be undone.",
+      "body": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and will consume <strong>{count, plural, one {# of your daily checks} other {# of your daily checks}}</strong>. This can’t be undone.",
       "cancel": "Cancel",
-      "confirm": "Use {count} checks"
+      "confirm": "Use {count, plural, one {# check} other {# checks}}"
     },
     "errors": {
       "checkFailed": "The check failed. Please try again.",
@@ -994,5 +1024,29 @@
     "device": "Device",
     "appearance": "Appearance",
     "date": "Date"
+  },
+  "quotaUpsell": {
+    "eyebrow": "Upgrade",
+    "titleFree": "You're out of free checks",
+    "titlePaid": "You've hit today's check limit",
+    "bodyDailyQuota": "You've used {used} of {limit} checks today. Your limit resets at midnight UTC — or add workers now and keep checking immediately.",
+    "bodyFreeTrial": "Your one-time free trial is used up. Subscribe to keep tracking your rankings — plans start at $5/month.",
+    "bodyProjectLimit": "You've reached your plan's project limit. Upgrade to track more websites.",
+    "bodyKeywordLimit": "You've reached your plan's keyword limit for this project. Upgrade to track more keywords.",
+    "nextTier": "{workers} workers — {checks, number} checks/day",
+    "proratedNow": "≈{amount} charged now (prorated for the rest of this period)",
+    "thenRecurring": "then {amount}{interval}",
+    "perMonth": "/mo",
+    "perYear": "/yr",
+    "proratedGeneric": "Prorated — you only pay the difference for the rest of this period.",
+    "maxTier": "You're on the largest plan. Contact support if you need more capacity.",
+    "notNow": "Not now",
+    "close": "Close",
+    "working": "Upgrading…",
+    "upgradeCta": "Upgrade to {workers} workers",
+    "subscribeCta": "See plans",
+    "upgraded": "Upgraded to {workers} workers — {checks, number} checks/day.",
+    "upgradeFailed": "Could not update your plan. Please try again.",
+    "bodyAiLimit": "You've used all of today's AI analyses ({used} of {limit}). Each worker adds 2 analyses per day — add workers to raise the limit, or try again tomorrow."
   }
 }

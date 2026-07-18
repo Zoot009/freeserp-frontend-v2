@@ -161,7 +161,20 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
     }
   }
 
-  if (res.status < 200 || res.status >= 300) throw readError(res)
+  if (res.status < 200 || res.status >= 300) {
+    const err = readError(res)
+    // Global paywall signal: any 402 (quota exhausted, trial ended, plan limit
+    // reached) also fires an event so the dashboard's upsell modal can offer the
+    // upgrade path. Callers still receive the throw and keep their own handling.
+    if (res.status === 402 && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("billing:quota", {
+          detail: { code: err.code, message: err.message, details: err.details },
+        }),
+      )
+    }
+    throw err
+  }
   if (res.status === 204) return undefined as T
   const ct = (res.headers["content-type"] as string | undefined) ?? ""
   if (!ct.includes("application/json")) return undefined as T

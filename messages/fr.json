@@ -267,7 +267,7 @@
     "subtitle": "Commencez gratuitement. Ajoutez des workers quand vous avez besoin de plus de vérifications de classement, d'automatisation et d'analyse IA complète.",
     "freeTitle": "Gratuit",
     "perMonth": "/mois",
-    "freeForever": "Pour toujours. Sans carte, sans essai.",
+    "freeForever": "3 vérifications pour essayer — sans carte bancaire.",
     "currentPlan": "Forfait actuel",
     "freePlan": "Forfait gratuit",
     "workers": "Workers",
@@ -286,9 +286,9 @@
     "errorFailedStartCheckout": "Échec du démarrage du paiement",
     "errorCheckoutUrlMissing": "URL de paiement manquante",
     "errorCheckoutFailed": "Échec du paiement",
-    "limitsReset": "Les limites quotidiennes se réinitialisent à minuit (IST). Annulez à tout moment depuis le portail client de votre prestataire de paiement.",
+    "limitsReset": "Les limites quotidiennes se réinitialisent à minuit (UTC). Annulez à tout moment depuis le portail client de votre prestataire de paiement.",
     "freeFeatures": [
-      "3 vérifications de classement / jour",
+      "3 vérifications de classement gratuites (essai de 7 jours)",
       "Vérifications manuelles uniquement",
       "1 analyse IA complète / jour",
       "Analyse des liens internes : votre site + 1 concurrent",
@@ -296,7 +296,7 @@
     ],
     "paidFeatures": [
       "Vérifications récurrentes automatisées",
-      "Analyse IA illimitée (toutes les sections)",
+      "Analyse IA de toutes les sections — 2/jour par worker",
       "Analyse des liens internes pour TOUS les concurrents",
       "Support prioritaire"
     ],
@@ -311,15 +311,19 @@
     "faq": [
       {
         "q": "Qu'est-ce qu'une vérification de classement ?",
-        "a": "Un mot-clé × un emplacement × un appareil, récupéré directement depuis Google. Stocké de manière historique pour que vous puissiez suivre l'évolution dans le temps."
+        "a": "Un mot-clé × une localisation × un appareil, récupéré en direct depuis Google et archivé pour suivre les évolutions. Les vérifications planifiées et les recherches Quick SERP comptent 1 chacune ; les vérifications instantanées (prioritaires) comptent 2 car elles passent en tête de file."
       },
       {
         "q": "Les vérifications inutilisées sont-elles reportées ?",
-        "a": "Non — les limites quotidiennes se réinitialisent à minuit (IST). Chaque worker ajoute 15 vérifications de classement/jour ; ajoutez des workers à tout moment pour augmenter votre capacité quotidienne."
+        "a": "Non — les limites quotidiennes se réinitialisent à minuit (UTC). Chaque worker ajoute 15 vérifications/jour ; ajoutez des workers à tout moment."
       },
       {
         "q": "Qu'est-ce qu'un worker ?",
-        "a": "Un worker est une unité de capacité de recherche quotidienne : 1 worker = 15 vérifications de classement/jour pour 1 $/mois. Besoin de plus ? Ajoutez des workers — 3 workers = 45 vérifications/jour pour 3 $/mois. Vous pouvez modifier votre nombre de workers à tout moment et nous calculons la différence au prorata."
+        "a": "Un worker est une unité de capacité quotidienne : 1 worker = 15 vérifications/jour pour 1 $/mois, à partir de 5 workers (5 $/mois = 75 vérifications/jour). Vous pouvez modifier votre nombre de workers à tout moment, la différence est calculée au prorata."
+      },
+      {
+        "q": "Existe-t-il une facturation annuelle ?",
+        "a": "Oui — payez 10 $ par an et par worker au lieu de 12 $ (environ 2 mois offerts). Choisissez « Annuel » sur la carte de tarifs avant le paiement."
       },
       {
         "q": "Puis-je annuler à tout moment ?",
@@ -336,9 +340,9 @@
     "compareWorkers": "Workers",
     "compareRows": [
       {
-        "feature": "Vérifications de position par jour",
-        "free": "3",
-        "paid": "15 / worker"
+        "feature": "Vérifications de classement",
+        "free": "3 au total (essai de 7 jours)",
+        "paid": "15 / jour / worker"
       },
       {
         "feature": "Vérifications récurrentes automatiques",
@@ -348,7 +352,7 @@
       {
         "feature": "Analyse concurrentielle par IA",
         "free": "1 / jour",
-        "paid": "Illimité"
+        "paid": "2 / jour / worker"
       },
       {
         "feature": "Analyse des liens internes",
@@ -373,7 +377,16 @@
     "errorSaveFailed": "Impossible de mettre à jour vos workers",
     "ctaTitle": "Prêt à mieux vous positionner ?",
     "ctaSubtitle": "Commencez gratuitement — sans carte. Ajoutez des workers dès que vous en avez besoin.",
-    "ctaButton": "Commencer"
+    "ctaButton": "Commencer",
+    "intervalMonthly": "Mensuel",
+    "intervalAnnual": "Annuel",
+    "perYear": "/an",
+    "annualSavings": "2 mois offerts",
+    "annualUnavailable": "La facturation annuelle n'est pas encore disponible dans votre région — retour au mensuel.",
+    "billedAnnually": "Facturation annuelle via <b>Stripe</b>.",
+    "perWorkerEachYear": "{searches}/jour · {price} $/an chacun",
+    "getWorkersYear": "Obtenir {workers, plural, one {# worker} other {# workers}} — {price} $/an →",
+    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)"
   },
   "billingResult": {
     "eyebrow": "Paiement",
@@ -478,7 +491,8 @@
       "SERP_FEATURE_GAINED": "Fonctionnalité SERP gagnée",
       "SERP_FEATURE_LOST": "Fonctionnalité SERP perdue",
       "BUDGET_CAP_HIT": "Budget quotidien atteint",
-      "DAILY_QUOTA_HIT": "Limite quotidienne de vérifications atteinte"
+      "DAILY_QUOTA_HIT": "Limite quotidienne de vérifications atteinte",
+      "PAYMENT_FAILED": "Paiement échoué"
     }
   },
   "dashBilling": {
@@ -504,22 +518,22 @@
     "workerCardHintFree": "Passez à une offre supérieure pour augmenter vos vérifications quotidiennes",
     "freePlanLine": "Vous êtes sur le forfait Gratuit — {count} vérifications de classement/jour, en manuel uniquement.",
     "tileChecksTrial": "Vérifications d'essai",
-    "freePlanLineExhausted": "Votre essai gratuit est terminé — abonnez-vous pour continuer à lancer des vérifications.",
-    "trialExpiredBanner": "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour continuer à lancer des vérifications.",
+    "freePlanLineExhausted": "Votre essai gratuit est terminé — abonnez-vous pour continuer les vérifications.",
+    "trialExpiredBanner": "Votre essai gratuit est terminé. Abonnez-vous ci-dessous pour continuer les vérifications.",
     "trialUsage": "Utilisation de l'essai gratuit",
     "trialEndsOn": "L'essai se termine le {date}",
     "trialEnded": "Essai terminé",
-    "usageLineFreeExhausted": "Votre essai gratuit unique est terminé · <link>Abonnez-vous</link> pour continuer à vérifier.",
+    "usageLineFreeExhausted": "Votre essai gratuit unique est terminé · <link>Abonnez-vous</link> pour continuer.",
     "upgradePerks": [
       "Vérifications de classement récurrentes et automatiques",
-      "Analyse IA illimitée (toutes les sections)",
+      "Analyse IA de toutes les sections — 2/jour par worker",
       "Analyse des liens internes pour tous les concurrents",
       "Augmentez la capacité avec des workers — 15 vérifications/jour chacun"
     ],
     "upgrade": "Mettre à niveau →",
     "removeWorker": "Retirer un worker",
     "addWorker": "Ajouter un worker",
-    "workerSummary": "<strong>{checks}</strong> vérifications de classement / jour · <strong>{cost} $</strong>/mois",
+    "workerSummary": "<strong>{checks}</strong> vérifications / jour · <strong>{cost} $</strong>{per}",
     "workerDeltaFrom": "{from} → {to, plural, one {# worker} other {# workers}}",
     "workerDeltaProrated": ", calculé au prorata aujourd'hui",
     "saving": "Enregistrement…",
@@ -561,7 +575,23 @@
     "cancelDialogBody": "Vous conserverez un accès complet jusqu'à la fin de la période de facturation en cours, puis passerez au forfait Gratuit. Vous pouvez vous réabonner à tout moment.",
     "keepPlan": "Conserver le forfait",
     "choosePlan": "Choisissez votre forfait",
-    "tierChecks": "{checks, number} vérifications/jour"
+    "tierChecks": "{checks, number} vérifications/jour",
+    "pastDueBanner": "Votre dernier paiement a échoué. Mettez à jour votre moyen de paiement pour garder votre forfait actif — nous réessaierons automatiquement.",
+    "pastDueCta": "Mettre à jour le moyen de paiement",
+    "tileYearlyCost": "Coût annuel",
+    "tileBilledAnnually": "facturé annuellement",
+    "legacyTier": "Ancien forfait",
+    "previewChargeNow": "≈{amount} facturé aujourd'hui, au prorata",
+    "perMonthSuffix": "/mois",
+    "perYearSuffix": "/an",
+    "intervalMonthly": "Mensuel",
+    "intervalAnnual": "Annuel",
+    "annualSavings": "2 mois offerts",
+    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)",
+    "annualNudge": "Vous payez au mois — passez à l'annuel et économisez {save} $/an ({pct}% de réduction).",
+    "annualNudgeCta": "Passer à l'annuel",
+    "grantedNoSub": "Votre forfait a été activé directement (sans abonnement de facturation), les modifications de workers et de facturation ne sont donc pas disponibles ici. Démarrez un abonnement pour gérer les workers.",
+    "startSubscription": "Démarrer l'abonnement"
   },
   "projKeywords": {
     "loadingProject": "Chargement du projet…",
@@ -792,7 +822,7 @@
     "upgradeTitle": "Débloquez des projets illimités",
     "upgradeBody": "Vous avez atteint la limite de {limit} projet(s) du plan Gratuit. Passez à une offre payante pour suivre un nombre illimité de domaines, exécuter des vérifications programmées automatiques et augmenter vos limites de vérification quotidiennes.",
     "upgradeFeatures": [
-      "Projets illimités",
+      "Jusqu'à 50 projets",
       "Vérifications de position programmées et automatiques",
       "Limites de vérification quotidiennes plus élevées"
     ],
@@ -847,7 +877,7 @@
       "mobile": "Mobile",
       "checking": "Vérification…",
       "checkRankings": "Vérifier le classement",
-      "costNote": "Requête Google en direct · utilise {count} vérifications · ~10 secondes"
+      "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes"
     },
     "processing": {
       "withKeyword": "Interrogation de Google pour « {keyword} »… vous pouvez quitter cette page et revenir.",
@@ -892,11 +922,11 @@
     },
     "confirm": {
       "eyebrow": "CONFIRMER LA VÉRIFICATION",
-      "title": "Cela utilise {count} vérifications",
+      "title": "Ceci utilise {count, plural, one {# vérification} other {# vérifications}}",
       "close": "Fermer",
-      "body": "Lancer une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et consommera <strong>{count} de vos vérifications quotidiennes</strong>. Cela ne peut pas être annulé.",
+      "body": "Une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et consommera <strong>{count, plural, one {# de vos vérifications quotidiennes} other {# de vos vérifications quotidiennes}}</strong>. Cette action est irréversible.",
       "cancel": "Annuler",
-      "confirm": "Utiliser {count} vérifications"
+      "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}"
     },
     "errors": {
       "checkFailed": "La vérification a échoué. Veuillez réessayer.",
@@ -994,5 +1024,29 @@
     "device": "Appareil",
     "appearance": "Apparence",
     "date": "Date"
+  },
+  "quotaUpsell": {
+    "eyebrow": "Passer au niveau supérieur",
+    "titleFree": "Vos vérifications gratuites sont épuisées",
+    "titlePaid": "Limite quotidienne de vérifications atteinte",
+    "bodyDailyQuota": "Vous avez utilisé {used} des {limit} vérifications aujourd'hui. Votre limite se réinitialise à minuit (UTC) — ou ajoutez des workers maintenant pour continuer immédiatement.",
+    "bodyFreeTrial": "Votre essai gratuit unique est épuisé. Abonnez-vous pour continuer à suivre vos classements — à partir de 5 $/mois.",
+    "bodyProjectLimit": "Vous avez atteint la limite de projets de votre forfait. Passez au niveau supérieur pour suivre plus de sites.",
+    "bodyKeywordLimit": "Vous avez atteint la limite de mots-clés de votre forfait pour ce projet. Passez au niveau supérieur pour suivre plus de mots-clés.",
+    "nextTier": "{workers} workers — {checks, number} vérifications/jour",
+    "proratedNow": "≈{amount} facturé maintenant (au prorata du reste de la période)",
+    "thenRecurring": "puis {amount}{interval}",
+    "perMonth": "/mois",
+    "perYear": "/an",
+    "proratedGeneric": "Au prorata — vous ne payez que la différence pour le reste de la période.",
+    "maxTier": "Vous êtes déjà sur le plus grand forfait. Contactez le support si vous avez besoin de plus de capacité.",
+    "notNow": "Pas maintenant",
+    "close": "Fermer",
+    "working": "Mise à niveau…",
+    "upgradeCta": "Passer à {workers} workers",
+    "subscribeCta": "Voir les forfaits",
+    "upgraded": "Forfait mis à niveau : {workers} workers — {checks, number} vérifications/jour.",
+    "upgradeFailed": "Impossible de mettre à jour votre forfait. Veuillez réessayer.",
+    "bodyAiLimit": "Vous avez utilisé toutes les analyses IA du jour ({used} sur {limit}). Chaque worker ajoute 2 analyses par jour — ajoutez des workers pour augmenter la limite, ou réessayez demain."
   }
 }

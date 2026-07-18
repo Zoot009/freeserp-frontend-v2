@@ -267,7 +267,7 @@
     "subtitle": "Starte kostenlos. Füge Worker hinzu, wenn du mehr Rank-Checks, Automatisierung und vollständige KI-Analyse benötigst.",
     "freeTitle": "Kostenlos",
     "perMonth": "/Monat",
-    "freeForever": "Für immer. Keine Karte, keine Testphase.",
+    "freeForever": "3 Checks zum Ausprobieren — keine Karte nötig.",
     "currentPlan": "Aktueller Plan",
     "freePlan": "Kostenloser Plan",
     "workers": "Worker",
@@ -286,9 +286,9 @@
     "errorFailedStartCheckout": "Checkout konnte nicht gestartet werden",
     "errorCheckoutUrlMissing": "Checkout-URL fehlt",
     "errorCheckoutFailed": "Checkout fehlgeschlagen",
-    "limitsReset": "Die täglichen Limits werden um Mitternacht (IST) zurückgesetzt. Jederzeit über das Kundenportal deines Zahlungsanbieters kündbar.",
+    "limitsReset": "Tageslimits werden um Mitternacht (UTC) zurückgesetzt. Jederzeit über das Kundenportal deines Zahlungsanbieters kündbar.",
     "freeFeatures": [
-      "3 Rank-Checks / Tag",
+      "3 kostenlose Rank-Checks (7-Tage-Test)",
       "Nur manuelle Checks",
       "1 vollständige KI-Analyse / Tag",
       "Interne Linkanalyse: deine Seite + 1 Wettbewerber",
@@ -296,7 +296,7 @@
     ],
     "paidFeatures": [
       "Automatisierte wiederkehrende Checks",
-      "Unbegrenzte KI-Analyse (alle Bereiche)",
+      "KI-Analyse für jeden Bereich — 2/Tag pro Worker",
       "Interne Linkanalyse für ALLE Wettbewerber",
       "Priorisierter Support"
     ],
@@ -311,15 +311,19 @@
     "faq": [
       {
         "q": "Was ist ein Rank-Check?",
-        "a": "Ein Keyword × ein Standort × ein Gerät, frisch von Google abgerufen. Historisch gespeichert, damit du Bewegungen im Zeitverlauf verfolgen kannst."
+        "a": "Ein Keyword × ein Standort × ein Gerät, frisch von Google abgerufen und historisch gespeichert, damit du Bewegungen verfolgen kannst. Geplante Checks und Quick-SERP-Abfragen zählen je 1 Check; Sofort-Checks (Priority) zählen 2, weil sie die Warteschlange überspringen."
       },
       {
         "q": "Werden ungenutzte Checks übertragen?",
-        "a": "Nein — die täglichen Limits werden um Mitternacht (IST) zurückgesetzt. Jeder Worker fügt 15 Rank-Checks/Tag hinzu; füge jederzeit weitere Worker hinzu, um deine tägliche Kapazität zu skalieren."
+        "a": "Nein — Tageslimits werden um Mitternacht (UTC) zurückgesetzt. Jeder Worker bringt 15 Rank-Checks/Tag; du kannst jederzeit Worker hinzufügen."
       },
       {
         "q": "Was ist ein Worker?",
-        "a": "Ein Worker ist eine Einheit täglicher Suchkapazität: 1 Worker = 15 Rank-Checks/Tag für $1/Monat. Brauchst du mehr? Füge Worker hinzu — 3 Worker = 45 Checks/Tag für $3/Monat. Du kannst deine Worker-Anzahl jederzeit ändern und wir rechnen die Differenz anteilig ab."
+        "a": "Ein Worker ist eine Einheit täglicher Suchkapazität: 1 Worker = 15 Rank-Checks/Tag für 1 $/Monat, ab 5 Workern (5 $/Monat = 75 Checks/Tag). Du kannst die Anzahl jederzeit ändern — die Differenz wird anteilig verrechnet."
+      },
+      {
+        "q": "Gibt es jährliche Abrechnung?",
+        "a": "Ja — zahle jährlich 10 $ pro Worker statt 12 $ (rund 2 Monate geschenkt). Wähle vor dem Checkout „Jährlich“ auf der Preiskarte."
       },
       {
         "q": "Kann ich jederzeit kündigen?",
@@ -336,9 +340,9 @@
     "compareWorkers": "Workers",
     "compareRows": [
       {
-        "feature": "Rank-Checks pro Tag",
-        "free": "3",
-        "paid": "15 / Worker"
+        "feature": "Rank-Checks",
+        "free": "3 gesamt (7-Tage-Test)",
+        "paid": "15 / Tag / Worker"
       },
       {
         "feature": "Automatische wiederkehrende Checks",
@@ -348,7 +352,7 @@
       {
         "feature": "KI-Wettbewerbsanalyse",
         "free": "1 / Tag",
-        "paid": "Unbegrenzt"
+        "paid": "2 / Tag / Worker"
       },
       {
         "feature": "Interne Linkanalyse",
@@ -373,7 +377,16 @@
     "errorSaveFailed": "Worker konnten nicht aktualisiert werden",
     "ctaTitle": "Bereit für bessere Rankings?",
     "ctaSubtitle": "Kostenlos starten – keine Karte nötig. Worker hinzufügen, sobald Sie mehr brauchen.",
-    "ctaButton": "Loslegen"
+    "ctaButton": "Loslegen",
+    "intervalMonthly": "Monatlich",
+    "intervalAnnual": "Jährlich",
+    "perYear": "/Jahr",
+    "annualSavings": "2 Monate geschenkt",
+    "annualUnavailable": "Jährliche Abrechnung ist in deiner Region noch nicht verfügbar — zurück zu monatlich gewechselt.",
+    "billedAnnually": "Jährliche Abrechnung über <b>Stripe</b>.",
+    "perWorkerEachYear": "{searches}/Tag · je {price} $/Jahr",
+    "getWorkersYear": "{workers, plural, one {# Worker} other {# Worker}} holen — {price} $/Jahr →",
+    "annualSaveNote": "Spare {save} $/Jahr ggü. monatlich ({pct}% Rabatt)"
   },
   "billingResult": {
     "eyebrow": "Zahlung",
@@ -478,7 +491,8 @@
       "SERP_FEATURE_GAINED": "SERP-Feature gewonnen",
       "SERP_FEATURE_LOST": "SERP-Feature verloren",
       "BUDGET_CAP_HIT": "Tagesbudget erreicht",
-      "DAILY_QUOTA_HIT": "Tägliches Prüflimit erreicht"
+      "DAILY_QUOTA_HIT": "Tägliches Prüflimit erreicht",
+      "PAYMENT_FAILED": "Zahlung fehlgeschlagen"
     }
   },
   "dashBilling": {
@@ -503,23 +517,23 @@
     "workerCardHintPaid": "Jeder Worker fügt 15 Prüfungen/Tag für 1 $/Monat hinzu",
     "workerCardHintFree": "Führe ein Upgrade durch, um deine täglichen Prüfungen zu skalieren",
     "freePlanLine": "Du nutzt den kostenlosen Tarif — {count} Ranking-Prüfungen/Tag, nur manuell.",
-    "tileChecksTrial": "Test-Prüfungen",
-    "freePlanLineExhausted": "Deine kostenlose Testphase ist beendet — abonniere, um weiter Prüfungen durchzuführen.",
-    "trialExpiredBanner": "Deine kostenlose Testphase ist beendet. Abonniere unten, um weiter Prüfungen durchzuführen.",
-    "trialUsage": "Nutzung der kostenlosen Testphase",
-    "trialEndsOn": "Testphase endet am {date}",
-    "trialEnded": "Testphase beendet",
-    "usageLineFreeExhausted": "Deine einmalige kostenlose Testphase ist beendet · <link>Abonnieren</link>, um weiter zu prüfen.",
+    "tileChecksTrial": "Test-Checks",
+    "freePlanLineExhausted": "Dein kostenloser Test ist beendet — abonniere, um weiter Checks auszuführen.",
+    "trialExpiredBanner": "Dein kostenloser Test ist beendet. Abonniere unten, um weiter Checks auszuführen.",
+    "trialUsage": "Testnutzung",
+    "trialEndsOn": "Test endet am {date}",
+    "trialEnded": "Test beendet",
+    "usageLineFreeExhausted": "Dein einmaliger kostenloser Test ist beendet · <link>Abonnieren</link>, um weiter zu prüfen.",
     "upgradePerks": [
       "Automatische, wiederkehrende Ranking-Prüfungen",
-      "Unbegrenzte KI-Analyse (alle Bereiche)",
+      "KI-Analyse für jeden Bereich — 2/Tag pro Worker",
       "Analyse interner Links für alle Wettbewerber",
       "Kapazität mit Workers skalieren — je 15 Prüfungen/Tag"
     ],
     "upgrade": "Upgrade →",
     "removeWorker": "Einen Worker entfernen",
     "addWorker": "Einen Worker hinzufügen",
-    "workerSummary": "<strong>{checks}</strong> Ranking-Prüfungen / Tag · <strong>{cost} $</strong>/Monat",
+    "workerSummary": "<strong>{checks}</strong> Rank-Checks / Tag · <strong>{cost} $</strong>{per}",
     "workerDeltaFrom": "{from} → {to, plural, one {# Worker} other {# Workers}}",
     "workerDeltaProrated": ", heute anteilig berechnet",
     "saving": "Wird gespeichert…",
@@ -561,7 +575,23 @@
     "cancelDialogBody": "Du behältst den vollen Zugriff bis zum Ende des aktuellen Abrechnungszeitraums und wechselst dann zum kostenlosen Tarif. Du kannst jederzeit erneut abonnieren.",
     "keepPlan": "Tarif behalten",
     "choosePlan": "Wähle deinen Plan",
-    "tierChecks": "{checks, number} Checks/Tag"
+    "tierChecks": "{checks, number} Checks/Tag",
+    "pastDueBanner": "Deine letzte Zahlung ist fehlgeschlagen. Aktualisiere deine Zahlungsmethode, um deinen Plan aktiv zu halten — wir versuchen es automatisch erneut.",
+    "pastDueCta": "Zahlungsmethode aktualisieren",
+    "tileYearlyCost": "Jährliche Kosten",
+    "tileBilledAnnually": "jährlich abgerechnet",
+    "legacyTier": "Alt-Tarif",
+    "previewChargeNow": "≈{amount} heute berechnet, anteilig",
+    "perMonthSuffix": "/Mon.",
+    "perYearSuffix": "/Jahr",
+    "intervalMonthly": "Monatlich",
+    "intervalAnnual": "Jährlich",
+    "annualSavings": "2 Monate geschenkt",
+    "annualSaveNote": "Spare {save} $/Jahr ggü. monatlich ({pct}% Rabatt)",
+    "annualNudge": "Du zahlst monatlich — wechsle zu jährlich und spare {save} $/Jahr ({pct}% Rabatt).",
+    "annualNudgeCta": "Zu jährlich wechseln",
+    "grantedNoSub": "Dein Plan wurde direkt aktiviert (kein Abrechnungsabo), daher sind Worker- und Abrechnungsänderungen hier nicht verfügbar. Starte ein Abo, um Worker zu verwalten.",
+    "startSubscription": "Abo starten"
   },
   "projKeywords": {
     "loadingProject": "Projekt wird geladen…",
@@ -792,7 +822,7 @@
     "upgradeTitle": "Unbegrenzte Projekte freischalten",
     "upgradeBody": "Sie haben das Limit von {limit} Projekt(en) im kostenlosen Tarif erreicht. Führen Sie ein Upgrade auf einen kostenpflichtigen Tarif durch, um unbegrenzt Domains zu verfolgen, automatische geplante Prüfungen auszuführen und Ihre täglichen Prüflimits zu erhöhen.",
     "upgradeFeatures": [
-      "Unbegrenzte Projekte",
+      "Bis zu 50 Projekte",
       "Automatische geplante Ranking-Prüfungen",
       "Höhere tägliche Prüflimits"
     ],
@@ -847,7 +877,7 @@
       "mobile": "Mobil",
       "checking": "Wird geprüft…",
       "checkRankings": "Rankings prüfen",
-      "costNote": "Live-Google-Abfrage · verbraucht {count} Prüfungen · ~10 Sekunden"
+      "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden"
     },
     "processing": {
       "withKeyword": "Google wird für „{keyword}“ abgefragt… du kannst diese Seite verlassen und später zurückkommen.",
@@ -892,11 +922,11 @@
     },
     "confirm": {
       "eyebrow": "PRÜFUNG BESTÄTIGEN",
-      "title": "Das verbraucht {count} Prüfungen",
+      "title": "Dies verbraucht {count, plural, one {# Check} other {# Checks}}",
       "close": "Schließen",
-      "body": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count} deiner täglichen Prüfungen</strong>. Dies kann nicht rückgängig gemacht werden.",
+      "body": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count, plural, one {# deiner täglichen Checks} other {# deiner täglichen Checks}}</strong>. Das kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
-      "confirm": "{count} Prüfungen verwenden"
+      "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden"
     },
     "errors": {
       "checkFailed": "Die Prüfung ist fehlgeschlagen. Bitte versuche es erneut.",
@@ -935,11 +965,11 @@
     "planFree": "Kostenlos",
     "workerSuffix": "({count, plural, one {# Worker} other {# Worker}})",
     "chipTitle": "{plan}-Tarif{workerSuffix} — {used}/{limit} Ranking-Prüfungen heute verwendet",
-    "chipTitleTrial": "Kostenlose Testphase — {used}/{limit} Prüfungen verwendet",
+    "chipTitleTrial": "Kostenloser Test — {used}/{limit} Checks genutzt",
     "checksToday": "Prüfungen heute",
-    "checksTotal": "Prüfungen verwendet",
-    "trialDaysLeft": "{days, plural, one {# Tag übrig} other {# Tage übrig}}",
-    "trialEnded": "Testphase beendet",
+    "checksTotal": "Checks genutzt",
+    "trialDaysLeft": "{days, plural, one {noch # Tag} other {noch # Tage}}",
+    "trialEnded": "Test beendet",
     "addWorkers": "Worker hinzufügen",
     "buy": "Kaufen",
     "buyMore": "Mehr Rank-Checks kaufen"
@@ -994,5 +1024,29 @@
     "device": "Gerät",
     "appearance": "Darstellung",
     "date": "Datum"
+  },
+  "quotaUpsell": {
+    "eyebrow": "Upgrade",
+    "titleFree": "Deine kostenlosen Checks sind aufgebraucht",
+    "titlePaid": "Tageslimit für Checks erreicht",
+    "bodyDailyQuota": "Du hast heute {used} von {limit} Checks genutzt. Dein Limit wird um Mitternacht (UTC) zurückgesetzt — oder füge jetzt Worker hinzu und prüfe sofort weiter.",
+    "bodyFreeTrial": "Dein einmaliger kostenloser Test ist aufgebraucht. Abonniere, um deine Rankings weiter zu verfolgen — Pläne ab 5 $/Monat.",
+    "bodyProjectLimit": "Du hast das Projektlimit deines Plans erreicht. Führe ein Upgrade durch, um mehr Websites zu tracken.",
+    "bodyKeywordLimit": "Du hast das Keyword-Limit deines Plans für dieses Projekt erreicht. Führe ein Upgrade durch, um mehr Keywords zu tracken.",
+    "nextTier": "{workers} Worker — {checks, number} Checks/Tag",
+    "proratedNow": "≈{amount} jetzt berechnet (anteilig für den Rest des Zeitraums)",
+    "thenRecurring": "danach {amount}{interval}",
+    "perMonth": "/Mon.",
+    "perYear": "/Jahr",
+    "proratedGeneric": "Anteilig — du zahlst nur die Differenz für den Rest des Zeitraums.",
+    "maxTier": "Du hast bereits den größten Plan. Kontaktiere den Support, wenn du mehr Kapazität brauchst.",
+    "notNow": "Jetzt nicht",
+    "close": "Schließen",
+    "working": "Upgrade läuft…",
+    "upgradeCta": "Auf {workers} Worker upgraden",
+    "subscribeCta": "Pläne ansehen",
+    "upgraded": "Auf {workers} Worker umgestellt — {checks, number} Checks/Tag.",
+    "upgradeFailed": "Plan konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+    "bodyAiLimit": "Du hast alle KI-Analysen für heute verbraucht ({used} von {limit}). Jeder Worker bringt 2 Analysen pro Tag — füge Worker hinzu oder versuche es morgen erneut."
   }
 }
