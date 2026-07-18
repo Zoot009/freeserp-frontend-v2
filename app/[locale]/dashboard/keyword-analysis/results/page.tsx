@@ -340,10 +340,25 @@ function ResultsContent() {
   const status = analysis?.status
   const inProgress = !analysis || status === "PENDING" || status === "PROCESSING"
 
-  // NOTE: no score sync back to the keyword here. The keywords table now shows
-  // the SAME deep score computed server-side (page-score worker → computeSeoScore),
-  // so the report must NOT overwrite it — that overwrite was what made the table
-  // value "jump" after opening a report.
+  // Mirror THIS report's score onto the originating keyword. The number sent is
+  // exactly the one rendered below (same computeSeoScore over the same stored
+  // crawlData), and pageScoreUrl points the keyword at the page that was scored —
+  // so the keywords table shows this exact number and later report write-backs
+  // match the same page. Idempotent: the server-side write-back normally already
+  // stored this value, so this is a no-op re-write rather than a change. Fires once.
+  const syncedRef = useRef(false)
+  useEffect(() => {
+    if (!fromProject || syncedRef.current) return
+    if (status !== "COMPLETED" || !analysis?.crawlData) return
+    syncedRef.current = true
+    const total = computeSeoScore(analysis.crawlData as CrawlData, analysis.keyword, analysis.url).total
+    api
+      .post(`/api/projects/${projectId}/keywords/${keywordId}/sync-score`, {
+        pageScore: total,
+        pageScoreUrl: analysis.url,
+      })
+      .catch(() => { /* best-effort — the report itself is still valid */ })
+  }, [status, analysis?.crawlData, analysis?.keyword, analysis?.url, fromProject, projectId, keywordId])
 
   return (
     <div className="page">

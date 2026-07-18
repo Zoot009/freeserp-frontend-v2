@@ -492,6 +492,14 @@
   font-size: 13px;
 }
 .fs-app .insight-row + .insight-row { border-top: 1px solid var(--border); }
+/* P.S / K.S table cell — fixed-width slots so the "/" separator and both badges
+   line up vertically down the column, even when a row shows the wider "+ Score"
+   call-to-action instead of a number. */
+.fs-app .ps-ks { display: flex; align-items: center; gap: 7px; }
+.fs-app .ps-ks .ps { min-width: 34px; display: inline-flex; justify-content: flex-end; flex-shrink: 0; }
+.fs-app .ps-ks .sep { color: var(--text-mute); opacity: 0.45; font-size: 12px; flex-shrink: 0; }
+.fs-app .ps-ks .ks { min-width: 34px; display: inline-flex; justify-content: flex-start; }
+
 /* Competitors insight card — tracked-competitor rows. Each row links into the
    Competitor Spy detail: favicon · (domain + ahead/behind/gaps + win bar) · remove. */
 .fs-app .cmp-track { display: flex; align-items: center; gap: 4px; }

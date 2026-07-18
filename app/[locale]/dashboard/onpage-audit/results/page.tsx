@@ -240,10 +240,19 @@ function ResultsContent() {
   const status = audit?.status
   const inProgress = !audit || status === "PENDING" || status === "PROCESSING"
 
-  // NOTE: no Page-score sync back to the keyword. The keywords table's Page score
-  // is a fast on-page-health score kept stable on the server; this detailed audit
-  // (a separate, deeper external check) must NOT overwrite it, or the table value
-  // would "jump" after the audit is opened.
+  // Mirror THIS audit's overall score onto the originating keyword's Page score.
+  // The audit is the source of truth for P.S (its worker normally writes this
+  // already), so this is an idempotent catch-up for audits that completed before
+  // that write-back existed — the table then shows exactly this number. Fires once.
+  const syncedRef = useRef(false)
+  useEffect(() => {
+    if (!projectId || !keywordId || syncedRef.current) return
+    if (status !== "COMPLETED" || audit?.overallScore == null) return
+    syncedRef.current = true
+    api
+      .post(`/api/projects/${projectId}/keywords/${keywordId}/sync-score`, { pageAuditScore: audit.overallScore })
+      .catch(() => { /* best-effort — the report is still valid */ })
+  }, [status, audit?.overallScore, projectId, keywordId])
 
   return (
     <div className="page">

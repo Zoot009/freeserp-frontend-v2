@@ -1821,7 +1821,8 @@ export default function ProjectKeywordsPage() {
                       </td>
                       {/* P.S / K.S combined into one column to save space. */}
                       <td>
-                        <div className="row" style={{ gap: 7, alignItems: "center" }}>
+                        <div className="ps-ks">
+                          <span className="ps">
                           <AuditBadge
                             score={kw.pageAuditScore}
                             loading={auditingKwId === kw.id || (isActive && kw.pageAuditScore == null)}
@@ -1831,7 +1832,9 @@ export default function ProjectKeywordsPage() {
                                 : undefined
                             }
                           />
-                          <span className="tiny muted" aria-hidden style={{ opacity: 0.5 }}>/</span>
+                          </span>
+                          <span className="sep" aria-hidden>/</span>
+                          <span className="ks">
                           <ScoreBadge
                             score={kw.pageScore}
                             grade={kw.pageScoreGrade}
@@ -1845,6 +1848,7 @@ export default function ProjectKeywordsPage() {
                               )
                             }
                           />
+                          </span>
                         </div>
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
