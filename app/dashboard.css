@@ -90,10 +90,12 @@
 /* === LAYOUT === */
 .fs-app .app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 72px 1fr;
   min-height: 100vh;
   background: var(--bg-sub);
+  transition: grid-template-columns 0.18s ease;
 }
+.fs-app .app.expanded { grid-template-columns: 240px 1fr; }
 /* === SIDEBAR === */
 .fs-app .sidebar {
   background: var(--bg);
@@ -105,7 +107,21 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow: hidden;
 }
+/* Collapsed (icon-only) rail: hide labels, center icons. */
+.fs-app .sidebar:not(.open) .sb-label,
+.fs-app .sidebar:not(.open) .sb-brand .spark,
+.fs-app .sidebar:not(.open) .sb-brand-text,
+.fs-app .sidebar:not(.open) .sb-section,
+.fs-app .sidebar:not(.open) .sb-upgrade,
+.fs-app .sidebar:not(.open) .sb-user-info,
+.fs-app .sidebar:not(.open) .sb-item .badge {
+  display: none;
+}
+.fs-app .sidebar:not(.open) .sb-brand { justify-content: center; padding-left: 0; padding-right: 0; }
+.fs-app .sidebar:not(.open) .sb-item { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+.fs-app .sidebar:not(.open) .sb-user { justify-content: center; padding-left: 0; padding-right: 0; }
 .fs-app .sb-brand {
   display: flex; align-items: center; gap: 9px;
   padding: 6px 8px 14px;
@@ -114,6 +130,9 @@
   color: var(--text);
 }
 .fs-app .sb-brand .spark { color: var(--brand); font-size: 18px; line-height: 1; }
+.fs-app .sb-toggle-btn svg { transition: transform 0.18s ease; }
+.fs-app .sidebar.open .sb-toggle-btn { margin-left: auto; }
+.fs-app .sidebar.open .sb-toggle-btn svg { transform: rotate(180deg); }
 .fs-app .sb-section {
   font-size: 10.5px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -231,6 +250,17 @@
 }
 .fs-app .icon-btn:hover { background: var(--bg-inset); color: var(--text); }
 .fs-app .icon-btn .dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; background: var(--brand); border-radius: 50%; }
+.fs-app .sb-toggle-btn {
+  width: 28px; height: 28px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--brand);
+  border: none;
+  border-radius: 7px;
+  color: white;
+  cursor: pointer;
+}
+.fs-app .sb-toggle-btn:hover { background: var(--brand-deep); }
 .fs-app .btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 14px;
@@ -1424,7 +1454,6 @@
 
 /* Mobile chrome — hidden on desktop, shown at <=768px. */
 .fs-app .sb-overlay { display: none; }
-.fs-app .topbar-hamburger { display: none; }
 
 /* ---- Tablet (<=1024px): 4-col grids drop to 2 ---- */
 @media (max-width: 1024px) {
@@ -1436,7 +1465,7 @@
 /* ---- Drawer + single-column layout (<=768px) ---- */
 @media (max-width: 768px) {
   /* Layout collapses to one column; sidebar leaves the flow and slides in. */
-  .fs-app .app { grid-template-columns: 1fr; }
+  .fs-app .app, .fs-app .app.expanded { grid-template-columns: 1fr; }
   .fs-app .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0;
     height: 100vh; height: 100dvh;
@@ -1453,8 +1482,7 @@
     z-index: 55;
   }
 
-  /* Topbar: reveal hamburger, drop the placeholder search, tighten. */
-  .fs-app .topbar-hamburger { display: grid; }
+  /* Topbar: drop the placeholder search, tighten. */
   .fs-app .topbar { padding: 10px 14px; gap: 8px; }
   .fs-app .topbar .search { display: none; }
   .fs-app .crumbs { margin-right: auto; }

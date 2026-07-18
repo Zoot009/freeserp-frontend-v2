@@ -35,7 +35,7 @@ function crumbKeysFor(pathname: string): { keys: string[]; ellipsis: boolean } {
   return { keys: ["workspace"], ellipsis: false }
 }
 
-export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
+export function Topbar() {
   const pathname = usePathname() || "/dashboard"
   const tNav = useTranslations("dashboardNav")
   const t = useTranslations("topbar")
@@ -48,13 +48,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   return (
     <div className="topbar">
-      <button
-        className="icon-btn topbar-hamburger"
-        onClick={onMenuClick}
-        aria-label={t("openNav")}
-      >
-        <Icon.menu />
-      </button>
       <div className="crumbs">
         {crumbs.map((c, i) => (
           <span key={i} className={i === crumbs.length - 1 ? "here" : ""}>

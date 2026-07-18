@@ -30,9 +30,9 @@ const TOOLS: NavEntry[] = [
 function NavLink({ entry, label, active, onNavigate }: { entry: NavEntry; label: string; active: boolean; onNavigate?: () => void }) {
   const I = entry.icon
   return (
-    <Link href={entry.href} className={"sb-item " + (active ? "active" : "")} onClick={onNavigate}>
+    <Link href={entry.href} className={"sb-item " + (active ? "active" : "")} onClick={onNavigate} title={label}>
       <I />
-      {label}
+      <span className="sb-label">{label}</span>
       {entry.badge != null && <span className="badge">{entry.badge}</span>}
     </Link>
   )
@@ -43,18 +43,23 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/")
 }
 
-export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
+export function Sidebar({ open = false, onClose, onToggle }: { open?: boolean; onClose?: () => void; onToggle?: () => void }) {
   const pathname = usePathname() || ""
   const router = useRouter()
   const t = useTranslations("dashboardNav")
+  const tTop = useTranslations("topbar")
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   // Close the mobile drawer whenever the route changes (covers nav-link clicks,
-  // browser back, and programmatic navigation).
+  // browser back, and programmatic navigation). Desktop's expanded/collapsed
+  // state reuses the same `open` flag but should survive navigation, so this
+  // only fires below the mobile breakpoint.
   useEffect(() => {
-    onClose?.()
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches) {
+      onClose?.()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
@@ -80,7 +85,15 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="sb-brand">
         <span className="spark"><Icon.spark size={16} /></span>
-        FreeSerp
+        <span className="sb-brand-text">FreeSerp</span>
+        <button
+          type="button"
+          className="sb-toggle-btn"
+          onClick={onToggle}
+          aria-label={tTop("openNav")}
+        >
+          <Icon.chevR />
+        </button>
       </div>
 
       <div className="sb-section">{t("workspace")}</div>
@@ -105,7 +118,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
       <div className="sb-user" ref={menuRef} style={{ position: "relative" }}>
         <div className="avatar">{initials}</div>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="sb-user-info" style={{ minWidth: 0, flex: 1 }}>
           <div className="name" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {user?.name || user?.email?.split("@")[0] || t("guest")}
           </div>
@@ -113,6 +126,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         </div>
         <button
           type="button"
+          className="sb-user-info"
           aria-label={t("accountMenu")}
           onClick={() => setMenuOpen((o) => !o)}
           style={{

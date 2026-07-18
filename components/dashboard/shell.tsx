@@ -31,8 +31,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fs-app">
-      <div className="app">
-        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+      <div className={"app" + (navOpen ? " expanded" : "")}>
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} onToggle={() => setNavOpen((o) => !o)} />
         <div
           className="sb-overlay"
           data-open={navOpen}
@@ -40,7 +40,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           aria-hidden="true"
         />
         <div className="main">
-          <Topbar onMenuClick={() => setNavOpen(true)} />
+          <Topbar />
           {children}
         </div>
       </div>
