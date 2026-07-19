@@ -134,6 +134,13 @@ export const Icon = {
       <path d="M2 7C2 4.24 4.24 2 7 2C8.86 2 10.49 3.02 11.37 4.5M12 7C12 9.76 9.76 12 7 12C5.14 12 3.51 10.98 2.63 9.5M11 1.5V4.5H8M3 12.5V9.5H6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  // Shield with a tick — used for the money-back guarantee stat on pricing.
+  shield: () => (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M7 1.5L11.5 3.2V6.8C11.5 9.5 9.6 11.6 7 12.5C4.4 11.6 2.5 9.5 2.5 6.8V3.2L7 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.2 6.9L6.5 8.2L8.9 5.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   close: () => (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

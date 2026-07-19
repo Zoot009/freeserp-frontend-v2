@@ -25,6 +25,7 @@ import {
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
+import { Sparkle, Sparkles, Pencil, Check, X } from "lucide-react"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -630,6 +631,10 @@ export default function ProjectKeywordsPage() {
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Inline project-name rename (click the pencil next to the title).
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState("")
+  const [savingName, setSavingName] = useState(false)
   // Keyword-delete confirmation: holds the ids slated for deletion. Single
   // delete = [oneId]; bulk delete = all selected ids. `null` = modal closed.
   const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
@@ -949,6 +954,36 @@ export default function ProjectKeywordsPage() {
     }
   }
 
+  const startEditingName = () => {
+    if (!project) return
+    setNameInput(project.name)
+    setEditingName(true)
+  }
+
+  const cancelEditingName = () => {
+    setEditingName(false)
+    setNameInput("")
+  }
+
+  const handleSaveName = async () => {
+    if (!project) return
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === project.name) {
+      cancelEditingName()
+      return
+    }
+    setSavingName(true); setError("")
+    try {
+      const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${project.id}`, { name: trimmed })
+      setProject((prev) => prev ? { ...prev, ...data } : prev)
+      setEditingName(false)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to rename project")
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   const handleUpdateFrequency = async (choice: number | "off") => {
     setUpdatingFrequency(true); setError("")
     try {
@@ -1179,7 +1214,56 @@ export default function ProjectKeywordsPage() {
           <div className="row" style={{ marginBottom: 8 }}>
             <Favicon domain={project.domain} size={36} fallbackColor={color} />
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ margin: 0 }}>{project.name}</h1>
+              {editingName ? (
+                <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                  <input
+                    autoFocus
+                    className="input"
+                    value={nameInput}
+                    maxLength={120}
+                    disabled={savingName}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveName()
+                      if (e.key === "Escape") cancelEditingName()
+                    }}
+                    style={{ fontSize: 20, fontWeight: 600, padding: "2px 8px", height: 34 }}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    title="Save"
+                    style={{ width: 28, height: 28 }}
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={cancelEditingName}
+                    disabled={savingName}
+                    title="Cancel"
+                    style={{ width: 28, height: 28 }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                  <h1 style={{ margin: 0 }}>{project.name}</h1>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={startEditingName}
+                    title="Rename project"
+                    style={{ width: 26, height: 26, opacity: 0.6, border: "none" }}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </div>
+              )}
               <div className="tiny muted mono">{project.domain}</div>
             </div>
           </div>

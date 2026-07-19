@@ -29,6 +29,10 @@ interface Usage {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
+  // One-time trial extension: available only to a free user whose trial is over
+  // and who has never redeemed. Absent on backends predating the feature.
+  freeTrialExtensionAvailable?: boolean
+  freeTrialExtended?: boolean
 }
 
 interface WorkersPreview {
@@ -69,6 +73,7 @@ export function QuotaUpsellModal() {
   const [checksPerDay, setChecksPerDay] = useState(15)
   const [preview, setPreview] = useState<WorkersPreview | null>(null)
   const [busy, setBusy] = useState(false)
+  const [extension, setExtension] = useState<{ days: number; checks: number } | null>(null)
   const lastShownAt = useRef(0)
 
   const close = useCallback(() => {
@@ -88,12 +93,17 @@ export function QuotaUpsellModal() {
       setUsage(null)
       setNextTier(null)
       setPreview(null)
+      setExtension(null)
       setOpen(true)
 
       try {
         const [u, cfg] = await Promise.all([api.get<Usage>("/api/usage"), fetchBillingConfig()])
         setUsage(u)
         setChecksPerDay(cfg.perWorkerDailyChecks)
+        setExtension({
+          days: cfg.freeTrial?.extensionDays ?? 2,
+          checks: cfg.freeTrial?.extensionChecks ?? 2,
+        })
         if (u.plan === "paid") {
           // First configured tier strictly above the current count — also lifts
           // grandfathered 1-worker subs onto the smallest current tier.
@@ -125,7 +135,7 @@ export function QuotaUpsellModal() {
     try {
       await api.patch("/api/billing/workers", { workerCount: nextTier })
       window.dispatchEvent(new Event("usage:refresh"))
-      toast.success(t("upgraded", { workers: nextTier, checks: nextTier * checksPerDay }))
+      toast.success(t("upgraded", { checks: nextTier * checksPerDay }))
       close()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("upgradeFailed"))
@@ -134,9 +144,31 @@ export function QuotaUpsellModal() {
     }
   }, [nextTier, checksPerDay, close, t])
 
+  const redeemExtension = useCallback(async () => {
+    setBusy(true)
+    try {
+      await api.post("/api/billing/trial/extend", {})
+      window.dispatchEvent(new Event("usage:refresh"))
+      toast.success(
+        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 2 }),
+      )
+      close()
+    } catch (err) {
+      // A 409 here means it was already redeemed (another tab, or a double click
+      // that raced the server's compare-and-set) — the message says so.
+      toast.error(err instanceof ApiError ? err.message : t("extendFailed"))
+    } finally {
+      setBusy(false)
+    }
+  }, [extension, close, t])
+
   if (!open) return null
 
   const isPaid = usage?.plan === "paid"
+  // Only offered on the trial-exhausted paywall: the other 402 codes (project /
+  // keyword / AI caps) aren't time-limited, so more trial days wouldn't lift them.
+  const canExtend =
+    !isPaid && code === "free_trial_exhausted" && usage?.freeTrialExtensionAvailable === true
   const bodyKey =
     code === "free_trial_exhausted"
       ? "bodyFreeTrial"
@@ -182,7 +214,7 @@ export function QuotaUpsellModal() {
                 style={{ borderColor: "var(--brand)", background: "var(--brand-soft)", display: "flex", flexDirection: "column", gap: 8 }}
               >
                 <div className="b" style={{ fontSize: 14 }}>
-                  {t("nextTier", { workers: nextTier, checks: nextTier * checksPerDay })}
+                  {t("nextTier", { checks: nextTier * checksPerDay })}
                 </div>
                 {preview ? (
                   <div className="tiny muted" style={{ lineHeight: 1.55 }}>
@@ -202,15 +234,38 @@ export function QuotaUpsellModal() {
             {isPaid && nextTier === null && usage && (
               <div className="tiny muted" style={{ lineHeight: 1.6 }}>{t("maxTier")}</div>
             )}
+
+            {canExtend && (
+              <div
+                className="card tight"
+                style={{ display: "flex", flexDirection: "column", gap: 6 }}
+              >
+                <div className="b" style={{ fontSize: 14 }}>
+                  {t("extendTitle", { days: extension?.days ?? 2 })}
+                </div>
+                <div className="tiny muted" style={{ lineHeight: 1.55 }}>
+                  {t("extendBody", {
+                    days: extension?.days ?? 2,
+                    checks: extension?.checks ?? 2,
+                  })}
+                </div>
+                <div className="tiny muted" style={{ opacity: 0.8 }}>{t("extendOnce")}</div>
+              </div>
+            )}
           </div>
 
           <div className="modal-f">
             <button type="button" className="btn" onClick={close} disabled={busy}>
               {t("notNow")}
             </button>
+            {canExtend && (
+              <button type="button" className="btn" onClick={redeemExtension} disabled={busy}>
+                {busy ? t("working") : t("extendCta", { days: extension?.days ?? 2 })}
+              </button>
+            )}
             {isPaid && nextTier !== null ? (
               <button type="button" className="btn primary" onClick={confirmUpgrade} disabled={busy}>
-                {busy ? t("working") : t("upgradeCta", { workers: nextTier })}
+                {busy ? t("working") : t("upgradeCta", { checks: nextTier * checksPerDay })}
               </button>
             ) : (
               <Link href="/pricing?clicked-buy-button" onClick={close}>

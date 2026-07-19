@@ -23,6 +23,15 @@
   --warn: #C28B00;
   --warn-soft: #FBF3DC;
 
+  /* Usage-meter series. A CATEGORICAL pair (two quotas shown side by side), not
+     status — deliberately NOT --pos/--neg, which are reserved for good/bad state
+     and would imply "AI analyses = healthy". Validated as a pair against the
+     light surface: OKLCH lightness band, chroma floor, CVD separation (deutan
+     ΔE 22.8), and 3:1 contrast all pass. Re-run the check before changing either
+     value — the two must stay distinguishable under colorblind simulation. */
+  --meter-checks: #2D5BFF;
+  --meter-ai: #0D9488;
+
   --black: #0B0D12;
   --white: #FFFFFF;
 
@@ -76,6 +85,13 @@
   --warn: #F4C04F;
   --warn-soft: #2A2210;
 
+  /* Dark mode is re-stepped, not flipped: its lightness band tops out lower than
+     light mode's, so the bright mint that reads well on white (L 0.785) is out of
+     band here and steps down to this deeper teal. Validated against the dark
+     elevated surface (#14181F). */
+  --meter-checks: #5B7DFF;
+  --meter-ai: #0FA896;
+
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
   --shadow-lg: 0 24px 60px -24px rgba(0,0,0,0.7);
@@ -121,14 +137,14 @@
 /* Desktop collapse toggle (hidden on mobile — the drawer covers that). */
 .fs-app .sb-collapse {
   margin-left: auto;
-  width: 24px; height: 24px;
+  width: 26px; height: 26px;
   display: grid; place-items: center;
-  background: transparent; border: none;
-  color: var(--text-mute);
-  border-radius: 6px;
+  background: var(--brand); border: none;
+  color: white;
+  border-radius: 7px;
   cursor: pointer;
 }
-.fs-app .sb-collapse:hover { background: var(--bg-inset); color: var(--text); }
+.fs-app .sb-collapse:hover { background: var(--brand-deep); }
 /* Account popover anchored to the user row. */
 .fs-app .sb-user-menu {
   position: absolute;
@@ -1877,10 +1893,13 @@
   .fs-app { --page-pad: 16px; }
 
   /* Topbar: collapse breadcrumbs to the current page only (the trail is
-     redundant with the drawer nav) and drop the usage chip's wordy suffix. */
+     redundant with the drawer nav). */
   .fs-app .crumbs > span:not(.here) { display: none; }
   .fs-app .crumbs > span.here .sep { display: none; }
-  .fs-app .usage-suffix { display: none; }
+  /* The usage pill needs no phone rule of its own: it's rings, not words, so it
+     stays the same width at every breakpoint. Its panel is what has to fit —
+     cap it to the viewport so a 300px popover can't overhang a 320px screen. */
+  .fs-app .usage-pill + [role="dialog"] { width: min(300px, calc(100vw - 32px)); }
 
   .fs-app .page { padding: 16px var(--page-pad) 48px; }
   .fs-app .page-h h1 { font-size: 22px; }

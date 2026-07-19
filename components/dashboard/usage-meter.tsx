@@ -1,10 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
 import { trackEvent } from "@/lib/track"
+
+interface AiAnalyses {
+  used: number
+  limit: number
+  remaining: number | null
+  unlimited: boolean
+  // Free plans degrade to previews instead of blocking, so a full meter is a
+  // nudge, not an error — never paint it red.
+  degrades: boolean
+}
 
 interface UsageInfo {
   plan: string
@@ -16,18 +26,106 @@ interface UsageInfo {
   // null/false for paid plans.
   freeCheckTrialEndsAt: string | null
   freeCheckTrialExhausted: boolean
+  // Absent on older backends — the AI ring is skipped rather than shown as 0/0.
+  aiAnalyses?: AiAnalyses
 }
 
-// Daily rank-check quota + plan, shown in the navbar. The whole chip is a single
-// "buy more" control: a trailing "Buy" sends the user to the pricing page — where
-// free users convert and paid users re-tier their workers. Refreshes on a slow
-// interval so the counter tracks checks triggered elsewhere in the app.
+// Daily quotas shown in the navbar: a compact pill of progress rings that opens a
+// panel with the exact numbers and a single "buy more" control. Refreshes on a slow
+// interval so the counters track quota consumed elsewhere in the app.
 const POLL_MS = 60_000
+
+const RING = 30 // px — outer box
+const STROKE = 3
+const R = (RING - STROKE) / 2
+const CIRCUMFERENCE = 2 * Math.PI * R
+
+/**
+ * One quota as a progress ring with its used-count inside.
+ *
+ * The ring carries series identity; the number inside stays in the text token, per
+ * the rule that text never wears the data color (a light hue is illegible as text).
+ * Identity for a colour-blind reader comes from the panel's written labels, not the
+ * hue — the pill is a glance affordance, never the only way to read the number.
+ *
+ * The track is a tint of the SAME hue rather than a neutral gray, so the filled and
+ * unfilled halves read as one meter.
+ */
+function Ring({ used, limit, color, danger }: { used: number; limit: number; color: string; danger: boolean }) {
+  const pct = limit > 0 ? Math.min(1, used / limit) : 0
+  const stroke = danger ? "var(--neg)" : color
+  return (
+    <span style={{ position: "relative", display: "inline-flex", width: RING, height: RING }}>
+      <svg width={RING} height={RING} aria-hidden style={{ transform: "rotate(-90deg)" }}>
+        <circle
+          cx={RING / 2} cy={RING / 2} r={R} fill="none" strokeWidth={STROKE}
+          stroke={stroke} opacity={0.18}
+        />
+        <circle
+          cx={RING / 2} cy={RING / 2} r={R} fill="none" strokeWidth={STROKE}
+          stroke={stroke} strokeLinecap="round"
+          strokeDasharray={CIRCUMFERENCE}
+          // A zero-length dash with a round cap still paints a dot, which reads as
+          // "a little used" when nothing is. Collapse it to truly nothing at 0.
+          strokeDashoffset={pct === 0 ? CIRCUMFERENCE : CIRCUMFERENCE * (1 - pct)}
+          style={{ transition: "stroke-dashoffset .3s ease" }}
+        />
+      </svg>
+      <span
+        style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 10, fontWeight: 600, color: "var(--text)",
+          // Small enough that proportional digits look uneven against the ring.
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {used > 999 ? `${Math.floor(used / 1000)}k` : used}
+      </span>
+    </span>
+  )
+}
+
+/** One labelled row in the panel: name, exact fraction, bar, and what's left. */
+function MeterRow({ label, used, limit, color, danger, note }: {
+  label: string; used: number; limit: number; color: string; danger: boolean; note: string
+}) {
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
+  const fill = danger ? "var(--neg)" : color
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 6 }}>
+        <span style={{ fontSize: 13, color: "var(--text)" }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>
+          {used} / {limit}
+        </span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, position: "relative", overflow: "hidden" }}>
+        {/* Track: a tint of the SAME hue, not neutral gray, so filled and unfilled
+            read as one meter. Its own element rather than a background on the
+            parent, so the opacity doesn't cascade onto the fill above it. */}
+        <span style={{ position: "absolute", inset: 0, background: fill, opacity: 0.18 }} />
+        <span
+          style={{
+            position: "absolute", insetInlineStart: 0, top: 0, bottom: 0,
+            width: `${pct}%`, background: fill,
+            // Square at the baseline, 4px round at the data end.
+            borderRadius: "0 3px 3px 0",
+            transition: "width .3s ease",
+          }}
+        />
+      </div>
+      <div className="tiny muted" style={{ marginTop: 5 }}>{note}</div>
+    </div>
+  )
+}
 
 export function UsageMeter() {
   const t = useTranslations("usageMeter")
   const router = useRouter()
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -41,60 +139,90 @@ export function UsageMeter() {
       }
     }
     void load()
-    const t = setInterval(() => void load(), POLL_MS)
+    const timer = setInterval(() => void load(), POLL_MS)
     // Other pages dispatch this after consuming quota (e.g. the SERP Checker)
-    // so the counter updates immediately instead of waiting for the next poll.
+    // so the counters update immediately instead of waiting for the next poll.
     const onRefresh = () => void load()
     window.addEventListener("usage:refresh", onRefresh)
     return () => {
       cancelled = true
-      clearInterval(t)
+      clearInterval(timer)
       window.removeEventListener("usage:refresh", onRefresh)
     }
   }, [])
 
+  // Dismiss the panel the two ways a popover is expected to close. Bound only
+  // while open so the listeners aren't live for every dashboard click.
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
   if (!usage) return null
 
   const isPaid = usage.plan === "paid"
-  const exhausted = usage.dailyRemaining <= 0
-  const countColor = exhausted ? "var(--neg)" : "var(--text)"
-  const workerSuffix = isPaid && usage.workerCount ? ` ${t("workerSuffix", { count: usage.workerCount })}` : ""
-  const buyLabel = isPaid ? t("addWorkers") : t("buyMore")
+  const checksExhausted = usage.dailyRemaining <= 0
+  // An unlimited AI allowance has nothing to meter, so the ring is dropped rather
+  // than rendered as a fraction with no ceiling.
+  const ai = usage.aiAnalyses && !usage.aiAnalyses.unlimited ? usage.aiAnalyses : null
+  const aiRemaining = ai?.remaining ?? 0
+  // Free plans aren't blocked at the limit, they degrade to previews — so the AI
+  // meter never goes red for them, however full it is.
+  const aiDanger = ai != null && !ai.degrades && aiRemaining <= 0
 
-  // Free plan: a one-time trial (FREE_TRIAL_WINDOW_DAYS), not a daily
-  // allowance — show days remaining (or "Trial ended") instead of "checks today".
   const trialDaysLeft = !isPaid && usage.freeCheckTrialEndsAt
     ? Math.max(0, Math.ceil((new Date(usage.freeCheckTrialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
     : null
-  const freeSuffixLabel = usage.freeCheckTrialExhausted
-    ? t("trialEnded")
-    : trialDaysLeft != null
-      ? `${t("checksTotal")} · ${t("trialDaysLeft", { days: trialDaysLeft })}`
-      : t("checksTotal")
-  const chipTitle = isPaid
-    ? t("chipTitle", {
-        plan: t("planPro"),
-        workerSuffix,
-        used: usage.dailyUsed,
-        limit: usage.dailyLimit,
+
+  const checksNote = isPaid
+    ? t("leftToday", { n: usage.dailyRemaining })
+    : usage.freeCheckTrialExhausted
+      ? t("trialEnded")
+      : trialDaysLeft != null
+        ? `${t("leftInTrial", { n: usage.dailyRemaining })} · ${t("trialDaysLeft", { days: trialDaysLeft })}`
+        : t("leftInTrial", { n: usage.dailyRemaining })
+
+  const aiNote = ai
+    ? ai.degrades
+      ? aiRemaining > 0 ? t("aiFullLeft", { n: aiRemaining }) : t("aiPreviewsNow")
+      : t("leftToday", { n: aiRemaining })
+    : ""
+
+  // The full state in words, so the pill is readable without opening the panel
+  // and without relying on the ring colors.
+  const chipLabel = ai
+    ? t("chipLabelBoth", {
+        checksUsed: usage.dailyUsed, checksLimit: usage.dailyLimit,
+        aiUsed: ai.used, aiLimit: ai.limit,
       })
-    : t("chipTitleTrial", { used: usage.dailyUsed, limit: usage.dailyLimit })
+    : t("chipLabelChecks", { used: usage.dailyUsed, limit: usage.dailyLimit })
 
   return (
-    <>
+    <div ref={wrapRef} style={{ position: "relative" }}>
       <button
         type="button"
         className="usage-pill"
-        onClick={() => { trackEvent("clicked-buy-button"); router.push("/pricing?clicked-buy-button") }}
-        aria-label={buyLabel}
-        title={chipTitle}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={chipLabel}
+        title={chipLabel}
         style={{
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          height: 36,
-          padding: "0 6px 0 10px",
-          borderRadius: 8,
+          height: 40,
+          padding: "0 8px 0 10px",
+          borderRadius: 10,
           border: "1px solid var(--border)",
           background: "var(--bg-inset, transparent)",
           whiteSpace: "nowrap",
@@ -118,31 +246,77 @@ export function UsageMeter() {
         >
           {isPaid ? t("planPro") : t("planFree")}
         </span>
-        <span className="tiny" style={{ color: countColor }}>
-          <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-            {usage.dailyUsed}/{usage.dailyLimit}
-          </span>{" "}
-          <span className="muted usage-suffix">{isPaid ? t("checksToday") : freeSuffixLabel}</span>
-        </span>
-        <span
-          aria-hidden
+        <Ring used={usage.dailyUsed} limit={usage.dailyLimit} color="var(--meter-checks)" danger={checksExhausted} />
+        {ai && <Ring used={ai.used} limit={ai.limit} color="var(--meter-ai)" danger={aiDanger} />}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden
+          style={{ color: "var(--text-mute)", transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s" }}>
+          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t("todaysUsage")}
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: 22,
-            padding: "0 9px",
-            borderRadius: 6,
-            color: "var(--brand)",
-            background: "var(--brand-soft)",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.02em",
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            insetInlineEnd: 0,
+            width: 300,
+            padding: 16,
+            borderRadius: 12,
+            border: "1px solid var(--border)",
+            background: "var(--bg-elev)",
+            boxShadow: "0 12px 32px rgba(0,0,0,.18)",
+            zIndex: 50,
           }}
         >
-          {t("buy")}
-        </span>
-      </button>
-    </>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 14 }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{t("todaysUsage")}</span>
+            <span className="tiny muted">{t("resetsUtc")}</span>
+          </div>
+
+          <MeterRow
+            label={t("rankChecks")}
+            used={usage.dailyUsed}
+            limit={usage.dailyLimit}
+            color="var(--meter-checks)"
+            danger={checksExhausted}
+            note={checksNote}
+          />
+          {ai && (
+            <MeterRow
+              label={t("aiAnalyses")}
+              used={ai.used}
+              limit={ai.limit}
+              color="var(--meter-ai)"
+              danger={aiDanger}
+              note={aiNote}
+            />
+          )}
+
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              trackEvent("clicked-buy-button")
+              setOpen(false)
+              router.push("/pricing?clicked-buy-button")
+            }}
+            style={{
+              width: "100%",
+              marginTop: 4,
+              justifyContent: "center",
+              background: "var(--brand)",
+              borderColor: "var(--brand)",
+              color: "var(--white)",
+              fontWeight: 600,
+            }}
+          >
+            {t("upgradeCta")}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

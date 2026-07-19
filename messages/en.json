@@ -264,48 +264,50 @@
     "footerCopyright": "© FreeSERP — Pricing",
     "eyebrow": "Pricing",
     "title": "Simple plans. <hl>No surprises.</hl>",
-    "subtitle": "Start free. Add workers when you need more rank checks, automation, and full AI analysis.",
+    "subtitle": "Start free. Scale your daily rank checks, automation, and AI analysis as you grow.",
+    "trialBannerLead": "Start free — 3 rank checks, 7 days, no card required.",
+    "trialBannerRest": "Upgrade whenever you're ready.",
     "freeTitle": "Free",
     "perMonth": "/month",
     "freeForever": "3 checks to try it out — no card required.",
     "currentPlan": "Current Plan",
     "freePlan": "Free Plan",
-    "workers": "Workers",
+    "paidTitle": "Checks",
     "recommended": "Recommended",
-    "rankChecksPerDay": "<b>{searches, number}</b> rank checks / day · {workers, plural, one {# worker} other {# workers}}",
-    "perWorkerEach": "{searches}/day · ${price}/mo each",
-    "removeWorker": "Remove a worker",
-    "addWorker": "Add a worker",
+    "rankChecksPerDay": "<b>{searches, number}</b> rank checks / day",
+    "perDollarEach": "Every ${price}/mo adds {searches} checks/day",
     "billedMonthly": "Billed monthly via <b>Stripe</b>.",
     "loading": "Loading…",
     "activePlan": "✓ Active Plan",
     "redirecting": "Redirecting…",
     "paymentsNotConfigured": "Payments not configured",
-    "getWorkers": "Get {workers, plural, one {# worker} other {# workers}} — ${price}/mo →",
+    "getChecks": "Get {checks, number} checks/day — ${price}/mo →",
     "signInToUpgrade": "Sign in to upgrade",
     "errorFailedStartCheckout": "Failed to start checkout",
     "errorCheckoutUrlMissing": "Checkout URL missing",
     "errorCheckoutFailed": "Checkout failed",
     "limitsReset": "Daily limits reset at midnight UTC. Cancel anytime from your payment provider's customer portal.",
     "freeFeatures": [
-      "3 free rank checks (7-day trial)",
-      "Manual checks only",
+      "3 rank checks, 7-day trial — no card",
+      "1 project · 10 keywords",
+      "Manual checks & Quick SERP",
       "1 full AI analysis / day",
-      "Internal link analysis: your site + 1 competitor",
-      "All locations & devices"
+      "All 69 countries, both devices"
     ],
     "paidFeatures": [
       "Automated recurring checks",
-      "AI analysis for every section — 2/day per worker",
-      "Internal link analysis for ALL competitors",
+      "Rank & SERP-feature alerts by email",
+      "PDF reports & scheduled digests",
+      "AI Audit Co-Pilot chat",
+      "50 projects · unlimited keywords",
       "Priority support"
     ],
-    "statMarketsLabel": "Markets",
-    "statMarketsValue": "30+",
+    "statMarketsLabel": "69 countries · 30 languages",
+    "statMarketsValue": "Worldwide",
     "statResultTimeLabel": "Avg result time",
-    "statResultTimeValue": "< 4 min",
-    "statCommitmentLabel": "Commitment",
-    "statCommitmentValue": "Cancel anytime",
+    "statResultTimeValue": "< 1 min",
+    "statCommitmentLabel": "Money-back guarantee",
+    "statCommitmentValue": "7-day",
     "faqEyebrow": "FAQ",
     "faqTitle": "Questions, answered",
     "faq": [
@@ -315,19 +317,23 @@
       },
       {
         "q": "Do unused checks roll over?",
-        "a": "No — daily limits reset at midnight UTC. Each worker adds 15 rank checks/day; add more workers any time to scale your daily capacity."
+        "a": "No — daily limits reset at midnight UTC. Every $1/month adds 15 rank checks per day, so you can scale your daily capacity any time."
       },
       {
-        "q": "What is a worker?",
-        "a": "A worker is a unit of daily search capacity: 1 worker = 15 rank checks/day for $1/month, starting at 5 workers ($5/month = 75 checks/day). You can change your worker count anytime and we prorate the difference."
+        "q": "How does pricing scale?",
+        "a": "$1/month adds 15 rank checks per day. Plans start at $5/month (75 checks/day) and scale to $500/month (7,500 checks/day). Change your plan anytime — we prorate the difference."
       },
       {
         "q": "Is there annual billing?",
-        "a": "Yes — pay yearly at $10 per worker instead of $12 (about 2 months free). Pick “Annual” on the pricing card before checkout."
+        "a": "Yes — annual billing works out about 17% cheaper than paying monthly. Pick “Annual” on the pricing card before checkout."
       },
       {
         "q": "Can I cancel anytime?",
         "a": "Yes. Manage or cancel from your payment provider's customer portal — your access continues until the end of the paid period."
+      },
+      {
+        "q": "What's your refund policy?",
+        "a": "A 7-day money-back guarantee on your first purchase and on annual renewals. Monthly renewals aren't refundable once the cycle starts. Email support@freeserp.com and we'll process it in 5–10 business days."
       }
     ],
     "choosePlan": "Choose your plan",
@@ -337,12 +343,33 @@
     "compareEyebrow": "Compare",
     "compareTitle": "Everything in Free, and more",
     "compareFree": "Free",
-    "compareWorkers": "Workers",
+    "comparePaid": "Paid",
     "compareRows": [
+      {
+        "group": "Limits"
+      },
       {
         "feature": "Rank checks",
         "free": "3 total (7-day trial)",
-        "paid": "15 / day / worker"
+        "paid": "15 / day per $1"
+      },
+      {
+        "feature": "Projects",
+        "free": "1",
+        "paid": "50"
+      },
+      {
+        "feature": "Keywords per project",
+        "free": "10",
+        "paid": "Unlimited"
+      },
+      {
+        "feature": "69 countries & both devices",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automation & reporting"
       },
       {
         "feature": "Automated recurring checks",
@@ -350,42 +377,87 @@
         "paid": "✓"
       },
       {
-        "feature": "AI competitor analysis",
-        "free": "1 / day",
-        "paid": "2 / day / worker"
+        "feature": "Rank & SERP-feature alerts",
+        "free": "—",
+        "paid": "✓"
       },
       {
-        "feature": "Internal link analysis",
-        "free": "You + 1 competitor",
-        "paid": "All competitors"
+        "feature": "Email alerts & digests",
+        "free": "—",
+        "paid": "✓"
       },
       {
-        "feature": "All locations & devices",
-        "free": "✓",
+        "feature": "PDF reports",
+        "free": "—",
         "paid": "✓"
       },
       {
         "feature": "Priority support",
         "free": "—",
         "paid": "✓"
+      },
+      {
+        "group": "Analysis tools"
+      },
+      {
+        "feature": "AI competitor analysis",
+        "free": "1 / day",
+        "paid": "2 / day per $1"
+      },
+      {
+        "feature": "AI Audit Co-Pilot chat",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP checker",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "On-page & keyword analysis",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "12-month rank history",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "CSV export & share links",
+        "free": "✓",
+        "paid": "✓"
       }
     ],
-    "manageTitle": "Adjust your workers",
+    "compareIncluded": "Included",
+    "compareNotIncluded": "Not included",
+    "manageTitle": "Adjust your daily checks",
     "saveChanges": "Save changes",
     "saved": "Saved",
-    "savedToast": "Updated to {workers, plural, one {# worker} other {# workers}} — {checks, number} checks/day. Prorated.",
-    "errorSaveFailed": "Could not update your workers",
+    "savedToast": "Updated to {checks, number} checks/day. Prorated.",
+    "errorSaveFailed": "Could not update your plan",
     "ctaTitle": "Ready to rank higher?",
-    "ctaSubtitle": "Start free — no card required. Add workers the moment you need more.",
+    "ctaSubtitle": "Start free — no card required. Scale up the moment you need more.",
     "ctaButton": "Get started",
     "intervalMonthly": "Monthly",
     "intervalAnnual": "Annual",
     "perYear": "/year",
-    "annualSavings": "2 months free",
+    "annualSavings": "Save 17%",
     "annualUnavailable": "Annual billing isn't available in your region yet — switched back to monthly.",
     "billedAnnually": "Billed yearly via <b>Stripe</b>.",
-    "perWorkerEachYear": "{searches}/day · ${price}/yr each",
-    "getWorkersYear": "Get {workers, plural, one {# worker} other {# workers}} — ${price}/yr →",
+    "perDollarEachYear": "Every ${price}/yr adds {searches} checks/day",
+    "getChecksYear": "Get {checks, number} checks/day — ${price}/yr →",
     "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)"
   },
   "billingResult": {
@@ -503,35 +575,43 @@
     "loadErrorBody": "We couldn't reach the billing service. Check your connection and try again.",
     "retry": "Retry",
     "tilePlan": "Plan",
-    "tilePlanActive": "{count} active",
+    "tilePlanActive": "{count, number} checks/day",
     "tilePlanManual": "Manual checks",
-    "tileWorkersEach": "{count}/day each",
+    "tileChecksPerDay": "Checks / day",
+    "tileChecksEach": "{count}/day per $1/mo",
     "tileMonthlyCost": "Monthly cost",
     "tileBilledMonthly": "billed monthly",
     "tileFreeForever": "free forever",
     "tileChecksToday": "Checks today",
     "tileChecksTrial": "Trial checks",
     "tileRemaining": "{count} remaining",
-    "workers": "Workers",
+    "paidPlanName": "Checks",
     "free": "Free",
     "yourPlan": "Your plan",
-    "workerCardHintPaid": "Each worker adds 15 checks/day for $1/mo",
-    "workerCardHintFree": "Subscribe to keep checking after your trial",
+    "planCardHintPaid": "Every $1/mo adds 15 checks/day",
+    "planCardHintFree": "Subscribe to keep checking after your trial",
     "freePlanLine": "You're on the Free plan — {count} rank checks total, free through {date}.",
     "freePlanLineExhausted": "Your free trial has ended — subscribe to keep running checks.",
     "trialExpiredBanner": "Your free trial has ended. Subscribe below to keep running checks.",
+    "trialExtendOffer": "Your free trial has ended. Extend it once, or subscribe to keep going.",
+    "trialExtendUsed": "Your extended trial has ended. Subscribe to keep running checks.",
+    "trialExtendCta": "Extend my trial",
+    "trialSubscribeCta": "See plans",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendError": "Couldn't extend your trial. Please try again.",
     "upgradePerks": [
       "Automated recurring rank checks",
-      "AI analysis for every section — 2/day per worker",
-      "Internal link analysis for all competitors",
-      "Scale capacity with workers — 15 checks/day each"
+      "Rank & SERP-feature alerts by email",
+      "PDF reports & scheduled digests",
+      "AI Audit Co-Pilot chat",
+      "Scale capacity — every $1/mo adds 15 checks/day"
     ],
     "upgrade": "Upgrade →",
-    "removeWorker": "Remove a worker",
-    "addWorker": "Add a worker",
-    "workerSummary": "<strong>{checks}</strong> rank checks / day · <strong>${cost}</strong>{per}",
-    "workerDeltaFrom": "{from} → {to, plural, one {# worker} other {# workers}}",
-    "workerDeltaProrated": ", prorated today",
+    "fewerChecks": "Fewer checks",
+    "moreChecks": "More checks",
+    "planSummary": "<strong>{checks}</strong> rank checks / day · <strong>${cost}</strong>{per}",
+    "planDeltaFrom": "{from, number} → {to, number} checks/day",
+    "planDeltaProrated": ", prorated today",
     "saving": "Saving…",
     "saveChanges": "Save changes",
     "subscription": "Subscription",
@@ -550,13 +630,21 @@
     "cancelPlan": "Cancel plan",
     "dailyUsage": "Daily usage",
     "trialUsage": "Free trial usage",
-    "resetsMidnight": "Resets at midnight IST",
+    "resetsMidnight": "Resets at midnight UTC",
     "trialEndsOn": "Trial ends {date}",
     "trialEnded": "Trial ended",
     "usageChecks": "{used} / {limit} checks",
-    "usageLinePaid": "{remaining} checks remaining today · {count, plural, one {# worker} other {# workers}} × {perWorker}/day",
+    "usageLinePaid": "{remaining} checks remaining today · {limit, number}/day on your plan",
     "usageLineFree": "{remaining} of {limit} checks left this trial · <link>Subscribe</link> to keep checking after it ends.",
     "usageLineFreeExhausted": "Your one-time free trial has ended · <link>Subscribe</link> to keep checking.",
+    "aiUsage": "AI analyses",
+    "usageAnalyses": "{used} / {limit} analyses",
+    "aiUnlimited": "Unlimited",
+    "aiLineUnlimited": "No daily limit on AI analyses for your plan.",
+    "aiLinePaid": "{remaining} analyses remaining today · {limit, number}/day on your plan",
+    "aiLinePaidExhausted": "You've used all {limit, number} AI analyses today · <link>Add workers</link> to raise the limit, or try again tomorrow.",
+    "aiLineFree": "{remaining} full analysis left today · after that, new analyses run as previews. <link>Subscribe</link> for full analyses every time.",
+    "aiLineFreeUsed": "You've used today's full analysis · new analyses run as previews until midnight UTC. <link>Subscribe</link> for full analyses every time.",
     "paymentHistory": "Payment history",
     "noPayments": "No payments yet.",
     "noPaymentsHint": "Invoices and receipts will appear here after your first payment.",
@@ -564,8 +652,8 @@
     "colDescription": "Description",
     "colAmount": "Amount",
     "colStatus": "Status",
-    "workersUpdated": "Updated to {count, plural, one {# worker} other {# workers}} — {checks} checks/day. Prorated.",
-    "workersUpdateError": "Could not update your workers",
+    "planUpdated": "Updated to {checks} checks/day. Prorated.",
+    "planUpdateError": "Could not update your plan",
     "cancelSuccess": "Plan cancelled — active until the end of the period.",
     "cancelError": "Could not cancel",
     "resumeSuccess": "Plan resumed — auto-renewal is back on.",
@@ -586,11 +674,11 @@
     "perYearSuffix": "/yr",
     "intervalMonthly": "Monthly",
     "intervalAnnual": "Annual",
-    "annualSavings": "2 months free",
+    "annualSavings": "Save 17%",
     "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)",
     "annualNudge": "You're billed monthly — switch to annual and save ${save}/yr ({pct}% off).",
     "annualNudgeCta": "Switch to annual",
-    "grantedNoSub": "Your plan was activated directly (no billing subscription), so worker and billing changes aren't available here. Start a subscription to manage workers.",
+    "grantedNoSub": "Your plan was activated directly (no billing subscription), so plan and billing changes aren't available here. Start a subscription to manage your daily checks.",
     "startSubscription": "Start subscription"
   },
   "projKeywords": {
@@ -963,16 +1051,19 @@
   "usageMeter": {
     "planPro": "Pro",
     "planFree": "Free",
-    "workerSuffix": "({count, plural, one {# worker} other {# workers}})",
-    "chipTitle": "{plan} plan{workerSuffix} — {used}/{limit} rank checks used today",
-    "chipTitleTrial": "Free trial — {used}/{limit} checks used",
-    "checksToday": "checks today",
-    "checksTotal": "checks used",
     "trialDaysLeft": "{days, plural, one {# day left} other {# days left}}",
     "trialEnded": "Trial ended",
-    "addWorkers": "Add workers",
-    "buy": "Buy",
-    "buyMore": "Buy more rank checks"
+    "todaysUsage": "Today's usage",
+    "resetsUtc": "Resets 00:00 UTC",
+    "rankChecks": "Rank checks",
+    "aiAnalyses": "AI analyses",
+    "leftToday": "{n, plural, one {# left today} other {# left today}}",
+    "leftInTrial": "{n, plural, one {# left in trial} other {# left in trial}}",
+    "aiFullLeft": "{n, plural, one {# full analysis left today} other {# full analyses left today}}",
+    "aiPreviewsNow": "New analyses run as previews until midnight UTC",
+    "upgradeCta": "Upgrade for higher limits",
+    "chipLabelBoth": "Usage — {checksUsed}/{checksLimit} rank checks, {aiUsed}/{aiLimit} AI analyses today",
+    "chipLabelChecks": "Usage — {used}/{limit} rank checks today"
   },
   "dashSearchConsole": {
     "backToProject": "Back to project",
@@ -1029,11 +1120,17 @@
     "eyebrow": "Upgrade",
     "titleFree": "You're out of free checks",
     "titlePaid": "You've hit today's check limit",
-    "bodyDailyQuota": "You've used {used} of {limit} checks today. Your limit resets at midnight UTC — or add workers now and keep checking immediately.",
+    "bodyDailyQuota": "You've used {used} of {limit} checks today. Your limit resets at midnight UTC — or add more checks now and keep going immediately.",
     "bodyFreeTrial": "Your one-time free trial is used up. Subscribe to keep tracking your rankings — plans start at $5/month.",
+    "extendTitle": "Need a little longer? Add {days} days",
+    "extendBody": "Get {days} more days and {checks} more rank checks, free.",
+    "extendOnce": "One-time offer — available once per account.",
+    "extendCta": "Extend {days} days",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendFailed": "Couldn't extend your trial. Please try again.",
     "bodyProjectLimit": "You've reached your plan's project limit. Upgrade to track more websites.",
     "bodyKeywordLimit": "You've reached your plan's keyword limit for this project. Upgrade to track more keywords.",
-    "nextTier": "{workers} workers — {checks, number} checks/day",
+    "nextTier": "Move up to {checks, number} checks/day",
     "proratedNow": "≈{amount} charged now (prorated for the rest of this period)",
     "thenRecurring": "then {amount}{interval}",
     "perMonth": "/mo",
@@ -1043,10 +1140,28 @@
     "notNow": "Not now",
     "close": "Close",
     "working": "Upgrading…",
-    "upgradeCta": "Upgrade to {workers} workers",
+    "upgradeCta": "Upgrade to {checks, number} checks/day",
     "subscribeCta": "See plans",
-    "upgraded": "Upgraded to {workers} workers — {checks, number} checks/day.",
+    "upgraded": "Upgraded to {checks, number} checks/day.",
     "upgradeFailed": "Could not update your plan. Please try again.",
-    "bodyAiLimit": "You've used all of today's AI analyses ({used} of {limit}). Each worker adds 2 analyses per day — add workers to raise the limit, or try again tomorrow."
+    "bodyAiLimit": "You've used all of today's AI analyses ({used} of {limit}). Every $1/month adds 2 analyses per day — raise your plan to lift the limit, or try again tomorrow."
+  },
+  "trialCountdown": {
+    "daysLeft": "{days, plural, one {# day} other {# days}} left in your free trial",
+    "hoursLeft": "{hours, plural, one {# hour} other {# hours}} left in your free trial",
+    "checksLeft": "{checks, plural, one {# rank check} other {# rank checks}} still available",
+    "cta": "See plans",
+    "dismiss": "Dismiss"
+  },
+  "trialGate": {
+    "title": "Your free trial has ended",
+    "body": "Subscribe to keep tracking your rankings. Your projects and history are safe — they'll pick up right where they left off.",
+    "bodyCanExtend": "Subscribe to keep tracking your rankings, or take your one-time extension to finish what you started. Your projects and history are safe.",
+    "extendCta": "Extend my trial",
+    "plansCta": "See plans",
+    "working": "Working…",
+    "alreadyExtended": "You've already used your one free extension.",
+    "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",
+    "extendError": "Couldn't extend your trial. Please try again."
   }
 }
