@@ -119,6 +119,21 @@ export const Icon = {
       <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  trash: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M2.8 4.2h10.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M6.2 4.2V3a.8.8 0 0 1 .8-.8h2a.8.8 0 0 1 .8.8v1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4.2 4.2 4.8 13a.9.9 0 0 0 .9.8h4.6a.9.9 0 0 0 .9-.8l.6-8.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.7 6.8v4.4M9.3 6.8v4.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  ),
+  info: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <circle cx="8" cy="8" r="6.4" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 7.2V11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="8" cy="4.9" r="0.9" fill="currentColor" />
+    </svg>
+  ),
   filter: () => (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M1.5 2.5H12.5L8.5 7V11.5L5.5 12.5V7L1.5 2.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />

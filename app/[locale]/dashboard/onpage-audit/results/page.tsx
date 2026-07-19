@@ -262,7 +262,10 @@ function ResultsContent() {
             <button
               className="btn sm kd-back-btn"
               onClick={() => router.push(backHref)}
-              style={{ marginBottom: 20 }}
+              // .btn and .eyebrow are both inline-flex, so without an explicit
+              // block-level display they render side by side on one line. Flex +
+              // fit-content keeps the pill hugging its text but on its own row.
+              style={{ display: "flex", width: "fit-content", marginBottom: 18 }}
             >
               <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
               {projectId ? "Back to project" : "Back"}

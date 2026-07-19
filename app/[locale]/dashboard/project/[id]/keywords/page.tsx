@@ -50,6 +50,9 @@ function freqLabel(hours: number, t: (k: string) => string): string {
   }
 }
 
+// Cadences offered when switching the schedule on, in the order they're listed.
+const FREQ_CHOICES = [24, 168, 360, 720]
+
 // ───── Types ───────────────────────────────────────────────────────────────
 
 interface Keyword {
@@ -204,16 +207,19 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
           role="button"
           tabIndex={0}
           title={emptyTitle}
+          aria-label={emptyTitle}
           onClick={(e) => { e.stopPropagation(); onEmptyClick() }}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onEmptyClick() } }}
+          // Icon-only: the label lived in a wide pill that pushed this column out
+          // of line with the numeric badges. The title/aria-label still explain it.
           style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "2px 8px", borderRadius: "var(--r-sm)",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 28, height: 21, borderRadius: "var(--r-sm)",
             border: "1px dashed var(--border-strong)", color: "var(--text-mute)",
-            fontSize: 12, fontWeight: 500, cursor: "pointer",
+            cursor: "pointer",
           }}
         >
-          <Icon.plus /> Score
+          <Icon.plus />
         </span>
       )
     }
@@ -667,8 +673,6 @@ export default function ProjectKeywordsPage() {
   }, [openMenuId])
   const [updatingFrequency, setUpdatingFrequency] = useState(false)
   // "off" = turn the schedule off; a number = the cadence in hours to arm.
-  const [tempFrequency, setTempFrequency] = useState<number | "off" | null>(null)
-  const [showFrequencyModal, setShowFrequencyModal] = useState(false)
   const [showAlerts, setShowAlerts] = useState(false)
   const [showReport, setShowReport] = useState(false)
   // Public-share modal state. project.shareToken is the source of truth for
@@ -676,8 +680,6 @@ export default function ProjectKeywordsPage() {
   const [showShare, setShowShare] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
-  // Project-level "more" menu (Competitor Spy / Alerts / Share / Delete project).
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [pausing, setPausing] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
@@ -993,16 +995,9 @@ export default function ProjectKeywordsPage() {
         : { autoCheckEnabled: true, checkFrequency: choice }
       const data = await api.patch<Partial<ProjectDetail>>(`/api/projects/${projectId}/frequency`, body)
       setProject((prev) => prev ? { ...prev, ...data } : prev)
-      setShowFrequencyModal(false)
-      setTempFrequency(null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update frequency")
     } finally { setUpdatingFrequency(false) }
-  }
-
-  const handleFrequencyChange = (choice: number | "off") => {
-    setTempFrequency(choice)
-    setShowFrequencyModal(true)
   }
 
   const handleTogglePause = async () => {
@@ -1307,7 +1302,15 @@ export default function ProjectKeywordsPage() {
                     project.isPaused ? (
                       <span className="b" style={{ color: "var(--warn)", fontSize: 13 }}>{t("paused")}</span>
                     ) : (
-                      <span className="b" style={{ color: "var(--brand)", fontSize: 13 }}>
+                      <span
+                        className="b"
+                        style={{ color: "var(--brand)", fontSize: 13 }}
+                        // Keeps the exact run time available — it used to have its
+                        // own "SCHEDULED AT" cell where the switch now sits.
+                        title={new Date(project.nextScheduledCheck).toLocaleString("en-IN", {
+                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+                        })}
+                      >
                         <CountdownTimer targetDate={project.nextScheduledCheck} />
                       </span>
                     )
@@ -1316,19 +1319,16 @@ export default function ProjectKeywordsPage() {
                   )}
                 </div>
                 <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
-                <div>
-                  <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10, marginBottom: 2 }}>
-                    {project.autoCheckEnabled && project.nextScheduledCheck && !project.isPaused ? t("scheduledAt") : t("frequency")}
-                  </div>
-                  <div className="tiny mono">
-                    {!project.autoCheckEnabled
-                      ? t("off")
-                      : project.nextScheduledCheck && !project.isPaused
-                        ? new Date(project.nextScheduledCheck).toLocaleString("en-IN", {
-                            day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
-                          })
-                        : freqLabel(project.checkFrequency, t)}
-                  </div>
+                {/* The schedule switch lives in this card now. Its label already
+                    states the cadence, so the FREQUENCY read-out that used to sit
+                    here was saying the same thing twice. */}
+                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <ScheduleToggle
+                    enabled={project.autoCheckEnabled}
+                    frequency={project.checkFrequency || 24}
+                    busy={updatingFrequency}
+                    onPick={handleUpdateFrequency}
+                  />
                 </div>
               </div>
             </div>
@@ -1364,21 +1364,8 @@ export default function ProjectKeywordsPage() {
                 Report
               </button>
             )} */}
-            {SCHEDULED_CHECKS_ENABLED && plan === "paid" && (
-              <Dropdown
-                value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
-                options={[
-                  { value: "off", label: t("freqOff") },
-                  { value: "24", label: t("freq24") },
-                  { value: "168", label: t("freq7d") },
-                  { value: "360", label: t("freq15d") },
-                  { value: "720", label: t("freq30d") },
-                ]}
-                onChange={(v) => handleFrequencyChange(v === "off" ? "off" : Number(v))}
-                disabled={updatingFrequency}
-                title={t("freqTitle")}
-              />
-            )}
+            {/* The auto-check switch used to sit here; it now lives inside the
+                AUTO CHECK card above, next to the state it controls. */}
             {/* Hidden by default — only surfaces once keywords are selected (or a
                 check is actively running), so it doesn't sit idle next to
                 "+ Keywords". Stays visible during the onboarding tutorial's
@@ -1414,122 +1401,38 @@ export default function ProjectKeywordsPage() {
                 {t("deleteN", { count: selectedKeywords.size })}
               </button>
             )}
-            <div style={{ position: "relative" }}>
+            {/* Direct icon actions instead of a "More options" menu — one click
+                each. Icon-only, so every button carries a title + aria-label. */}
+            <div className="icon-group">
+            {plan === "paid" && (
               <button
                 type="button"
-                onClick={() => setShowMoreMenu((v) => !v)}
-                className="btn"
-                title={t("moreOptionsTitle")}
-                aria-label={t("moreOptionsTitle")}
+                className="icon-btn"
+                onClick={() => setShowAlerts(true)}
+                title={t("alerts")}
+                aria-label={t("alerts")}
               >
-                <Icon.dots /> {t("moreOptions")}
+                <Icon.bell />
               </button>
-              {showMoreMenu && (
-                <>
-                  <div
-                    style={{ position: "fixed", inset: 0, zIndex: 40 }}
-                    onClick={() => setShowMoreMenu(false)}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 4px)",
-                      right: 0,
-                      zIndex: 50,
-                      width: 190,
-                      background: "var(--bg-elev)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "var(--r-md)",
-                      boxShadow: "var(--shadow-md)",
-                      padding: 4,
-                    }}
-                  >
-                    <Link
-                      href={`/dashboard/project/${project.id}/competitor-spy`}
-                      onClick={() => setShowMoreMenu(false)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "8px 10px",
-                        background: "transparent",
-                        border: "none",
-                        borderRadius: 6,
-                        color: "var(--text)",
-                        fontSize: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Icon.users /> Competitor Spy
-                    </Link>
-                    {plan === "paid" && (
-                      <button
-                        type="button"
-                        onClick={() => { setShowMoreMenu(false); setShowAlerts(true) }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "8px 10px",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: 6,
-                          color: "var(--text)",
-                          fontSize: 13,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Icon.bell /> Alerts
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { setShowMoreMenu(false); setShowShare(true) }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "8px 10px",
-                        background: "transparent",
-                        border: "none",
-                        borderRadius: 6,
-                        color: "var(--text)",
-                        fontSize: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Icon.globe /> Share
-                    </button>
-                    <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-                    <button
-                      type="button"
-                      onClick={() => { setShowMoreMenu(false); setConfirmDelete(true) }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "8px 10px",
-                        background: "transparent",
-                        border: "none",
-                        borderRadius: 6,
-                        color: "var(--neg)",
-                        fontSize: 13,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {t("deleteProject")}
-                    </button>
-                  </div>
-                </>
-              )}
+            )}
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setShowShare(true)}
+              title={t("share")}
+              aria-label={t("share")}
+            >
+              <Icon.globe />
+            </button>
+            <button
+              type="button"
+              className="icon-btn danger"
+              onClick={() => setConfirmDelete(true)}
+              title={t("deleteProject")}
+              aria-label={t("deleteProject")}
+            >
+              <Icon.trash />
+            </button>
             </div>
           </div>
         </div>
@@ -1659,31 +1562,35 @@ export default function ProjectKeywordsPage() {
         </div>
       )}
 
-      {/* Status summary */}
+      {/* Live check-in-progress strip. Brand-colored "working" state (not a
+          warning), with a spinner + sliding bar so it reads as active, and a
+          reassurance line so users wait here instead of leaving. */}
       {pendingCount > 0 && (
-        <div
-          className="card tight"
-          style={{
-            marginBottom: 14,
-            borderColor: "var(--warn)",
-            background: "var(--warn-soft)",
-            color: "var(--warn)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--warn)" }} />
-          <div>
-            <div className="b" style={{ fontSize: 13, color: "var(--warn)" }}>
-              {statusCounts["PROCESSING"] > 0
-                ? t("statusChecking", { count: pendingCount })
-                : t("statusQueued", { count: pendingCount })}
-            </div>
-            <div className="tiny" style={{ color: "var(--warn)", opacity: 0.8 }}>
-              {t("statusPendingProcessing", { pending: statusCounts["PENDING"] || 0, processing: statusCounts["PROCESSING"] || 0 })}
+        <div className="card tight check-banner" style={{ marginBottom: 14 }}>
+          <div className="row" style={{ gap: 12, alignItems: "center" }}>
+            <span
+              className="spin"
+              aria-hidden
+              style={{
+                width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+                border: "2.5px solid color-mix(in srgb, var(--brand) 25%, transparent)",
+                borderTopColor: "var(--brand)", boxSizing: "border-box",
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="b" style={{ fontSize: 13, color: "var(--brand)" }}>
+                {statusCounts["PROCESSING"] > 0
+                  ? t("statusChecking", { count: pendingCount })
+                  : t("statusQueued", { count: pendingCount })}
+              </div>
+              <div className="tiny" style={{ color: "var(--brand)", opacity: 0.75, marginTop: 1 }}>
+                {t("statusPendingProcessing", { pending: statusCounts["PENDING"] || 0, processing: statusCounts["PROCESSING"] || 0 })}
+                {" · "}
+                {t("checkStay")}
+              </div>
             </div>
           </div>
+          <div className="check-bar" aria-hidden><span /></div>
         </div>
       )}
 
@@ -1736,7 +1643,7 @@ export default function ProjectKeywordsPage() {
               </div>
             </div>
 
-            <CompetitorsCard projectId={project.id} />
+            <CompetitorsCard projectId={project.id} yourAvg={stats.avgPos > 0 ? stats.avgPos : null} />
           </div>
 
           {/* Right column — empty "Start tracking" state before any keywords
@@ -1833,6 +1740,7 @@ export default function ProjectKeywordsPage() {
                     sort={sort}
                     onClick={clickSort}
                     width={120}
+                    info={<ScoreInfoTip />}
                   />
                   <SortHeader label={t("colLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={140} />
                   <th style={{ width: 190, whiteSpace: "nowrap" }}>{t("colActions")}</th>
@@ -2011,7 +1919,7 @@ export default function ProjectKeywordsPage() {
                                 )
                               }}
                               className="btn primary sm rank-cta"
-                              style={{ whiteSpace: "nowrap", gap: 6 }}
+                              style={{ whiteSpace: "nowrap", gap: 4 }}
                               title={
                                 kw.latestAnalysisId
                                   ? "Open the latest competitor analysis for this keyword"
@@ -2021,8 +1929,11 @@ export default function ProjectKeywordsPage() {
                               }
                             >
                               {t("rank")}
-                              <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                                {kw.position != null ? `#${kw.position}` : "#100+"}
+                              <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                {/* Fixed-width slot: "#7", "#29" and "#100+" all
+                                    occupy the same space, so every Rank button in
+                                    the column ends up identical width. */}
+                                <span className="from">{kw.position != null ? `#${kw.position}` : "#100+"}</span>
                                 <span className="rank-arrow" style={{ opacity: 0.7, fontSize: "0.9em" }}>→</span>
                                 <span style={{ fontWeight: 700 }}>#1</span>
                               </span>
@@ -2488,41 +2399,6 @@ export default function ProjectKeywordsPage() {
         </div>
       )}
 
-      {showFrequencyModal && tempFrequency !== null && (
-        <div className="modal-bg" onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-h">
-              <div>
-                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> {tempFrequency === "off" ? "TURN OFF SCHEDULE" : "UPDATE FREQUENCY"}</div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{tempFrequency === "off" ? "Stop automated checks" : "Change automated checks"}</div>
-              </div>
-              <button onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }} className="icon-btn" aria-label="Close"><Icon.close /></button>
-            </div>
-            <div className="modal-b">
-              <div className="tiny muted">{tempFrequency === "off" ? "Schedule" : "New frequency"}</div>
-              <div
-                className="card tight"
-                style={{ marginTop: 6, background: "var(--brand-soft)", borderColor: "var(--brand)", color: "var(--brand)" }}
-              >
-                <div className="b" style={{ fontSize: 18 }}>
-                  {tempFrequency === "off" ? t("freqOff") : freqLabel(tempFrequency, t)}
-                </div>
-              </div>
-              <div className="tiny muted" style={{ marginTop: 10 }}>
-                {tempFrequency === "off"
-                  ? "Automated rank checks will stop. You can re-enable a schedule any time, or run checks manually."
-                  : "The next scheduled check will be recalculated based on the new frequency."}
-              </div>
-            </div>
-            <div className="modal-f">
-              <button className="btn" onClick={() => { setShowFrequencyModal(false); setTempFrequency(null) }}>Cancel</button>
-              <button className="btn primary" onClick={() => handleUpdateFrequency(tempFrequency)} disabled={updatingFrequency}>
-                {updatingFrequency ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -2580,17 +2456,16 @@ function DeltaPill({ value, format }: { value: number | null; format?: (n: numbe
 type CompetitorRow = {
   id: string
   domain: string
-  // Head-to-head counts across your tracked keywords (from the competitor-spy
-  // overview): shared = you both rank; rankHigher = you outrank them (you're
-  // ahead); gap = they rank and you don't. "Behind" is derived as shared −
-  // rankHigher (shared keywords where they outrank you).
   sharedCount: number
   gapCount: number
   rankHigherCount: number
+  // Their average SERP position across your tracked keywords (1 decimal), or
+  // null when they don't appear in any stored SERP yet.
+  avgPosition: number | null
 }
 type CompetitorSuggestion = { domain: string; sharedCount: number }
 
-function CompetitorsCard({ projectId }: { projectId: string }) {
+function CompetitorsCard({ projectId, yourAvg }: { projectId: string; yourAvg: number | null }) {
   const t = useTranslations("projKeywords")
   const [tracked, setTracked] = useState<CompetitorRow[]>([])
   const [suggestions, setSuggestions] = useState<CompetitorSuggestion[]>([])
@@ -2643,6 +2518,10 @@ function CompetitorsCard({ projectId }: { projectId: string }) {
       </div>
       <Dropdown
         block
+        // cmp-add pins the menu to the trigger's own width (left+right:0), so it
+        // can't overflow the narrow insight-rail card the way max-content did.
+        className="cmp-add"
+        menuAlign="left"
         value=""
         placeholder={
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
@@ -2652,11 +2531,11 @@ function CompetitorsCard({ projectId }: { projectId: string }) {
         options={available.map((s) => ({
           value: s.domain,
           label: (
-            <span style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minWidth: 0 }}>
-              <Favicon domain={s.domain} size={20} fallbackColor="var(--brand)" />
+            <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0 }}>
+              <Favicon domain={s.domain} size={18} fallbackColor="var(--brand)" />
               <span
                 className="mono"
-                style={{ flex: 1, minWidth: 0, maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12.5 }}
               >
                 {s.domain}
               </span>
@@ -2684,12 +2563,15 @@ function CompetitorsCard({ projectId }: { projectId: string }) {
         ) : (
           <div>
             {tracked.map((c) => {
-              // Spy-consistent terms: "ahead" = you outrank them (good, green),
-              // "behind" = they outrank you (bad, red), "gaps" = they rank, you don't.
-              const ahead = c.rankHigherCount
-              const behind = Math.max(0, c.sharedCount - c.rankHigherCount)
-              const winPct = c.sharedCount > 0 ? Math.round((ahead / c.sharedCount) * 100) : 0
-              const hasOverlap = c.sharedCount > 0 || c.gapCount > 0
+              // Their average SERP position across your tracked keywords, colored
+              // by comparison with YOUR average: green when you rank better
+              // (their number is higher), red when they do, neutral otherwise.
+              const theirAvg = c.avgPosition
+              const tone =
+                theirAvg == null || yourAvg == null ? "gap"
+                : yourAvg < theirAvg ? "up"
+                : yourAvg > theirAvg ? "down"
+                : "gap"
               return (
                 <div key={c.id} className="cmp-track">
                   <Link
@@ -2697,31 +2579,21 @@ function CompetitorsCard({ projectId }: { projectId: string }) {
                     className="cmp-track-link"
                     title={t("viewInSpy")}
                   >
-                  <Favicon domain={c.domain} size={28} fallbackColor="var(--brand)" />
+                  <Favicon domain={c.domain} size={24} fallbackColor="var(--brand)" />
                   <div className="meta">
                     <span className="mono dom">{c.domain}</span>
                     <span className="cmp-cmp">
-                      {hasOverlap ? (
-                        <>
-                          {ahead > 0 && (
-                            <span className="up"><Icon.arrowUp />{t("cmpAhead", { count: ahead })}</span>
-                          )}
-                          {behind > 0 && (
-                            <span className="down"><Icon.arrowDown />{t("cmpBehind", { count: behind })}</span>
-                          )}
-                          {c.gapCount > 0 && (
-                            <span className="gap">{t("cmpGaps", { count: c.gapCount })}</span>
-                          )}
-                        </>
+                      {theirAvg != null ? (
+                        <span
+                          className={tone}
+                          title={t("cmpAvgPosTip", { yours: yourAvg != null ? `#${yourAvg.toFixed(1)}` : "—" })}
+                        >
+                          {t("cmpAvgPos", { pos: theirAvg })}
+                        </span>
                       ) : (
                         <span className="muted">{t("noOverlapYet")}</span>
                       )}
                     </span>
-                    {c.sharedCount > 0 && (
-                      <span className="bar cmp-bar" title={t("winRateTip", { win: ahead, total: c.sharedCount })}>
-                        <span style={{ width: `${winPct}%`, background: "var(--pos)" }} />
-                      </span>
-                    )}
                   </div>
                   </Link>
                   <button
@@ -2744,6 +2616,165 @@ function CompetitorsCard({ projectId }: { projectId: string }) {
   )
 }
 
+// Auto-check schedule control: a switch that shows the live state, and opens a
+// small anchored dropdown of cadences when clicked. Picking one applies it
+// immediately (including "Off"), so there's no confirmation popup in the way.
+function ScheduleToggle({
+  enabled,
+  frequency,
+  busy,
+  onPick,
+}: {
+  enabled: boolean
+  frequency: number
+  busy: boolean
+  onPick: (choice: number | "off") => void
+}) {
+  const t = useTranslations("projKeywords")
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Close on outside click WITHOUT swallowing it (pointerdown fires before the
+  // outside element's click), matching the shared Dropdown's behaviour.
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  const choose = (choice: number | "off") => { setOpen(false); onPick(choice) }
+
+  return (
+    <div ref={rootRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-expanded={open}
+        className={"auto-toggle" + (enabled ? " on" : "")}
+        disabled={busy}
+        title={t("freqTitle")}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="track" aria-hidden><span className="knob" /></span>
+        <span>{enabled ? freqLabel(frequency, t) : t("freqOff")}</span>
+      </button>
+      {open && (
+        <div className="dd-menu" role="listbox" aria-label={t("freqTitle")} data-lenis-prevent style={{ zIndex: 50 }}>
+          <button
+            type="button"
+            role="option"
+            aria-selected={!enabled}
+            className="dd-item"
+            data-active={!enabled}
+            onClick={() => choose("off")}
+          >
+            {t("freqOff")}
+            {!enabled && <Icon.check size={13} />}
+          </button>
+          {FREQ_CHOICES.map((h) => {
+            const active = enabled && frequency === h
+            return (
+              <button
+                key={h}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className="dd-item"
+                data-active={active}
+                onClick={() => choose(h)}
+              >
+                {freqLabel(h, t)}
+                {active && <Icon.check size={13} />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// "What are P.S / K.S?" — the ⓘ in the score column header. Click to reveal what
+// each score means and where it comes from. The panel is portaled to <body>
+// because the table lives in a horizontal-scroll container that would clip it.
+function ScoreInfoTip() {
+  const t = useTranslations("projKeywords")
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!pos) return
+    const close = () => setPos(null)
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (btnRef.current?.contains(target as Node)) return
+      if (target?.closest?.(".score-info-pop")) return
+      close()
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close() }
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("keydown", onKey)
+    window.addEventListener("resize", close)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("keydown", onKey)
+      window.removeEventListener("resize", close)
+    }
+  }, [pos])
+
+  const toggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation() // never sort the column when the ⓘ is clicked
+    if (pos) { setPos(null); return }
+    const r = e.currentTarget.getBoundingClientRect()
+    // The panel is centred on the icon; clamp so it can't run off either edge.
+    const half = 124
+    const centre = r.left + r.width / 2
+    const left = Math.min(Math.max(centre, half + 10), window.innerWidth - half - 10)
+    setPos({ top: r.bottom + 10, left })
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className="score-info-btn"
+        aria-label={t("scoreInfoAria")}
+        aria-expanded={!!pos}
+        title={t("scoreInfoAria")}
+        onClick={toggle}
+      >
+        <Icon.info size={12} />
+      </button>
+      {pos && typeof document !== "undefined" && createPortal(
+        <div className="fs-app" style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 80 }}>
+          <div className="score-info-pop" role="dialog" aria-label={t("scoreInfoAria")}>
+            <div className="r">
+              <span className="tag">{t("colPageScoreAbbr")}</span>
+              <span>{t("scoreInfoPs")}</span>
+            </div>
+            <div className="r">
+              <span className="tag">{t("colKeywordScoreAbbr")}</span>
+              <span>{t("scoreInfoKs")}</span>
+            </div>
+            <div className="hint">{t("scoreInfoHint")}</div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  )
+}
+
 function SortHeader({
   label,
   k,
@@ -2751,6 +2782,7 @@ function SortHeader({
   onClick,
   width,
   title,
+  info,
 }: {
   label: string
   k: SortKey
@@ -2758,6 +2790,8 @@ function SortHeader({
   onClick: (k: SortKey) => void
   width?: number | string
   title?: string
+  /** Optional trailing node (e.g. an info tip) that must not trigger sorting. */
+  info?: React.ReactNode
 }) {
   const active = sort.key === k
   return (
@@ -2768,6 +2802,7 @@ function SortHeader({
     >
       {label}
       {active && <span style={{ color: "var(--brand)", marginLeft: 4 }}>{sort.dir === "asc" ? "↑" : "↓"}</span>}
+      {info}
     </th>
   )
 }

@@ -153,7 +153,9 @@ function KeywordAnalysisContent() {
             <button
               className="btn sm kd-back-btn"
               onClick={() => router.push(`/dashboard/project/${ctxProjectId}/keywords`)}
-              style={{ marginBottom: 14 }}
+              // Block-level so the .eyebrow below (also inline-flex) starts on its
+              // own row instead of sitting beside the pill.
+              style={{ display: "flex", width: "fit-content", marginBottom: 16 }}
             >
               <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
               Back to project

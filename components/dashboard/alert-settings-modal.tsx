@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { Switch } from "@/components/ui/switch"
 import { Icon } from "@/components/dashboard/icons"
@@ -58,14 +58,18 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
+  // Set once the user edits anything, so settings arriving late can't clobber
+  // what they've already typed.
+  const touchedRef = useRef(false)
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const data = await api.get<Partial<AlertSettings>>(`/api/projects/${projectId}/notification-settings`)
-        if (!cancelled) setSettings({ ...DEFAULTS, ...data })
+        if (!cancelled && !touchedRef.current) setSettings({ ...DEFAULTS, ...data })
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load alert settings")
+        if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't load your saved alert settings — you can still set them below.")
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -75,7 +79,10 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
     }
   }, [projectId])
 
-  const patch = (next: Partial<AlertSettings>) => setSettings((s) => ({ ...s, ...next }))
+  const patch = (next: Partial<AlertSettings>) => {
+    touchedRef.current = true
+    setSettings((s) => ({ ...s, ...next }))
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -115,10 +122,13 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
         </div>
 
         <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {loading ? (
-            <div className="tiny muted">Loading…</div>
-          ) : (
-            <>
+          {/* The form renders immediately with sensible defaults. Gating the whole
+              body on the fetch meant a slow or failing request left the modal
+              showing nothing but "Loading…". Saved values merge in when they
+              arrive (unless the user has already started editing). */}
+          {loading && <div className="tiny muted">Loading your saved settings…</div>}
+          {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}
+          <>
               <div>
                 <div className="b" style={{ fontSize: 13 }}>Email address</div>
                 <div className="tiny muted" style={{ marginTop: 2, marginBottom: 6 }}>
@@ -203,14 +213,13 @@ export function AlertSettingsModal({ projectId, onClose }: { projectId: string; 
                 />
               </Row>
 
-              {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}
-            </>
-          )}
+          </>
         </div>
 
         <div className="modal-f">
           <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn primary" onClick={handleSave} disabled={saving || loading}>
+          {/* Still saveable when the load failed — the user can set values fresh. */}
+          <button className="btn primary" onClick={handleSave} disabled={saving || (loading && !error)}>
             {saving ? "Saving…" : "Save"}
           </button>
         </div>

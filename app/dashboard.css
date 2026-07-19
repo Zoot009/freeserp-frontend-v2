@@ -289,6 +289,28 @@
   position: relative;
 }
 .fs-app .icon-btn:hover { background: var(--bg-inset); color: var(--text); }
+/* Destructive variant (e.g. delete project) — neutral until hovered so it
+   doesn't shout from the toolbar, then clearly red. */
+.fs-app .icon-btn.danger:hover { background: var(--neg-soft); border-color: var(--neg); color: var(--neg); }
+
+/* Segmented cluster of icon actions sitting beside a primary button. Reads as
+   one deliberate control instead of three loose outlined squares, and matches
+   the primary button's height so the toolbar sits on a single baseline. */
+.fs-app .icon-group {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+.fs-app .icon-group .icon-btn {
+  width: 38px; height: 36px;
+  border: none; border-radius: 0;
+  color: var(--text-mute);
+}
+.fs-app .icon-group .icon-btn + .icon-btn { box-shadow: inset 1px 0 0 var(--border); }
+.fs-app .icon-group .icon-btn:hover { background: var(--brand-soft); color: var(--brand); }
+.fs-app .icon-group .icon-btn.danger:hover { background: var(--neg-soft); color: var(--neg); }
 .fs-app .icon-btn .dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; background: var(--brand); border-radius: 50%; }
 .fs-app .btn {
   display: inline-flex; align-items: center; gap: 7px;
@@ -316,6 +338,11 @@
 }
 .fs-app .rank-cta .rank-arrow { transition: transform .18s ease; }
 .fs-app .rank-cta:hover .rank-arrow { transform: translateX(3px); }
+/* The "from" position varies in width (#7 / #29 / #100+), which made every Rank
+   button a different size and the actions column ragged. A fixed slot keeps all
+   the buttons identical width in any locale; centring it splits the leftover
+   space evenly so a short number doesn't leave a gap stranded on one side. */
+.fs-app .rank-cta .from { display: inline-block; min-width: 36px; text-align: center; }
 .fs-app .btn.dark {
   background: var(--black); color: white; border-color: var(--black);
 }
@@ -512,6 +539,110 @@
   font-size: 13px;
 }
 .fs-app .insight-row + .insight-row { border-top: 1px solid var(--border); }
+/* Auto-check on/off switch in the project header (replaces the old 5-item
+   frequency dropdown). Flipping it ON opens the cadence picker modal; the label
+   shows the live state so the chosen cadence stays visible at a glance. */
+.fs-app .auto-toggle {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 7px 13px 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.fs-app .auto-toggle:hover:not(:disabled) { background: var(--bg-inset); }
+.fs-app .auto-toggle:disabled { opacity: 0.6; cursor: default; }
+.fs-app .auto-toggle .track {
+  position: relative; flex-shrink: 0;
+  width: 30px; height: 17px; border-radius: 999px;
+  background: var(--border-strong);
+  transition: background .15s ease;
+}
+.fs-app .auto-toggle .knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #fff;
+  transition: transform .16s ease;
+}
+.fs-app .auto-toggle.on { border-color: var(--brand); color: var(--brand); }
+.fs-app .auto-toggle.on .track { background: var(--brand); }
+.fs-app .auto-toggle.on .knob { transform: translateX(13px); }
+
+/* Check-in-progress strip — a brand-tinted "working" banner (spinner + status +
+   an indeterminate sliding bar) shown while keywords are being checked. */
+.fs-app .check-banner {
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--brand) 9%, var(--bg-elev)), color-mix(in srgb, var(--brand) 4%, var(--bg-elev)));
+}
+.fs-app .check-bar {
+  margin-top: 10px;
+  height: 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+  overflow: hidden;
+}
+.fs-app .check-bar > span {
+  display: block; height: 100%; width: 34%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand) 55%, transparent), var(--brand));
+  animation: check-slide 1.5s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+@keyframes check-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(400%); }
+}
+
+/* "What are P.S / K.S?" — the ⓘ button in the score column header and its panel.
+   The panel is portaled to <body>, so it resets the <th>'s uppercase/nowrap
+   header styling back to normal prose. */
+.fs-app .score-info-btn {
+  display: inline-grid; place-items: center;
+  width: 16px; height: 16px; margin-left: 6px; padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--bg-inset); color: var(--text-mute);
+  cursor: pointer; vertical-align: middle;
+  transition: color .12s ease, background .12s ease;
+}
+.fs-app .score-info-btn:hover { color: var(--brand); background: var(--brand-soft); }
+.fs-app .score-info-pop {
+  position: relative;
+  transform: translateX(-50%);
+  width: 248px;
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 11px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  color: var(--text-soft);
+  font-size: 12px; font-weight: 400; line-height: 1.45;
+  text-transform: none; letter-spacing: 0; white-space: normal; text-align: left;
+}
+/* Caret so the panel reads as attached to the ⓘ rather than floating loose. */
+.fs-app .score-info-pop::before {
+  content: ""; position: absolute; top: -5px; left: 50%; margin-left: -4px;
+  width: 8px; height: 8px;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+.fs-app .score-info-pop .r { display: flex; align-items: flex-start; gap: 8px; }
+.fs-app .score-info-pop .tag {
+  flex-shrink: 0;
+  padding: 1px 6px; border-radius: var(--r-sm);
+  background: var(--bg-inset); color: var(--text);
+  font-size: 11px; font-weight: 600; line-height: 1.5;
+}
+.fs-app .score-info-pop .hint {
+  color: var(--text-mute); font-size: 11.5px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
 /* P.S / K.S table cell — fixed-width slots so the "/" separator and both badges
    line up vertically down the column, even when a row shows the wider "+ Score"
    call-to-action instead of a number. */
@@ -537,16 +668,26 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 13px; color: var(--text);
 }
+/* Head-to-head stats as small soft pills — raw colored text next to raw grey
+   text read as clutter, and the 0%-filled win bar looked like a stray line. */
 .fs-app .cmp-cmp {
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-  font-size: 11.5px; font-weight: 600; line-height: 1;
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: 11px; font-weight: 600; line-height: 1;
 }
-.fs-app .cmp-cmp .up { display: inline-flex; align-items: center; gap: 2px; color: var(--pos); }
-.fs-app .cmp-cmp .down { display: inline-flex; align-items: center; gap: 2px; color: var(--neg); }
-.fs-app .cmp-cmp .gap { color: var(--text-mute); font-weight: 500; }
+.fs-app .cmp-cmp .up,
+.fs-app .cmp-cmp .down,
+.fs-app .cmp-cmp .gap {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 7px; border-radius: 999px;
+}
+.fs-app .cmp-cmp .up { background: var(--pos-soft); color: var(--pos); }
+.fs-app .cmp-cmp .down { background: var(--neg-soft); color: var(--neg); }
+.fs-app .cmp-cmp .gap { background: var(--bg-inset); color: var(--text-mute); font-weight: 500; }
 .fs-app .cmp-cmp .muted { color: var(--text-mute); font-weight: 500; }
-.fs-app .cmp-cmp svg { width: 11px; height: 11px; }
-.fs-app .cmp-bar { height: 4px; }
+.fs-app .cmp-cmp svg { width: 10px; height: 10px; }
+/* Add-competitor menu: match the trigger's width exactly (the shared .dd-menu
+   defaults to right-aligned max-content, which overflowed this narrow card). */
+.fs-app .cmp-add .dd-menu { left: 0; right: 0; width: auto; min-width: 0; max-height: 250px; }
 .fs-app .cmp-track .rm {
   background: none; border: none; color: var(--text-mute);
   cursor: pointer; padding: 4px; border-radius: 6px;

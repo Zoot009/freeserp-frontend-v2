@@ -423,12 +423,18 @@ export default function ProjectsPage() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [favReady, setFavReady] = useState(false)
 
+  // Refreshing the session hands back a NEW `user` object every time, so effects
+  // must key off a stable primitive. Depending on `user` itself re-ran them (and
+  // their loaders) on every refresh, which is half of why the grid kept flashing
+  // back to "Loading projects…".
+  const verified = !!user?.emailVerified
+
   // Auto-refresh user data every 30 seconds so plan/usage stays fresh.
   useEffect(() => {
-    if (!user || !refreshUser) return
+    if (!verified || !refreshUser) return
     const interval = setInterval(() => { void refreshUser() }, 30000)
     return () => clearInterval(interval)
-  }, [user, refreshUser])
+  }, [verified, refreshUser])
 
   useEffect(() => {
     if (!loading && !user) router.push("/login")
@@ -454,8 +460,11 @@ export default function ProjectsPage() {
   // guarantees an authenticated session. Gating on the lagging token state
   // previously let loadProjects early-return *before* its finally, leaving
   // the page stuck on "Loading projects…" forever.
-  const loadProjects = useCallback(async () => {
-    setProjectsLoading(true)
+  // `silent` refreshes update the grid in place. Only the first load shows the
+  // skeleton — flipping it back on for the 10s poll made the whole list visibly
+  // "re-load" every few seconds.
+  const loadProjects = useCallback(async (silent = false) => {
+    if (!silent) setProjectsLoading(true)
     try {
       const data = await api.get<ProjectSummary[]>("/api/projects")
       if (Array.isArray(data)) setProjects(data)
@@ -463,7 +472,7 @@ export default function ProjectsPage() {
       // Network failure (backend down / CORS). Swallow so the 10s poll
       // interval doesn't surface an unhandledRejection.
       console.error("Failed to load projects:", err)
-    } finally { setProjectsLoading(false) }
+    } finally { if (!silent) setProjectsLoading(false) }
   }, [])
 
   const loadUsage = useCallback(async () => {
@@ -474,12 +483,14 @@ export default function ProjectsPage() {
   }, [])
 
   useEffect(() => {
-    if (user?.emailVerified) { void loadProjects(); void loadUsage() }
-  }, [user, loadProjects, loadUsage])
+    if (!verified) return
+    void loadProjects()
+    void loadUsage()
+  }, [verified, loadProjects, loadUsage])
 
   // Load the user's project favorites once the session is verified.
   useEffect(() => {
-    if (!user?.emailVerified) return
+    if (!verified) return
     let cancelled = false
     api
       .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=project")
@@ -490,17 +501,18 @@ export default function ProjectsPage() {
       })
       .catch(() => { if (!cancelled) setFavReady(true) })
     return () => { cancelled = true }
-  }, [user])
+  }, [verified])
 
-  // Auto-refresh projects list every 10 seconds to keep statuses fresh.
+  // Auto-refresh projects list every 10 seconds to keep statuses fresh. Silent:
+  // it swaps the data in place rather than re-showing the skeleton.
   useEffect(() => {
-    if (!user?.emailVerified) return
+    if (!verified) return
     const interval = setInterval(() => {
-      void loadProjects()
+      void loadProjects(true)
       void loadUsage()
     }, 10000)
     return () => clearInterval(interval)
-  }, [user, loadProjects, loadUsage])
+  }, [verified, loadProjects, loadUsage])
 
   if (loading || !user) {
     return (
