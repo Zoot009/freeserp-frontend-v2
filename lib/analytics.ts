@@ -99,10 +99,30 @@ export function flush(useBeacon = false): void {
   send(JSON.stringify({ visitorId: getVisitorId(), sessionId: getSessionId(), source: "app", events }), useBeacon)
 }
 
+// Query params that carry a search term. Only these keys are ever read — the rest
+// of the query string is never stored, so tokens/emails in unrelated params can't
+// leak into analytics. The keyword rides in `properties`, not `path`, so path stays
+// the grouping key for dwell/heatmap aggregation.
+const KEYWORD_PARAMS = ["keyword", "kw", "q", "query", "search", "term"]
+const KEYWORD_MAX_LEN = 120
+
+// The search term on the current URL, if any. Exported for tests.
+export function keywordFromQuery(search: string): string | undefined {
+  const params = new URLSearchParams(search)
+  for (const key of KEYWORD_PARAMS) {
+    const raw = params.get(key)?.trim()
+    if (raw) return raw.slice(0, KEYWORD_MAX_LEN)
+  }
+  return undefined
+}
+
 // Queue an event; flushed on a short debounce, at batch size, or on page hide.
 export function track(name: string, properties?: Record<string, unknown>): void {
   if (typeof window === "undefined" || !consentGranted()) return
   const referrer = typeof document !== "undefined" ? document.referrer || undefined : undefined
+  // Attach the landing search term to page views, unless the caller set one.
+  const keyword = name === "$pageview" ? keywordFromQuery(window.location.search) : undefined
+  if (keyword && properties?.keyword == null) properties = { ...properties, keyword }
   queue.push({ name, path: window.location.pathname, referrer, properties })
   if (queue.length >= BATCH_SIZE) {
     flush()

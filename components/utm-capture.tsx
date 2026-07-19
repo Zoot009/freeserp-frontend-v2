@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { hasAnyUtm, readUtm, recordTouch, type Utm } from "@/lib/utm"
-import { track, flushPageEngagement, markPage, initHeatmap } from "@/lib/analytics"
+import { track, flushPageEngagement, markPage, initHeatmap, keywordFromQuery } from "@/lib/analytics"
 
 // Marks that this browser session's entry touch has been recorded, so the
 // direct/organic origin (referrer + landing path) is logged once per session
@@ -111,14 +111,19 @@ export function UtmCapture() {
   // gates on consent itself; the effect just fires it on each real navigation. On
   // each navigation, flush the engagement (dwell + scroll) of the page just left and
   // start measuring the new one (both consent-gated internally).
+  // Keyed on path + search term (not the whole query string): re-searching on the
+  // same page is a genuinely new view worth recording, but an unrelated query param
+  // changing is not.
   const lastPagePath = useRef<string | null>(null)
+  const searchKeyword = keywordFromQuery(searchParams.toString())
   useEffect(() => {
-    if (!consentGranted || lastPagePath.current === pathname) return
+    const key = `${pathname}?${searchKeyword ?? ""}`
+    if (!consentGranted || lastPagePath.current === key) return
     flushPageEngagement()
     markPage(pathname)
-    lastPagePath.current = pathname
+    lastPagePath.current = key
     track("$pageview")
-  }, [consentGranted, pathname])
+  }, [consentGranted, pathname, searchKeyword])
 
   return null
 }
