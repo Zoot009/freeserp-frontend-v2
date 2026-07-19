@@ -114,6 +114,10 @@
   color: var(--text);
 }
 .fs-app .sb-brand .spark { color: var(--brand); font-size: 18px; line-height: 1; }
+/* Brand mark (public/logo.png — the favicon artwork). The PNG already carries its
+   own rounded blue tile, so it just needs to sit flush in the brand row. */
+.fs-app .sb-brand .sb-logo { display: inline-flex; flex-shrink: 0; }
+.fs-app .sb-brand .sb-logo img { display: block; border-radius: 6px; }
 /* Desktop collapse toggle (hidden on mobile — the drawer covers that). */
 .fs-app .sb-collapse {
   margin-left: auto;

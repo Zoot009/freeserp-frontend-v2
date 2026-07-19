@@ -1,6 +1,7 @@
 "use client"
 
 import { useTranslations } from "next-intl"
+import Image from "next/image"
 import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
@@ -94,7 +95,12 @@ export function Sidebar({
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <div className="sb-brand">
-        <span className="spark"><Icon.spark size={16} /></span>
+        {/* The real FreeSERP mark (same asset as the favicon / auth pages) rather
+            than a generic sparkle glyph. Decorative: the "FreeSerp" label is
+            right next to it, so alt is empty to avoid a duplicate announcement. */}
+        <span className="spark sb-logo">
+          <Image src="/logo.png" alt="" width={22} height={22} priority />
+        </span>
         <span className="sb-label">FreeSerp</span>
         {onToggleCollapse && (
           <button
