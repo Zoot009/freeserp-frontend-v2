@@ -255,7 +255,7 @@
     "errorEmailRequired": "Please enter your email.",
     "errorAllDigits": "Please enter all 6 digits.",
     "errorVerifyFailed": "Invalid or expired code. Please try again.",
-    "asideHeadline": "Sign in,{br}the simple way.",
+    "asideHeadline": "Sign in,<br></br>the simple way.",
     "asideSubtitle": "One code in your inbox and you're in. No passwords to remember."
   },
   "pricing": {
@@ -494,7 +494,9 @@
     "accountMenu": "Account menu",
     "signOut": "Sign out",
     "keywordAnalysis": "Keyword Score Checker",
-    "onPageAudit": "Page Score Checker"
+    "onPageAudit": "Page Score Checker",
+    "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
+    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",
@@ -1150,18 +1152,25 @@
     "bodyAiLimit": "You've used all of today's AI analyses ({used} of {limit}). Every $1/month adds 2 analyses per day — raise your plan to lift the limit, or try again tomorrow."
   },
   "trialCountdown": {
-    "daysLeft": "{days, plural, one {# day} other {# days}} left in your free trial",
-    "hoursLeft": "{hours, plural, one {# hour} other {# hours}} left in your free trial",
-    "checksLeft": "{checks, plural, one {# rank check} other {# rank checks}} still available",
     "cta": "See plans",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "eyebrow": "Free trial",
+    "lead": "Ends soon",
+    "leadUrgent": "Last day",
+    "message": "Unlimited keywords, daily updates and API access. <hl>Upgrade before your trial ends.</hl>",
+    "unitDays": "Days",
+    "unitHours": "Hrs",
+    "unitMins": "Mins",
+    "unitSecs": "Secs"
   },
   "trialGate": {
-    "title": "Your free trial has ended",
-    "body": "Subscribe to keep tracking your rankings. Your projects and history are safe — they'll pick up right where they left off.",
-    "bodyCanExtend": "Subscribe to keep tracking your rankings, or take your one-time extension to finish what you started. Your projects and history are safe.",
-    "extendCta": "Extend my trial",
+    "eyebrow": "Trial ended",
+    "title": "Keep your rankings moving forward.",
+    "body": "Your projects and history are safe. Subscribe to resume tracking.",
+    "bodyCanExtend": "Your projects and history are safe. Subscribe to resume tracking, or take a one-time extension.",
+    "extendCta": "Extend",
     "plansCta": "See plans",
+    "priceFrom": "Plans from {price}/month",
     "working": "Working…",
     "alreadyExtended": "You've already used your one free extension.",
     "extendSuccess": "Trial extended — {days} more days and {checks} more checks.",

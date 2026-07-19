@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
+import { useTrialUsage } from "@/hooks/use-trial-usage"
 import { Icon } from "./icons"
 
 type NavEntry = {
@@ -64,6 +65,7 @@ export function Sidebar({
   const router = useRouter()
   const t = useTranslations("dashboardNav")
   const { user, logout } = useAuth()
+  const { trial } = useTrialUsage()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -132,7 +134,18 @@ export function Sidebar({
       {!isPaid && (
         <div className="sb-upgrade">
           <div className="title"><Icon.spark size={12} /> {t("upgradeToPro")}</div>
-          <div className="desc">{t("upgradeDesc")}</div>
+          {/* While a trial is running its remaining time is the more useful line
+              than the generic pitch — it's the thing that changes. */}
+          {trial ? (
+            <div className={"sb-trial" + (trial.finalDay ? " urgent" : "")}>
+              <Icon.clock size={12} />
+              {trial.finalDay
+                ? t("trialHoursLeft", { hours: trial.hoursLeft })
+                : t("trialDaysLeft", { days: trial.daysLeft })}
+            </div>
+          ) : (
+            <div className="desc">{t("upgradeDesc")}</div>
+          )}
           <Link href="/pricing?clicked-buy-button"><button>{t("seePlans")}</button></Link>
         </div>
       )}

@@ -255,7 +255,7 @@
     "errorEmailRequired": "Introduce tu correo electrónico.",
     "errorAllDigits": "Introduce los 6 dígitos.",
     "errorVerifyFailed": "Código no válido o caducado. Inténtalo de nuevo.",
-    "asideHeadline": "Inicia sesión,{br}de forma sencilla.",
+    "asideHeadline": "Inicia sesión,<br></br>de forma sencilla.",
     "asideSubtitle": "Un código en tu bandeja de entrada y listo. Sin contraseñas que recordar."
   },
   "pricing": {
@@ -494,7 +494,9 @@
     "accountMenu": "Menú de cuenta",
     "signOut": "Cerrar sesión",
     "keywordAnalysis": "Análisis de palabras clave",
-    "onPageAudit": "Auditoría On-Page"
+    "onPageAudit": "Auditoría On-Page",
+    "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
+    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba"
   },
   "dashFavorites": {
     "headerEyebrow": "Guardados",
@@ -1150,18 +1152,25 @@
     "bodyAiLimit": "Has usado todos los análisis de IA de hoy ({used} de {limit}). Cada 1 $/mes añade 2 análisis al día — amplía tu plan para subir el límite o inténtalo mañana."
   },
   "trialCountdown": {
-    "daysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba gratuita",
-    "hoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba gratuita",
-    "checksLeft": "{checks, plural, one {# comprobación disponible} other {# comprobaciones disponibles}}",
     "cta": "Ver planes",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "eyebrow": "Prueba gratuita",
+    "lead": "Termina pronto",
+    "leadUrgent": "Último día",
+    "message": "Palabras clave ilimitadas, actualizaciones diarias y acceso a API. <hl>Mejora tu plan antes de que acabe la prueba.</hl>",
+    "unitDays": "Días",
+    "unitHours": "Hrs",
+    "unitMins": "Min",
+    "unitSecs": "Seg"
   },
   "trialGate": {
-    "title": "Tu prueba gratuita ha terminado",
-    "body": "Suscríbete para seguir rastreando tus rankings. Tus proyectos e historial están a salvo: continuarán justo donde los dejaste.",
-    "bodyCanExtend": "Suscríbete para seguir rastreando tus rankings, o usa tu ampliación única para terminar lo que empezaste. Tus proyectos e historial están a salvo.",
-    "extendCta": "Ampliar mi prueba",
+    "eyebrow": "Prueba finalizada",
+    "title": "Sigue impulsando tus rankings.",
+    "body": "Tus proyectos e historial están a salvo. Suscríbete para reanudar el seguimiento.",
+    "bodyCanExtend": "Tus proyectos e historial están a salvo. Suscríbete para reanudar el seguimiento o usa tu ampliación única.",
+    "extendCta": "Ampliar",
     "plansCta": "Ver planes",
+    "priceFrom": "Planes desde {price}/mes",
     "working": "Procesando…",
     "alreadyExtended": "Ya has usado tu única ampliación gratuita.",
     "extendSuccess": "Prueba ampliada: {days} días y {checks} comprobaciones más.",

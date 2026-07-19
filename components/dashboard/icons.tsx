@@ -8,6 +8,19 @@ export const Icon = {
       <path d="M7 0L8.2 5.8L14 7L8.2 8.2L7 14L5.8 8.2L0 7L5.8 5.8L7 0Z" fill="currentColor" />
     </svg>
   ),
+  clock: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 4.5V8L10.25 9.75" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  hourglass: ({ size = 18, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path d="M4 2h8M4 14h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4.5 2v2.2c0 1.1 1.2 2.2 3.5 3.8 2.3-1.6 3.5-2.7 3.5-3.8V2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="M4.5 14v-2.2c0-1.1 1.2-2.2 3.5-3.8 2.3 1.6 3.5 2.7 3.5 3.8V14" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  ),
   search: ({ size = 14, ...p }: IconProps) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
       <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.6" />

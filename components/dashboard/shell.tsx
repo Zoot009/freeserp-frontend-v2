@@ -44,28 +44,32 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fs-app" translate="no">
-      <div className={"app" + (collapsed ? " sb-collapsed" : "")}>
-        <Sidebar
-          open={navOpen}
-          onClose={() => setNavOpen(false)}
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapsed}
-        />
-        <div
-          className="sb-overlay"
-          data-open={navOpen}
-          onClick={() => setNavOpen(false)}
-          aria-hidden="true"
-        />
-        <div className="main">
-          <Topbar onMenuClick={() => setNavOpen(true)} />
-          {/* Countdown while the trial runs; once it ends the gate replaces the
-              page body entirely. Nav and topbar stay mounted either way so a
-              gated user can still reach billing and sign-out. */}
+      {/* The gate wraps the ENTIRE app — sidebar and topbar included — because it
+          blurs what it covers, and a blur that stopped at the content area would
+          leave a sharp sidebar floating over a frosted page. */}
+      <TrialEndedGate>
+        <div className={"app" + (collapsed ? " sb-collapsed" : "")}>
+          {/* Spans the whole grid as its own row, so the promo bar sits above the
+              sidebar and topbar rather than only over the content column. */}
           <TrialCountdownBanner />
-          <TrialEndedGate>{children}</TrialEndedGate>
+          <Sidebar
+            open={navOpen}
+            onClose={() => setNavOpen(false)}
+            collapsed={collapsed}
+            onToggleCollapse={toggleCollapsed}
+          />
+          <div
+            className="sb-overlay"
+            data-open={navOpen}
+            onClick={() => setNavOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="main">
+            <Topbar onMenuClick={() => setNavOpen(true)} />
+            {children}
+          </div>
         </div>
-      </div>
+      </TrialEndedGate>
     </div>
   )
 }

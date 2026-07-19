@@ -255,7 +255,7 @@
     "errorEmailRequired": "Veuillez saisir votre e-mail.",
     "errorAllDigits": "Veuillez saisir les 6 chiffres.",
     "errorVerifyFailed": "Code invalide ou expiré. Veuillez réessayer.",
-    "asideHeadline": "Connectez-vous,{br}simplement.",
+    "asideHeadline": "Connectez-vous,<br></br>simplement.",
     "asideSubtitle": "Un code dans votre boîte mail et c'est fait. Aucun mot de passe à retenir."
   },
   "pricing": {
@@ -494,7 +494,9 @@
     "accountMenu": "Menu du compte",
     "signOut": "Se déconnecter",
     "keywordAnalysis": "Analyse de mots-clés",
-    "onPageAudit": "Audit On-Page"
+    "onPageAudit": "Audit On-Page",
+    "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
+    "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai"
   },
   "dashFavorites": {
     "headerEyebrow": "Enregistrés",
@@ -1150,18 +1152,25 @@
     "bodyAiLimit": "Vous avez utilisé toutes les analyses IA du jour ({used} sur {limit}). Chaque 1 $/mois ajoute 2 analyses par jour — augmentez votre forfait ou réessayez demain."
   },
   "trialCountdown": {
-    "daysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai gratuit",
-    "hoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai gratuit",
-    "checksLeft": "{checks, plural, one {# vérification} other {# vérifications}} encore disponible(s)",
     "cta": "Voir les offres",
-    "dismiss": "Fermer"
+    "dismiss": "Fermer",
+    "eyebrow": "Essai gratuit",
+    "lead": "Bientôt fini",
+    "leadUrgent": "Dernier jour",
+    "message": "Mots-clés illimités, mises à jour quotidiennes et accès API. <hl>Passez à l'offre supérieure avant la fin de l'essai.</hl>",
+    "unitDays": "Jours",
+    "unitHours": "Hrs",
+    "unitMins": "Min",
+    "unitSecs": "Sec"
   },
   "trialGate": {
-    "title": "Votre essai gratuit est terminé",
-    "body": "Abonnez-vous pour continuer à suivre vos classements. Vos projets et votre historique sont conservés — tout reprendra exactement où vous vous êtes arrêté.",
-    "bodyCanExtend": "Abonnez-vous pour continuer à suivre vos classements, ou utilisez votre prolongation unique pour terminer ce que vous avez commencé. Vos projets et votre historique sont conservés.",
-    "extendCta": "Prolonger mon essai",
+    "eyebrow": "Essai terminé",
+    "title": "Continuez à faire progresser vos classements.",
+    "body": "Vos projets et votre historique sont conservés. Abonnez-vous pour reprendre le suivi.",
+    "bodyCanExtend": "Vos projets et votre historique sont conservés. Abonnez-vous pour reprendre le suivi, ou utilisez votre prolongation unique.",
+    "extendCta": "Prolonger",
     "plansCta": "Voir les offres",
+    "priceFrom": "Offres à partir de {price}/mois",
     "working": "En cours…",
     "alreadyExtended": "Vous avez déjà utilisé votre prolongation gratuite unique.",
     "extendSuccess": "Essai prolongé — {days} jours et {checks} vérifications de plus.",

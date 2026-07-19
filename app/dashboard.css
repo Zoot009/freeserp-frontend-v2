@@ -120,7 +120,9 @@
   gap: 6px;
   position: sticky;
   top: 0;
-  height: 100vh;
+  /* --tb-h is published by TrialCountdownBanner while it occupies the row above
+     this one; without it the sticky 100vh would run past the fold. */
+  height: calc(100vh - var(--tb-h, 0px));
 }
 .fs-app .sb-brand {
   display: flex; align-items: center; gap: 9px;
@@ -204,6 +206,129 @@
   width: 100%;
 }
 .dark .fs-app .sb-upgrade button { background: white; color: var(--black); }
+/* Trial countdown inside the upgrade card — replaces .desc while a trial runs. */
+.fs-app .sb-upgrade .sb-trial {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  line-height: 1.4; margin-bottom: 10px;
+  opacity: 0.95;
+}
+.fs-app .sb-upgrade .sb-trial.urgent { color: var(--warn); }
+.dark .fs-app .sb-upgrade .sb-trial.urgent { color: white; }
+
+/* === TRIAL COUNTDOWN BANNER ===
+   A brand-blue gradient promo bar. It sits on the light dashboard surface and is
+   meant to read as an ad, not as page chrome, so its colours are hard-coded
+   rather than themed — it looks the same in light and dark mode. */
+.fs-app .tb-bar {
+  /* Own row across the full app grid — above the sidebar, not beside it. */
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex; align-items: center; gap: 20px;
+  /* Full-bleed: flush to the top and both edges, so it reads as a page-level
+     promo bar rather than a card floating on the app background. */
+  margin: 0;
+  padding: 16px 22px;
+  border-radius: 0;
+  /* Two layers: a soft highlight bleeding in from the top-right so the bar has
+     some depth, over a diagonal ramp from deep navy up to the brand blue. */
+  background:
+    radial-gradient(120% 200% at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(100deg, #0C1742 0%, #14276F 34%, #1B36A6 68%, #2246D6 100%);
+  color: #fff;
+}
+/* Escalate to a warm tone on the last day, so the brand treatment doesn't lose
+   its meaning by crying wolf for a week. */
+.fs-app .tb-bar.urgent {
+  background:
+    radial-gradient(120% 200% at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(100deg, #3D1503 0%, #7A2C05 34%, #B2470A 68%, #D9600D 100%);
+}
+
+.fs-app .tb-icon {
+  flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.fs-app .tb-lead {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+}
+.fs-app .tb-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  opacity: 0.8;
+}
+.fs-app .tb-lead-word { font-size: 17px; font-weight: 700; line-height: 1.1; }
+
+.fs-app .tb-message {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: 15px; font-weight: 400; line-height: 1.4;
+  color: rgba(255, 255, 255, 0.95);
+}
+.fs-app .tb-hl { font-weight: 700; color: #fff; }
+
+.fs-app .tb-countdown { flex-shrink: 0; display: flex; align-items: flex-start; gap: 8px; }
+.fs-app .tb-unit { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.fs-app .tb-tile {
+  min-width: 46px; height: 40px; padding: 0 8px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 18px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.fs-app .tb-unit-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  opacity: 0.75;
+}
+/* Nudged up by the label's height so the colon centres on the tiles, not the
+   tile-plus-label stack. */
+.fs-app .tb-sep { margin-top: 8px; font-size: 16px; font-weight: 700; opacity: 0.5; }
+
+.fs-app .tb-cta { flex-shrink: 0; }
+.fs-app .tb-cta button {
+  border: none; cursor: pointer;
+  padding: 12px 22px; border-radius: 8px;
+  font-size: 14px; font-weight: 700;
+  background: #fff; color: var(--brand);
+  transition: opacity .15s ease;
+}
+.fs-app .tb-bar.urgent .tb-cta button { color: #D2570A; }
+.fs-app .tb-cta button:hover { opacity: 0.9; }
+
+.fs-app .tb-close {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  background: rgba(255, 255, 255, 0.18); border: none; color: #fff;
+  border-radius: 8px;
+  display: grid; place-items: center; cursor: pointer;
+  transition: background .15s ease;
+}
+.fs-app .tb-close:hover, .fs-app .tb-close:focus-visible { background: rgba(255, 255, 255, 0.32); }
+
+/* The message is the first thing to get its own row; the lead keeps the icon
+   beside it so the two read as one unit. */
+@media (max-width: 1140px) {
+  .fs-app .tb-bar { flex-wrap: wrap; gap: 14px 16px; }
+  .fs-app .tb-icon { order: 1; }
+  .fs-app .tb-lead { order: 2; padding-right: 0; border-right: none; }
+  .fs-app .tb-message { order: 4; flex-basis: 100%; }
+  .fs-app .tb-countdown { order: 5; }
+  .fs-app .tb-cta { order: 6; margin-left: auto; }
+  .fs-app .tb-close { order: 7; }
+}
+@media (max-width: 560px) {
+  .fs-app .tb-countdown { flex-basis: 100%; justify-content: space-between; gap: 4px; }
+  .fs-app .tb-tile { min-width: 0; width: 100%; }
+  .fs-app .tb-unit { flex: 1; }
+  /* CTA takes the rest of the row with the dismiss square parked beside it. */
+  .fs-app .tb-cta { flex: 1; margin-left: 0; }
+  .fs-app .tb-cta button { width: 100%; }
+}
 .fs-app .sb-user {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 8px;
@@ -2111,4 +2236,95 @@
 @media (prefers-reduced-motion: reduce) {
   .fs-app .oa-cat-card, .fs-app .oa-cta { transition: none; }
   .fs-app .oa-cat-card:hover, .fs-app .oa-cta:hover { transform: none; }
+}
+
+/* === Trial-ended gate ===
+   Full-viewport paywall shown once a free trial is spent. Unlike .modal-bg (a
+   dark scrim over a still-usable page) this blurs the ENTIRE app — sidebar and
+   topbar included — because the gate is not dismissible: the only ways out are
+   the two CTAs inside it. The blur keeps the user's own data recognisable
+   behind the card, which is the point of the pitch, without leaving it legible.
+   Scoped under .fs-app like the rest of the dashboard shell. */
+/* The blur lives on the CONTENT, not on the overlay. backdrop-filter frosts only
+   what is painted beneath an element and is silently defeated by an ancestor that
+   establishes a containing block (transform/filter/will-change), which is why the
+   first attempt at this rendered sharp. Filtering the subtree always works.
+   pointer-events is belt-and-braces over the `inert` attribute on the same node. */
+.fs-app .trial-gate-blur {
+  filter: blur(7px) saturate(0.92);
+  transform: scale(1.012); /* hides the soft transparent edge blur leaves behind */
+  transform-origin: center;
+  pointer-events: none;
+  user-select: none;
+  transition: filter .2s ease;
+}
+
+.fs-app .trial-gate-bg {
+  position: fixed; inset: 0;
+  z-index: 200; /* above .modal-bg's 100 — nothing should stack over the gate */
+  display: grid; place-items: center;
+  padding: 24px;
+  /* A light wash to lift the card off the frosted page. Kept translucent so the
+     user's own data stays recognisable underneath — that is the pitch. */
+  background: rgba(247, 248, 250, 0.45);
+}
+.dark .fs-app .trial-gate-bg { background: rgba(11, 13, 18, 0.5); }
+
+.fs-app .trial-gate {
+  width: 100%; max-width: 420px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 30px 30px 28px;
+  animation: tg-pop .18s ease-out;
+}
+@keyframes tg-pop {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .trial-gate { animation: none; }
+}
+
+.fs-app .trial-gate-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-bottom: 14px;
+  color: var(--brand);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .09em; text-transform: uppercase;
+}
+.fs-app .trial-gate-title {
+  margin: 0 0 12px;
+  font-size: 26px; font-weight: 700; line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.fs-app .trial-gate-body {
+  margin: 0 0 22px;
+  font-size: 13.5px; line-height: 1.62;
+  color: var(--text-soft);
+}
+.fs-app .trial-gate-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+/* Roomier than the dashboard's default .btn — this is the only thing on screen. */
+.fs-app .trial-gate .btn {
+  padding: 11px 20px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.fs-app .trial-gate .btn.ghost {
+  background: transparent; border-color: transparent; color: var(--text-soft);
+}
+.fs-app .trial-gate .btn.ghost:hover { background: var(--inset); color: var(--text); }
+.fs-app .trial-gate-note {
+  margin-top: 16px;
+  font-size: 12px; color: var(--text-soft); opacity: .85;
+}
+
+@media (max-width: 480px) {
+  .fs-app .trial-gate { padding: 24px 22px 22px; }
+  .fs-app .trial-gate-title { font-size: 22px; }
+  .fs-app .trial-gate-actions .btn { flex: 1 1 auto; justify-content: center; }
 }

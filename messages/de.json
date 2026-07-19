@@ -255,7 +255,7 @@
     "errorEmailRequired": "Bitte gib deine E-Mail ein.",
     "errorAllDigits": "Bitte gib alle 6 Ziffern ein.",
     "errorVerifyFailed": "Ungültiger oder abgelaufener Code. Bitte versuche es erneut.",
-    "asideHeadline": "Anmelden,{br}ganz einfach.",
+    "asideHeadline": "Anmelden,<br></br>ganz einfach.",
     "asideSubtitle": "Ein Code in deinem Postfach und du bist drin. Keine Passwörter zum Merken."
   },
   "pricing": {
@@ -494,7 +494,9 @@
     "accountMenu": "Kontomenü",
     "signOut": "Abmelden",
     "keywordAnalysis": "Keyword-Analyse",
-    "onPageAudit": "On-Page-Audit"
+    "onPageAudit": "On-Page-Audit",
+    "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
+    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",
@@ -1150,18 +1152,25 @@
     "bodyAiLimit": "Du hast alle KI-Analysen für heute verbraucht ({used} von {limit}). Jede 1 $/Monat bringt 2 Analysen pro Tag — erweitere deinen Tarif oder versuch es morgen erneut."
   },
   "trialCountdown": {
-    "daysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} in deinem kostenlosen Test",
-    "hoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} in deinem kostenlosen Test",
-    "checksLeft": "{checks, plural, one {# Rank-Check} other {# Rank-Checks}} noch verfügbar",
     "cta": "Tarife ansehen",
-    "dismiss": "Schließen"
+    "dismiss": "Schließen",
+    "eyebrow": "Kostenloser Test",
+    "lead": "Endet bald",
+    "leadUrgent": "Letzter Tag",
+    "message": "Unbegrenzte Keywords, tägliche Updates und API-Zugang. <hl>Upgrade vor Ende deines Tests.</hl>",
+    "unitDays": "Tage",
+    "unitHours": "Std",
+    "unitMins": "Min",
+    "unitSecs": "Sek"
   },
   "trialGate": {
-    "title": "Dein kostenloser Test ist beendet",
-    "body": "Abonniere, um deine Rankings weiter zu verfolgen. Deine Projekte und dein Verlauf bleiben erhalten — es geht genau dort weiter, wo du aufgehört hast.",
-    "bodyCanExtend": "Abonniere, um deine Rankings weiter zu verfolgen, oder nutze deine einmalige Verlängerung, um zu Ende zu bringen, was du begonnen hast. Deine Projekte und dein Verlauf bleiben erhalten.",
-    "extendCta": "Test verlängern",
+    "eyebrow": "Test beendet",
+    "title": "Bring deine Rankings weiter voran.",
+    "body": "Deine Projekte und dein Verlauf bleiben erhalten. Abonniere, um das Tracking fortzusetzen.",
+    "bodyCanExtend": "Deine Projekte und dein Verlauf bleiben erhalten. Abonniere, um das Tracking fortzusetzen, oder nutze deine einmalige Verlängerung.",
+    "extendCta": "Verlängern",
     "plansCta": "Tarife ansehen",
+    "priceFrom": "Tarife ab {price}/Monat",
     "working": "Wird ausgeführt…",
     "alreadyExtended": "Du hast deine einmalige kostenlose Verlängerung bereits genutzt.",
     "extendSuccess": "Test verlängert — {days} Tage und {checks} Checks mehr.",

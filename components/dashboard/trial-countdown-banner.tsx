@@ -5,24 +5,17 @@
 // route while the trial lives.
 //
 // Once the trial ends this yields entirely to TrialEndedGate, which replaces the
-// page body with a blocking paywall. Also suppressed on /dashboard/billing, where
-// the page renders its own richer version with an inline extend button.
+// page body with a blocking paywall.
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Link, usePathname } from "@/i18n/navigation"
-import { api, getAccessToken } from "@/lib/api"
+import { useTrialUsage } from "@/hooks/use-trial-usage"
 import { Icon } from "@/components/dashboard/icons"
 
-interface UsageInfo {
-  plan: string
-  dailyRemaining: number
-  freeCheckTrialEndsAt: string | null
-  freeCheckTrialExhausted: boolean
-  freeTrialExtensionAvailable?: boolean
-}
-
-const HOUR_MS = 60 * 60 * 1000
+const SECOND_MS = 1000
+const MINUTE_MS = 60 * SECOND_MS
+const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 
 // Dismissal is scoped to the calendar day rather than forever: a trial that ends
@@ -31,27 +24,57 @@ const DAY_MS = 24 * HOUR_MS
 const dismissKey = (endsAt: string | null) =>
   `trialCountdown:${endsAt?.slice(0, 10) ?? "none"}:${new Date().toISOString().slice(0, 10)}`
 
+/** Live remaining time, re-rendered once a second. */
+function useCountdown(endsAtMs: number) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), SECOND_MS)
+    return () => window.clearInterval(id)
+  }, [])
+  const ms = Math.max(0, endsAtMs - now)
+  return {
+    days: Math.floor(ms / DAY_MS),
+    hours: Math.floor((ms % DAY_MS) / HOUR_MS),
+    mins: Math.floor((ms % HOUR_MS) / MINUTE_MS),
+    secs: Math.floor((ms % MINUTE_MS) / SECOND_MS),
+  }
+}
+
+/** One zero-padded unit tile with its label underneath. */
+function Unit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="tb-unit">
+      <span className="tb-tile">{String(value).padStart(2, "0")}</span>
+      <span className="tb-unit-label">{label}</span>
+    </div>
+  )
+}
+
 export function TrialCountdownBanner() {
   const t = useTranslations("trialCountdown")
   const pathname = usePathname()
-  const [usage, setUsage] = useState<UsageInfo | null>(null)
+  const { usage, trial } = useTrialUsage()
   const [dismissed, setDismissed] = useState(true) // assume hidden until we've checked storage
+  // Callback ref rather than useRef: the banner mounts long after this component
+  // first renders (usage has to arrive), and only a state ref re-runs the effect.
+  const [node, setNode] = useState<HTMLDivElement | null>(null)
 
-  const load = useCallback(async () => {
-    if (!getAccessToken()) return
-    try {
-      setUsage(await api.get<UsageInfo>("/api/usage"))
-    } catch {
-      // Never let a usage hiccup surface as an error banner — just stay hidden.
-    }
-  }, [])
-
+  // The sidebar is `position: sticky; height: 100vh`. Sitting a banner above it
+  // in the same grid would push that 100vh past the fold and clip the bottom of
+  // the sidebar, so publish our height and let the sidebar subtract it.
   useEffect(() => {
-    void load()
-    const onRefresh = () => void load()
-    window.addEventListener("usage:refresh", onRefresh)
-    return () => window.removeEventListener("usage:refresh", onRefresh)
-  }, [load])
+    if (!node) return
+    const root = document.documentElement
+    const publish = () => root.style.setProperty("--tb-h", `${node.offsetHeight}px`)
+    publish()
+    // Re-measure on wrap: the bar grows a row at the responsive breakpoints.
+    const ro = new ResizeObserver(publish)
+    ro.observe(node)
+    return () => {
+      ro.disconnect()
+      root.style.removeProperty("--tb-h")
+    }
+  }, [node])
 
   // Re-read dismissal whenever the trial end date changes (including the bump from
   // redeeming an extension, which should un-dismiss the fresh countdown).
@@ -64,6 +87,10 @@ export function TrialCountdownBanner() {
     }
   }, [usage])
 
+  // Hooks must run unconditionally, so the countdown ticks against a harmless 0
+  // on the renders where there is no trial to show.
+  const left = useCountdown(trial?.endsAtMs ?? 0)
+
   const dismiss = () => {
     setDismissed(true)
     if (!usage) return
@@ -74,51 +101,48 @@ export function TrialCountdownBanner() {
     }
   }
 
-  if (!usage || usage.plan !== "free" || dismissed) return null
-  // Once the trial is over, TrialEndedGate takes the whole page — a countdown
-  // above it would be redundant at best and contradictory at worst.
-  if (usage.freeCheckTrialExhausted) return null
-  // The billing page says all of this itself, with an inline extend button.
-  if (pathname.startsWith("/dashboard/billing")) return null
+  // The hook returns a trial only while one is genuinely running (free plan, not
+  // exhausted, end date still ahead), so that null covers every hide-me case
+  // except dismissal and the pages that sell the plans themselves.
+  if (!trial || dismissed) return null
+  if (pathname.startsWith("/pricing")) return null
 
-  const remainingMs = usage.freeCheckTrialEndsAt
-    ? new Date(usage.freeCheckTrialEndsAt).getTime() - Date.now()
-    : NaN
-  // The server owns "is it over"; if our clock disagrees, stay quiet rather than
-  // render "0 days left".
-  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return null
-
-  const finalDay = remainingMs < DAY_MS
-  const message = finalDay
-    ? t("hoursLeft", { hours: Math.max(1, Math.ceil(remainingMs / HOUR_MS)) })
-    : t("daysLeft", { days: Math.ceil(remainingMs / DAY_MS) })
-
+  // `tb-bar`, not `trial-banner` — the pricing page already owns that class for
+  // its own callout, and its stylesheet loads after this one.
   return (
-    <div
-      className="tiny"
-      role="status"
-      style={{
-        margin: "0 0 16px",
-        padding: "10px 14px",
-        borderRadius: "var(--r-sm)",
-        // Escalate to the warning tone only on the last day, so the softer brand
-        // tone doesn't lose its meaning by crying wolf for a week.
-        background: finalDay ? "var(--warn-soft)" : "var(--brand-soft)",
-        color: finalDay ? "var(--warn)" : "var(--brand)",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        flexWrap: "wrap",
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 200 }}>
-        <strong style={{ fontWeight: 600 }}>{message}</strong>
-        {usage.dailyRemaining > 0 && <> · {t("checksLeft", { checks: usage.dailyRemaining })}</>}
+    <div ref={setNode} className={"tb-bar" + (trial.finalDay ? " urgent" : "")} role="status">
+      <span className="tb-icon" aria-hidden="true">
+        <Icon.hourglass size={18} />
       </span>
-      <Link href="/dashboard/billing" style={{ flexShrink: 0 }}>
-        <button type="button" className="btn primary">{t("cta")}</button>
+
+      <div className="tb-lead">
+        <span className="tb-eyebrow">{t("eyebrow")}</span>
+        <span className="tb-lead-word">{trial.finalDay ? t("leadUrgent") : t("lead")}</span>
+      </div>
+
+      <p className="tb-message">
+        {t.rich("message", {
+          hl: (chunks) => <span className="tb-hl">{chunks}</span>,
+        })}
+      </p>
+
+      {/* aria-hidden: the per-second tick would spam a screen reader, and the
+          same deadline is already stated in the message above. */}
+      <div className="tb-countdown" aria-hidden="true">
+        <Unit value={left.days} label={t("unitDays")} />
+        <span className="tb-sep">:</span>
+        <Unit value={left.hours} label={t("unitHours")} />
+        <span className="tb-sep">:</span>
+        <Unit value={left.mins} label={t("unitMins")} />
+        <span className="tb-sep">:</span>
+        <Unit value={left.secs} label={t("unitSecs")} />
+      </div>
+
+      <Link href="/pricing?clicked-buy-button" className="tb-cta">
+        <button type="button">{t("cta")}</button>
       </Link>
-      <button type="button" className="icon-btn" onClick={dismiss} aria-label={t("dismiss")}>
+
+      <button type="button" className="tb-close" onClick={dismiss} aria-label={t("dismiss")}>
         <Icon.close />
       </button>
     </div>
