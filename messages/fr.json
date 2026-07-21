@@ -787,7 +787,15 @@
     "statusChecking": "{count, plural, one {# mot-clé en cours de vérification} other {# mots-clés en cours de vérification}}",
     "statusQueued": "{count, plural, one {# mot-clé en file d'attente} other {# mots-clés en file d'attente}}",
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
-    "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute"
+    "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
+    "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
+    "aiChipsLabel": "Suggestions IA pour votre site — cliquez pour ajouter",
+    "aiAddTopN": "Ajouter les {n} meilleurs",
+    "aiFailedHint": "Nous n'avons pas pu analyser votre site automatiquement. Ajoutez vos mots-clés ci-dessous.",
+    "aiAnalyzingDomain": "Analyse de <b>{domain}</b>",
+    "aiStageRead": "Lecture de votre site",
+    "aiStageIdeas": "Recherche d'idées de mots-clés",
+    "aiStageVolume": "Vérification des volumes de recherche"
   },
   "dashKeywords": {
     "headerEyebrow": "SUIVI DE POSITION",
@@ -1068,7 +1076,8 @@
     "aiPreviewsNow": "Les nouvelles analyses s'exécutent en aperçu jusqu'à minuit (UTC)",
     "upgradeCta": "Passez à l'offre supérieure",
     "chipLabelBoth": "Utilisation — {checksUsed}/{checksLimit} vérifications, {aiUsed}/{aiLimit} analyses IA aujourd'hui",
-    "chipLabelChecks": "Utilisation — {used}/{limit} vérifications aujourd'hui"
+    "chipLabelChecks": "Utilisation — {used}/{limit} vérifications aujourd'hui",
+    "trialChecksTotal": "Vérifications d'essai"
   },
   "dashSearchConsole": {
     "backToProject": "Retour au projet",
@@ -1149,7 +1158,11 @@
     "subscribeCta": "Voir les forfaits",
     "upgraded": "Mis à jour : {checks, number} vérifications/jour.",
     "upgradeFailed": "Impossible de mettre à jour votre forfait. Veuillez réessayer.",
-    "bodyAiLimit": "Vous avez utilisé toutes les analyses IA du jour ({used} sur {limit}). Chaque 1 $/mois ajoute 2 analyses par jour — augmentez votre forfait ou réessayez demain."
+    "bodyAiLimit": "Vous avez utilisé toutes les analyses IA du jour ({used} sur {limit}). Chaque 1 $/mois ajoute 2 analyses par jour — augmentez votre forfait ou réessayez demain.",
+    "titleFreeDaily": "Vos vérifications du jour sont épuisées",
+    "bodyFreeDailyQuota": "Vous avez utilisé {used} des {limit} vérifications gratuites aujourd'hui. Elles sont réinitialisées à minuit UTC — votre essai continue.",
+    "gotIt": "Compris",
+    "seePlans": "Voir les forfaits"
   },
   "trialCountdown": {
     "cta": "Voir les offres",
@@ -1161,7 +1174,8 @@
     "unitDays": "Jours",
     "unitHours": "Hrs",
     "unitMins": "Min",
-    "unitSecs": "Sec"
+    "unitSecs": "Sec",
+    "checksToday": "{n} sur {limit} vérifications aujourd'hui"
   },
   "trialGate": {
     "eyebrow": "Essai terminé",

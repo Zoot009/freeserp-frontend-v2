@@ -787,7 +787,15 @@
     "statusChecking": "{count, plural, one {# palabra clave comprobándose} other {# palabras clave comprobándose}}",
     "statusQueued": "{count, plural, one {# palabra clave en cola} other {# palabras clave en cola}}",
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
-    "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto"
+    "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
+    "aiSkip": "Omitir y añadir palabras clave manualmente",
+    "aiChipsLabel": "Sugerencias de IA para tu sitio: haz clic para añadir",
+    "aiAddTopN": "Añadir las {n} mejores",
+    "aiFailedHint": "No hemos podido analizar tu sitio automáticamente. Añade tus palabras clave abajo.",
+    "aiAnalyzingDomain": "Analizando <b>{domain}</b>",
+    "aiStageRead": "Leyendo tu sitio web",
+    "aiStageIdeas": "Buscando ideas de palabras clave",
+    "aiStageVolume": "Consultando volúmenes de búsqueda"
   },
   "dashKeywords": {
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",
@@ -1068,7 +1076,8 @@
     "aiPreviewsNow": "Los nuevos análisis se ejecutan como vista previa hasta medianoche (UTC)",
     "upgradeCta": "Mejora tu plan para más límites",
     "chipLabelBoth": "Uso — {checksUsed}/{checksLimit} comprobaciones, {aiUsed}/{aiLimit} análisis con IA hoy",
-    "chipLabelChecks": "Uso — {used}/{limit} comprobaciones hoy"
+    "chipLabelChecks": "Uso — {used}/{limit} comprobaciones hoy",
+    "trialChecksTotal": "Comprobaciones de prueba"
   },
   "dashSearchConsole": {
     "backToProject": "Volver al proyecto",
@@ -1149,7 +1158,11 @@
     "subscribeCta": "Ver planes",
     "upgraded": "Actualizado a {checks, number} comprobaciones/día.",
     "upgradeFailed": "No se pudo actualizar tu plan. Inténtalo de nuevo.",
-    "bodyAiLimit": "Has usado todos los análisis de IA de hoy ({used} de {limit}). Cada 1 $/mes añade 2 análisis al día — amplía tu plan para subir el límite o inténtalo mañana."
+    "bodyAiLimit": "Has usado todos los análisis de IA de hoy ({used} de {limit}). Cada 1 $/mes añade 2 análisis al día — amplía tu plan para subir el límite o inténtalo mañana.",
+    "titleFreeDaily": "Has usado tus comprobaciones de hoy",
+    "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC — tu prueba sigue activa.",
+    "gotIt": "Entendido",
+    "seePlans": "Ver planes"
   },
   "trialCountdown": {
     "cta": "Ver planes",
@@ -1161,7 +1174,8 @@
     "unitDays": "Días",
     "unitHours": "Hrs",
     "unitMins": "Min",
-    "unitSecs": "Seg"
+    "unitSecs": "Seg",
+    "checksToday": "{n} de {limit} comprobaciones hoy"
   },
   "trialGate": {
     "eyebrow": "Prueba finalizada",

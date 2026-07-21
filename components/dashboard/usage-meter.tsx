@@ -26,6 +26,11 @@ interface UsageInfo {
   // null/false for paid plans.
   freeCheckTrialEndsAt: string | null
   freeCheckTrialExhausted: boolean
+  // Free-trial lifetime ceiling. null on paid, absent on older backends — the
+  // trial-total row is skipped rather than shown as 0/0.
+  trialLifetimeLimit?: number | null
+  trialLifetimeUsed?: number | null
+  trialLifetimeRemaining?: number | null
   // Absent on older backends — the AI ring is skipped rather than shown as 0/0.
   aiAnalyses?: AiAnalyses
 }
@@ -183,13 +188,16 @@ export function UsageMeter() {
     ? Math.max(0, Math.ceil((new Date(usage.freeCheckTrialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
     : null
 
+  // The ring meters TODAY on every plan now — free trials get a per-day allowance
+  // that resets at UTC midnight, so "left in trial" would misread the number.
+  // What's left of the whole trial is a separate row below.
   const checksNote = isPaid
     ? t("leftToday", { n: usage.dailyRemaining })
     : usage.freeCheckTrialExhausted
       ? t("trialEnded")
       : trialDaysLeft != null
-        ? `${t("leftInTrial", { n: usage.dailyRemaining })} · ${t("trialDaysLeft", { days: trialDaysLeft })}`
-        : t("leftInTrial", { n: usage.dailyRemaining })
+        ? `${t("leftToday", { n: usage.dailyRemaining })} · ${t("trialDaysLeft", { days: trialDaysLeft })}`
+        : t("leftToday", { n: usage.dailyRemaining })
 
   const aiNote = ai
     ? ai.degrades
@@ -284,6 +292,19 @@ export function UsageMeter() {
             danger={checksExhausted}
             note={checksNote}
           />
+          {!isPaid && usage.trialLifetimeLimit != null && (
+            // The trial's terminal ceiling, separate from today's allowance above.
+            // Without this a free user sees "3 / 3" every day with no sense of how
+            // much trial is actually left.
+            <MeterRow
+              label={t("trialChecksTotal")}
+              used={usage.trialLifetimeUsed ?? 0}
+              limit={usage.trialLifetimeLimit}
+              color="var(--meter-checks)"
+              danger={(usage.trialLifetimeRemaining ?? 0) <= 0}
+              note={t("leftInTrial", { n: usage.trialLifetimeRemaining ?? 0 })}
+            />
+          )}
           {ai && (
             <MeterRow
               label={t("aiAnalyses")}
