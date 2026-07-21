@@ -788,6 +788,8 @@
     "statusQueued": "{count, plural, one {# keyword queued} other {# keywords queued}}",
     "statusPendingProcessing": "{pending} pending, {processing} processing",
     "checkStay": "fresh ranks land here automatically, usually under a minute",
+    "locked": "Locked",
+    "lockedTip": "You've used today's {limit} checks. Upgrade to Premium to track more than {limit} keywords per day.",
     "aiSkip": "Skip and add keywords manually",
     "aiChipsLabel": "AI suggestions for your site — click to add",
     "aiAddTopN": "Add top {n}",

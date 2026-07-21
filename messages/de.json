@@ -788,6 +788,8 @@
     "statusQueued": "{count, plural, one {# Keyword in Warteschlange} other {# Keywords in Warteschlange}}",
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
     "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
+    "locked": "Gesperrt",
+    "lockedTip": "Du hast deine {limit} Prüfungen für heute verbraucht. Upgrade auf Premium, um mehr als {limit} Keywords pro Tag zu verfolgen.",
     "aiSkip": "Überspringen und Keywords manuell hinzufügen",
     "aiChipsLabel": "KI-Vorschläge für deine Website — zum Hinzufügen klicken",
     "aiAddTopN": "Top {n} hinzufügen",

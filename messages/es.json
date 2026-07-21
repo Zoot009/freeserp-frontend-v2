@@ -788,6 +788,8 @@
     "statusQueued": "{count, plural, one {# palabra clave en cola} other {# palabras clave en cola}}",
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
     "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
+    "locked": "Bloqueada",
+    "lockedTip": "Has usado tus {limit} comprobaciones de hoy. Mejora a Premium para monitorear más de {limit} palabras clave al día.",
     "aiSkip": "Omitir y añadir palabras clave manualmente",
     "aiChipsLabel": "Sugerencias de IA para tu sitio: haz clic para añadir",
     "aiAddTopN": "Añadir las {n} mejores",

@@ -132,6 +132,12 @@ export const Icon = {
       <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  lock: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <rect x="3.2" y="7" width="9.6" height="6.6" rx="1.6" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  ),
   trash: ({ size = 14, ...p }: IconProps) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
       <path d="M2.8 4.2h10.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

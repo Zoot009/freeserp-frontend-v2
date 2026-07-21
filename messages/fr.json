@@ -788,6 +788,8 @@
     "statusQueued": "{count, plural, one {# mot-clé en file d'attente} other {# mots-clés en file d'attente}}",
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
+    "locked": "Verrouillé",
+    "lockedTip": "Vous avez utilisé vos {limit} vérifications du jour. Passez à Premium pour suivre plus de {limit} mots-clés par jour.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
     "aiChipsLabel": "Suggestions IA pour votre site — cliquez pour ajouter",
     "aiAddTopN": "Ajouter les {n} meilleurs",

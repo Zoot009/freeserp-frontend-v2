@@ -696,6 +696,18 @@
 .fs-app .auto-toggle.on .track { background: var(--brand); }
 .fs-app .auto-toggle.on .knob { transform: translateX(13px); }
 
+/* A keyword today's plan budget couldn't cover — shown in place of its position
+   as a lock chip that links to pricing. */
+.fs-app .kw-locked {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--warn-soft); color: var(--warn);
+  font-size: 11.5px; font-weight: 600;
+  text-decoration: none; white-space: nowrap;
+  transition: filter .12s ease;
+}
+.fs-app .kw-locked:hover { filter: brightness(0.94); }
+
 /* Check-in-progress strip — a brand-tinted "working" banner (spinner + status +
    an indeterminate sliding bar) shown while keywords are being checked. */
 .fs-app .check-banner {

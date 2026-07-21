@@ -831,6 +831,9 @@ export default function ProjectKeywordsPage() {
 
   // Action state
   const [checking, setChecking] = useState(false)
+  // Keywords today's plan budget couldn't cover on the last run — shown locked
+  // with an upgrade prompt rather than silently left unchecked.
+  const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
   // Keyword IDs with a per-keyword refresh in flight (drives the ↻ spinner).
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -1180,7 +1183,14 @@ export default function ProjectKeywordsPage() {
     setChecking(true); setError("")
     try {
       const keywordIds = selectedKeywords.size > 0 ? Array.from(selectedKeywords) : undefined
-      await api.post(`/api/projects/${project.id}/check`, { keywordIds })
+      // The backend now runs a PARTIAL check when today's budget only covers some
+      // of the batch, handing back the keywords it couldn't afford. Lock those in
+      // the table behind an upgrade prompt instead of failing the whole run.
+      const res = await api.post<{ scheduled: number; skippedKeywordIds?: string[] }>(
+        `/api/projects/${project.id}/check`,
+        { keywordIds },
+      )
+      setLockedKwIds(new Set(res?.skippedKeywordIds ?? []))
       if (isFirstCheck) trackOnce("first-rank-check-button-clicked")
       track("rank_check_run", { projectId: project.id, keywordCount: keywordIds?.length ?? project.keywords.length })
       setSelectedKeywords(new Set())
@@ -1206,6 +1216,14 @@ export default function ProjectKeywordsPage() {
     setError("")
     try {
       await api.post(`/api/projects/${project.id}/check`, { keywordIds: [kwId] })
+      // Budget covered it after all (quota reset, or an upgrade) — drop any lock
+      // left on this row by an earlier partial run.
+      setLockedKwIds((prev) => {
+        if (!prev.has(kwId)) return prev
+        const next = new Set(prev)
+        next.delete(kwId)
+        return next
+      })
       // Let the SerpTask register, then reload so the row flips to PROCESSING;
       // the existing 3s status poll carries it to COMPLETED.
       setTimeout(() => load(true), 1500)
@@ -2108,11 +2126,20 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
-                          {/* Inline delta only when there was actual movement —
-                              a "—" placeholder next to the badge reads as clutter. */}
-                          {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (
-                            <DeltaCell from={kw.position + kw.d1} to={kw.position} />
+                          {lockedKwIds.has(kw.id) ? (
+                            // Today's plan budget didn't stretch to this keyword.
+                            <Link href="/pricing?clicked-buy-button" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
+                              <Icon.lock size={11} /> {t("locked")}
+                            </Link>
+                          ) : (
+                            <>
+                              <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
+                              {/* Inline delta only when there was actual movement —
+                                  a "—" placeholder next to the badge reads as clutter. */}
+                              {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (
+                                <DeltaCell from={kw.position + kw.d1} to={kw.position} />
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
