@@ -12,9 +12,22 @@ import { fetchBillingConfig } from "@/lib/billing-config"
 
 export interface TrialUsage {
   plan: string
+  dailyUsed: number
+  dailyLimit: number
   dailyRemaining: number
   freeCheckTrialEndsAt: string | null
+  /**
+   * TERMINAL — the trial window elapsed or the lifetime ceiling was hit. This is
+   * the paywall flag. A free user who has merely spent today's allowance is NOT
+   * exhausted; see freeTrialDailyExhausted.
+   */
   freeCheckTrialExhausted: boolean
+  /** Today's allowance is spent, resets at UTC midnight. Never a paywall. */
+  freeTrialDailyExhausted?: boolean
+  /** Trial-wide ceiling. null on paid plans, absent from an older backend. */
+  trialLifetimeLimit?: number | null
+  trialLifetimeUsed?: number | null
+  trialLifetimeRemaining?: number | null
   freeTrialExtensionAvailable?: boolean
 }
 

@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
 import type { AnalysisData } from "@/types/competitor-analysis"
 import { computeSeoScore, scoreColor, type SeoScoreBreakdown } from "@/lib/seoScorer"
+import { crawlErrorCopy } from "@/lib/crawl-error"
 
 interface Props {
   analysis: AnalysisData
@@ -123,6 +124,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                       {analysis.competitors.map((comp, i) => {
                         const isFailed = comp.crawlMethod === 'failed' || comp.crawlMethod === 'minimal' || comp.wordCount === 0
                         const isRecrawling = recrawlingDomains.has(comp.domain)
+                        const err = isFailed ? crawlErrorCopy(comp.crawlError) : null
                         return (
                           <th key={i} className="text-center align-top">
                             <div className={`cmp-head-tile${isFailed ? ' failed' : ''}`}>
@@ -136,7 +138,17 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                               {isFailed || isRecrawling ? (
                                 <>
                                   <p className="font-sans font-semibold tabular-nums text-2xl tracking-tight leading-none text-[color:var(--neg)]">—</p>
-                                  <p className="text-[11px] text-[color:var(--neg)] mt-1">Crawl Failed</p>
+                                  {/* A healthy domain being manually recrawled must not read as a failure. */}
+                                  {isFailed ? (
+                                    <p
+                                      className="text-[11px] text-[color:var(--neg)] mt-1 cursor-help underline decoration-dotted underline-offset-2"
+                                      title={err!.detail}
+                                    >
+                                      {err!.label}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-[color:var(--text-mute)] mt-1">Fetching…</p>
+                                  )}
                                   <div className="mt-2">
                                     {isRecrawling ? (
                                       <span
@@ -145,7 +157,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                       >
                                         Recrawling…
                                       </span>
-                                    ) : (
+                                    ) : err?.retryable ? (
                                       <button
                                         onClick={() => onRecrawl?.(comp.domain)}
                                         className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 border border-[color:var(--border)] text-[color:var(--text-soft)] bg-[color:var(--bg)] hover:bg-[color:var(--bg-inset)] hover:text-[color:var(--text)] transition-colors"
@@ -153,7 +165,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                       >
                                         ↺ Recrawl
                                       </button>
-                                    )}
+                                    ) : null}
                                   </div>
                                 </>
                               ) : (

@@ -72,7 +72,22 @@ export interface CompetitorResult {
   }>
   fullCrawlData: CrawlData | null
   crawlMethod?: string | null
+  crawlError?: CrawlError | null
   internalCrawlStatus?: 'pending' | 'crawling' | 'done' | 'failed' | 'locked'
+}
+
+export type CrawlErrorCode =
+  | 'BOT_PROTECTION'
+  | 'HTTP_ERROR'
+  | 'TIMEOUT'
+  | 'UNREACHABLE'
+  | 'THIN_CONTENT'
+  | 'UNKNOWN'
+
+// Present only when the crawl bottomed out with no usable data.
+export interface CrawlError {
+  code: CrawlErrorCode
+  httpStatus?: number | null
 }
 
 export interface PageProgress {

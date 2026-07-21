@@ -20,6 +20,11 @@ export interface BillingConfig {
   // because a backend deployed before that feature omits them — call sites fall
   // back rather than rendering "extend by undefined days" mid-rollout.
   freeTrial: {
+    /** Checks per UTC day during the trial, resetting at midnight. */
+    dailyChecks?: number
+    /** Cumulative ceiling across the whole trial. */
+    lifetimeChecks?: number
+    /** @deprecated alias for lifetimeChecks — drop once every backend serves the new keys. */
     totalChecks: number
     windowDays: number
     extensionDays?: number
@@ -37,7 +42,14 @@ export const FALLBACK_BILLING_CONFIG: BillingConfig = {
   perWorkerDailyChecks: SEARCHES_PER_WORKER,
   pricePerWorkerCents: { month: PRICE_PER_WORKER_USD * 100, year: PRICE_PER_WORKER_YEAR_USD * 100 },
   intervals: ["month", "year"],
-  freeTrial: { totalChecks: 3, windowDays: 7, extensionDays: 2, extensionChecks: 2 },
+  freeTrial: {
+    dailyChecks: 3,
+    lifetimeChecks: 21,
+    totalChecks: 21,
+    windowDays: 7,
+    extensionDays: 2,
+    extensionChecks: 6,
+  },
   liveCheckUnits: 1,
   priorityCheckUnits: 2,
 }

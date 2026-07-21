@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
@@ -337,6 +337,8 @@ function AddKeywordsModal({
   plan,
   domain,
   existingKeywords,
+  aiSuggestions,
+  aiStatus,
   onClose,
   onAdded,
 }: {
@@ -346,9 +348,15 @@ function AddKeywordsModal({
   // Project context used to bias keyword suggestions toward the site's niche.
   domain: string
   existingKeywords: string[]
+  // Whole-site keywords proposed by the AI from a crawl of the project's
+  // homepage. Distinct from the Google-autocomplete chips below, which are
+  // related-to-what-you-just-typed. Empty unless the run completed.
+  aiSuggestions?: AiSuggestion[]
+  aiStatus?: "idle" | "running" | "done" | "failed"
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
+  const t = useTranslations("projKeywords")
   const [raw, setRaw] = useState("")
   const [location, setLocation] = useState("in")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
@@ -475,6 +483,28 @@ function AddKeywordsModal({
     taRef.current?.focus()
   }
 
+  // AI chips the user hasn't already staged in the textarea. Filtering on
+  // `pendingSet` (not on a separate "added" list) means clicking a chip makes it
+  // disappear and deleting the line brings it back — same behaviour as the
+  // Google strip, one source of truth.
+  const visibleAiSuggestions = (aiSuggestions ?? []).filter((s) => !pendingSet.has(s.keyword.toLowerCase()))
+
+  // Bulk-add the top N. The whole point of the feature is that the user doesn't
+  // have to evaluate 20 keywords one by one — they're already volume-sorted.
+  // Routed through `raw` so the free-plan cap applies exactly as it does to
+  // manual typing.
+  const addTopAiSuggestions = () => {
+    if (atKeywordCap) return
+    const budget = remaining === Infinity ? AI_BULK_ADD_COUNT : Math.min(AI_BULK_ADD_COUNT, remaining - pendingLines.length)
+    const picks = visibleAiSuggestions.slice(0, Math.max(0, budget)).map((s) => s.keyword)
+    if (!picks.length) return
+    setRaw((prev) => {
+      const base = prev.replace(/[\s,]+$/, "")
+      return (base ? base + "\n" : "") + picks.join("\n") + "\n"
+    })
+    taRef.current?.focus()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
@@ -552,6 +582,59 @@ function AddKeywordsModal({
                       : `Free plan: up to ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keywords per project (${currentCount} used). Upgrade for unlimited.`}
                 </span>
 
+                {/* AI suggestions for the whole site, from a crawl of the
+                    homepage. Rendered ABOVE the Google strip and independent of
+                    it: these answer "what should this site target?", the ones
+                    below answer "what's related to what you just typed?". The
+                    Google strip needs a 2-char seed, so on a fresh project with
+                    an empty textarea these are the only chips showing — which
+                    is exactly the moment they matter. */}
+                {visibleAiSuggestions.length > 0 && (
+                  <div className="col" style={{ gap: 6, marginTop: 8 }}>
+                    <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                      <span className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span className="spark"><Icon.spark /></span> {t("aiChipsLabel")}
+                      </span>
+                      {visibleAiSuggestions.length > 1 && !atKeywordCap && (
+                        <button
+                          type="button"
+                          className="tiny"
+                          onClick={addTopAiSuggestions}
+                          style={{ background: "none", border: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 500 }}
+                        >
+                          {t("aiAddTopN", { n: Math.min(AI_BULK_ADD_COUNT, visibleAiSuggestions.length, remaining === Infinity ? AI_BULK_ADD_COUNT : remaining) })}
+                        </button>
+                      )}
+                    </div>
+                    <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                      {visibleAiSuggestions.slice(0, 20).map((s) => (
+                        <button
+                          key={s.keyword}
+                          type="button"
+                          className="chip brand"
+                          disabled={atKeywordCap}
+                          onClick={() => addSuggestion(s.keyword)}
+                          title={atKeywordCap
+                            ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})`
+                            : s.rationale ?? `Add "${s.keyword}"`}
+                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                        >
+                          + {s.keyword}
+                          {s.volume != null && (
+                            <span className="tiny muted" style={{ marginLeft: 6, fontFamily: "var(--font-mono)" }}>
+                              {formatVolume(s.volume)}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiStatus === "failed" && (
+                  <span className="tiny muted" style={{ marginTop: 8 }}>{t("aiFailedHint")}</span>
+                )}
+
                 {/* Live related-keyword suggestions (free Google autocomplete). */}
                 {seed.length >= 2 && (suggLoading || visibleSuggestions.length > 0) && (
                   <div className="col" style={{ gap: 6, marginTop: 8 }}>
@@ -611,12 +694,127 @@ function AddKeywordsModal({
   )
 }
 
+// ───── AI keyword suggestions ──────────────────────────────────────────────
+
+// One AI-proposed keyword, enriched with real DataForSEO volume. `volume` is
+// null both when the provider has no data and when the enrichment call failed —
+// the UI treats them identically (no badge).
+export interface AiSuggestion {
+  keyword: string
+  intent: "informational" | "commercial" | "transactional" | "navigational"
+  rationale?: string
+  group?: string
+  volume: number | null
+  trend?: MonthlySearch[]
+}
+
+interface SuggestionRun {
+  id: string
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
+  error: string | null
+  crawlMethod: string | null
+  suggestions: {
+    siteSummary: string | null
+    location: string
+    suggestions: AiSuggestion[]
+  } | null
+}
+
+// Give up on the analysis after this long and let the user get on with it. The
+// individual HTTP calls are all sub-second (202 + status polls); this bounds the
+// *job*, which crawls a third-party site and calls an LLM.
+const AI_ANALYSIS_TIMEOUT_MS = 90_000
+const AI_POLL_INTERVAL_MS = 3000
+// How many suggestions the "Add top N" shortcut stages at once.
+const AI_BULK_ADD_COUNT = 10
+
+function formatVolume(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, "")}k`
+  return String(v)
+}
+
+// Roughly how long a full run takes (crawl + LLM + volume lookup). Paces the
+// percentage only — the real finish is the COMPLETED status, which unmounts
+// this screen entirely.
+const AI_EXPECTED_MS = 22_000
+
+// The three stages are the real sequence the worker performs, in order (see
+// runKeywordSuggestions.worker.ts). The backend reports only PENDING →
+// PROCESSING → COMPLETED, not sub-steps, so the percentage is paced by elapsed
+// time rather than measured.
+//
+// Two rules stop it from lying outright: while the run is still queued the
+// number holds near zero (PENDING means no worker has picked it up yet), and it
+// stops at 99% — the last percent belongs to the completion event, not the clock.
+const AI_STAGE_COUNT = 3
+
+function AiAnalysisLoader({
+  domain,
+  status,
+  startedAt,
+  onSkip,
+  t,
+}: {
+  domain: string
+  status: SuggestionRun["status"] | undefined
+  startedAt: number
+  onSkip: () => void
+  t: ReturnType<typeof useTranslations>
+}) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - startedAt)
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Date.now() - startedAt), 200)
+    return () => clearInterval(id)
+  }, [startedAt])
+
+  const queued = status === "PENDING" || status === undefined
+  // Ease-out: brisk at first, slowing as it nears the cap, instead of racing to
+  // the ceiling and sitting there looking stalled.
+  const eased = 1 - Math.pow(1 - Math.min(1, elapsed / AI_EXPECTED_MS), 2)
+  const pct = queued ? Math.min(8, Math.round(eased * 99)) : Math.round(eased * 99)
+
+  // Stages derive from the same number, so the checklist can never contradict
+  // the percentage.
+  const stage = Math.min(AI_STAGE_COUNT - 1, Math.floor((pct / 100) * AI_STAGE_COUNT))
+  const stages = [t("aiStageRead"), t("aiStageIdeas"), t("aiStageVolume")]
+
+  return (
+    <div className="card ks-load" style={{ border: "1px dashed var(--border-strong)", background: "transparent" }}>
+      <div className="ks-head">
+        {t.rich("aiAnalyzingDomain", { domain, b: (c) => <b>{c}</b> })}
+      </div>
+
+      <div className="ks-pct" role="status" aria-live="polite">
+        {pct}<span>%</span>
+      </div>
+
+      <div className="ks-bar"><div className="ks-bar-fill" style={{ width: `${pct}%` }} /></div>
+
+      <div className="ks-steps">
+        {stages.map((label, i) => (
+          <div key={label} className={`ks-step${i < stage ? " done" : i === stage ? " active" : ""}`}>
+            <span className="ks-step-mark">{i < stage && <Icon.check />}</span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Escape hatch — the run continues in the background and its chips still
+          appear in the modal if it lands. */}
+      <button className="ks-bail" onClick={onSkip}>{t("aiSkip")}</button>
+    </div>
+  )
+}
+
 // ───── Page ────────────────────────────────────────────────────────────────
 
 export default function ProjectKeywordsPage() {
   const t = useTranslations("projKeywords")
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.id as string
   const { user, loading: authLoading, token, refreshUser } = useAuth()
   const { advanceFromStep, isActive: tutorialActive, step: tutorialStep } = useTutorial()
@@ -646,6 +844,40 @@ export default function ProjectKeywordsPage() {
   const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAddKw, setShowAddKw] = useState(false)
+
+  // ── AI keyword suggestions (new-project onboarding flow) ────────────────
+  // `?new=1` is set by the projects page right after creation. It puts this
+  // page into the analysis flow instead of showing an empty keyword table.
+  const isNewProject = searchParams.get("new") === "1"
+  const [aiRun, setAiRun] = useState<SuggestionRun | null>(null)
+  const [aiPhase, setAiPhase] = useState<"idle" | "running" | "done" | "failed">(
+    isNewProject ? "running" : "idle",
+  )
+  // Guards the START call only — polling must be free to re-arm on remount.
+  const aiStartedRef = useRef(false)
+  // Absolute give-up time, fixed on the first mount so StrictMode remounts and
+  // token refreshes can't keep extending the analysis screen indefinitely.
+  const aiDeadlineRef = useRef<number | null>(null)
+  // When the analysis screen first appeared. Drives the loader's stage clock,
+  // and is a ref (not state) so a StrictMode remount doesn't restart it.
+  const aiStartedAtRef = useRef<number>(Date.now())
+  const aiSuggestions = aiRun?.suggestions?.suggestions ?? []
+
+  // Leave the onboarding flow: drop `?new=1` so a later refresh or a bookmark
+  // doesn't drop the user back into the analysis screen.
+  //
+  // history.replaceState rather than router.replace on purpose. This page's
+  // useRouter comes from next/navigation (not @/i18n/navigation), so replacing
+  // with a bare "/dashboard/..." path would strip the locale prefix and bounce
+  // a Spanish user into English mid-onboarding. We only want to scrub a query
+  // param — no navigation, no re-render, no locale to get wrong.
+  const exitNewProjectFlow = useCallback(() => {
+    if (!isNewProject || typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("new")
+    window.history.replaceState(null, "", url.toString())
+  }, [isNewProject])
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
 
@@ -825,6 +1057,97 @@ export default function ProjectKeywordsPage() {
       .catch(() => { if (!cancelled) setFavReady(true) })
     return () => { cancelled = true }
   }, [token, user?.emailVerified])
+
+  // AI keyword suggestions for a brand-new project: kick off the run, then poll
+  // until it's terminal and open Add Keywords with whatever we got.
+  //
+  // The POST is idempotent server-side (it rejoins an in-flight or recent run
+  // rather than starting a second one), so a refresh mid-analysis costs nothing
+  // — that's what makes it safe to fire on every mount of a `?new=1` page.
+  useEffect(() => {
+    if (!isNewProject || !token || !user?.emailVerified) return
+    // Terminal — the run already resolved, don't re-arm anything.
+    if (aiPhase === "done" || aiPhase === "failed") return
+
+    let cancelled = false
+    let timer: ReturnType<typeof setInterval> | undefined
+    const stop = () => { if (timer) clearInterval(timer); timer = undefined }
+
+    const finish = (phase: "done" | "failed") => {
+      if (cancelled) return
+      stop()
+      setAiPhase(phase)
+      setShowAddKw(true)
+    }
+
+    const poll = async () => {
+      try {
+        const { run } = await api.get<{ run: SuggestionRun | null }>(
+          `/api/projects/${projectId}/keyword-suggestions`,
+        )
+        if (cancelled || !run) return
+        setAiRun(run)
+        if (run.status === "COMPLETED") finish("done")
+        else if (run.status === "FAILED") finish("failed")
+      } catch (err) {
+        // 404 (project deleted, so its run cascaded away) and 401/403 are
+        // permanent — retrying can only burn the full timeout on a screen that
+        // will never resolve. Fail fast into the manual flow instead.
+        const status = err instanceof ApiError ? err.status : 0
+        if (status === 404 || status === 401 || status === 403) {
+          finish("failed")
+          return
+        }
+        // Anything else (network blip, brief 5xx) — keep polling; the deadline
+        // effect below guarantees we don't wait forever.
+      }
+    }
+
+    // The ref gates ONLY the POST, never the polling setup. It used to gate the
+    // whole effect, which deadlocked the screen: React StrictMode (on by default
+    // in dev) mounts → unmounts → remounts, so the first mount set the ref and
+    // the cleanup tore down the interval AND the deadline, then the remount hit
+    // the ref and returned early — no poll, no timeout, spinner forever. A token
+    // refresh re-running this effect caused the same hang in production.
+    const alreadyStarted = aiStartedRef.current
+    aiStartedRef.current = true
+
+    const start = alreadyStarted
+      ? Promise.resolve()
+      // A failed start is still worth polling — getOrCreate is idempotent, so
+      // the run may already exist from a previous mount.
+      : api.post(`/api/projects/${projectId}/keyword-suggestions`, {}).catch(() => undefined)
+
+    void start.then(() => {
+      if (cancelled) return
+      void poll()
+      timer = setInterval(() => void poll(), AI_POLL_INTERVAL_MS)
+    })
+
+    return () => { cancelled = true; stop() }
+  }, [isNewProject, token, user?.emailVerified, projectId, aiPhase])
+
+  // The analysis deadline lives in its OWN effect, depending on neither `token`
+  // nor `emailVerified`. It used to sit in the polling effect above, which made
+  // it hostage to that effect's early return: when an access token expired and
+  // could not be refreshed, api.ts cleared it to null, `token` flipped, the
+  // cleanup killed the deadline, and the re-run bailed at the `!token` guard
+  // BEFORE re-arming it. aiPhase stayed "running" with nothing left to ever end
+  // it — the spinner ran forever. Anything that can strand the analysis screen
+  // must be timed out by a clock that cannot itself be torn down by that same
+  // condition.
+  useEffect(() => {
+    if (!isNewProject) return
+    if (aiPhase === "done" || aiPhase === "failed") return
+    // Anchored to the first mount so remounts can't keep pushing it out.
+    if (aiDeadlineRef.current === null) aiDeadlineRef.current = Date.now() + AI_ANALYSIS_TIMEOUT_MS
+    const remaining = Math.max(0, aiDeadlineRef.current - Date.now())
+    const deadline = setTimeout(() => {
+      setAiPhase("failed")
+      setShowAddKw(true)
+    }, remaining)
+    return () => clearTimeout(deadline)
+  }, [isNewProject, aiPhase])
 
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
   // transitions without a manual refresh. Stops once everything is terminal.
@@ -1646,9 +1969,18 @@ export default function ProjectKeywordsPage() {
             <CompetitorsCard projectId={project.id} yourAvg={stats.avgPos > 0 ? stats.avgPos : null} />
           </div>
 
-          {/* Right column — empty "Start tracking" state before any keywords
-              exist, otherwise the SERP rank-tracking table. */}
-          {project.keywords.length === 0 ? (
+          {/* Right column — the AI analysis screen for a just-created project,
+              then the empty "Start tracking" state before any keywords exist,
+              otherwise the SERP rank-tracking table. */}
+          {aiPhase === "running" ? (
+            <AiAnalysisLoader
+              domain={project.domain}
+              status={aiRun?.status}
+              startedAt={aiStartedAtRef.current}
+              onSkip={() => { setAiPhase("idle"); setShowAddKw(true); exitNewProjectFlow() }}
+              t={t}
+            />
+          ) : project.keywords.length === 0 ? (
             <div
               className="card"
               style={{
@@ -2105,8 +2437,16 @@ export default function ProjectKeywordsPage() {
           plan={plan}
           domain={project.domain}
           existingKeywords={project.keywords.map((k) => k.keyword)}
-          onClose={() => setShowAddKw(false)}
-          onAdded={(device) => { setShowAddKw(false); setDeviceTab(device); void load(); advanceFromStep(2) }}
+          aiSuggestions={aiSuggestions}
+          aiStatus={aiPhase}
+          onClose={() => { setShowAddKw(false); exitNewProjectFlow() }}
+          onAdded={(device) => {
+            setShowAddKw(false)
+            exitNewProjectFlow()
+            setDeviceTab(device)
+            void load()
+            advanceFromStep(2)
+          }}
         />,
         document.body
       )}

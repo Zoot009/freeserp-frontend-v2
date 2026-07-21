@@ -124,6 +124,13 @@ export function TrialCountdownBanner() {
         {t.rich("message", {
           hl: (chunks) => <span className="tb-hl">{chunks}</span>,
         })}
+        {usage && (
+          // The window is only half the story — the daily allowance is what
+          // actually gates the next check, so state both.
+          <span className="tb-hl" style={{ marginLeft: 6 }}>
+            {t("checksToday", { n: usage.dailyRemaining, limit: usage.dailyLimit })}
+          </span>
+        )}
       </p>
 
       {/* aria-hidden: the per-second tick would spam a screen reader, and the

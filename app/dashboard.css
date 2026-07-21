@@ -2328,3 +2328,108 @@
   .fs-app .trial-gate-title { font-size: 22px; }
   .fs-app .trial-gate-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AI KEYWORD SUGGESTIONS — analysis loading state
+   A percentage, a bar, and the three stages of work the backend actually
+   performs. All three read from one number, so the count, the bar and the
+   checklist can never disagree with each other.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.fs-app .ks-load {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px;
+  min-height: 300px;
+}
+
+.fs-app .ks-head { font-size: 14px; color: var(--text); margin-bottom: 10px; }
+.fs-app .ks-head b {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--brand);
+}
+
+/* Percentage — the focal point. Tabular figures so the number doesn't jitter
+   as it counts up. */
+.fs-app .ks-pct {
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.fs-app .ks-pct span {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-mute);
+  margin-left: 2px;
+}
+
+.fs-app .ks-bar {
+  width: 100%; max-width: 320px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  overflow: hidden;
+  margin: 18px 0 22px;
+}
+.fs-app .ks-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+
+/* Stage checklist */
+.fs-app .ks-steps { display: flex; flex-direction: column; gap: 10px; }
+.fs-app .ks-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px;
+  color: var(--text-mute);
+  transition: color .3s ease;
+}
+.fs-app .ks-step.done,
+.fs-app .ks-step.active { color: var(--text); }
+
+.fs-app .ks-step-mark {
+  width: 17px; height: 17px;
+  flex: none;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--border-strong);
+  color: #fff;
+  transition: border-color .3s ease, background .3s ease;
+}
+.fs-app .ks-step.done .ks-step-mark {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+.fs-app .ks-step.done .ks-step-mark svg { width: 10px; height: 10px; }
+/* Active row: a ring with one transparent quadrant, spun — so exactly one
+   stage is visibly working at a time. */
+.fs-app .ks-step.active .ks-step-mark {
+  border-color: var(--brand);
+  border-top-color: transparent;
+  animation: fs-spin .8s linear infinite;
+}
+
+.fs-app .ks-bail {
+  margin-top: 22px;
+  font-size: 12.5px;
+  color: var(--text-mute);
+  background: none; border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 8px;
+}
+.fs-app .ks-bail:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .ks-step.active .ks-step-mark { animation: none; border-top-color: var(--brand); }
+  .fs-app .ks-bar-fill { transition: none; }
+}

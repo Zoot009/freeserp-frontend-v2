@@ -50,6 +50,10 @@ const REOPEN_COOLDOWN_MS = 5_000
 const KNOWN_CODES = new Set([
   "daily_quota_exhausted",
   "free_trial_exhausted",
+  // Free user out of checks for TODAY only — the trial is still running and
+  // resets at midnight UTC. Deliberately not a paywall: there is nothing to
+  // buy yet and no extension to redeem, so this renders as an FYI.
+  "free_daily_quota_exhausted",
   "project_limit_reached",
   "keyword_limit_reached",
   "ai_analysis_limit_reached",
@@ -102,7 +106,7 @@ export function QuotaUpsellModal() {
         setChecksPerDay(cfg.perWorkerDailyChecks)
         setExtension({
           days: cfg.freeTrial?.extensionDays ?? 2,
-          checks: cfg.freeTrial?.extensionChecks ?? 2,
+          checks: cfg.freeTrial?.extensionChecks ?? 6,
         })
         if (u.plan === "paid") {
           // First configured tier strictly above the current count — also lifts
@@ -150,7 +154,7 @@ export function QuotaUpsellModal() {
       await api.post("/api/billing/trial/extend", {})
       window.dispatchEvent(new Event("usage:refresh"))
       toast.success(
-        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 2 }),
+        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 6 }),
       )
       close()
     } catch (err) {
@@ -165,6 +169,10 @@ export function QuotaUpsellModal() {
   if (!open) return null
 
   const isPaid = usage?.plan === "paid"
+  // Out of checks for today, trial still alive. Informational — no upgrade push,
+  // no extension offer (there's nothing to extend yet), and the dismiss button
+  // becomes the primary action.
+  const isFreeDaily = code === "free_daily_quota_exhausted"
   // Only offered on the trial-exhausted paywall: the other 402 codes (project /
   // keyword / AI caps) aren't time-limited, so more trial days wouldn't lift them.
   const canExtend =
@@ -172,13 +180,15 @@ export function QuotaUpsellModal() {
   const bodyKey =
     code === "free_trial_exhausted"
       ? "bodyFreeTrial"
-      : code === "project_limit_reached"
-        ? "bodyProjectLimit"
-        : code === "keyword_limit_reached"
-          ? "bodyKeywordLimit"
-          : code === "ai_analysis_limit_reached"
-            ? "bodyAiLimit"
-            : "bodyDailyQuota"
+      : isFreeDaily
+        ? "bodyFreeDailyQuota"
+        : code === "project_limit_reached"
+          ? "bodyProjectLimit"
+          : code === "keyword_limit_reached"
+            ? "bodyKeywordLimit"
+            : code === "ai_analysis_limit_reached"
+              ? "bodyAiLimit"
+              : "bodyDailyQuota"
 
   return (
     <div className="fs-app">
@@ -190,7 +200,7 @@ export function QuotaUpsellModal() {
                 <span className="spark"><Icon.spark /></span> {t("eyebrow")}
               </div>
               <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
-                {isPaid ? t("titlePaid") : t("titleFree")}
+                {isPaid ? t("titlePaid") : isFreeDaily ? t("titleFreeDaily") : t("titleFree")}
               </div>
             </div>
             <button type="button" onClick={close} className="icon-btn" aria-label={t("close")} disabled={busy}>
@@ -246,7 +256,7 @@ export function QuotaUpsellModal() {
                 <div className="tiny muted" style={{ lineHeight: 1.55 }}>
                   {t("extendBody", {
                     days: extension?.days ?? 2,
-                    checks: extension?.checks ?? 2,
+                    checks: extension?.checks ?? 6,
                   })}
                 </div>
                 <div className="tiny muted" style={{ opacity: 0.8 }}>{t("extendOnce")}</div>
@@ -255,22 +265,39 @@ export function QuotaUpsellModal() {
           </div>
 
           <div className="modal-f">
-            <button type="button" className="btn" onClick={close} disabled={busy}>
-              {t("notNow")}
-            </button>
-            {canExtend && (
-              <button type="button" className="btn" onClick={redeemExtension} disabled={busy}>
-                {busy ? t("working") : t("extendCta", { days: extension?.days ?? 2 })}
-              </button>
-            )}
-            {isPaid && nextTier !== null ? (
-              <button type="button" className="btn primary" onClick={confirmUpgrade} disabled={busy}>
-                {busy ? t("working") : t("upgradeCta", { checks: nextTier * checksPerDay })}
-              </button>
+            {isFreeDaily ? (
+              // Dismissal is the primary action — the user has done nothing wrong
+              // and their checks come back tomorrow. Plans stay one click away as
+              // a secondary, so this is still an upsell surface without pretending
+              // the trial is over.
+              <>
+                <Link href="/pricing?clicked-buy-button" onClick={close}>
+                  <button type="button" className="btn">{t("seePlans")}</button>
+                </Link>
+                <button type="button" className="btn primary" onClick={close}>
+                  {t("gotIt")}
+                </button>
+              </>
             ) : (
-              <Link href="/pricing?clicked-buy-button" onClick={close}>
-                <button type="button" className="btn primary">{t("subscribeCta")}</button>
-              </Link>
+              <>
+                <button type="button" className="btn" onClick={close} disabled={busy}>
+                  {t("notNow")}
+                </button>
+                {canExtend && (
+                  <button type="button" className="btn" onClick={redeemExtension} disabled={busy}>
+                    {busy ? t("working") : t("extendCta", { days: extension?.days ?? 2 })}
+                  </button>
+                )}
+                {isPaid && nextTier !== null ? (
+                  <button type="button" className="btn primary" onClick={confirmUpgrade} disabled={busy}>
+                    {busy ? t("working") : t("upgradeCta", { checks: nextTier * checksPerDay })}
+                  </button>
+                ) : (
+                  <Link href="/pricing?clicked-buy-button" onClick={close}>
+                    <button type="button" className="btn primary">{t("subscribeCta")}</button>
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>

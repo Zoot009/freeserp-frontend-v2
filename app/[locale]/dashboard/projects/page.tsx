@@ -555,7 +555,12 @@ export default function ProjectsPage() {
             // state lives in TutorialProvider at the root layout level.
             advanceFromStep(1)
             // Newly-created project → jump straight into its keywords page.
-            router.push(`/dashboard/project/${p.id}/keywords`)
+            // `?new=1` puts that page into the onboarding flow: show the AI
+            // analysis screen, then auto-open Add Keywords with the suggestions.
+            // A query param rather than router state because state doesn't
+            // survive the navigation, and this way a refresh mid-analysis still
+            // lands the user back in the flow instead of on an empty table.
+            router.push(`/dashboard/project/${p.id}/keywords?new=1`)
           }}
         />
       )}

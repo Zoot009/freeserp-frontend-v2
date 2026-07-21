@@ -787,7 +787,15 @@
     "statusChecking": "{count, plural, one {# Keyword wird geprüft} other {# Keywords werden geprüft}}",
     "statusQueued": "{count, plural, one {# Keyword in Warteschlange} other {# Keywords in Warteschlange}}",
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
-    "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute"
+    "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
+    "aiSkip": "Überspringen und Keywords manuell hinzufügen",
+    "aiChipsLabel": "KI-Vorschläge für deine Website — zum Hinzufügen klicken",
+    "aiAddTopN": "Top {n} hinzufügen",
+    "aiFailedHint": "Wir konnten deine Website nicht automatisch analysieren. Füge deine Keywords unten hinzu.",
+    "aiAnalyzingDomain": "<b>{domain}</b> wird analysiert",
+    "aiStageRead": "Website wird gelesen",
+    "aiStageIdeas": "Keyword-Ideen werden gesucht",
+    "aiStageVolume": "Suchvolumen werden geprüft"
   },
   "dashKeywords": {
     "headerEyebrow": "RANKING-TRACKING",
@@ -1068,7 +1076,8 @@
     "aiPreviewsNow": "Neue Analysen laufen bis Mitternacht (UTC) als Vorschau",
     "upgradeCta": "Upgrade für höhere Limits",
     "chipLabelBoth": "Nutzung — {checksUsed}/{checksLimit} Rang-Prüfungen, {aiUsed}/{aiLimit} KI-Analysen heute",
-    "chipLabelChecks": "Nutzung — {used}/{limit} Rang-Prüfungen heute"
+    "chipLabelChecks": "Nutzung — {used}/{limit} Rang-Prüfungen heute",
+    "trialChecksTotal": "Test-Prüfungen"
   },
   "dashSearchConsole": {
     "backToProject": "Zurück zum Projekt",
@@ -1149,7 +1158,11 @@
     "subscribeCta": "Pläne ansehen",
     "upgraded": "Auf {checks, number} Checks/Tag aktualisiert.",
     "upgradeFailed": "Plan konnte nicht aktualisiert werden. Bitte versuche es erneut.",
-    "bodyAiLimit": "Du hast alle KI-Analysen für heute verbraucht ({used} von {limit}). Jede 1 $/Monat bringt 2 Analysen pro Tag — erweitere deinen Tarif oder versuch es morgen erneut."
+    "bodyAiLimit": "Du hast alle KI-Analysen für heute verbraucht ({used} von {limit}). Jede 1 $/Monat bringt 2 Analysen pro Tag — erweitere deinen Tarif oder versuch es morgen erneut.",
+    "titleFreeDaily": "Das waren die heutigen Prüfungen",
+    "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt — Ihre Testphase läuft weiter.",
+    "gotIt": "Verstanden",
+    "seePlans": "Pläne ansehen"
   },
   "trialCountdown": {
     "cta": "Tarife ansehen",
@@ -1161,7 +1174,8 @@
     "unitDays": "Tage",
     "unitHours": "Std",
     "unitMins": "Min",
-    "unitSecs": "Sek"
+    "unitSecs": "Sek",
+    "checksToday": "{n} von {limit} Prüfungen heute übrig"
   },
   "trialGate": {
     "eyebrow": "Test beendet",
