@@ -10,6 +10,7 @@ import { useGoogleLogin } from "@react-oauth/google"
 import { facebookLogin, isFacebookConfigured } from "@/lib/facebook"
 import gsap from "gsap"
 import Image from "next/image"
+import { persistPendingDomain } from "@/lib/pendingDomain"
 
 export default function SignupPage() {
   return (
@@ -23,6 +24,7 @@ function SignupForm() {
   const t = useTranslations("signup")
   const searchParams = useSearchParams()
   const keyword = searchParams.get("keyword") || ""
+  const pendingDomain = searchParams.get("domain") || ""
   const router = useRouter()
   const { user, loading: authLoading, register, loginWithGoogle, loginWithFacebook } = useAuth()
   const facebookEnabled = isFacebookConfigured()
@@ -45,6 +47,16 @@ function SignupForm() {
       router.push("/dashboard/projects")
     }
   }, [user, authLoading, router])
+
+  // Arriving from the marketing landing page's dashboard preview. The domain
+  // normally travels in a `.freeserp.com` cookie; this re-writes it on the app's
+  // own origin so the handoff still works if that cookie didn't survive (Safari
+  // ITP, a preview deployment on an unrelated host, cookies cleared between
+  // visits). Must happen HERE — the redirect above drops the query string, so
+  // /dashboard/projects never sees it otherwise.
+  useEffect(() => {
+    if (pendingDomain) persistPendingDomain(pendingDomain)
+  }, [pendingDomain])
 
   const googleLogin = useGoogleLogin({
     scope: "openid email profile",

@@ -13,6 +13,7 @@ import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
 import { trackEvent, trackMilestone } from "@/lib/track"
 import { track } from "@/lib/analytics"
+import { clearPendingDomain, projectNameFor, readPendingDomain } from "@/lib/pendingDomain"
 
 // Max projects a free user can own. Paid users are uncapped. Must stay in
 // sync with FREE_PROJECTS_LIMIT in freeserp-backend/src/routes/projects.js.
@@ -513,6 +514,43 @@ export default function ProjectsPage() {
     }, 10000)
     return () => clearInterval(interval)
   }, [verified, loadProjects, loadUsage])
+
+  // A visitor who previewed a domain on the marketing landing page arrives here
+  // with it in a cookie — create that project for them rather than dropping them
+  // on an empty dashboard. See lib/pendingDomain.ts for the handoff.
+  //
+  // Waits for projectsLoading to settle: the dedupe check below needs the real
+  // list, and acting on an empty in-flight list would create a duplicate.
+  const pendingDomainRef = useRef(false)
+  useEffect(() => {
+    if (!verified || projectsLoading || pendingDomainRef.current) return
+
+    const domain = readPendingDomain()
+    if (!domain) return
+    pendingDomainRef.current = true
+
+    // Cleared BEFORE the request, deliberately. If creation fails (free-plan
+    // project cap, offline, backend down) we do not want a cookie that retries
+    // on every single page load forever; the owner can add the project by hand.
+    clearPendingDomain()
+
+    if (projects.some((p) => p.domain?.toLowerCase().replace(/^www\./, "") === domain)) return
+
+    const wasEmpty = projects.length === 0
+    api
+      .post<ProjectSummary>("/api/projects", { name: projectNameFor(domain), domain })
+      .then((created) => {
+        if (!created?.id) return
+        setProjects((prev) => [{ ...created, _count: { keywords: 0 } }, ...prev])
+        // Drop them straight into their first project so the landing-page story
+        // finishes where it promised. With existing projects we stay put — a
+        // surprise redirect away from the grid they asked for would be worse.
+        if (wasEmpty) router.push(`/dashboard/project/${created.id}/keywords`)
+      })
+      .catch(() => {
+        /* Most likely the free-plan project cap. The grid still renders. */
+      })
+  }, [verified, projectsLoading, projects, router])
 
   if (loading || !user) {
     return (
