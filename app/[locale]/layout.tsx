@@ -18,6 +18,7 @@ import { ScrollProgress } from "@/components/scroll-progress"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
 import { UtmCapture } from "@/components/utm-capture"
+import { SessionReplay } from "@/components/session-replay"
 import { routing } from "@/i18n/routing"
 import "../globals.css"
 
@@ -164,6 +165,7 @@ export default async function LocaleLayout({
         <Suspense fallback={null}>
           <UtmCapture />
         </Suspense>
+        <SessionReplay />
       </body>
     </html>
   )
