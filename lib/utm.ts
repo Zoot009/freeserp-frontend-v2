@@ -15,6 +15,19 @@ export interface Utm {
   utmCampaign?: string
   utmContent?: string
   utmTerm?: string
+  // Meta (Facebook) ad identifiers. Mirrors freeserp-ui/lib/utm.ts — keep the two
+  // in sync. Present here because the marketing site forwards these across the
+  // origin hop to app.freeserp.com, so the touch recorded at /signup carries the
+  // ad id too. That second touch is what keeps the signup→ad join intact when the
+  // anonymous visitorId → userId back-fill misses (cleared cookies, Safari ITP).
+  metaCampaignId?: string
+  metaAdsetId?: string
+  metaAdId?: string
+  metaPlacement?: string
+  metaSiteSource?: string
+  // Meta's own click id. Not a join key (the Marketing API never exposes it) — it
+  // exists so we can measure how much Meta traffic arrived with unusable ad ids.
+  fbclid?: string
 }
 
 // UTM query-param name → our camelCase field.
@@ -24,6 +37,22 @@ const UTM_KEYS: Array<[string, keyof Utm]> = [
   ["utm_campaign", "utmCampaign"],
   ["utm_content", "utmContent"],
   ["utm_term", "utmTerm"],
+]
+
+// Accepted aliases per field, most specific first. fs_meta_* is what the marketing
+// site forwards; the bare Meta names are accepted too so an ad pointed straight at
+// the app still attributes. A value failing `pattern` (an unexpanded "{{ad.id}}")
+// falls through to the next alias rather than being stored — an id that could never
+// match an imported ad row is worse than no id at all.
+const META_ID_RE = /^\d{1,25}$/
+const FBCLID_RE = /^[A-Za-z0-9_.-]{1,255}$/
+const META_KEYS: Array<[readonly string[], keyof Utm, RegExp | null]> = [
+  [["fs_meta_campaign_id", "campaign_id"], "metaCampaignId", META_ID_RE],
+  [["fs_meta_adset_id", "adset_id"], "metaAdsetId", META_ID_RE],
+  [["fs_meta_ad_id", "ad_id"], "metaAdId", META_ID_RE],
+  [["fs_meta_placement", "placement"], "metaPlacement", null],
+  [["fs_meta_source", "site_source_name"], "metaSiteSource", null],
+  [["fbclid"], "fbclid", FBCLID_RE],
 ]
 
 // Cookie attributes for the shared visitor id. Scoped to ".freeserp.com" in prod
@@ -76,13 +105,22 @@ export function getVisitorId(): string {
   return id
 }
 
-// Pull the five standard UTM params from a URLSearchParams, keeping only keys that
-// are actually present and non-empty (so we never send "").
+// Pull the five standard UTM params plus the Meta ad params from a URLSearchParams,
+// keeping only keys that are actually present and non-empty (so we never send "").
 export function readUtm(params: URLSearchParams): Utm {
   const utm: Utm = {}
   for (const [param, field] of UTM_KEYS) {
     const v = params.get(param)?.trim()
     if (v) utm[field] = v
+  }
+  for (const [aliases, field, pattern] of META_KEYS) {
+    for (const param of aliases) {
+      const v = params.get(param)?.trim()
+      if (!v) continue
+      if (pattern && !pattern.test(v)) continue // unusable — try the next alias
+      utm[field] = pattern ? v : v.slice(0, 200)
+      break
+    }
   }
   return utm
 }
