@@ -60,8 +60,9 @@ export function getSessionId(): string {
   }
 }
 
-// Exported so lib/replay.ts gates recording on the same cookie-consent flag.
-export function consentGranted(): boolean {
+// Gates event capture in this module only. Session replay (lib/replay.ts)
+// deliberately does NOT consult this — it records regardless of the banner.
+function consentGranted(): boolean {
   try {
     return localStorage.getItem("cookie-consent") === "accepted"
   } catch {

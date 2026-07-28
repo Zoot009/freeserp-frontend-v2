@@ -1,12 +1,14 @@
 // Session-replay recorder (rrweb): captures DOM-diff events for the admin
-// "Watch replay" viewer. Gated on the same cookie-consent flag as lib/analytics.ts
-// (no second consent prompt) and keyed by the same visitorId/sessionId pair, so a
-// recorded session lines up with that visitor's row in the admin Overview table.
+// "Watch replay" viewer. Recording starts on load and is NOT gated on the
+// cookie-consent flag that lib/analytics.ts still honours — replay deliberately
+// runs for every visitor. Keyed by the same visitorId/sessionId pair as analytics,
+// so a recorded session lines up with that visitor's row in the admin Overview
+// table. Form fields are masked at capture time (maskAllInputs below).
 "use client"
 
 import type { eventWithTime } from "rrweb"
 import { getVisitorId } from "@/lib/utm"
-import { getSessionId, consentGranted } from "@/lib/analytics"
+import { getSessionId } from "@/lib/analytics"
 
 const REPLAY_ENDPOINT = "/api/events/replay"
 const FLUSH_INTERVAL_MS = 15000
@@ -16,7 +18,7 @@ const RETRY_DELAY_MS = 1000
 let stopRecordingFn: (() => void) | null = null
 let flushTimer: ReturnType<typeof setInterval> | null = null
 let retryTimer: ReturnType<typeof setTimeout> | null = null
-let buffer: eventWithTime[] = []
+const buffer: eventWithTime[] = []
 let initialized = false
 
 function send(useBeacon: boolean) {
@@ -73,30 +75,11 @@ async function startRecording() {
   if (!flushTimer) flushTimer = setInterval(() => send(false), FLUSH_INTERVAL_MS)
 }
 
-function stopRecording() {
-  stopRecordingFn?.()
-  stopRecordingFn = null
-  if (flushTimer) {
-    clearInterval(flushTimer)
-    flushTimer = null
-  }
-  if (retryTimer) {
-    clearTimeout(retryTimer)
-    retryTimer = null
-  }
-  buffer = []
-}
-
 export function initSessionReplay(): void {
   if (typeof window === "undefined" || initialized) return
   initialized = true
 
-  if (consentGranted()) void startRecording()
-
-  window.addEventListener("cookie-consent-change", () => {
-    if (consentGranted()) void startRecording()
-    else stopRecording()
-  })
+  void startRecording()
 
   // Flush on both signals — visibilitychange fires reliably on mobile (pagehide is
   // inconsistent there), pagehide covers desktop back/forward-cache cases. Both use
