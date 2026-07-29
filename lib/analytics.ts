@@ -44,8 +44,9 @@ let pageMaxScrollPct = 0
 let engagementPath = typeof window !== "undefined" ? window.location.pathname : ""
 let scrollTicking = false
 
-// Per-tab session id (groups a single visit). New id per tab/session.
-function getSessionId(): string {
+// Per-tab session id (groups a single visit). New id per tab/session. Exported so
+// lib/replay.ts can tag its rrweb chunks with the same id as this file's events.
+export function getSessionId(): string {
   if (typeof window === "undefined") return ""
   try {
     let id = sessionStorage.getItem(SESSION_ID_KEY)
@@ -59,6 +60,8 @@ function getSessionId(): string {
   }
 }
 
+// Gates event capture in this module only. Session replay (lib/replay.ts)
+// deliberately does NOT consult this — it records regardless of the banner.
 function consentGranted(): boolean {
   try {
     return localStorage.getItem("cookie-consent") === "accepted"
