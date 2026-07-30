@@ -100,22 +100,40 @@
   color: var(--brand);
 }
 
-/* ---- Pricing cards ---- */
+/* ---- Pricing cards ----
+   Lifted off the page: a soft top-to-bottom surface gradient + a hairline top
+   highlight give the cards depth instead of sitting flat on the background. */
 .fs-app .price-card {
   position: relative;
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elev) 100%, transparent), color-mix(in srgb, var(--bg-inset) 55%, var(--bg-elev)));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent) inset, 0 12px 34px -22px color-mix(in srgb, var(--text) 55%, transparent);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 .fs-app .price-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 8%, transparent) inset, 0 26px 60px -26px color-mix(in srgb, var(--text) 62%, transparent);
 }
+
+/* The recommended tier carries a brand glow at the crown, a faint brand wash and
+   a coloured shadow — so it unmistakably reads as the hero of the two. */
 .fs-app .price-card.featured {
-  border-color: transparent;
-  box-shadow: 0 0 0 1.5px var(--brand), var(--shadow-md);
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  background:
+    radial-gradient(130% 80% at 50% -12%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 58%),
+    linear-gradient(180deg, var(--bg-elev), color-mix(in srgb, var(--bg-inset) 70%, var(--bg-elev)));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand) 45%, transparent),
+    0 24px 60px -26px color-mix(in srgb, var(--brand) 60%, transparent);
 }
 .fs-app .price-card.featured:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 0 0 1.5px var(--brand), var(--shadow-lg);
+  transform: translateY(-4px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand) 60%, transparent),
+    0 34px 72px -26px color-mix(in srgb, var(--brand) 68%, transparent);
 }
 
 /* "Most popular" ribbon */
@@ -168,16 +186,27 @@
 /* Segmented tier scale (animated fill) */
 .fs-app .tier-seg {
   flex: 1;
-  height: 8px;
+  height: 9px;
   padding: 0;
   border: none;
   cursor: pointer;
-  border-radius: 4px;
-  background: var(--border);
-  transition: background .2s ease, transform .12s ease;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  transition: background .2s ease, transform .12s ease, box-shadow .2s ease;
 }
-.fs-app .tier-seg.on { background: var(--brand); }
-.fs-app .tier-seg:hover { transform: scaleY(1.5); }
+.fs-app .tier-seg.on {
+  background: linear-gradient(90deg, var(--brand), var(--brand-deep));
+  box-shadow: 0 2px 10px -3px color-mix(in srgb, var(--brand) 70%, transparent);
+}
+.fs-app .tier-seg:hover { transform: scaleY(1.4); }
+
+/* The picker sits inside the featured card, so lift it a touch off that surface. */
+.fs-app .tier-picker {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text) 5%, transparent) inset;
+}
+.fs-app .tier-readout-checks {
+  letter-spacing: -0.02em;
+}
 
 /* ---- Free vs Workers comparison ---- */
 .fs-app .cmp {

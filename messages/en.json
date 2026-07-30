@@ -48,6 +48,7 @@
     "statRealtimeValue": "Real-time",
     "statRealtimeLabel": "SERP data",
     "continueWithFacebook": "Continue with Facebook",
+    "continueWithGithub": "Continue with GitHub",
     "errorFacebookFailed": "Facebook sign-in failed. Please try again.",
     "signInWithCode": "Sign in with an email code instead"
   },
@@ -128,6 +129,7 @@
     "statTimeValue": "5 min",
     "statTimeLabel": "To first result",
     "signUpWithFacebook": "Sign up with Facebook",
+    "signUpWithGithub": "Sign up with GitHub",
     "errorFacebookFailed": "Facebook sign-up failed. Please try again."
   },
   "forgotPassword": {
@@ -483,6 +485,7 @@
     "keywords": "Keywords",
     "favorites": "Favorites",
     "quickSerp": "Quick Serp",
+    "keywordMagic": "Keyword Magic",
     "alerts": "Alerts",
     "settings": "Settings",
     "upgradeToPro": "Upgrade to Pro",

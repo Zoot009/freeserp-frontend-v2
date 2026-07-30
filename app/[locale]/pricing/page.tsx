@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
+import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -247,21 +248,7 @@ export default function PricingPage() {
       {/* Header */}
       <header className="pricing-header row" style={{ justifyContent: "space-between", padding: "14px 24px" }}>
         <Link href="/dashboard" className="row" style={{ gap: 8, textDecoration: "none", color: "var(--text)" }}>
-          <span
-            style={{
-              display: "grid",
-              placeItems: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "var(--brand)",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 14,
-            }}
-          >
-            F
-          </span>
+          <Image src="/logo.png" alt="FreeSERP" width={28} height={28} priority />
           <span style={{ fontWeight: 600 }}>FreeSERP</span>
         </Link>
         <div className="row" style={{ gap: 12 }}>
@@ -284,15 +271,6 @@ export default function PricingPage() {
           <p className="muted" style={{ marginTop: 12, fontSize: 15, maxWidth: 540, marginInline: "auto" }}>
             {t("subtitle")}
           </p>
-          {/* Trust pills — grounded in the real stat values below */}
-          <div className="row" style={{ justifyContent: "center", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
-            {stats.map((s) => (
-              <span key={s.label} className="trust-pill">
-                <span className="spark" style={{ display: "inline-flex" }}>{s.icon}</span>
-                <b style={{ fontWeight: 600, color: "var(--text)" }}>{s.value}</b> {s.label}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -455,11 +433,6 @@ export default function PricingPage() {
                 <span className="tiny muted">${tiers[0].workers * perWorkerUsd}</span>
                 <span className="tiny muted">${tiers[tiers.length - 1].workers * perWorkerUsd}</span>
               </div>
-              <p className="tiny muted" style={{ marginTop: 10 }}>
-                {interval === "year"
-                  ? t.rich("billedAnnually", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })
-                  : t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}
-              </p>
             </div>
 
             <ul className="price-feats" style={{ marginTop: 20 }}>

@@ -27,7 +27,9 @@ export default function VerifyEmailPage() {
   // Redirect if already verified or not logged in
   useEffect(() => {
     if (!loading && !user && !token) router.push("/login")
-    if (!loading && user?.emailVerified) router.push("/dashboard/projects")
+    // Already verified: onboarded users go to the dashboard, brand-new ones to the
+    // role page — never flash the dashboard on the way to onboarding.
+    if (!loading && user?.emailVerified) router.push(user.occupationRole ? "/dashboard/projects" : "/onboarding")
   }, [user, token, loading, router])
 
   // Entrance animation — mirrors the login page
@@ -128,9 +130,12 @@ export default function VerifyEmailPage() {
     try {
       await verifyEmail(otp)
       setSuccess(t("successVerified"))
-      // First successful email verification = first signup landing — mark it so
-      // GTM can track the signup conversion (see lib/track.ts / ?first-sign-up).
-      setTimeout(() => router.push("/dashboard/projects?first-sign-up"), 1200)
+      // First successful email verification = first signup landing. Carry the
+      // conversion signal via sessionStorage (the dashboard reads it and fires the
+      // GTM event after onboarding), then go STRAIGHT to onboarding — routing via
+      // the dashboard flashed it for a frame before bouncing to the role page.
+      try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
+      setTimeout(() => router.push(user?.occupationRole ? "/dashboard/projects" : "/onboarding"), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       // Clear digits on wrong OTP
@@ -139,7 +144,7 @@ export default function VerifyEmailPage() {
     } finally {
       setSubmitting(false)
     }
-  }, [otp, verifyEmail, router, t])
+  }, [otp, verifyEmail, router, t, user])
 
   // Auto-submit when all 6 digits filled
   useEffect(() => {

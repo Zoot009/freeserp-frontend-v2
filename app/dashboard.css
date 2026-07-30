@@ -201,20 +201,50 @@
 .fs-app .sb-upgrade .desc { font-size: 12px; opacity: 0.7; line-height: 1.4; margin-bottom: 10px; }
 .fs-app .sb-upgrade button {
   background: white; color: var(--black);
-  border: none; border-radius: 6px;
-  padding: 6px 12px; font-size: 12px; font-weight: 600;
-  width: 100%;
+  border: none; border-radius: 7px;
+  padding: 8px 12px; font-size: 12px; font-weight: 700;
+  width: 100%; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
+.fs-app .sb-upgrade button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); }
 .dark .fs-app .sb-upgrade button { background: white; color: var(--black); }
 /* Trial countdown inside the upgrade card — replaces .desc while a trial runs. */
 .fs-app .sb-upgrade .sb-trial {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600;
-  line-height: 1.4; margin-bottom: 10px;
+  line-height: 1.4; margin-bottom: 8px;
   opacity: 0.95;
 }
 .fs-app .sb-upgrade .sb-trial.urgent { color: var(--warn); }
 .dark .fs-app .sb-upgrade .sb-trial.urgent { color: white; }
+
+/* Trial-elapsed progress bar under the countdown line. */
+.fs-app .sb-upgrade .sb-trial-bar {
+  height: 4px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.fs-app .sb-upgrade .sb-trial-bar > i {
+  display: block; height: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+
+/* Placeholder while usage loads — same footprint as the trial line + bar, so the
+   card holds its size and never flashes the generic pitch then swaps. */
+.fs-app .sb-upgrade .sb-up-skel {
+  height: 15px; margin-bottom: 12px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.10) 25%, rgba(255, 255, 255, 0.22) 50%, rgba(255, 255, 255, 0.10) 75%);
+  background-size: 200% 100%;
+  animation: sb-up-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes sb-up-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* === TRIAL COUNTDOWN BANNER ===
    A brand-blue gradient promo bar. It sits on the light dashboard surface and is
@@ -228,7 +258,8 @@
   /* Full-bleed: flush to the top and both edges, so it reads as a page-level
      promo bar rather than a card floating on the app background. */
   margin: 0;
-  padding: 16px 22px;
+  /* Extra bottom room for the countdown labels, which now hang below the tiles. */
+  padding: 16px 22px 20px;
   border-radius: 0;
   /* Two layers: a soft highlight bleeding in from the top-right so the bar has
      some depth, over a diagonal ramp from deep navy up to the brand blue. */
@@ -245,18 +276,11 @@
     linear-gradient(100deg, #3D1503 0%, #7A2C05 34%, #B2470A 68%, #D9600D 100%);
 }
 
-.fs-app .tb-icon {
-  flex-shrink: 0;
-  width: 40px; height: 40px; border-radius: 10px;
-  display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.18);
-}
-
 .fs-app .tb-lead {
   flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 2px;
-  padding-right: 20px;
-  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex; flex-direction: column; gap: 3px;
+  padding-right: 22px;
+  border-right: 1px solid rgba(255, 255, 255, 0.22);
 }
 .fs-app .tb-eyebrow {
   font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
@@ -271,34 +295,45 @@
 }
 .fs-app .tb-hl { font-weight: 700; color: #fff; }
 
-.fs-app .tb-countdown { flex-shrink: 0; display: flex; align-items: flex-start; gap: 8px; }
-.fs-app .tb-unit { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.fs-app .tb-countdown { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.fs-app .tb-unit { position: relative; display: flex; }
 .fs-app .tb-tile {
-  min-width: 46px; height: 40px; padding: 0 8px;
+  min-width: 46px; height: 42px; padding: 0 8px;
   border-radius: 10px;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font-size: 18px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+/* Labels hang BELOW the tiles without adding height (position:absolute), so the
+   tiles line up on the same centre-line as the message, the colons and the
+   button — instead of the whole tile+label stack being centred, which pushed the
+   numbers up. */
 .fs-app .tb-unit-label {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.75; white-space: nowrap;
 }
-/* Nudged up by the label's height so the colon centres on the tiles, not the
-   tile-plus-label stack. */
-.fs-app .tb-sep { margin-top: 8px; font-size: 16px; font-weight: 700; opacity: 0.5; }
+.fs-app .tb-sep { font-size: 16px; font-weight: 700; opacity: 0.5; }
 
 .fs-app .tb-cta { flex-shrink: 0; }
 .fs-app .tb-cta button {
   border: none; cursor: pointer;
-  padding: 12px 22px; border-radius: 8px;
+  padding: 12px 24px; border-radius: 9px;
   font-size: 14px; font-weight: 700;
   background: #fff; color: var(--brand);
-  transition: opacity .15s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  transition: transform .15s ease, box-shadow .15s ease;
 }
 .fs-app .tb-bar.urgent .tb-cta button { color: #D2570A; }
-.fs-app .tb-cta button:hover { opacity: 0.9; }
+.fs-app .tb-cta button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
 
 .fs-app .tb-close {
   flex-shrink: 0;
@@ -314,7 +349,6 @@
    beside it so the two read as one unit. */
 @media (max-width: 1140px) {
   .fs-app .tb-bar { flex-wrap: wrap; gap: 14px 16px; }
-  .fs-app .tb-icon { order: 1; }
   .fs-app .tb-lead { order: 2; padding-right: 0; border-right: none; }
   .fs-app .tb-message { order: 4; flex-basis: 100%; }
   .fs-app .tb-countdown { order: 5; }
@@ -322,7 +356,9 @@
   .fs-app .tb-close { order: 7; }
 }
 @media (max-width: 560px) {
-  .fs-app .tb-countdown { flex-basis: 100%; justify-content: space-between; gap: 4px; }
+  /* Own full-width row here, so reserve space for the absolutely-positioned
+     labels that hang below the tiles — otherwise they'd touch the CTA row. */
+  .fs-app .tb-countdown { flex-basis: 100%; justify-content: space-between; gap: 4px; margin-bottom: 14px; }
   .fs-app .tb-tile { min-width: 0; width: 100%; }
   .fs-app .tb-unit { flex: 1; }
   /* CTA takes the rest of the row with the dismiss square parked beside it. */

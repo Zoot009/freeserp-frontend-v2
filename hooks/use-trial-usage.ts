@@ -50,13 +50,22 @@ const DAY_MS = 24 * HOUR_MS
 export function useTrialUsage() {
   const [usage, setUsage] = useState<TrialUsage | null>(null)
   const [windowDays, setWindowDays] = useState<number | null>(null)
+  // True until the FIRST fetch settles (success or failure). Lets the chrome hold
+  // a stable placeholder instead of flashing the generic pitch, then the trial
+  // line, as `usage` fills in.
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    if (!getAccessToken()) return
+    if (!getAccessToken()) {
+      setLoading(false)
+      return
+    }
     try {
       setUsage(await api.get<TrialUsage>("/api/usage"))
     } catch {
       // Never let a usage hiccup surface as an error in the chrome — stay quiet.
+    } finally {
+      setLoading(false)
     }
   }, [])
 
@@ -101,5 +110,5 @@ export function useTrialUsage() {
     }
   }
 
-  return { usage, trial }
+  return { usage, trial, loading }
 }

@@ -158,7 +158,9 @@ function OtpLoginForm() {
       if (isNewUser) {
         try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
       }
-      setTimeout(() => router.push(isNewUser ? "/dashboard/projects?first-sign-up" : nextPath), 1000)
+      // New accounts go straight to onboarding (flag above still fires the
+      // conversion after it); existing users to their intended destination.
+      setTimeout(() => router.push(isNewUser ? "/onboarding" : nextPath), 1000)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       setDigits(["", "", "", "", "", ""])

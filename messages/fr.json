@@ -48,6 +48,7 @@
     "statRealtimeValue": "Temps réel",
     "statRealtimeLabel": "Données SERP",
     "continueWithFacebook": "Continuer avec Facebook",
+    "continueWithGithub": "Continuer avec GitHub",
     "errorFacebookFailed": "Échec de la connexion avec Facebook. Veuillez réessayer.",
     "signInWithCode": "Se connecter avec un code par e-mail"
   },
@@ -128,6 +129,7 @@
     "statTimeValue": "5 min",
     "statTimeLabel": "Pour le premier résultat",
     "signUpWithFacebook": "S'inscrire avec Facebook",
+    "signUpWithGithub": "S'inscrire avec GitHub",
     "errorFacebookFailed": "Échec de l'inscription avec Facebook. Veuillez réessayer."
   },
   "forgotPassword": {
@@ -483,6 +485,7 @@
     "keywords": "Mots-clés",
     "favorites": "Favoris",
     "quickSerp": "SERP rapide",
+    "keywordMagic": "Keyword Magic",
     "alerts": "Alertes",
     "settings": "Paramètres",
     "upgradeToPro": "Passer à Pro",
