@@ -100,6 +100,9 @@ export default function KeywordMagicPage() {
   const [seed, setSeed] = useState("")
   const [country, setCountry] = useState("us")
   const [matchType, setMatchType] = useState<MatchType>("broad")
+  // Optional site for future AI-personalized suggestions (sent to the API, which
+  // ignores it today — the field matches the tool's marketing hero).
+  const [domain, setDomain] = useState("")
 
   const [result, setResult] = useState<MagicResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -111,9 +114,10 @@ export default function KeywordMagicPage() {
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
 
   const run = useCallback(
-    async (match: MatchType) => {
-      const q = seed.trim()
+    async (match: MatchType, seedOverride?: string) => {
+      const q = (seedOverride ?? seed).trim()
       if (!q) return
+      if (seedOverride !== undefined) setSeed(seedOverride)
       setLoading(true)
       setError(null)
       setPaywalled(false)
@@ -124,6 +128,7 @@ export default function KeywordMagicPage() {
           seed: q,
           matchType: match,
           country,
+          domain: domain.trim() || undefined,
         })
         setResult(res)
         setMatchType(match)
@@ -141,13 +146,15 @@ export default function KeywordMagicPage() {
         setLoading(false)
       }
     },
-    [seed, country],
+    [seed, country, domain],
   )
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     void run(matchType)
   }
+
+  const EXAMPLES = ["seo tools", "backlinks", "how to rank on google"]
 
   // Switching tab re-runs the search for that match type (a distinct dataset +
   // a separate cache entry on the backend), but only when there's a seed.
@@ -170,70 +177,72 @@ export default function KeywordMagicPage() {
 
   return (
     <div className="page">
-      <div className="page-h">
-        <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">
-            <span className="spark"><Icon.key /></span> SEO · Keyword Research
-          </div>
-          <h1>Keyword Magic Tool</h1>
-          <div className="sub">
-            One seed keyword → hundreds of real keyword ideas with search volume, difficulty, CPC and intent.
-          </div>
-        </div>
-      </div>
+      {/* Marketing-style hero */}
+      <div className="km-hero">
+        <div className="km-eyebrow">Keyword Research Tool</div>
+        <h1 className="km-title">
+          Find SEO Keyword Suggestions Instantly with the Keyword Magic Tool
+        </h1>
+        <p className="km-lede">
+          Discover thousands of high-value keywords — from popular terms to long-tail phrases —
+          to improve your website’s marketing performance.
+        </p>
+        <p className="km-lede km-lede-sub">
+          Enter a word or phrase to find related keywords. Add your domain for future
+          AI-personalized suggestions.
+        </p>
 
-      {/* Search form */}
-      <form className="card" onSubmit={onSubmit} style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
-          <div style={{ position: "relative", flex: "1 1 340px", minWidth: 0 }}>
-            <span
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-mute)", display: "inline-flex" }}
-            >
-              <Icon.search />
-            </span>
+        <form className="km-search" onSubmit={onSubmit}>
+          <div className="km-examples">
+            <span className="km-tips">Examples:</span>
+            {EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className="km-example" onClick={() => void run(matchType, ex)}>
+                {ex}
+              </button>
+            ))}
+          </div>
+
+          <div className="km-input-wrap">
+            <span className="km-input-ic"><Icon.search /></span>
             <input
-              className="input"
-              style={{ paddingLeft: 36, width: "100%" }}
-              placeholder="Enter a seed keyword, e.g. free serp checker"
+              className="km-input"
+              placeholder="Enter keyword"
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               autoFocus
             />
           </div>
-          <Dropdown
-            menuAlign="left"
-            value={country}
-            options={ALL_LOCATIONS.map((loc) => ({
-              value: loc.code,
-              label: (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <Flag code={loc.code} size={15} /> {loc.name}
-                </span>
-              ),
-            }))}
-            onChange={setCountry}
-            ariaLabel="Database country"
-            style={{ flex: "0 0 200px" }}
-          />
-          <button type="submit" className="btn primary" disabled={loading || !seed.trim()} style={{ flex: "0 0 auto" }}>
-            {loading ? <><Icon.refresh /> Searching…</> : <><Icon.search /> Search</>}
-          </button>
-        </div>
 
-        {/* Match-type tabs */}
-        <div className="pill-toggle" style={{ marginTop: 12, display: "inline-flex" }}>
-          {MATCH_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={matchType === tab.key ? "active" : ""}
-              onClick={() => switchTab(tab.key)}
-            >
-              {tab.label}
+          <div className="km-controls">
+            <div className="km-domain-wrap">
+              <span className="km-domain-ic"><Icon.ai /></span>
+              <input
+                className="km-domain"
+                placeholder="Enter domain for personalized data (optional)"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
+            <Dropdown
+              menuAlign="left"
+              value={country}
+              options={ALL_LOCATIONS.map((loc) => ({
+                value: loc.code,
+                label: (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Flag code={loc.code} size={15} /> {loc.name}
+                  </span>
+                ),
+              }))}
+              onChange={setCountry}
+              ariaLabel="Database country"
+            />
+            <button type="submit" className="btn primary km-search-btn" disabled={loading || !seed.trim()}>
+              {loading ? <><Icon.refresh /> Searching…</> : "Search"}
             </button>
-          ))}
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
 
       {/* Paywall */}
       {paywalled && (
@@ -270,6 +279,23 @@ export default function KeywordMagicPage() {
       {/* Results */}
       {result && (
         <>
+          {/* Match-type tabs — live with the results, so the hero stays clean. */}
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+            <div className="pill-toggle" style={{ display: "inline-flex" }}>
+              {MATCH_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={matchType === tab.key ? "active" : ""}
+                  onClick={() => switchTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <span className="tiny muted">Results for <b style={{ color: "var(--text)" }}>“{result.seed}”</b></span>
+          </div>
+
           <div className="grid g-4" style={{ marginBottom: 16 }}>
             <StatTile
               lbl="Keywords"
@@ -417,6 +443,122 @@ export default function KeywordMagicPage() {
       )}
 
       <style jsx>{`
+        /* ---- Marketing-style hero ---- */
+        .km-hero {
+          max-width: 720px;
+          margin: 8px auto 28px;
+          text-align: center;
+        }
+        .km-eyebrow {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-mute);
+          margin-bottom: 14px;
+        }
+        .km-title {
+          font-size: clamp(26px, 3.6vw, 40px);
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          line-height: 1.14;
+          margin: 0 0 16px;
+          color: var(--text);
+        }
+        .km-lede {
+          font-size: 15px;
+          line-height: 1.6;
+          color: var(--text-soft);
+          margin: 0 auto 10px;
+          max-width: 580px;
+        }
+        .km-lede-sub { color: var(--text-mute); }
+
+        .km-search {
+          margin-top: 22px;
+          text-align: left;
+        }
+        .km-examples {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 8px;
+          padding-left: 4px;
+        }
+        .km-tips { font-size: 13px; color: var(--text-mute); }
+        .km-example {
+          border: none;
+          background: none;
+          color: var(--brand);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: 6px;
+          transition: background .12s ease;
+        }
+        .km-example:hover { background: var(--brand-soft); }
+
+        .km-input-wrap { position: relative; }
+        .km-input-ic {
+          position: absolute;
+          left: 18px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-mute);
+          display: inline-flex;
+        }
+        .km-input {
+          width: 100%;
+          padding: 16px 18px 16px 48px;
+          font-size: 16px;
+          border-radius: 14px;
+          border: 1.5px solid var(--border-strong);
+          background: var(--bg-elev);
+          color: var(--text);
+          outline: none;
+          transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .km-input::placeholder { color: var(--text-mute); }
+        .km-input:focus {
+          border-color: var(--brand);
+          box-shadow: 0 0 0 4px var(--brand-soft);
+        }
+
+        .km-controls {
+          display: flex;
+          gap: 10px;
+          margin-top: 12px;
+          align-items: stretch;
+        }
+        .km-domain-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+        .km-domain-ic {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--brand);
+          display: inline-flex;
+        }
+        .km-domain {
+          width: 100%;
+          padding: 12px 14px 12px 38px;
+          font-size: 14px;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          background: var(--bg-elev);
+          color: var(--text);
+          outline: none;
+          transition: border-color .15s ease;
+        }
+        .km-domain::placeholder { color: var(--text-mute); }
+        .km-domain:focus { border-color: var(--brand); }
+        .km-search-btn { flex: 0 0 auto; padding: 12px 28px; }
+
+        @media (max-width: 600px) {
+          .km-controls { flex-direction: column; }
+          .km-search-btn { width: 100%; justify-content: center; }
+        }
+
         .km-layout {
           display: grid;
           grid-template-columns: 230px minmax(0, 1fr);
