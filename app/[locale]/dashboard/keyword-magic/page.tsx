@@ -225,8 +225,9 @@ export default function KeywordMagicPage() {
         )}
       </div>
 
-      {/* Limit-reached banner — clear state + a path to upgrade (free) */}
-      {outOfSearches && usage && (
+      {/* Limit-reached banner — only when results are on screen (the empty state
+          shows its own, fuller out-of-searches card, so we don't double up). */}
+      {outOfSearches && usage && result && (
         <div
           className="card"
           style={{ marginBottom: 16, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", borderColor: "var(--neg)", background: "var(--neg-soft)" }}
@@ -493,12 +494,30 @@ export default function KeywordMagicPage() {
         </>
       )}
 
-      {/* First-load empty state */}
+      {/* Empty state — out of searches gets a prominent upsell; otherwise the
+          generic "enter a keyword" prompt. */}
       {!result && !loading && !error && (
-        <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          <div className="spark" style={{ margin: "0 auto 12px", width: 40, height: 40 }}><Icon.key /></div>
-          Enter a seed keyword above to discover hundreds of related keywords with real metrics.
-        </div>
+        outOfSearches && usage ? (
+          <div className="card" style={{ padding: 48, textAlign: "center" }}>
+            <div className="spark" style={{ margin: "0 auto 14px", width: 48, height: 48, background: "var(--neg-soft)", color: "var(--neg)" }}>
+              <Icon.lock />
+            </div>
+            <h2 style={{ margin: "0 0 6px", fontSize: 19 }}>You're out of searches for today</h2>
+            <div className="sub" style={{ marginBottom: 18, maxWidth: 440, marginInline: "auto" }}>
+              Your {usage.plan === "paid" ? "" : "free "}plan includes {usage.limit} Keyword Magic {usage.limit === 1 ? "search" : "searches"} per day, each returning up to {usage.keywordLimit.toLocaleString()} keywords. They reset daily.
+            </div>
+            {usage.plan === "free" && (
+              <a className="btn primary" href="/dashboard/billing" style={{ display: "inline-flex" }}>
+                <Icon.zap /> Upgrade for more searches
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
+            <div className="spark" style={{ margin: "0 auto 12px", width: 40, height: 40 }}><Icon.key /></div>
+            Enter a seed keyword above to discover hundreds of related keywords with real metrics.
+          </div>
+        )
       )}
 
       <style jsx>{`
