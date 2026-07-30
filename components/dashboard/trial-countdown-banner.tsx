@@ -18,11 +18,12 @@ const MINUTE_MS = 60 * SECOND_MS
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 
-// Dismissal is scoped to the calendar day rather than forever: a trial that ends
-// in 5 days shouldn't nag on every route change, but it should come back tomorrow
-// when there's less of it left.
+// Dismissal persists for the whole trial: once the user closes the banner it
+// stays closed and does not nag again. Keyed by the trial's end date, so the ONLY
+// thing that brings it back is a genuinely different trial window — e.g. redeeming
+// an extension bumps freeCheckTrialEndsAt, which is worth re-surfacing once.
 const dismissKey = (endsAt: string | null) =>
-  `trialCountdown:${endsAt?.slice(0, 10) ?? "none"}:${new Date().toISOString().slice(0, 10)}`
+  `trialCountdown:dismissed:${endsAt?.slice(0, 10) ?? "none"}`
 
 /** Live remaining time, re-rendered once a second. */
 function useCountdown(endsAtMs: number) {
@@ -111,10 +112,6 @@ export function TrialCountdownBanner() {
   // its own callout, and its stylesheet loads after this one.
   return (
     <div ref={setNode} className={"tb-bar" + (trial.finalDay ? " urgent" : "")} role="status">
-      <span className="tb-icon" aria-hidden="true">
-        <Icon.hourglass size={18} />
-      </span>
-
       <div className="tb-lead">
         <span className="tb-eyebrow">{t("eyebrow")}</span>
         <span className="tb-lead-word">{trial.finalDay ? t("leadUrgent") : t("lead")}</span>

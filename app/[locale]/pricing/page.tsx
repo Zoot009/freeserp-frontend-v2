@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
+import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -247,21 +248,7 @@ export default function PricingPage() {
       {/* Header */}
       <header className="pricing-header row" style={{ justifyContent: "space-between", padding: "14px 24px" }}>
         <Link href="/dashboard" className="row" style={{ gap: 8, textDecoration: "none", color: "var(--text)" }}>
-          <span
-            style={{
-              display: "grid",
-              placeItems: "center",
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "var(--brand)",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 14,
-            }}
-          >
-            F
-          </span>
+          <Image src="/logo.png" alt="FreeSERP" width={28} height={28} priority />
           <span style={{ fontWeight: 600 }}>FreeSERP</span>
         </Link>
         <div className="row" style={{ gap: 12 }}>
