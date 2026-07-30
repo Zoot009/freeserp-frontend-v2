@@ -48,6 +48,7 @@
     "statRealtimeValue": "Echtzeit",
     "statRealtimeLabel": "SERP-Daten",
     "continueWithFacebook": "Mit Facebook fortfahren",
+    "continueWithGithub": "Mit GitHub fortfahren",
     "errorFacebookFailed": "Facebook-Anmeldung fehlgeschlagen. Bitte versuche es erneut.",
     "signInWithCode": "Stattdessen mit E-Mail-Code anmelden"
   },
@@ -128,6 +129,7 @@
     "statTimeValue": "5 Min",
     "statTimeLabel": "Bis zum ersten Ergebnis",
     "signUpWithFacebook": "Mit Facebook registrieren",
+    "signUpWithGithub": "Mit GitHub registrieren",
     "errorFacebookFailed": "Facebook-Registrierung fehlgeschlagen. Bitte versuche es erneut."
   },
   "forgotPassword": {

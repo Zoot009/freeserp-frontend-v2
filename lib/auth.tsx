@@ -37,6 +37,7 @@ interface AuthContextValue {
   login: (data: LoginData) => Promise<{ emailVerified: boolean }>
   loginWithGoogle: (accessToken: string) => Promise<{ isNewUser: boolean }>
   loginWithFacebook: (accessToken: string) => Promise<{ isNewUser: boolean }>
+  loginWithGithub: (code: string, redirectUri?: string) => Promise<{ isNewUser: boolean }>
   requestLoginOtp: (email: string) => Promise<void>
   verifyLoginOtp: (email: string, otp: string) => Promise<{ isNewUser: boolean }>
   logout: () => void
@@ -139,6 +140,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { isNewUser: res.isNewUser ?? false }
   }, [])
 
+  // Exchanges a GitHub authorization code (from the redirect callback) for a
+  // FreeSerp session via the backend's /api/auth/github endpoint. The backend
+  // does the secret-bearing token exchange; the browser only forwards the code.
+  const loginWithGithub = useCallback(async (code: string, redirectUri?: string) => {
+    const res = await api.post<AuthResponse>("/api/auth/github", { code, redirectUri, visitorId: getVisitorId() }, { skipAuth: true })
+    handleAuth(res)
+    return { isNewUser: res.isNewUser ?? false }
+  }, [])
+
   // Passwordless email sign-in — step 1: request a one-time code. Always resolves
   // (the backend answers ok regardless) so no signal leaks about which emails exist.
   const requestLoginOtp = useCallback(async (email: string) => {
@@ -189,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, register, login, loginWithGoogle, loginWithFacebook, requestLoginOtp, verifyLoginOtp, logout, verifyEmail, resendVerify, forgotPassword, resetPassword, refreshUser }}
+      value={{ user, token, loading, register, login, loginWithGoogle, loginWithFacebook, loginWithGithub, requestLoginOtp, verifyLoginOtp, logout, verifyEmail, resendVerify, forgotPassword, resetPassword, refreshUser }}
     >
       {children}
     </AuthContext.Provider>
