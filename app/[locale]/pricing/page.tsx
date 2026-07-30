@@ -271,15 +271,6 @@ export default function PricingPage() {
           <p className="muted" style={{ marginTop: 12, fontSize: 15, maxWidth: 540, marginInline: "auto" }}>
             {t("subtitle")}
           </p>
-          {/* Trust pills — grounded in the real stat values below */}
-          <div className="row" style={{ justifyContent: "center", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
-            {stats.map((s) => (
-              <span key={s.label} className="trust-pill">
-                <span className="spark" style={{ display: "inline-flex" }}>{s.icon}</span>
-                <b style={{ fontWeight: 600, color: "var(--text)" }}>{s.value}</b> {s.label}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
 
