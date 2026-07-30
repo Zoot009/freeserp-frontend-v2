@@ -9,7 +9,7 @@
 // is i18n'd via next-intl; a follow-up should move these into a `dashKeywordMagic`
 // message namespace across en/de/es/fr.
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
@@ -30,6 +30,15 @@ type KwRow = {
   trend: { year: number; month: number; searchVolume: number }[]
 }
 
+type Usage = {
+  plan: "free" | "paid"
+  limit: number
+  used: number
+  remaining: number
+  keywordLimit: number
+  relatedAvailable: boolean
+}
+
 type MagicResponse = {
   seed: string
   matchType: MatchType
@@ -40,6 +49,7 @@ type MagicResponse = {
   avgDifficulty: number | null
   groups: { word: string; count: number }[]
   keywords: KwRow[]
+  usage: Usage
 }
 
 const MATCH_TABS: { key: MatchType; label: string }[] = [
@@ -110,6 +120,14 @@ export default function KeywordMagicPage() {
   const [filter, setFilter] = useState("")
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
 
+  // Today's search allowance — fetched on load, then kept fresh from every
+  // search response (and from a quota 402's details).
+  const [usage, setUsage] = useState<Usage | null>(null)
+  useEffect(() => {
+    void api.get<Usage>("/api/keyword-magic/usage").then(setUsage).catch(() => {})
+  }, [])
+  const outOfSearches = usage != null && usage.remaining <= 0
+
   const run = useCallback(
     async (match: MatchType) => {
       const q = seed.trim()
@@ -126,6 +144,7 @@ export default function KeywordMagicPage() {
           country,
         })
         setResult(res)
+        setUsage(res.usage)
         setMatchType(match)
       } catch (err) {
         setResult(null)
@@ -134,6 +153,11 @@ export default function KeywordMagicPage() {
           // modal; we just switch this page into its paywalled state.
           setPaywalled(err.code === "plan_upgrade_required")
           setError(err.message)
+          // The quota 402 carries the fresh usage snapshot — reflect it so the
+          // "0 left" state and the disabled button appear immediately.
+          if (err.code === "keyword_magic_quota_exhausted" && err.details) {
+            setUsage(err.details as Usage)
+          }
         } else {
           setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
         }
@@ -180,7 +204,43 @@ export default function KeywordMagicPage() {
             One seed keyword → hundreds of real keyword ideas with search volume, difficulty, CPC and intent.
           </div>
         </div>
+
+        {/* Daily allowance pill */}
+        {usage && (
+          <div
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+              padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap",
+              border: "1px solid " + (outOfSearches ? "var(--neg)" : "var(--border)"),
+              background: outOfSearches ? "var(--neg-soft)" : "var(--brand-soft)",
+              color: outOfSearches ? "var(--neg)" : "var(--brand)",
+            }}
+            title={`${usage.plan === "paid" ? "Paid" : "Free"} plan · ${usage.keywordLimit} keywords per search`}
+          >
+            {outOfSearches ? <Icon.lock /> : <Icon.zap />}
+            {outOfSearches
+              ? `${usage.limit} of ${usage.limit} searches used`
+              : `${usage.remaining} of ${usage.limit} searches left today`}
+          </div>
+        )}
       </div>
+
+      {/* Limit-reached banner — clear state + a path to upgrade (free) */}
+      {outOfSearches && usage && (
+        <div
+          className="card"
+          style={{ marginBottom: 16, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", borderColor: "var(--neg)", background: "var(--neg-soft)" }}
+        >
+          <span style={{ fontSize: 13.5, color: "var(--neg)", fontWeight: 500 }}>
+            You've used all {usage.limit} of today's Keyword Magic searches. They reset daily.
+          </span>
+          {usage.plan === "free" && (
+            <a className="btn primary sm" href="/dashboard/billing" style={{ flexShrink: 0 }}>
+              <Icon.zap /> Upgrade for more
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Search form */}
       <form className="card" onSubmit={onSubmit} style={{ marginBottom: 16 }}>
@@ -215,7 +275,7 @@ export default function KeywordMagicPage() {
             ariaLabel="Database country"
             style={{ flex: "0 0 200px" }}
           />
-          <button type="submit" className="btn primary" disabled={loading || !seed.trim()} style={{ flex: "0 0 auto" }}>
+          <button type="submit" className="btn primary" disabled={loading || !seed.trim() || outOfSearches} style={{ flex: "0 0 auto" }}>
             {loading ? <><Icon.refresh /> Searching…</> : <><Icon.search /> Search</>}
           </button>
         </div>
