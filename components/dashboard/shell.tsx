@@ -25,14 +25,20 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     })
 
   useEffect(() => {
-    if (!loading && !user) router.push("/login")
-    else if (!loading && user && !user.emailVerified) router.push("/verify-email")
+    if (!loading && !user) router.replace("/login")
+    else if (!loading && user && !user.emailVerified) router.replace("/verify-email")
     // One-time required onboarding: a verified user who hasn't picked a role yet
     // is sent to the dedicated page until occupationRole is set.
-    else if (!loading && user && !user.occupationRole) router.push("/onboarding")
+    else if (!loading && user && !user.occupationRole) router.replace("/onboarding")
   }, [user, loading, router])
 
-  if (loading || !user) {
+  // A redirect above is pending whenever the user isn't fully onboarded — not
+  // signed in, email unverified, or hasn't picked a role yet. Show the loader,
+  // NOT the dashboard, so a brand-new account goes loading → onboarding instead
+  // of flashing the dashboard for a frame before the effect bounces it away.
+  const redirecting = !user || !user.emailVerified || !user.occupationRole
+
+  if (loading || redirecting) {
     return (
       <div className="fs-app" translate="no">
         <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>

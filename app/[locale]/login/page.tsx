@@ -62,7 +62,10 @@ function LoginForm() {
       setGoogleLoading(true)
       setError("")
       try {
-        await loginWithGoogle(access_token)
+        const { isNewUser } = await loginWithGoogle(access_token)
+        // A brand-new account (signed up via this button) goes to onboarding, not
+        // the dashboard, so it never flashes the dashboard before the role page.
+        if (isNewUser) { router.replace("/onboarding"); return }
         router.push(nextPath)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
@@ -78,7 +81,8 @@ function LoginForm() {
     setError("")
     try {
       const accessToken = await facebookLogin()
-      await loginWithFacebook(accessToken)
+      const { isNewUser } = await loginWithFacebook(accessToken)
+      if (isNewUser) { router.replace("/onboarding"); return }
       router.push(nextPath)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorFacebookFailed"))
