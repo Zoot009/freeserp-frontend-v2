@@ -69,13 +69,23 @@ function AddProjectModal({
   const firstRef = useRef<HTMLInputElement>(null)
   useEffect(() => { firstRef.current?.focus() }, [])
 
+  // People paste a full URL into the NAME field too. Strip the https://www.
+  // prefix (and any trailing slash) so the label reads cleanly — e.g.
+  // "https://www.freeserp.com/serp-checker" → "freeserp.com/serp-checker".
+  // A plain human label ("My blog") isn't URL-ish, so it's left untouched.
+  const cleanName = (raw: string): string => {
+    const s = raw.trim()
+    if (!/^(https?:\/\/|www\.)/i.test(s)) return s
+    return s.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/+$/, "")
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(""); setLoading(true)
     try {
       // New projects start with NO auto-check schedule — the owner sets a
       // cadence afterward on the project page (paid-only). Creation just needs
       // name + domain.
-      const data = await api.post<ProjectSummary>("/api/projects", { name, domain })
+      const data = await api.post<ProjectSummary>("/api/projects", { name: cleanName(name), domain })
       onCreated({ ...data, _count: { keywords: 0 } })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("createError"))
@@ -97,7 +107,7 @@ function AddProjectModal({
             <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div className="field">
                 <label>{t("projectNameLabel")}</label>
-                <input ref={firstRef} className="input" type="text" required placeholder={t("projectNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
+                <input ref={firstRef} className="input" type="text" required placeholder={t("projectNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => setName(cleanName(e.target.value))} />
               </div>
               <div className="field">
                 <label>{t("domainLabel")}</label>
