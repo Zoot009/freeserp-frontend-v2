@@ -282,16 +282,40 @@ export default function KeywordMagicPage() {
 
         {/* Match-type tabs */}
         <div className="pill-toggle" style={{ marginTop: 12, display: "inline-flex" }}>
-          {MATCH_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={matchType === tab.key ? "active" : ""}
-              onClick={() => switchTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {MATCH_TABS.map((tab) => {
+            // Related is paid-only. For free users show it locked (a clear upsell)
+            // rather than a normal tab that only errors after a wasted click.
+            const locked = tab.key === "related" && usage != null && !usage.relatedAvailable
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={(matchType === tab.key ? "active" : "") + (locked ? " km-lock-tab" : "")}
+                onClick={() => {
+                  if (locked) {
+                    // Fire the global upsell modal; leave the current results intact.
+                    window.dispatchEvent(new CustomEvent("billing:quota", {
+                      detail: { code: "plan_upgrade_required", message: "The Related keywords view is available on paid plans. Upgrade to unlock it." },
+                    }))
+                    return
+                  }
+                  switchTab(tab.key)
+                }}
+                style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
+              >
+                {locked && <Icon.lock />}{tab.label}
+                {locked && (
+                  // Hover reveal: a small "Pro — Upgrade" popover. The whole tab is
+                  // the click target (fires the upsell), so these are spans, not a
+                  // nested button/link (invalid inside a <button>).
+                  <span className="km-lock-pop">
+                    <span>Pro feature</span>
+                    <span className="km-lock-up">Upgrade</span>
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </form>
 
@@ -478,6 +502,55 @@ export default function KeywordMagicPage() {
       )}
 
       <style jsx>{`
+        /* Locked "Related" tab: a hover popover with an Upgrade pill. */
+        .km-lock-tab { position: relative; }
+        .km-lock-pop {
+          position: absolute;
+          bottom: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%) translateY(4px);
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          background: var(--bg-elev);
+          color: var(--text);
+          border: 1px solid var(--border);
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
+          box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.35);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.15s ease, transform 0.15s ease;
+          z-index: 30;
+        }
+        .km-lock-pop::after {
+          content: "";
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 6px solid transparent;
+          border-top-color: var(--bg-elev);
+        }
+        .km-lock-tab:hover .km-lock-pop,
+        .km-lock-tab:focus-visible .km-lock-pop {
+          opacity: 1;
+          visibility: visible;
+          transform: translateX(-50%) translateY(0);
+        }
+        .km-lock-up {
+          background: var(--brand);
+          color: #fff;
+          padding: 3px 9px;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 11px;
+        }
+
         .km-layout {
           display: grid;
           grid-template-columns: 230px minmax(0, 1fr);
