@@ -201,20 +201,50 @@
 .fs-app .sb-upgrade .desc { font-size: 12px; opacity: 0.7; line-height: 1.4; margin-bottom: 10px; }
 .fs-app .sb-upgrade button {
   background: white; color: var(--black);
-  border: none; border-radius: 6px;
-  padding: 6px 12px; font-size: 12px; font-weight: 600;
-  width: 100%;
+  border: none; border-radius: 7px;
+  padding: 8px 12px; font-size: 12px; font-weight: 700;
+  width: 100%; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
+.fs-app .sb-upgrade button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); }
 .dark .fs-app .sb-upgrade button { background: white; color: var(--black); }
 /* Trial countdown inside the upgrade card — replaces .desc while a trial runs. */
 .fs-app .sb-upgrade .sb-trial {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 600;
-  line-height: 1.4; margin-bottom: 10px;
+  line-height: 1.4; margin-bottom: 8px;
   opacity: 0.95;
 }
 .fs-app .sb-upgrade .sb-trial.urgent { color: var(--warn); }
 .dark .fs-app .sb-upgrade .sb-trial.urgent { color: white; }
+
+/* Trial-elapsed progress bar under the countdown line. */
+.fs-app .sb-upgrade .sb-trial-bar {
+  height: 4px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.fs-app .sb-upgrade .sb-trial-bar > i {
+  display: block; height: 100%;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+
+/* Placeholder while usage loads — same footprint as the trial line + bar, so the
+   card holds its size and never flashes the generic pitch then swaps. */
+.fs-app .sb-upgrade .sb-up-skel {
+  height: 15px; margin-bottom: 12px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.10) 25%, rgba(255, 255, 255, 0.22) 50%, rgba(255, 255, 255, 0.10) 75%);
+  background-size: 200% 100%;
+  animation: sb-up-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes sb-up-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* === TRIAL COUNTDOWN BANNER ===
    A brand-blue gradient promo bar. It sits on the light dashboard surface and is

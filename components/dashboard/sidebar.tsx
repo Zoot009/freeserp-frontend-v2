@@ -66,7 +66,7 @@ export function Sidebar({
   const router = useRouter()
   const t = useTranslations("dashboardNav")
   const { user, logout } = useAuth()
-  const { trial } = useTrialUsage()
+  const { trial, loading: trialLoading } = useTrialUsage()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -135,15 +135,23 @@ export function Sidebar({
       {!isPaid && (
         <div className="sb-upgrade">
           <div className="title"><Icon.spark size={12} /> {t("upgradeToPro")}</div>
-          {/* While a trial is running its remaining time is the more useful line
-              than the generic pitch — it's the thing that changes. */}
-          {trial ? (
-            <div className={"sb-trial" + (trial.finalDay ? " urgent" : "")}>
-              <Icon.clock size={12} />
-              {trial.finalDay
-                ? t("trialHoursLeft", { hours: trial.hoursLeft })
-                : t("trialDaysLeft", { days: trial.daysLeft })}
-            </div>
+          {/* Hold a skeleton until usage has loaded, so the card never flashes the
+              generic pitch and then swaps to the trial line. Once loaded: a live
+              trial shows its remaining time + progress; otherwise the pitch. */}
+          {trialLoading ? (
+            <div className="sb-up-skel" aria-hidden />
+          ) : trial ? (
+            <>
+              <div className={"sb-trial" + (trial.finalDay ? " urgent" : "")}>
+                <Icon.clock size={12} />
+                {trial.finalDay
+                  ? t("trialHoursLeft", { hours: trial.hoursLeft })
+                  : t("trialDaysLeft", { days: trial.daysLeft })}
+              </div>
+              <div className="sb-trial-bar" aria-hidden>
+                <i style={{ width: `${Math.min(100, Math.max(4, Math.round(trial.percentElapsed)))}%` }} />
+              </div>
+            </>
           ) : (
             <div className="desc">{t("upgradeDesc")}</div>
           )}
