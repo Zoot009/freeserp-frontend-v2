@@ -442,11 +442,6 @@ export default function PricingPage() {
                 <span className="tiny muted">${tiers[0].workers * perWorkerUsd}</span>
                 <span className="tiny muted">${tiers[tiers.length - 1].workers * perWorkerUsd}</span>
               </div>
-              <p className="tiny muted" style={{ marginTop: 10 }}>
-                {interval === "year"
-                  ? t.rich("billedAnnually", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })
-                  : t.rich("billedMonthly", { b: (chunks) => <span style={{ color: "var(--text)", fontWeight: 600 }}>{chunks}</span> })}
-              </p>
             </div>
 
             <ul className="price-feats" style={{ marginTop: 20 }}>
