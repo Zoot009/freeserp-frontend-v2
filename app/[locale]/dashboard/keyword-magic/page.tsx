@@ -282,16 +282,32 @@ export default function KeywordMagicPage() {
 
         {/* Match-type tabs */}
         <div className="pill-toggle" style={{ marginTop: 12, display: "inline-flex" }}>
-          {MATCH_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={matchType === tab.key ? "active" : ""}
-              onClick={() => switchTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {MATCH_TABS.map((tab) => {
+            // Related is paid-only. For free users show it locked (a clear upsell)
+            // rather than a normal tab that only errors after a wasted click.
+            const locked = tab.key === "related" && usage != null && !usage.relatedAvailable
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={matchType === tab.key ? "active" : ""}
+                onClick={() => {
+                  if (locked) {
+                    // Fire the global upsell modal; leave the current results intact.
+                    window.dispatchEvent(new CustomEvent("billing:quota", {
+                      detail: { code: "plan_upgrade_required", message: "The Related keywords view is available on paid plans. Upgrade to unlock it." },
+                    }))
+                    return
+                  }
+                  switchTab(tab.key)
+                }}
+                title={locked ? "Related is a paid feature — upgrade to unlock" : undefined}
+                style={locked ? { display: "inline-flex", alignItems: "center", gap: 5 } : undefined}
+              >
+                {locked && <Icon.lock />}{tab.label}
+              </button>
+            )
+          })}
         </div>
       </form>
 
