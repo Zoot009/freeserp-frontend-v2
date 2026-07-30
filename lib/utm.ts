@@ -65,6 +65,15 @@ const SENSITIVE_KEY_RE =
 // literal braces end up on display in the admin.
 const UNEXPANDED_MACRO_RE = /\{\{.*?\}\}/
 
+// Facebook's link shim (l.facebook.com) re-encodes the destination URL, so the
+// "+" that Meta writes for a space when expanding {{campaign.name}} survives one
+// decode pass and reaches us literally — "Check+your+web+ranking+camp+image".
+// In a query string "+" always means space, and no Meta object name legitimately
+// contains one, so restore it on the human-readable fields. Ids and fbclid are
+// deliberately excluded: their charsets have no "+", so there is nothing to fix
+// and a blanket replace could only corrupt them.
+const plusToSpace = (v: string) => (v.includes("+") ? v.replace(/\+/g, " ") : v)
+
 const MAX_PARAMS = 40
 const MAX_KEY_LEN = 64
 const MAX_VALUE_LEN = 512
@@ -139,7 +148,7 @@ export function readUtm(params: URLSearchParams): Utm {
   const utm: Utm = {}
   for (const [param, field] of UTM_KEYS) {
     const v = params.get(param)?.trim()
-    if (v) utm[field] = v
+    if (v) utm[field] = plusToSpace(v)
   }
   for (const [aliases, field, pattern] of META_KEYS) {
     for (const param of aliases) {
@@ -147,7 +156,7 @@ export function readUtm(params: URLSearchParams): Utm {
       if (!v) continue
       if (pattern && !pattern.test(v)) continue // unusable — try the next alias
       if (!pattern && UNEXPANDED_MACRO_RE.test(v)) continue // macro never expanded
-      utm[field] = pattern ? v : v.slice(0, 200)
+      utm[field] = pattern ? v : plusToSpace(v).slice(0, 200)
       break
     }
   }
