@@ -282,7 +282,7 @@ export default function KeywordMagicPage() {
             <StatTile lbl="Match" val={matchType === "broad" ? "Broad" : "Related"} tip={`Market: ${result.location.toUpperCase()}`} icon={<Icon.filter />} />
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: "230px minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+          <div className="km-layout">
             {/* Word-group sidebar */}
             <div className="card" style={{ padding: 12 }}>
               <div className="tiny muted" style={{ padding: "4px 8px 8px", fontWeight: 600 }}>By keyword</div>
@@ -417,6 +417,19 @@ export default function KeywordMagicPage() {
       )}
 
       <style jsx>{`
+        .km-layout {
+          display: grid;
+          grid-template-columns: 230px minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+        /* Stack the word-group sidebar above the results table on narrow screens
+           so neither overflows. */
+        @media (max-width: 860px) {
+          .km-layout {
+            grid-template-columns: 1fr;
+          }
+        }
         .km-group {
           width: 100%;
           display: flex;
