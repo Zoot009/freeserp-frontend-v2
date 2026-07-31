@@ -55,6 +55,8 @@ const KNOWN_CODES = new Set([
   // buy yet and no extension to redeem, so this renders as an FYI.
   "free_daily_quota_exhausted",
   "project_limit_reached",
+  // Sticky daily project-creation cap (delete→recreate can't farm past it).
+  "project_create_limit_reached",
   "keyword_limit_reached",
   // Free daily keyword-add cap (delete→re-add can't farm past it).
   "keyword_add_limit_reached",
@@ -184,7 +186,7 @@ export function QuotaUpsellModal() {
       ? "bodyFreeTrial"
       : isFreeDaily
         ? "bodyFreeDailyQuota"
-        : code === "project_limit_reached"
+        : code === "project_limit_reached" || code === "project_create_limit_reached"
           ? "bodyProjectLimit"
           : code === "keyword_limit_reached" || code === "keyword_add_limit_reached"
             ? "bodyKeywordLimit"
