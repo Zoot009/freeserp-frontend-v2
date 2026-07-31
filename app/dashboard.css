@@ -744,6 +744,17 @@
 }
 .fs-app .kw-locked:hover { filter: brightness(0.94); }
 
+/* "+ Keywords" locked to a daily-reset countdown — a free user out of today's
+   rank checks. Amber + tabular numbers so the ticking timer doesn't jitter;
+   still clickable (opens the "resets at 00:00 UTC" notice). */
+.fs-app .btn.kd-add-locked {
+  background: var(--warn-soft); color: var(--warn);
+  border-color: transparent; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.fs-app .btn.kd-add-locked:hover { filter: brightness(0.96); }
+.fs-app .btn.kd-add-locked .tabular { font-weight: 700; }
+
 /* Check-in-progress strip — a brand-tinted "working" banner (spinner + status +
    an indeterminate sliding bar) shown while keywords are being checked. */
 .fs-app .check-banner {

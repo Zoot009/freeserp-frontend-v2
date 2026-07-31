@@ -1539,6 +1539,17 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
+  // Out of TODAY's rank checks (free plan). The daily allowance resets at 00:00
+  // UTC, so we lock the "+ Keywords" action and show a live countdown to unlock
+  // instead of letting them add a keyword that can't be checked today. Paid never
+  // locks. `nextUtcMidnightIso` is stable within a day, so CountdownTimer's timer
+  // doesn't re-init on every render.
+  const outOfChecks = !!usage && plan !== "paid" && usage.dailyRemaining <= 0
+  const nextUtcMidnightIso = (() => {
+    const now = new Date()
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0)).toISOString()
+  })()
+
   return (
     <div className="page">
       {/* Header */}
@@ -1677,14 +1688,30 @@ export default function ProjectKeywordsPage() {
 
           {/* Action buttons */}
           <div className="row kd-proj-btns">
-            <button
-              data-tutorial="add-keywords-btn"
-              type="button"
-              className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
-              onClick={() => setShowAddKw(true)}
-            >
-              <Icon.plus /> {t("keywordsBtn")}
-            </button>
+            {outOfChecks ? (
+              <button
+                data-tutorial="add-keywords-btn"
+                type="button"
+                className="btn kd-add-locked"
+                title={t("outOfChecksTip")}
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("billing:quota", { detail: { code: "free_daily_quota_exhausted" } }),
+                  )
+                }
+              >
+                <Icon.lock /> {t("unlocksIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+              </button>
+            ) : (
+              <button
+                data-tutorial="add-keywords-btn"
+                type="button"
+                className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
+                onClick={() => setShowAddKw(true)}
+              >
+                <Icon.plus /> {t("keywordsBtn")}
+              </button>
+            )}
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
             <Link
@@ -2020,9 +2047,24 @@ export default function ProjectKeywordsPage() {
               <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
                 {t("startTrackingDesc")}
               </div>
-              <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-                <Icon.plus /> {t("addKeywords")}
-              </button>
+              {outOfChecks ? (
+                <button
+                  className="btn kd-add-locked"
+                  style={{ marginTop: 16 }}
+                  title={t("outOfChecksTip")}
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("billing:quota", { detail: { code: "free_daily_quota_exhausted" } }),
+                    )
+                  }
+                >
+                  <Icon.lock /> {t("unlocksIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+                </button>
+              ) : (
+                <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                  <Icon.plus /> {t("addKeywords")}
+                </button>
+              )}
             </div>
           ) : (
           <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 0 }}>
