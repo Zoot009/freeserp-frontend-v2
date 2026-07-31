@@ -352,7 +352,7 @@ function AddKeywordsModal({
   // homepage. Distinct from the Google-autocomplete chips below, which are
   // related-to-what-you-just-typed. Empty unless the run completed.
   aiSuggestions?: AiSuggestion[]
-  aiStatus?: "idle" | "running" | "done" | "failed"
+  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed"
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
@@ -853,8 +853,11 @@ export default function ProjectKeywordsPage() {
   // page into the analysis flow instead of showing an empty keyword table.
   const isNewProject = searchParams.get("new") === "1"
   const [aiRun, setAiRun] = useState<SuggestionRun | null>(null)
-  const [aiPhase, setAiPhase] = useState<"idle" | "running" | "done" | "failed">(
-    isNewProject ? "running" : "idle",
+  // "choosing" → the new-project screen now ASKS whether to run the AI analysis
+  // (crawl + OpenAI + volume, which costs money) or add keywords manually, instead
+  // of auto-running it. The run only starts when the user picks "Analyze".
+  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed">(
+    isNewProject ? "choosing" : "idle",
   )
   // Guards the START call only — polling must be free to re-arm on remount.
   const aiStartedRef = useRef(false)
@@ -1086,8 +1089,9 @@ export default function ProjectKeywordsPage() {
   // — that's what makes it safe to fire on every mount of a `?new=1` page.
   useEffect(() => {
     if (!isNewProject || !token || !user?.emailVerified) return
-    // Terminal — the run already resolved, don't re-arm anything.
-    if (aiPhase === "done" || aiPhase === "failed") return
+    // Only after the user chose "Analyze" (aiPhase → "running"). While "choosing"
+    // / "idle" / terminal we don't POST — that's what makes declining cost nothing.
+    if (aiPhase !== "running") return
 
     let cancelled = false
     let timer: ReturnType<typeof setInterval> | undefined
@@ -1158,7 +1162,9 @@ export default function ProjectKeywordsPage() {
   // condition.
   useEffect(() => {
     if (!isNewProject) return
-    if (aiPhase === "done" || aiPhase === "failed") return
+    // Only clocks the analysis itself — not the "choosing" screen (no time limit
+    // on deciding) or the terminal states.
+    if (aiPhase !== "running") return
     // Anchored to the first mount so remounts can't keep pushing it out.
     if (aiDeadlineRef.current === null) aiDeadlineRef.current = Date.now() + AI_ANALYSIS_TIMEOUT_MS
     const remaining = Math.max(0, aiDeadlineRef.current - Date.now())
@@ -2031,10 +2037,38 @@ export default function ProjectKeywordsPage() {
             <CompetitorsCard projectId={project.id} yourAvg={stats.avgPos > 0 ? stats.avgPos : null} />
           </div>
 
-          {/* Right column — the AI analysis screen for a just-created project,
-              then the empty "Start tracking" state before any keywords exist,
-              otherwise the SERP rank-tracking table. */}
-          {aiPhase === "running" ? (
+          {/* Right column — for a just-created project we first ASK whether to
+              run the (paid) AI analysis or add keywords by hand; then the analysis
+              screen if they chose it; then the empty "Start tracking" state before
+              any keywords exist; otherwise the SERP rank-tracking table. */}
+          {aiPhase === "choosing" ? (
+            <div
+              className="card"
+              style={{
+                padding: "56px 32px", textAlign: "center", border: "1px dashed var(--border-strong)",
+                background: "transparent", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", minHeight: 300,
+              }}
+            >
+              <div className="eyebrow" style={{ justifyContent: "center" }}>
+                <span className="spark"><Icon.spark /></span> {t("aiChoiceEyebrow")}
+              </div>
+              <div className="b" style={{ fontSize: 18, marginTop: 8 }}>{t("aiChoiceTitle")}</div>
+              <div className="tiny muted" style={{ marginTop: 8, maxWidth: 400 }}>{t("aiChoiceDesc")}</div>
+              <div className="row" style={{ gap: 10, marginTop: 22, justifyContent: "center", flexWrap: "wrap" }}>
+                <button type="button" className="btn primary" onClick={() => setAiPhase("running")}>
+                  <Icon.spark /> {t("aiChoiceAnalyze")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => { setAiPhase("idle"); exitNewProjectFlow(); setShowAddKw(true) }}
+                >
+                  {t("aiChoiceManual")}
+                </button>
+              </div>
+            </div>
+          ) : aiPhase === "running" ? (
             <AiAnalysisLoader
               domain={project.domain}
               status={aiRun?.status}
