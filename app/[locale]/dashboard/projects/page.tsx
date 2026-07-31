@@ -553,9 +553,13 @@ export default function ProjectsPage() {
         if (!created?.id) return
         setProjects((prev) => [{ ...created, _count: { keywords: 0 } }, ...prev])
         // Drop them straight into their first project so the landing-page story
-        // finishes where it promised. With existing projects we stay put — a
-        // surprise redirect away from the grid they asked for would be worse.
-        if (wasEmpty) router.push(`/dashboard/project/${created.id}/keywords`)
+        // finishes where it promised. `?new=1` puts the keywords page into the
+        // onboarding flow (the "Analyzing…" screen → auto-open Add Keywords with
+        // AI suggestions) — same as the Add-project modal path below. Without it,
+        // a user arriving from the landing page silently skipped that screen and
+        // never saw the suggestions the backend already generated. With existing
+        // projects we stay put — a surprise redirect away from the grid would be worse.
+        if (wasEmpty) router.push(`/dashboard/project/${created.id}/keywords?new=1`)
       })
       .catch(() => {
         /* Most likely the free-plan project cap. The grid still renders. */
