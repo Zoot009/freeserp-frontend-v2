@@ -35,7 +35,7 @@ const SCHEDULED_CHECKS_ENABLED = true
 
 // Per-project keyword cap for free users. Paid users have no cap. Must stay
 // in sync with FREE_KEYWORDS_PER_PROJECT_LIMIT in the backend.
-const FREE_KEYWORDS_PER_PROJECT_LIMIT = 10
+const FREE_KEYWORDS_PER_PROJECT_LIMIT = 3
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
 // 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
