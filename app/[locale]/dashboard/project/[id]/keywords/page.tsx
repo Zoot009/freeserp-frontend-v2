@@ -1040,10 +1040,27 @@ export default function ProjectKeywordsPage() {
   }
 
   // Load usage info — drives the daily-checks counter shown in the header.
+  // Seed from a session cache first so a page refresh restores the "checks reset
+  // in …" notice instantly instead of flashing in once /api/usage returns.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const cached = sessionStorage.getItem("fs:usage")
+      if (cached) {
+        const parsed = JSON.parse(cached) as UsageInfo
+        if (parsed && typeof parsed.dailyLimit === "number") setUsage((prev) => prev ?? parsed)
+      }
+    } catch { /* ignore a bad/absent cache */ }
+  }, [])
   useEffect(() => {
     if (!token || !user?.emailVerified) return
     api.get<UsageInfo>("/api/usage")
-      .then((data) => { if (data && typeof data.dailyLimit === "number") setUsage(data) })
+      .then((data) => {
+        if (data && typeof data.dailyLimit === "number") {
+          setUsage(data)
+          try { sessionStorage.setItem("fs:usage", JSON.stringify(data)) } catch { /* quota/full — non-fatal */ }
+        }
+      })
       .catch(() => undefined)
   }, [token, user?.emailVerified])
 
@@ -1539,11 +1556,11 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
-  // Out of TODAY's rank checks (free plan). The daily allowance resets at 00:00
-  // UTC, so we lock the "+ Keywords" action and show a live countdown to unlock
-  // instead of letting them add a keyword that can't be checked today. Paid never
-  // locks. `nextUtcMidnightIso` is stable within a day, so CountdownTimer's timer
-  // doesn't re-init on every render.
+  // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
+  // adding is limited by the keyword cap — so we show a small non-blocking
+  // "checks reset in …" notice rather than locking the add button. The daily
+  // allowance resets at 00:00 UTC; `nextUtcMidnightIso` is stable within a day,
+  // so CountdownTimer doesn't re-init on every render. Paid never shows it.
   const outOfChecks = !!usage && plan !== "paid" && usage.dailyRemaining <= 0
   const nextUtcMidnightIso = (() => {
     const now = new Date()
@@ -1688,11 +1705,20 @@ export default function ProjectKeywordsPage() {
 
           {/* Action buttons */}
           <div className="row kd-proj-btns">
-            {outOfChecks ? (
-              <button
-                data-tutorial="add-keywords-btn"
-                type="button"
-                className="btn kd-add-locked"
+            <button
+              data-tutorial="add-keywords-btn"
+              type="button"
+              className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
+              onClick={() => setShowAddKw(true)}
+            >
+              <Icon.plus /> {t("keywordsBtn")}
+            </button>
+            {/* Out of TODAY's rank checks (free). A non-blocking notice — adding
+                keywords is NOT gated by checks (it's gated by the keyword cap),
+                so we don't lock the button; we just show when checks come back. */}
+            {outOfChecks && (
+              <span
+                className="kd-checks-reset"
                 title={t("outOfChecksTip")}
                 onClick={() =>
                   window.dispatchEvent(
@@ -1700,17 +1726,8 @@ export default function ProjectKeywordsPage() {
                   )
                 }
               >
-                <Icon.lock /> {t("unlocksIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
-              </button>
-            ) : (
-              <button
-                data-tutorial="add-keywords-btn"
-                type="button"
-                className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
-                onClick={() => setShowAddKw(true)}
-              >
-                <Icon.plus /> {t("keywordsBtn")}
-              </button>
+                <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+              </span>
             )}
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
@@ -2047,23 +2064,13 @@ export default function ProjectKeywordsPage() {
               <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
                 {t("startTrackingDesc")}
               </div>
-              {outOfChecks ? (
-                <button
-                  className="btn kd-add-locked"
-                  style={{ marginTop: 16 }}
-                  title={t("outOfChecksTip")}
-                  onClick={() =>
-                    window.dispatchEvent(
-                      new CustomEvent("billing:quota", { detail: { code: "free_daily_quota_exhausted" } }),
-                    )
-                  }
-                >
-                  <Icon.lock /> {t("unlocksIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
-                </button>
-              ) : (
-                <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-                  <Icon.plus /> {t("addKeywords")}
-                </button>
+              <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                <Icon.plus /> {t("addKeywords")}
+              </button>
+              {outOfChecks && (
+                <span className="kd-checks-reset" style={{ marginTop: 12 }} title={t("outOfChecksTip")}>
+                  <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+                </span>
               )}
             </div>
           ) : (
