@@ -56,6 +56,8 @@ const KNOWN_CODES = new Set([
   "free_daily_quota_exhausted",
   "project_limit_reached",
   "keyword_limit_reached",
+  // Free daily keyword-add cap (delete→re-add can't farm past it).
+  "keyword_add_limit_reached",
   "ai_analysis_limit_reached",
 ])
 
@@ -184,7 +186,7 @@ export function QuotaUpsellModal() {
         ? "bodyFreeDailyQuota"
         : code === "project_limit_reached"
           ? "bodyProjectLimit"
-          : code === "keyword_limit_reached"
+          : code === "keyword_limit_reached" || code === "keyword_add_limit_reached"
             ? "bodyKeywordLimit"
             : code === "ai_analysis_limit_reached"
               ? "bodyAiLimit"
