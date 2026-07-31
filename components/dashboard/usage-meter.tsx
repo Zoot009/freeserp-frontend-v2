@@ -131,6 +131,10 @@ export function UsageMeter() {
   const [usage, setUsage] = useState<UsageInfo | null>(null)
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  // On small screens the pill sits mid-topbar, so a right-anchored 300px panel
+  // overflows the left edge. There we pin the panel to the viewport instead,
+  // dropped just below the pill (measured, so it clears a trial banner too).
+  const [mobileTop, setMobileTop] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -170,6 +174,22 @@ export function UsageMeter() {
       document.removeEventListener("mousedown", onDown)
       document.removeEventListener("keydown", onKey)
     }
+  }, [open])
+
+  // Measure where the panel should sit on phones (≤640px) while it's open.
+  useEffect(() => {
+    if (!open) { setMobileTop(null); return }
+    const compute = () => {
+      if (typeof window === "undefined") return
+      setMobileTop(
+        window.innerWidth <= 640 && wrapRef.current
+          ? wrapRef.current.getBoundingClientRect().bottom + 8
+          : null,
+      )
+    }
+    compute()
+    window.addEventListener("resize", compute)
+    return () => window.removeEventListener("resize", compute)
   }, [open])
 
   if (!usage) return null
@@ -267,10 +287,12 @@ export function UsageMeter() {
           role="dialog"
           aria-label={t("todaysUsage")}
           style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            insetInlineEnd: 0,
-            width: 300,
+            // Phone: fixed to the viewport's top-right (below the pill) so a
+            // right-anchored panel can't run off the left edge. Desktop: drops
+            // right under the pill as before.
+            ...(mobileTop != null
+              ? { position: "fixed", top: mobileTop, insetInlineEnd: 10, insetInlineStart: "auto", width: "min(320px, calc(100vw - 20px))" }
+              : { position: "absolute", top: "calc(100% + 8px)", insetInlineEnd: 0, width: 300 }),
             padding: 16,
             borderRadius: 12,
             border: "1px solid var(--border)",
