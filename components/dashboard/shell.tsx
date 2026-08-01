@@ -29,7 +29,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     else if (!loading && user && !user.emailVerified) router.replace("/verify-email")
     // One-time required onboarding: a verified user who hasn't picked a role yet
     // is sent to the dedicated page until occupationRole is set.
-    else if (!loading && user && !user.occupationRole) router.replace("/onboarding")
+    else if (!loading && user && !user.occupationRole) router.replace("/flow")
   }, [user, loading, router])
 
   // A redirect above is pending whenever the user isn't fully onboarded — not

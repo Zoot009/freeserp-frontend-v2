@@ -75,7 +75,7 @@ function SignupForm() {
         if (isNewUser) {
           try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
           // New account → straight to the one-time role page, never the dashboard.
-          router.replace("/onboarding")
+          router.replace("/flow")
           return
         }
         router.push("/dashboard/projects")
@@ -97,7 +97,7 @@ function SignupForm() {
       const { isNewUser } = await loginWithFacebook(await facebookLogin())
       if (isNewUser) {
         try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
-        router.replace("/onboarding")
+        router.replace("/flow")
         return
       }
       router.push("/dashboard/projects")
