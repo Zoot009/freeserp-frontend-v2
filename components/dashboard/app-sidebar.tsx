@@ -107,7 +107,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
                 {initial}
               </div>
               <div className="flex min-w-0 flex-col leading-none">

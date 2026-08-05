@@ -97,8 +97,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {/* Brand blue, not the default bg-primary — that token is the
+                near-black "ink" surface, which reads as a black CTA against a
+                blue-and-white theme. text-white rather than
+                text-primary-foreground: the latter inverts to near-black in dark
+                mode and would put dark text on a blue fill. */}
             {!isPaid && (
-              <Button asChild size="sm">
+              <Button asChild size="sm" className="bg-brand text-white hover:bg-brand-deep">
                 <Link href="/pricing">Upgrade</Link>
               </Button>
             )}
@@ -108,7 +113,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Button variant="outline" size="icon" aria-label="Notifications">
               <Bell className="size-4" />
             </Button>
-            <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+            <div className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
               {initial}
             </div>
           </div>
@@ -125,7 +130,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mb-1 flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="mb-1 flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand">
               <Globe className="size-5" />
             </div>
             <DialogTitle className="text-xl">Add your website</DialogTitle>
@@ -141,7 +146,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               onKeyDown={(e) => e.key === "Enter" && addWebsite()}
               placeholder="yourwebsite.com"
             />
-            <Button onClick={addWebsite} disabled={adding}>{adding ? "Adding…" : "Add website"}</Button>
+            <Button onClick={addWebsite} disabled={adding} className="bg-brand text-white hover:bg-brand-deep">
+              {adding ? "Adding…" : "Add website"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
