@@ -46,7 +46,11 @@ export function ProjectSwitcher({
    */
   value?: string | null
   onSelect?: (projectId: string | null) => void
-  /** Label for the "no project selected" entry in controlled mode. */
+  /**
+   * Trigger text before a project is resolved — the brief window while the list
+   * loads, or a project page whose id isn't in the list. The menu itself lists
+   * only real projects; there is no "all projects" entry.
+   */
   allLabel?: string
 }) {
   const t = useTranslations("dashboardNav")
@@ -123,19 +127,6 @@ export function ProjectSwitcher({
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t("projects")}
         </DropdownMenuLabel>
-        {/* Only offered when filtering — as a jump list there's nowhere for
-            "all projects" to go. */}
-        {controlled && (
-          <DropdownMenuItem
-            onClick={() => choose(null)}
-            className={
-              "focus:bg-muted focus:text-foreground" +
-              (activeId === null ? " bg-brand-soft text-brand focus:bg-brand-soft focus:text-brand" : "")
-            }
-          >
-            {allLabel ?? t("projects")}
-          </DropdownMenuItem>
-        )}
         {projects.map((p) => (
           <DropdownMenuItem
             key={p.id}

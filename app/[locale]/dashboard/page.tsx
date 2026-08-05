@@ -83,12 +83,20 @@ export default function DashboardOverviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [range, setRange] = useState<OverviewRange>("7d")
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
-  // null = every project (how the page opens). Set from the heading switcher to
-  // scope the whole page — tiles, coverage, chart and keyword rows — to one.
+  // The project this page is scoped to — tiles, coverage, chart and keyword
+  // rows all narrow to it. Null only until the project list arrives; the effect
+  // below then settles on the first one, because the switcher offers no "all
+  // projects" entry to get back to an unscoped view.
   const [projectId, setProjectId] = useState<string | null>(null)
 
-  // Real aggregate stats + average-position history across ALL projects, served
-  // by GET /api/overview. Refetches whenever the range toggle changes.
+  // Settle on the first project as soon as the list lands, so the page is never
+  // stuck on an unscoped view the switcher can't return to.
+  useEffect(() => {
+    if (projectId === null && projects.length > 0) setProjectId(projects[0]!.id)
+  }, [projects, projectId])
+
+  // Stats + average-position history for the selected project, served by
+  // GET /api/overview. Refetches when the range toggle or the project changes.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
