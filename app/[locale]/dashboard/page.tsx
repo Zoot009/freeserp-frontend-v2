@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   StatTile,
   LineChart,
@@ -88,6 +89,11 @@ export default function DashboardOverviewPage() {
   // below then settles on the first one, because the switcher offers no "all
   // projects" entry to get back to an unscoped view.
   const [projectId, setProjectId] = useState<string | null>(null)
+  // Separate flags: the tiles/chart/coverage come from /api/overview, the rows
+  // from the project detail. Both start true so the very first paint is
+  // placeholders rather than zeroes that then jump to real figures.
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [rowsLoading, setRowsLoading] = useState(true)
 
   // Settle on the first project as soon as the list lands, so the page is never
   // stuck on an unscoped view the switcher can't return to.
@@ -104,6 +110,9 @@ export default function DashboardOverviewPage() {
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
+    // Reset on every scope change, so switching project shows placeholders
+    // rather than the previous project's figures while the new ones load.
+    setStatsLoading(true)
     ;(async () => {
       try {
         const scope = `&projectId=${encodeURIComponent(projectId)}`
@@ -111,6 +120,8 @@ export default function DashboardOverviewPage() {
         if (!cancelled) setOverview(data)
       } catch {
         if (!cancelled) setOverview(null)
+      } finally {
+        if (!cancelled) setStatsLoading(false)
       }
     })()
     return () => { cancelled = true }
@@ -139,6 +150,7 @@ export default function DashboardOverviewPage() {
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
+    setRowsLoading(true)
     ;(async () => {
       try {
         const detail = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
@@ -166,6 +178,8 @@ export default function DashboardOverviewPage() {
         // Non-fatal: the tiles still render from /api/overview. Clear the rows
         // rather than stranding the previous project's keywords on screen.
         if (!cancelled) setKeywords([])
+      } finally {
+        if (!cancelled) setRowsLoading(false)
       }
     })()
     return () => { cancelled = true }
@@ -252,27 +266,35 @@ export default function DashboardOverviewPage() {
 
       {/* STAT TILES */}
       <div className="grid g-4" style={{ marginBottom: 14 }}>
+        {/* The project-count delta/tip are gone: this page is scoped to ONE
+            project now, so "1 project · across 6 projects" was both redundant
+            and contradictory. */}
         <StatTile
           lbl={t("statKeywordsTracked")}
-          val={totalKeywords.toLocaleString()}
-          delta={loaded ? t("projectCount", { count: projectId ? 1 : projects.length }) : "—"}
-          tip={loaded ? t("acrossProjects", { count: projects.length }) : ""}
+          val={statsLoading ? <Skeleton className="h-8 w-16" /> : totalKeywords.toLocaleString()}
         />
         <StatTile
           lbl={t("statAvgPosition")}
-          val={avgPos ? avgPos.toFixed(1) : "—"}
-          tip={ranked ? t("rankedCount", { count: ranked }) : t("noData")}
+          val={statsLoading ? <Skeleton className="h-8 w-16" /> : avgPos ? avgPos.toFixed(1) : "—"}
+          tip={statsLoading ? <Skeleton className="h-3 w-20" /> : ranked ? t("rankedCount", { count: ranked }) : t("noData")}
         />
         <StatTile
           lbl={t("statEstTraffic")}
-          val={estTraffic ? estTraffic.toLocaleString() : "—"}
-          delta={estTraffic ? t("modelled") : t("noData")}
-          tip={t("trafficTip")}
+          // Modelled from the keyword rows, so it tracks rowsLoading.
+          val={rowsLoading ? <Skeleton className="h-8 w-24" /> : estTraffic ? estTraffic.toLocaleString() : "—"}
+          delta={rowsLoading ? null : estTraffic ? t("modelled") : t("noData")}
+          tip={rowsLoading ? <Skeleton className="h-3 w-28" /> : t("trafficTip")}
         />
         <StatTile
           lbl={t("statInTop10")}
-          val={inTop10.toString()}
-          tip={totalKeywords ? t("inTop10Tip", { percent: Math.round((inTop10 / totalKeywords) * 100), top3: inTop3 }) : t("inTop3Only", { top3: inTop3 })}
+          val={statsLoading ? <Skeleton className="h-8 w-12" /> : inTop10.toString()}
+          tip={
+            statsLoading
+              ? <Skeleton className="h-3 w-32" />
+              : totalKeywords
+                ? t("inTop10Tip", { percent: Math.round((inTop10 / totalKeywords) * 100), top3: inTop3 })
+                : t("inTop3Only", { top3: inTop3 })
+          }
         />
       </div>
 
@@ -288,11 +310,13 @@ export default function DashboardOverviewPage() {
               <span className="row" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--brand)" }} />{t("avgPositionLegend")}</span>
             </div>
           </div>
-          {rankHistory.length > 0 ? (
+          {statsLoading ? (
+            <Skeleton className="h-[240px] w-full rounded-lg bg-muted/60" />
+          ) : rankHistory.length > 0 ? (
             <LineChart data={rankHistory} invert yFormat={(v) => "#" + Math.round(v)} height={240} />
           ) : (
             <div style={{ height: 240, display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-              {overview === null ? t("loading") : t("noRankingData")}
+              {t("noRankingData")}
             </div>
           )}
         </div>
@@ -303,14 +327,32 @@ export default function DashboardOverviewPage() {
             <div className="t">{t("coverage")}</div>
             <button className="icon-btn" style={{ width: 24, height: 24 }} aria-label={t("more")}><Icon.dots /></button>
           </div>
-          <Donut value={donutValue} label={t("inTop10")} />
-          <Legend
-            items={[
-              { color: "var(--brand)", label: t("inTop10"), count: inTop10 },
-              { color: "var(--bg-inset)", label: t("inTop30"), count: inTop30, dark: true },
-              { color: "var(--border-strong)", label: t("outsideTop30"), count: outside30 },
-            ]}
-          />
+          {statsLoading ? (
+            <>
+              <div style={{ display: "grid", placeItems: "center", padding: "24px 0" }}>
+                <Skeleton className="size-36 rounded-full bg-muted/60" />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-3.5 w-6" />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <Donut value={donutValue} label={t("inTop10")} />
+              <Legend
+                items={[
+                  { color: "var(--brand)", label: t("inTop10"), count: inTop10 },
+                  { color: "var(--bg-inset)", label: t("inTop30"), count: inTop30, dark: true },
+                  { color: "var(--border-strong)", label: t("outsideTop30"), count: outside30 },
+                ]}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -325,7 +367,18 @@ export default function DashboardOverviewPage() {
             <Link href="/dashboard/keywords"><button className="btn sm">{t("viewAll")} <Icon.chevR /></button></Link>
           </div>
         </div>
-        {latestMovements.length > 0 ? (
+        {rowsLoading ? (
+          <div style={{ padding: "18px" }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, padding: "10px 0" }}>
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : latestMovements.length > 0 ? (
           <KeywordTable
             rows={latestMovements}
             // `latestMovements` is EnrichedRow[] (carries projectId), but the
@@ -338,7 +391,7 @@ export default function DashboardOverviewPage() {
           />
         ) : (
           <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-            {loaded ? t("noMovements") : t("loading")}
+            {t("noMovements")}
           </div>
         )}
       </div>
