@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Link } from "@/i18n/navigation"
 import { Bell, Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
@@ -26,12 +26,6 @@ const normalizeDomain = (v: string) =>
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const pathname = usePathname()
-  // New shadcn pages (home, project tracking) render in pure shadcn styling —
-  // NOT wrapped in .fs-app. Only the older pages need the .fs-app scope.
-  // Only the Overview (/dashboard) is a pure-shadcn page. Everything else —
-  // including the restored .fs-app project pages — keeps the .fs-app wrapper.
-  const isHome = /\/dashboard$/.test(pathname ?? "")
   const { resolvedTheme, setTheme } = useTheme()
 
   const [hasWebsite, setHasWebsite] = useState<boolean | null>(null)
@@ -120,13 +114,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* New shadcn pages (home) render plain; older pages get .fs-app so their
-            scoped CSS applies (transparent bg keeps the shadcn inset panel clean). */}
-        {isHome ? (
-          <div className="flex-1">{children}</div>
-        ) : (
-          <div className="fs-app flex-1" style={{ background: "transparent" }}>{children}</div>
-        )}
+        {/* Every dashboard page gets the .fs-app scope so its scoped CSS applies —
+            /dashboard is back to the Overview page from main, which is built on
+            those classes and renders unstyled without the wrapper. The
+            transparent background keeps the shadcn inset panel clean. */}
+        <div className="fs-app flex-1" style={{ background: "transparent" }}>{children}</div>
       </SidebarInset>
 
       {/* Add-website gate popup (shadcn Dialog) */}
