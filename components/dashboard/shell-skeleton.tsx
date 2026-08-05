@@ -72,11 +72,11 @@ export function DashboardSkeleton() {
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="bg-card">
         {/* Mirrors the real header: one h-14 row — trigger, breadcrumb, then the
             search field and icons pushed right — so content below starts at an
-            identical offset. */}
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
+            identical offset. Same bg-card as the real panel. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card px-4">
           <Skeleton className="size-7 rounded-md" />
           <Skeleton className="hidden h-3.5 w-48 sm:block" />
           <Skeleton className="ml-auto h-9 w-full max-w-xs rounded-md lg:max-w-sm" />

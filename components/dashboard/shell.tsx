@@ -92,10 +92,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         plan={isPaid ? "Pro plan" : "Free plan"}
         initial={initial}
       />
-      <SidebarInset>
+      {/* bg-card, not the default bg-background: --background IS the page canvas
+          in this theme (and equals --sidebar in dark), so the panel came out the
+          same tone as the gutter it floats on. --card is the elevated surface —
+          white on grey in light, #14181f on #0b0d12 in dark. */}
+      <SidebarInset className="bg-card">
         {/* One row: trigger, then the breadcrumb trail beside it, with the search
-            field pushed hard right (ml-auto) ahead of the icon cluster. */}
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
+            field pushed hard right (ml-auto) ahead of the icon cluster.
+            bg-card matches the panel, so the bar reads as part of it — and it
+            gives the outline buttons a surface to contrast against, which
+            bg-background did not in dark mode. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card px-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <DashboardBreadcrumb className="hidden sm:flex" />

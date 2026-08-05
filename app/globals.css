@@ -45,7 +45,13 @@
   --ring: #2d5bff;
   --radius: 0.75rem; /* sm 8 / md 10 / lg 12 / xl 16 */
   --grid-line: #e7e9ee;
-  --sidebar: #ffffff;
+  /* The inset layout paints this on the OUTER canvas — the gutter around the
+     raised content panel, which the sidebar itself sits on with no card of its
+     own. So it must be the muted page tone and the panel must be --card, or the
+     two match and the inset stops reading as raised. At #ffffff the gutter was
+     WHITE and the panel grey, i.e. inverted; dark had both at #0b0d12, i.e.
+     identical. Mirrors --background in each theme. */
+  --sidebar: #f7f8fa;
   --sidebar-foreground: #0b0d12;
   --sidebar-primary: #2d5bff;
   --sidebar-primary-foreground: #ffffff;
