@@ -73,12 +73,14 @@ export function DashboardSkeleton() {
       </Sidebar>
 
       <SidebarInset>
-        {/* Same h-14 / border / padding as the real header, so the content below
-            starts at an identical offset. */}
+        {/* Mirrors the real header: one h-14 row — trigger, breadcrumb, then the
+            search field and icons pushed right — so content below starts at an
+            identical offset. */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
           <Skeleton className="size-7 rounded-md" />
-          <Skeleton className="h-9 w-full max-w-md rounded-md" />
-          <div className="ml-auto flex items-center gap-2">
+          <Skeleton className="hidden h-3.5 w-48 sm:block" />
+          <Skeleton className="ml-auto h-9 w-full max-w-xs rounded-md lg:max-w-sm" />
+          <div className="flex shrink-0 items-center gap-2">
             <Skeleton className="size-9 rounded-md" />
             <Skeleton className="size-9 rounded-md" />
             <Skeleton className="size-9 rounded-full" />

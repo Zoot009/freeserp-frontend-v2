@@ -93,38 +93,36 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         initial={initial}
       />
       <SidebarInset>
+        {/* One row: trigger, then the breadcrumb trail beside it, with the search
+            field pushed hard right (ml-auto) ahead of the icon cluster. */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
-          <SidebarTrigger />
-          {/* Breadcrumbs are the first thing after the trigger, as in the shadcn
-              dashboard block. Hidden below md — at that width the search field
-              needs the whole row, and the crumb trail is the more expendable of
-              the two on a phone. */}
-          <Separator orientation="vertical" className="hidden !h-4 md:block" />
-          <DashboardBreadcrumb className="hidden md:flex" />
-          <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
-              {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-            <Button variant="outline" size="icon" aria-label="Notifications">
-              <Bell className="size-4" />
-            </Button>
-            {/* Upgrade and the locale switcher both moved inside this menu, so
-                the account surface is one dropdown instead of three controls.
-                A real <button> so it's keyboard-reachable as a menu trigger. */}
-            <UserMenu side="bottom" align="end">
-              <button
-                type="button"
-                aria-label={name}
-                className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
-              >
-                {initial}
-              </button>
-            </UserMenu>
-          </div>
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="hidden !h-4 sm:block" />
+            <DashboardBreadcrumb className="hidden sm:flex" />
+            <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
+                {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </Button>
+              <Button variant="outline" size="icon" aria-label="Notifications">
+                <Bell className="size-4" />
+              </Button>
+              {/* Upgrade and the locale switcher both moved inside this menu, so
+                  the account surface is one dropdown instead of three controls.
+                  A real <button> so it's keyboard-reachable as a menu trigger. */}
+              <UserMenu side="bottom" align="end">
+                <button
+                  type="button"
+                  aria-label={name}
+                  className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+                >
+                  {initial}
+                </button>
+              </UserMenu>
+            </div>
         </header>
 
         {/* Every dashboard page gets the .fs-app scope so its scoped CSS applies —
