@@ -282,8 +282,6 @@ export default function DashboardOverviewPage() {
           lbl={t("statEstTraffic")}
           // Modelled from the keyword rows, so it tracks rowsLoading.
           val={rowsLoading ? <Skeleton className="h-8 w-24" /> : estTraffic ? estTraffic.toLocaleString() : "—"}
-          delta={rowsLoading ? null : estTraffic ? t("modelled") : t("noData")}
-          tip={rowsLoading ? <Skeleton className="h-3 w-28" /> : t("trafficTip")}
         />
         <StatTile
           lbl={t("statInTop10")}
