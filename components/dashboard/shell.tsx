@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Link } from "@/i18n/navigation"
 import { Bell, Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useTheme } from "@/components/theme-provider"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
+import { UserMenu } from "@/components/dashboard/user-menu"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,25 +97,24 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {/* Brand blue, not the default bg-primary — that token is the
-                near-black "ink" surface, which reads as a black CTA against a
-                blue-and-white theme. text-white rather than
-                text-primary-foreground: the latter inverts to near-black in dark
-                mode and would put dark text on a blue fill. */}
-            {!isPaid && (
-              <Button asChild size="sm" className="bg-brand text-white hover:bg-brand-deep">
-                <Link href="/pricing">Upgrade</Link>
-              </Button>
-            )}
             <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
               {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
             <Button variant="outline" size="icon" aria-label="Notifications">
               <Bell className="size-4" />
             </Button>
-            <div className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-              {initial}
-            </div>
+            {/* Upgrade and the locale switcher both moved inside this menu, so
+                the account surface is one dropdown instead of three controls.
+                A real <button> so it's keyboard-reachable as a menu trigger. */}
+            <UserMenu side="bottom" align="end">
+              <button
+                type="button"
+                aria-label={name}
+                className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+              >
+                {initial}
+              </button>
+            </UserMenu>
           </div>
         </header>
 

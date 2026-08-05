@@ -14,7 +14,9 @@ import {
   Search,
   MonitorCheck,
   Settings,
+  ChevronsUpDown,
 } from "lucide-react"
+import { UserMenu } from "@/components/dashboard/user-menu"
 import {
   Sidebar,
   SidebarContent,
@@ -106,15 +108,25 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                {initial}
-              </div>
-              <div className="flex min-w-0 flex-col leading-none">
-                <span className="truncate text-sm font-medium capitalize">{name}</span>
-                <span className="text-xs text-muted-foreground">{plan}</span>
-              </div>
-            </SidebarMenuButton>
+            {/* Opens UPWARD, aligned to the row's left edge, so it stays inside
+                the sidebar column instead of spilling rightward across the
+                content panel. The menu is narrower than the expanded sidebar, so
+                it fits; on the icon rail Radix flips it away from the edge. */}
+            <UserMenu side="top" align="start">
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+                  {initial}
+                </div>
+                <div className="flex min-w-0 flex-col leading-none">
+                  <span className="truncate text-sm font-medium capitalize">{name}</span>
+                  <span className="text-xs text-muted-foreground">{plan}</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4 shrink-0" />
+              </SidebarMenuButton>
+            </UserMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
