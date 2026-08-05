@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { ChevronsUpDown, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import {
@@ -65,16 +66,27 @@ export function ProjectSwitcher({ className }: { className?: string }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={className}>
+        {/* Ghost, not outline: this sits INSIDE the page heading, so a bordered
+            control read as a stray button parked next to the title. Matched to
+            .fs-app .page-h h1 (26px/600/-0.025em) and tinted brand so the
+            project name reads as the variable part of the heading — the
+            "Overview: freeserp.com ⌄" shape — rather than a separate widget. */}
+        <Button
+          variant="ghost"
+          className={cn(
+            "h-auto gap-1.5 px-1.5 py-0.5 text-[26px] font-semibold leading-none tracking-[-0.025em] text-brand hover:bg-muted hover:text-brand",
+            className,
+          )}
+        >
           {active ? (
             <>
-              <Favicon domain={active.domain} size={16} bare />
-              <span className="max-w-40 truncate">{active.name}</span>
+              <Favicon domain={active.domain} size={20} bare />
+              <span className="max-w-56 truncate">{active.name}</span>
             </>
           ) : (
             <span className="truncate">{t("projects")}</span>
           )}
-          <ChevronsUpDown className="size-3.5 opacity-60" />
+          <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-64 max-h-none overflow-visible">

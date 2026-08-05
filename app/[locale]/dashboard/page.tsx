@@ -190,7 +190,10 @@ export default function DashboardOverviewPage() {
           {/* "Overview" + the project switcher, replacing the old "Welcome back"
               eyebrow/title pair — the page is identified by what it IS, with the
               tracked projects reachable right beside it. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* baseline alignment, not center: the switcher is type at the same
+              size as the h1, so they should share a baseline like words in a
+              sentence rather than be centred as two boxes. */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
             <h1>{tNav("overview")}</h1>
             <ProjectSwitcher />
           </div>
