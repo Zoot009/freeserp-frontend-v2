@@ -31,6 +31,20 @@ import {
  * locale switcher is a submenu (replacing the separate topbar dropdown), so the
  * whole account surface is one shadcn menu.
  */
+/**
+ * Hover/open styling for a menu row.
+ *
+ * shadcn paints those states with `bg-accent`, which in stock themes is a quiet
+ * neutral. This theme deliberately repurposes --accent as the BRAND blue (see
+ * the mapping note in globals.css), so every row filled solid blue on hover and
+ * the open language row looked selected rather than hovered. --muted is the
+ * neutral this theme actually reserves for that, so rows are overridden onto it.
+ * Not applied to Sign out — its destructive variant already tints red, which is
+ * correct.
+ */
+const ROW =
+  "focus:bg-muted focus:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
+
 export function UserMenu({
   children,
   side = "bottom",
@@ -45,6 +59,7 @@ export function UserMenu({
   const pathname = usePathname()
   const locale = useLocale()
   const t = useTranslations("dashboardNav")
+  const tCommon = useTranslations("common")
   const tLang = useTranslations("languages")
   const [isPending, startTransition] = useTransition()
 
@@ -67,20 +82,25 @@ export function UserMenu({
 
         <DropdownMenuGroup>
           {!isPaid && (
-            <DropdownMenuItem onClick={() => router.push("/pricing?clicked-buy-button")}>
+            <DropdownMenuItem className={ROW} onClick={() => router.push("/pricing?clicked-buy-button")}>
               <Sparkles />
               {t("upgradeToPro")}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
+          <DropdownMenuItem className={ROW} onClick={() => router.push("/dashboard/billing")}>
             <Settings />
             {t("settings")}
           </DropdownMenuItem>
 
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+            {/* "Language: English" — the row states the setting AND its current
+                value, so the active locale is readable without opening the
+                submenu. */}
+            <DropdownMenuSubTrigger className={ROW}>
               <Languages />
-              {tLang(locale)}
+              <span>
+                {tCommon("language")}: <span className="font-medium">{tLang(locale)}</span>
+              </span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="min-w-40">
               {/* Radio rather than plain items so the active locale is marked —
@@ -94,7 +114,15 @@ export function UserMenu({
                 }
               >
                 {routing.locales.map((loc) => (
-                  <DropdownMenuRadioItem key={loc} value={loc} disabled={isPending}>
+                  <DropdownMenuRadioItem
+                    key={loc}
+                    value={loc}
+                    disabled={isPending}
+                    // Same --accent override as ROW, plus a soft brand fill on
+                    // the active locale so "selected" stays distinguishable from
+                    // "hovered" once hover is a neutral.
+                    className="focus:bg-muted focus:text-foreground data-[state=checked]:bg-brand-soft data-[state=checked]:font-medium data-[state=checked]:text-brand"
+                  >
                     {tLang(loc)}
                   </DropdownMenuRadioItem>
                 ))}
