@@ -859,6 +859,7 @@
     "title": "Welcome back",
     "subEmpty": "You haven't created a project yet — set one up to start tracking rankings.",
     "subTracking": "Here's how your rankings are tracking across {count, plural, one {# project} other {# projects}}.",
+    "allProjects": "All projects",
     "newProject": "New project",
     "loadError": "Failed to load dashboard",
     "statKeywordsTracked": "Keywords tracked",

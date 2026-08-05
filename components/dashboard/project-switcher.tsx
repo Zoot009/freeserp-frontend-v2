@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl"
 import { ChevronsUpDown, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import {
@@ -34,7 +33,23 @@ function projectIdFrom(pathname: string): string | null {
  * jumps to the same kind of page for whichever is picked; elsewhere it reads
  * "All projects" and acts as a jump list.
  */
-export function ProjectSwitcher({ className }: { className?: string }) {
+export function ProjectSwitcher({
+  className,
+  value,
+  onSelect,
+  allLabel,
+}: {
+  className?: string
+  /**
+   * Controlled selection. When `onSelect` is supplied the switcher FILTERS in
+   * place — it reports the chosen id (null = all projects) and navigates
+   * nowhere. Without it, it stays a jump list keyed off the URL.
+   */
+  value?: string | null
+  onSelect?: (projectId: string | null) => void
+  /** Label for the "no project selected" entry in controlled mode. */
+  allLabel?: string
+}) {
   const t = useTranslations("dashboardNav")
   // "New project" already exists under dashProjects in all four locales — reuse
   // it rather than adding a duplicate key that could drift.
@@ -42,7 +57,20 @@ export function ProjectSwitcher({ className }: { className?: string }) {
   const router = useRouter()
   const pathname = usePathname() || ""
   const [projects, setProjects] = useState<ProjectOption[]>([])
-  const activeId = projectIdFrom(pathname)
+  const controlled = typeof onSelect === "function"
+  // Controlled: the caller owns the selection. Uncontrolled: derive it from the
+  // URL, so a project page shows the project it's already on.
+  const activeId = controlled ? (value ?? null) : projectIdFrom(pathname)
+
+  const choose = (id: string | null) => {
+    if (onSelect) {
+      onSelect(id)
+      return
+    }
+    // Keywords is a project's home — the same target the breadcrumb's "Project"
+    // crumb points at.
+    if (id) router.push(`/dashboard/project/${id}/keywords`)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -66,39 +94,39 @@ export function ProjectSwitcher({ className }: { className?: string }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        {/* Ghost, not outline: this sits INSIDE the page heading, so a bordered
-            control read as a stray button parked next to the title. Matched to
-            .fs-app .page-h h1 (26px/600/-0.025em) and tinted brand so the
-            project name reads as the variable part of the heading — the
-            "Overview: freeserp.com ⌄" shape — rather than a separate widget. */}
-        <Button
-          variant="ghost"
-          className={cn(
-            "h-auto gap-1.5 px-1.5 py-0.5 text-[26px] font-semibold leading-none tracking-[-0.025em] text-brand hover:bg-muted hover:text-brand",
-            className,
-          )}
-        >
+        <Button variant="outline" size="sm" className={className}>
           {active ? (
             <>
-              <Favicon domain={active.domain} size={20} bare />
-              <span className="max-w-56 truncate">{active.name}</span>
+              <Favicon domain={active.domain} size={16} bare />
+              <span className="max-w-40 truncate">{active.name}</span>
             </>
           ) : (
-            <span className="truncate">{t("projects")}</span>
+            <span className="truncate">{allLabel ?? t("projects")}</span>
           )}
-          <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
+          <ChevronsUpDown className="size-3.5 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-64 max-h-none overflow-visible">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t("projects")}
         </DropdownMenuLabel>
+        {/* Only offered when filtering — as a jump list there's nowhere for
+            "all projects" to go. */}
+        {controlled && (
+          <DropdownMenuItem
+            onClick={() => choose(null)}
+            className={
+              "focus:bg-muted focus:text-foreground" +
+              (activeId === null ? " bg-brand-soft text-brand focus:bg-brand-soft focus:text-brand" : "")
+            }
+          >
+            {allLabel ?? t("projects")}
+          </DropdownMenuItem>
+        )}
         {projects.map((p) => (
           <DropdownMenuItem
             key={p.id}
-            // Keywords is a project's home — the same target the breadcrumb's
-            // "Project" crumb points at.
-            onClick={() => router.push(`/dashboard/project/${p.id}/keywords`)}
+            onClick={() => choose(p.id)}
             className={
               "gap-2 focus:bg-muted focus:text-foreground" +
               (p.id === activeId ? " bg-brand-soft text-brand focus:bg-brand-soft focus:text-brand" : "")

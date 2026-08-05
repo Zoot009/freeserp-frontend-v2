@@ -859,6 +859,7 @@
     "title": "Content de vous revoir",
     "subEmpty": "Vous n'avez pas encore créé de projet — configurez-en un pour commencer à suivre vos positions.",
     "subTracking": "Voici l'évolution de vos positions sur {count, plural, one {# projet} other {# projets}}.",
+    "allProjects": "Tous les projets",
     "newProject": "Nouveau projet",
     "loadError": "Échec du chargement du tableau de bord",
     "statKeywordsTracked": "Mots-clés suivis",

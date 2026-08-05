@@ -859,6 +859,7 @@
     "title": "Willkommen zurück",
     "subEmpty": "Du hast noch kein Projekt erstellt — richte eines ein, um Rankings zu verfolgen.",
     "subTracking": "So entwickeln sich deine Rankings über {count, plural, one {# Projekt} other {# Projekte}}.",
+    "allProjects": "Alle Projekte",
     "newProject": "Neues Projekt",
     "loadError": "Dashboard konnte nicht geladen werden",
     "statKeywordsTracked": "Verfolgte Keywords",

@@ -83,6 +83,9 @@ export default function DashboardOverviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [range, setRange] = useState<OverviewRange>("7d")
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
+  // null = every project (how the page opens). Set from the heading switcher to
+  // scope the whole page — tiles, coverage, chart and keyword rows — to one.
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   // Real aggregate stats + average-position history across ALL projects, served
   // by GET /api/overview. Refetches whenever the range toggle changes.
@@ -90,14 +93,15 @@ export default function DashboardOverviewPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await api.get<OverviewResponse>(`/api/overview?range=${range}`)
+        const scope = projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""
+        const data = await api.get<OverviewResponse>(`/api/overview?range=${range}${scope}`)
         if (!cancelled) setOverview(data)
       } catch {
         if (!cancelled) setOverview(null)
       }
     })()
     return () => { cancelled = true }
-  }, [range])
+  }, [range, projectId])
 
   useEffect(() => {
     let cancelled = false
@@ -108,8 +112,12 @@ export default function DashboardOverviewPage() {
         setProjects(list)
 
         const allKw: EnrichedRow[] = []
+        // Scoped: just that project. Unscoped: the first 3, as before — pulling
+        // every project's keywords would be a fan-out the tiles don't need
+        // (headline stats come from /api/overview, which counts them all).
+        const scoped = projectId ? list.filter((p) => p.id === projectId) : list.slice(0, 3)
         const details = await Promise.all(
-          list.slice(0, 3).map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
+          scoped.map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
         )
         for (const detail of details) {
           if (!detail) continue
@@ -142,7 +150,7 @@ export default function DashboardOverviewPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [t])
+  }, [t, projectId])
 
   // Headline stats come from the real aggregate endpoint (all projects, not the
   // first 3, and no synthetic data). estTraffic stays modelled from the loaded
@@ -182,6 +190,7 @@ export default function DashboardOverviewPage() {
   })
 
   const donutValue = totalKeywords ? Math.round((inTop10 / totalKeywords) * 100) : 0
+  const selectedProject = projectId ? projects.find((p) => p.id === projectId) ?? null : null
 
   return (
     <div className="page">
@@ -190,19 +199,20 @@ export default function DashboardOverviewPage() {
           {/* "Overview" + the project switcher, replacing the old "Welcome back"
               eyebrow/title pair — the page is identified by what it IS, with the
               tracked projects reachable right beside it. */}
-          {/* baseline alignment, not center: the switcher is type at the same
-              size as the h1, so they should share a baseline like words in a
-              sentence rather than be centred as two boxes. */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h1>{tNav("overview")}</h1>
-            <ProjectSwitcher />
+            {/* Controlled: picking a project FILTERS this page rather than
+                navigating away. null = every project. */}
+            <ProjectSwitcher value={projectId} onSelect={setProjectId} allLabel={t("allProjects")} />
           </div>
           <div className="sub">
             {error
               ? <span style={{ color: "var(--neg)" }}>{error}</span>
-              : loaded && projects.length === 0
-                ? t("subEmpty")
-                : t("subTracking", { count: projects.length })}
+              : selectedProject
+                ? selectedProject.domain
+                : loaded && projects.length === 0
+                  ? t("subEmpty")
+                  : t("subTracking", { count: projects.length })}
           </div>
         </div>
         <div className="row">
@@ -220,7 +230,7 @@ export default function DashboardOverviewPage() {
         <StatTile
           lbl={t("statKeywordsTracked")}
           val={totalKeywords.toLocaleString()}
-          delta={loaded ? t("projectCount", { count: projects.length }) : "—"}
+          delta={loaded ? t("projectCount", { count: projectId ? 1 : projects.length }) : "—"}
           tip={loaded ? t("acrossProjects", { count: projects.length }) : ""}
         />
         <StatTile
