@@ -8,6 +8,7 @@ import { useTheme } from "@/components/theme-provider"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
+import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -60,7 +61,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const redirecting = !user || !user.emailVerified || !user.occupationRole
   if (loading || redirecting) {
-    return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Loading…</div>
+    return <DashboardSkeleton />
   }
 
   const name = (user?.name || user?.email || "You").split("@")[0]
