@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
+import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   StatTile,
@@ -353,6 +354,15 @@ export default function DashboardOverviewPage() {
           )}
         </div>
       </div>
+
+      {/* SITE CRAWL — automatic whole-site crawl of the selected project's
+          domain. Renders nothing until a project resolves, and nothing at all
+          for projects with no crawl row. */}
+      {projectId && (
+        <div style={{ marginBottom: 14 }}>
+          <SiteCrawlCard projectId={projectId} />
+        </div>
+      )}
 
       {/* KEYWORDS TABLE */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>

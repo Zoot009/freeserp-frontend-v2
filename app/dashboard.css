@@ -1296,6 +1296,9 @@
 .fs-app .avstack > *:first-child { margin-left: 0; }
 /* Empty / loading shimmer */
 @keyframes shim { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+/* Indeterminate crawl bar. The upstream crawler reports no percentage, so this
+   moves continuously rather than pretending to track progress. */
+@keyframes fs-crawl-stripe { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
 .fs-app .skeleton {
   background: linear-gradient(90deg, var(--bg-inset) 25%, var(--bg-sub) 37%, var(--bg-inset) 63%);
   background-size: 400px 100%;
