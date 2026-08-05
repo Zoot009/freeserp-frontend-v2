@@ -107,12 +107,14 @@ export function DashboardSkeleton() {
             <div className="space-y-4 rounded-xl border p-5 lg:col-span-2">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-3 w-64" />
-              <Skeleton className="h-64 w-full rounded-lg" />
+              {/* Large fill areas sit lighter than the text bars, so the
+                  placeholder reads as depth rather than solid slabs. */}
+              <Skeleton className="h-64 w-full rounded-lg bg-muted/60" />
             </div>
             <div className="space-y-4 rounded-xl border p-5">
               <Skeleton className="h-4 w-24" />
               <div className="flex justify-center py-6">
-                <Skeleton className="size-36 rounded-full" />
+                <Skeleton className="size-36 rounded-full bg-muted/60" />
               </div>
               <div className="space-y-2.5">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -128,7 +130,7 @@ export function DashboardSkeleton() {
           <div className="space-y-4 rounded-xl border p-5">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-3 w-72" />
-            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg bg-muted/60" />
           </div>
         </div>
       </SidebarInset>
