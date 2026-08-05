@@ -213,14 +213,19 @@ export default function DashboardOverviewPage() {
               Controlled: picking a project FILTERS this page rather than
               navigating away. null = every project. */}
           <h1 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span>{tNav("overview")}:</span>
-            <ProjectSwitcher value={projectId} onSelect={setProjectId} allLabel={t("allProjects")} />
+            {/* The colon only earns its place once there's a project after it —
+                otherwise the heading reads "Overview:" with nothing following
+                while the list loads. */}
+            <span>{tNav("overview")}{selectedProject ? ":" : ""}</span>
+            <ProjectSwitcher value={projectId} onSelect={setProjectId} />
           </h1>
           <div className="sub">
             {error
               ? <span style={{ color: "var(--neg)" }}>{error}</span>
               : selectedProject
-                ? selectedProject.domain
+                // The heading already shows the domain — repeat the project's
+                // NAME here, which is the human label, not the same string.
+                ? selectedProject.name
                 : loaded && projects.length === 0
                   ? t("subEmpty")
                   : t("subTracking", { count: projects.length })}

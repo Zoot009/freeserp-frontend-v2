@@ -36,7 +36,6 @@ export function ProjectSwitcher({
   className,
   value,
   onSelect,
-  allLabel,
 }: {
   className?: string
   /**
@@ -46,12 +45,6 @@ export function ProjectSwitcher({
    */
   value?: string | null
   onSelect?: (projectId: string | null) => void
-  /**
-   * Trigger text before a project is resolved — the brief window while the list
-   * loads, or a project page whose id isn't in the list. The menu itself lists
-   * only real projects; there is no "all projects" entry.
-   */
-  allLabel?: string
 }) {
   const t = useTranslations("dashboardNav")
   // "New project" already exists under dashProjects in all four locales — reuse
@@ -89,10 +82,11 @@ export function ProjectSwitcher({
     }
   }, [])
 
-  // Nothing to switch between — don't take up header space.
-  if (projects.length === 0) return null
-
   const active = projects.find((p) => p.id === activeId) ?? null
+  // Render nothing until a real project resolves — covers both "no projects" and
+  // the window between the list arriving and a selection settling. Showing a
+  // placeholder label here meant every page load flashed it for a frame.
+  if (!active) return null
 
   return (
     <DropdownMenu modal={false}>
@@ -118,7 +112,7 @@ export function ProjectSwitcher({
           }}
         >
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {active ? active.domain : allLabel ?? t("projects")}
+            {active.domain}
           </span>
           <ChevronDown size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
         </button>

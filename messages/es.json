@@ -859,7 +859,6 @@
     "title": "Bienvenido de nuevo",
     "subEmpty": "Aún no has creado ningún proyecto — configura uno para empezar a seguir las posiciones.",
     "subTracking": "Así evolucionan tus posiciones en {count, plural, one {# proyecto} other {# proyectos}}.",
-    "allProjects": "Todos los proyectos",
     "newProject": "Nuevo proyecto",
     "loadError": "No se pudo cargar el panel",
     "statKeywordsTracked": "Palabras clave seguidas",
