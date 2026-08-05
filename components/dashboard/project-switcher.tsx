@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { ChevronDown, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
-import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
@@ -94,17 +93,31 @@ export function ProjectSwitcher({
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={className}>
-          {active ? (
-            <>
-              <Favicon domain={active.domain} size={16} bare />
-              <span className="max-w-40 truncate">{active.name}</span>
-            </>
-          ) : (
-            <span className="truncate">{allLabel ?? t("projects")}</span>
-          )}
-          <ChevronsUpDown className="size-3.5 opacity-60" />
-        </Button>
+        {/* A plain button, not the shadcn <Button>: this sits INSIDE the page
+            heading, so it inherits the h1's size and weight via `font: inherit`
+            and carries no chrome of its own. Only the colour differs — the
+            domain reads as the variable half of "Overview: freeserp.com". */}
+        <button
+          type="button"
+          className={className}
+          style={{
+            font: "inherit",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            color: "var(--brand)",
+            cursor: "pointer",
+            maxWidth: "100%",
+          }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {active ? active.domain : allLabel ?? t("projects")}
+          </span>
+          <ChevronDown size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-64 max-h-none overflow-visible">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">

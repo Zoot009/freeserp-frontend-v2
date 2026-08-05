@@ -199,12 +199,15 @@ export default function DashboardOverviewPage() {
           {/* "Overview" + the project switcher, replacing the old "Welcome back"
               eyebrow/title pair — the page is identified by what it IS, with the
               tracked projects reachable right beside it. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h1>{tNav("overview")}</h1>
-            {/* Controlled: picking a project FILTERS this page rather than
-                navigating away. null = every project. */}
+          {/* One heading — "Overview: freeserp.com ⌄" — with the switcher inside
+              the h1 so it inherits its size and weight and reads as the variable
+              half of the title rather than a control sitting next to it.
+              Controlled: picking a project FILTERS this page rather than
+              navigating away. null = every project. */}
+          <h1 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span>{tNav("overview")}:</span>
             <ProjectSwitcher value={projectId} onSelect={setProjectId} allLabel={t("allProjects")} />
-          </div>
+          </h1>
           <div className="sub">
             {error
               ? <span style={{ color: "var(--neg)" }}>{error}</span>
