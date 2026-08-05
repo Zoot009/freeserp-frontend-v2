@@ -119,7 +119,17 @@ export function UserMenu({
                 {tCommon("language")}: <span className="font-medium">{tLang(locale)}</span>
               </span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="min-w-40">
+            {/* Submenus are always align="start" in Radix (no `align` prop), so
+                the list pinned its TOP to the trigger and ran downward past the
+                bottom of the sidebar. It still fit on screen, so the collision
+                flip never corrected it. A negative alignOffset pulls it up by
+                its own height instead, leaving the last row beside the trigger.
+                Derived from the locale count (≈32px a row) so adding a language
+                keeps it aligned; Radix still shifts it if that would overflow. */}
+            <DropdownMenuSubContent
+              alignOffset={-(routing.locales.length - 1) * 32}
+              className="min-w-40"
+            >
               {/* Radio rather than plain items so the active locale is marked —
                   the menu doubles as the indicator the old standalone switcher
                   was. `pathname` from @/i18n/navigation is locale-agnostic, so
