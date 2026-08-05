@@ -43,7 +43,7 @@ import {
  * correct.
  */
 const ROW =
-  "focus:bg-muted focus:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
+  "text-foreground [&_svg]:text-muted-foreground focus:bg-muted focus:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground"
 
 export function UserMenu({
   children,

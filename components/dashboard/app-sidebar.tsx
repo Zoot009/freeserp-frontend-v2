@@ -115,7 +115,11 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
             <UserMenu side="top" align="start">
               <SidebarMenuButton
                 size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                // Neutral while the menu is open, NOT sidebar-accent: that pair
+                // is the blue "active nav item" treatment, so the trigger lit up
+                // brand blue against an otherwise neutral menu and read as
+                // selected rather than open.
+                className="data-[state=open]:bg-muted data-[state=open]:text-foreground"
               >
                 <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
                   {initial}
