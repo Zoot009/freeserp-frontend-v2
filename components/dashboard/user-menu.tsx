@@ -69,7 +69,18 @@ export function UserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent side={side} align={align} sideOffset={4} className="min-w-60 rounded-lg">
+      {/* max-h-none / overflow-visible: the base content caps itself at Radix's
+          --radix-dropdown-menu-content-available-height with overflow-y-auto.
+          Against the clipping context html/body get from `overflow-x: clip`,
+          that height resolved smaller than these few rows, so the menu scrolled
+          and showed a scrollbar down its right edge. This menu is five rows at
+          most — it never needs to scroll. */}
+      <DropdownMenuContent
+        side={side}
+        align={align}
+        sideOffset={4}
+        className="min-w-60 max-h-none overflow-visible rounded-lg"
+      >
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col gap-0.5">
             <span className="truncate text-sm font-medium capitalize">{name}</span>
