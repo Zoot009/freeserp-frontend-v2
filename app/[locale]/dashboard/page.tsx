@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import {
   StatTile,
   LineChart,
@@ -72,6 +73,9 @@ type OverviewResponse = {
 
 export default function DashboardOverviewPage() {
   const t = useTranslations("dashOverview")
+  // The page title now reuses the nav's "Overview" label, so the heading and the
+  // sidebar entry can't drift apart.
+  const tNav = useTranslations("dashboardNav")
   const router = useRouter()
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [keywords, setKeywords] = useState<EnrichedRow[]>([])
@@ -183,8 +187,13 @@ export default function DashboardOverviewPage() {
     <div className="page">
       <div className="page-h">
         <div>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> {t("eyebrow")}</div>
-          <h1>{t("title")}</h1>
+          {/* "Overview" + the project switcher, replacing the old "Welcome back"
+              eyebrow/title pair — the page is identified by what it IS, with the
+              tracked projects reachable right beside it. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <h1>{tNav("overview")}</h1>
+            <ProjectSwitcher />
+          </div>
           <div className="sub">
             {error
               ? <span style={{ color: "var(--neg)" }}>{error}</span>

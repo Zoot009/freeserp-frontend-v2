@@ -9,7 +9,6 @@ import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumbs"
-import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { Separator } from "@/components/ui/separator"
 import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
 import { UserMenu } from "@/components/dashboard/user-menu"
@@ -107,10 +106,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <SidebarTrigger />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <DashboardBreadcrumb className="hidden sm:flex" />
-            {/* Sits in the header so switching projects works from ANY dashboard
-                page, not just the projects list. Hides itself when the account
-                has no projects. */}
-            <ProjectSwitcher className="hidden shrink-0 md:inline-flex" />
             <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
