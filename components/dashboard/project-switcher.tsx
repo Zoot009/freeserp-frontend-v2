@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { ChevronDown, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
@@ -117,33 +118,54 @@ export function ProjectSwitcher({
           <ChevronDown size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-64 max-h-none overflow-visible">
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+      <DropdownMenuContent align="start" className="min-w-68 max-h-none overflow-visible p-1.5">
+        <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-xs font-normal text-muted-foreground">
           {t("projects")}
         </DropdownMenuLabel>
-        {projects.map((p) => (
-          <DropdownMenuItem
-            key={p.id}
-            onClick={() => choose(p.id)}
-            className={
-              "gap-2 focus:bg-muted focus:text-foreground" +
-              (p.id === activeId ? " bg-brand-soft text-brand focus:bg-brand-soft focus:text-brand" : "")
-            }
-          >
-            <Favicon domain={p.domain} size={18} bare />
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm">{p.name}</span>
-              <span className="truncate text-xs text-muted-foreground">{p.domain}</span>
-            </div>
-          </DropdownMenuItem>
-        ))}
+        {projects.map((p) => {
+          const isActive = p.id === activeId
+          return (
+            <DropdownMenuItem
+              key={p.id}
+              onClick={() => choose(p.id)}
+              // px-2 py-2 rather than the base py-1.5: these rows carry two lines
+              // of text, which the default single-line padding left cramped.
+              // Active gets the soft brand fill only — tinting the whole row
+              // brand blue dragged the domain line with it and killed its
+              // contrast, so the weight/colour shift is applied to the name.
+              className={cn(
+                "items-center gap-2.5 px-2 py-2 focus:bg-muted focus:text-foreground",
+                isActive && "bg-brand-soft focus:bg-brand-soft",
+              )}
+            >
+              <span className="flex size-5 shrink-0 items-center justify-center">
+                <Favicon domain={p.domain} size={20} bare />
+              </span>
+              <div className="flex min-w-0 flex-col gap-0.5 leading-none">
+                <span
+                  className={cn(
+                    "truncate text-sm",
+                    isActive ? "font-medium text-brand" : "text-foreground",
+                  )}
+                >
+                  {p.name}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">{p.domain}</span>
+              </div>
+            </DropdownMenuItem>
+          )
+        })}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="focus:bg-muted focus:text-foreground"
+          className="gap-2.5 px-2 py-2 focus:bg-muted focus:text-foreground"
           onClick={() => router.push("/dashboard/projects")}
         >
-          <Plus />
-          {tProjects("newProject")}
+          {/* Boxed to the same 20px as the favicons above, so the label column
+              lines up instead of the plus sitting slightly off. */}
+          <span className="flex size-5 shrink-0 items-center justify-center">
+            <Plus className="size-4" />
+          </span>
+          <span className="text-sm">{tProjects("newProject")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
