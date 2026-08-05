@@ -95,13 +95,18 @@ export default function DashboardOverviewPage() {
     if (projectId === null && projects.length > 0) setProjectId(projects[0]!.id)
   }, [projects, projectId])
 
-  // Stats + average-position history for the selected project, served by
-  // GET /api/overview. Refetches when the range toggle or the project changes.
+  // Stats + average-position history for the selected project.
+  //
+  // Guarded on projectId: without it the first render fired an UNSCOPED request,
+  // so the page painted every project's totals for a beat before the scoped
+  // numbers replaced them. Waiting costs nothing — the project list is already
+  // in flight — and the page shows one set of figures instead of two.
   useEffect(() => {
+    if (!projectId) return
     let cancelled = false
     ;(async () => {
       try {
-        const scope = projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""
+        const scope = `&projectId=${encodeURIComponent(projectId)}`
         const data = await api.get<OverviewResponse>(`/api/overview?range=${range}${scope}`)
         if (!cancelled) setOverview(data)
       } catch {
@@ -111,45 +116,15 @@ export default function DashboardOverviewPage() {
     return () => { cancelled = true }
   }, [range, projectId])
 
+  // The project list. Fetched ONCE on mount — it doesn't depend on the
+  // selection, and refetching it per selection was what let the keyword rows lag
+  // a step behind the tiles.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const list = await api.get<ProjectSummary[]>("/api/projects")
-        if (cancelled) return
-        setProjects(list)
-
-        const allKw: EnrichedRow[] = []
-        // Scoped: just that project. Unscoped: the first 3, as before — pulling
-        // every project's keywords would be a fan-out the tiles don't need
-        // (headline stats come from /api/overview, which counts them all).
-        const scoped = projectId ? list.filter((p) => p.id === projectId) : list.slice(0, 3)
-        const details = await Promise.all(
-          scoped.map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
-        )
-        for (const detail of details) {
-          if (!detail) continue
-          for (const k of detail.keywords) {
-            const pos = k.position
-            const prev = pos != null && k.d1 != null ? pos + k.d1 : pos
-            allKw.push({
-              id: k.id,
-              kw: k.keyword,
-              pos,
-              prev,
-              vol: k.searchVolume ?? 0,
-              url: k.url,
-              feat: serpFeaturesToChips(k.serpFeatures),
-              trend: trendToSparkline(k.searchVolumeTrend),
-              // Carry the parent project's id so a row click can build the
-              // project-scoped detail URL (the keyword id alone wouldn't be
-              // enough now that the route is /project/[id]/keywords/[kwId]).
-              projectId: detail.id,
-            })
-          }
-        }
-        if (cancelled) return
-        setKeywords(allKw)
+        if (!cancelled) setProjects(list)
       } catch (e) {
         const msg = e instanceof Error ? e.message : t("loadError")
         if (!cancelled) setError(msg)
@@ -158,7 +133,43 @@ export default function DashboardOverviewPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [t, projectId])
+  }, [t])
+
+  // Keyword rows for the selected project only.
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const detail = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
+        if (cancelled) return
+        setKeywords(
+          detail.keywords.map((k) => {
+            const pos = k.position
+            return {
+              id: k.id,
+              kw: k.keyword,
+              pos,
+              prev: pos != null && k.d1 != null ? pos + k.d1 : pos,
+              vol: k.searchVolume ?? 0,
+              url: k.url,
+              feat: serpFeaturesToChips(k.serpFeatures),
+              trend: trendToSparkline(k.searchVolumeTrend),
+              // Carry the parent project's id so a row click can build the
+              // project-scoped detail URL (the keyword id alone wouldn't be
+              // enough now that the route is /project/[id]/keywords/[kwId]).
+              projectId: detail.id,
+            }
+          }),
+        )
+      } catch {
+        // Non-fatal: the tiles still render from /api/overview. Clear the rows
+        // rather than stranding the previous project's keywords on screen.
+        if (!cancelled) setKeywords([])
+      }
+    })()
+    return () => { cancelled = true }
+  }, [projectId])
 
   // Headline stats come from the real aggregate endpoint (all projects, not the
   // first 3, and no synthetic data). estTraffic stays modelled from the loaded
@@ -219,17 +230,15 @@ export default function DashboardOverviewPage() {
             <span>{tNav("overview")}{selectedProject ? ":" : ""}</span>
             <ProjectSwitcher value={projectId} onSelect={setProjectId} />
           </h1>
-          <div className="sub">
-            {error
-              ? <span style={{ color: "var(--neg)" }}>{error}</span>
-              : selectedProject
-                // The heading already shows the domain — repeat the project's
-                // NAME here, which is the human label, not the same string.
-                ? selectedProject.name
-                : loaded && projects.length === 0
-                  ? t("subEmpty")
-                  : t("subTracking", { count: projects.length })}
-          </div>
+          {/* No subtitle once a project is selected — the heading already names
+              it, and the old "tracking across N projects" line was counting
+              projects this page no longer aggregates. Kept only for the error
+              and no-projects-yet cases, which still need to say something. */}
+          {(error || (loaded && projects.length === 0)) && (
+            <div className="sub">
+              {error ? <span style={{ color: "var(--neg)" }}>{error}</span> : t("subEmpty")}
+            </div>
+          )}
         </div>
         <div className="row">
           <div className="pill-toggle">
