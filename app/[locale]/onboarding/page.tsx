@@ -17,7 +17,7 @@ export default function OnboardingRedirect() {
     if (loading) return
     if (!user) router.replace("/login")
     else if (!user.emailVerified) router.replace("/verify-email")
-    else if (user.occupationRole) router.replace("/dashboard/projects")
+    else if (user.occupationRole) router.replace("/dashboard")
     else router.replace("/flow")
   }, [user, loading, router])
 

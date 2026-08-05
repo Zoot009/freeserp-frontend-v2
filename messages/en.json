@@ -479,6 +479,7 @@
   "dashboardNav": {
     "workspace": "Rank Tracker Workspace",
     "tools": "Other Tools",
+    "homeDash": "Dashboard",
     "overview": "Overview",
     "projects": "Projects",
     "project": "Project",
@@ -946,7 +947,7 @@
     "noRankDataYet": "No rank data yet",
     "noData": "No data",
     "headerEyebrow": "RANK TRACKING",
-    "headerTitle": "Projects",
+    "headerTitle": "Rank Tracker",
     "subFree": "{used} of {limit} used on Free plan · upgrade for unlimited",
     "subTracked": "{count, plural, one {# project tracked} other {# projects tracked}}",
     "tour": "Tour",

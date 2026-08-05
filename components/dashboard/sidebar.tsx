@@ -16,6 +16,7 @@ type NavEntry = {
 }
 
 const WORKSPACE: NavEntry[] = [
+  { href: "/dashboard/home", labelKey: "homeDash", icon: Icon.dash },
   { href: "/dashboard", labelKey: "overview", icon: Icon.dash },
   { href: "/dashboard/projects", labelKey: "projects", icon: Icon.folder },
   { href: "/dashboard/keywords", labelKey: "keywords", icon: Icon.key },

@@ -30,7 +30,7 @@
   --card-foreground: #0b0d12;
   --popover: #ffffff;
   --popover-foreground: #0b0d12;
-  --primary: #0b0d12; /* ink — black top-level CTA */
+  --primary: #2d5bff; /* FreeSERP blue — primary CTA */
   --primary-foreground: #ffffff;
   --secondary: #f2f4f7; /* bg-inset */
   --secondary-foreground: #0b0d12;
@@ -76,8 +76,8 @@
   --card-foreground: #f4f5f7;
   --popover: #14181f;
   --popover-foreground: #f4f5f7;
-  --primary: #f4f5f7; /* ink inverts to white */
-  --primary-foreground: #0b0d12;
+  --primary: #5b7dff; /* FreeSERP blue (dark) */
+  --primary-foreground: #ffffff;
   --secondary: #181c24; /* bg-inset */
   --secondary-foreground: #f4f5f7;
   --muted: #181c24;

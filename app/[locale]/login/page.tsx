@@ -24,7 +24,7 @@ export default function LoginPage() {
 // the ?next param can't be abused as an open redirect to another origin.
 function safeNext(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-    return "/dashboard/projects"
+    return "/dashboard"
   }
   return next
 }

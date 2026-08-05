@@ -46,7 +46,7 @@ function SignupForm() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push("/dashboard/projects")
+      router.push("/dashboard")
     }
   }, [user, authLoading, router])
 
@@ -78,7 +78,7 @@ function SignupForm() {
           router.replace("/flow")
           return
         }
-        router.push("/dashboard/projects")
+        router.push("/dashboard")
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
       } finally {
@@ -100,7 +100,7 @@ function SignupForm() {
         router.replace("/flow")
         return
       }
-      router.push("/dashboard/projects")
+      router.push("/dashboard")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorFacebookFailed"))
     } finally {

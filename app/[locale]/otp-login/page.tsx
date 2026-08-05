@@ -23,7 +23,7 @@ export default function OtpLoginPage() {
 // abused as an open redirect (mirrors login/page.tsx safeNext).
 function safeNext(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-    return "/dashboard/projects"
+    return "/dashboard"
   }
   return next
 }
