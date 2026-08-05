@@ -81,8 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user } = await api.get<{ user: User }>("/api/auth/me")
       setUser(user)
     } catch (err) {
-      setUser(null)
-      if (err instanceof ApiError && err.status === 401) setAccessToken(null)
+      // ONLY a real 401 ends the session. Clearing `user` on every error made a
+      // transient failure indistinguishable from a logout: DashboardShell
+      // redirects to /login the instant `user` is null, so an aborted request
+      // bounced a signed-in user to the login page. Switching locale did exactly
+      // that — the navigation remounts this provider and cancels the in-flight
+      // /api/auth/me. On a blip we keep the current user (cache-hydrated or
+      // otherwise) and let the next check settle it, which is what the note
+      // above always intended.
+      if (err instanceof ApiError && err.status === 401) {
+        setUser(null)
+        setAccessToken(null)
+      }
     } finally {
       if (!silent) setLoading(false)
     }

@@ -120,14 +120,16 @@ export function UserMenu({
               </span>
             </DropdownMenuSubTrigger>
             {/* Submenus are always align="start" in Radix (no `align` prop), so
-                the list pinned its TOP to the trigger and ran downward past the
-                bottom of the sidebar. It still fit on screen, so the collision
-                flip never corrected it. A negative alignOffset pulls it up by
-                its own height instead, leaving the last row beside the trigger.
-                Derived from the locale count (≈32px a row) so adding a language
-                keeps it aligned; Radix still shifts it if that would overflow. */}
+                the list pins its TOP to the trigger and grows downward. That's
+                right for the header menu, which opens below the avatar with the
+                whole page beneath it. It's wrong for the sidebar menu, which
+                opens upward from the footer — there the list ran past the bottom
+                of the sidebar, and since it still fit on screen Radix's
+                collision flip never corrected it. So the lift applies only when
+                the parent opened upward. Derived from the locale count (≈32px a
+                row) so adding a language keeps it aligned. */}
             <DropdownMenuSubContent
-              alignOffset={-(routing.locales.length - 1) * 32}
+              alignOffset={side === "top" ? -(routing.locales.length - 1) * 32 : 0}
               className="min-w-40"
             >
               {/* Radio rather than plain items so the active locale is marked —
