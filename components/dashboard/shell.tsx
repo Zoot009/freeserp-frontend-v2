@@ -8,6 +8,8 @@ import { useTheme } from "@/components/theme-provider"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
+import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumbs"
+import { Separator } from "@/components/ui/separator"
 import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -93,7 +95,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background px-4">
           <SidebarTrigger />
-          <div className="relative w-full max-w-md">
+          {/* Breadcrumbs are the first thing after the trigger, as in the shadcn
+              dashboard block. Hidden below md — at that width the search field
+              needs the whole row, and the crumb trail is the more expendable of
+              the two on a phone. */}
+          <Separator orientation="vertical" className="hidden !h-4 md:block" />
+          <DashboardBreadcrumb className="hidden md:flex" />
+          <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
           </div>
