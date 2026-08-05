@@ -98,7 +98,7 @@ export function ProjectSwitcher({
             domain reads as the variable half of "Overview: freeserp.com". */}
         <button
           type="button"
-          className={className}
+          className={cn("proj-switch", className)}
           style={{
             font: "inherit",
             display: "inline-flex",
@@ -112,6 +112,8 @@ export function ProjectSwitcher({
             maxWidth: "100%",
           }}
         >
+          {/* Underline lives on the label, not the button, so the chevron isn't
+              dragged into it. See .proj-switch in dashboard.css. */}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {active.domain}
           </span>

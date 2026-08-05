@@ -598,6 +598,20 @@
   font-size: 26px; font-weight: 600;
   letter-spacing: -0.025em;
 }
+/* Project switcher in the page heading — reads as a link, not a control.
+   The label carries the underline (not the button) so the chevron stays clean.
+   The global `*:focus-visible` rule draws a 2px offset outline, which around
+   26px heading type rendered as a big blue box; it's suppressed here in favour
+   of a thicker underline, so keyboard focus stays unmistakable without the box.
+   Hover thickens it too, the way a link behaves. */
+.fs-app .proj-switch > span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+.fs-app .proj-switch:hover > span { text-decoration-thickness: 2.5px; }
+.fs-app .proj-switch:focus-visible { outline: none; }
+.fs-app .proj-switch:focus-visible > span { text-decoration-thickness: 3px; }
 .fs-app .page-h .sub {
   color: var(--text-mute);
   font-size: 13.5px;
