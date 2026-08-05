@@ -67,7 +67,13 @@ export function UserMenu({
   const name = user?.name || user?.email?.split("@")[0] || t("guest")
 
   return (
-    <DropdownMenu>
+    // modal={false} so opening the menu doesn't lock body scroll. Radix's modal
+    // mode removes the page scrollbar while open, and its width compensation
+    // doesn't land here (html/body carry custom scrollbar styling and
+    // `overflow-x: clip`), so the whole layout jumped sideways on every open.
+    // A menu doesn't need the background inert the way a dialog does; click
+    // outside and Escape still close it.
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       {/* max-h-none / overflow-visible: the base content caps itself at Radix's
           --radix-dropdown-menu-content-available-height with overflow-y-auto.
