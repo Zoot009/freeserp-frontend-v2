@@ -605,13 +605,16 @@
    of a thicker underline, so keyboard focus stays unmistakable without the box.
    Hover thickens it too, the way a link behaves. */
 .fs-app .proj-switch > span {
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 3px;
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: 2px;
 }
-.fs-app .proj-switch:hover > span { text-decoration-thickness: 2.5px; }
+/* Underline on hover only — at rest it's plain blue text. Focus keeps it too,
+   since suppressing the outline above would otherwise leave keyboard users with
+   no focus indicator at all. */
+.fs-app .proj-switch:hover > span,
+.fs-app .proj-switch:focus-visible > span { text-decoration: underline; }
 .fs-app .proj-switch:focus-visible { outline: none; }
-.fs-app .proj-switch:focus-visible > span { text-decoration-thickness: 3px; }
 .fs-app .page-h .sub {
   color: var(--text-mute);
   font-size: 13.5px;
