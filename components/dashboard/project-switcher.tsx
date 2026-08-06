@@ -10,6 +10,7 @@ import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -124,6 +125,12 @@ export function ProjectSwitcher({
         <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-xs font-normal text-muted-foreground">
           {t("projects")}
         </DropdownMenuLabel>
+        {/* The LIST scrolls, not the menu. max-h-none stays on the content above
+            because Radix's own available-height measurement resolves too small
+            here (see the account menu) — so the height is bounded explicitly
+            instead, and the menu stays the same size at 5 projects or 50.
+            "New project" sits outside this box so it never scrolls away. */}
+        <DropdownMenuGroup className="max-h-72 overflow-y-auto overscroll-contain">
         {projects.map((p) => {
           const isActive = p.id === activeId
           return (
@@ -157,6 +164,7 @@ export function ProjectSwitcher({
             </DropdownMenuItem>
           )
         })}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="gap-2.5 px-2 py-2 focus:bg-muted focus:text-foreground"
