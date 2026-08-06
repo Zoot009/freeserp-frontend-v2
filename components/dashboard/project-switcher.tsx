@@ -129,8 +129,11 @@ export function ProjectSwitcher({
             because Radix's own available-height measurement resolves too small
             here (see the account menu) — so the height is bounded explicitly
             instead, and the menu stays the same size at 5 projects or 50.
-            "New project" sits outside this box so it never scrolls away. */}
-        <DropdownMenuGroup className="max-h-72 overflow-y-auto overscroll-contain">
+            "New project" sits outside this box so it never scrolls away.
+            scrollbar-thin (globals.css) replaces the browser default, which
+            rendered as a wide grey gutter down the menu; pr-1 keeps rows from
+            sitting underneath it. */}
+        <DropdownMenuGroup className="scrollbar-thin max-h-72 overflow-y-auto overscroll-contain pr-1">
         {projects.map((p) => {
           const isActive = p.id === activeId
           return (
