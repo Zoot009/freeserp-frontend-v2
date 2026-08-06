@@ -11,68 +11,90 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 
-type CrawledPage = {
+type AuditPage = {
   url: string
   title: string | null
-  depth: number
-  inbound: number
-  outbound: number
-  isOrphan: boolean
-  isHub: boolean
-  isAuthority: boolean
+  statusCode: number | null
+  wordCount: number | null
+  loadTime: number | null
+  lcp: number | null
 }
 
-type SiteCrawl = {
+type AuditCategory = {
+  category: string
+  score: number
+  grade?: string
+  issueCount?: number
+  passingCount?: number
+}
+
+type SiteAudit = {
   status: "NONE" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"
   domain: string
   pagesFound?: number
-  totalLinks?: number
-  orphanPages?: number
-  maxDepth?: number
-  pages?: CrawledPage[]
+  healthScore?: number | null
+  grade?: string | null
+  tier?: string | null
+  totalIssues?: number
+  totalPassing?: number
+  issuesHigh?: number
+  issuesMedium?: number
+  issuesLow?: number
+  categories?: AuditCategory[]
+  pages?: AuditPage[]
   error?: string | null
 }
 
-// While the crawl runs the upstream job reports no incremental progress, so the
-// card polls for a status flip rather than a percentage.
-const POLL_MS = 5_000
+// The upstream job reports no incremental progress, so this polls for a status
+// flip rather than a percentage.
+const POLL_MS = 8_000
 
-const chartConfig = {
-  pages: { label: "Pages" },
-  hub: { label: "Hub", color: "var(--brand)" },
-  authority: { label: "Authority", color: "var(--pos)" },
-  orphan: { label: "Orphan", color: "var(--warn)" },
-  normal: { label: "Standard", color: "var(--border-strong)" },
+const severityConfig = {
+  high: { label: "High", color: "var(--neg)" },
+  medium: { label: "Medium", color: "var(--warn)" },
+  low: { label: "Low", color: "var(--border-strong)" },
 } satisfies ChartConfig
 
+const categoryConfig = { score: { label: "Score", color: "var(--brand)" } } satisfies ChartConfig
+
+// TECHNICAL -> Technical, ON_PAGE -> On page
+const prettyCategory = (c: string) =>
+  c.replace(/_/g, " ").toLowerCase().replace(/^\w/, (m) => m.toUpperCase())
+
+/** Health drives the colour: green is a pass, amber a warning, red a problem. */
+function healthColor(score: number): string {
+  if (score >= 80) return "var(--pos)"
+  if (score >= 50) return "var(--warn)"
+  return "var(--neg)"
+}
+
 export function SiteCrawlCard({ projectId }: { projectId: string }) {
-  const [crawl, setCrawl] = useState<SiteCrawl | null>(null)
+  const [audit, setAudit] = useState<SiteAudit | null>(null)
   const [loading, setLoading] = useState(true)
-  // Kept in a ref so the polling interval can read the latest status without
-  // being torn down and recreated on every tick.
-  const statusRef = useRef<SiteCrawl["status"] | null>(null)
+  // In a ref so the interval reads the latest status without being torn down
+  // and recreated every tick.
+  const statusRef = useRef<SiteAudit["status"] | null>(null)
 
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
     setLoading(true)
-    setCrawl(null)
+    setAudit(null)
 
     const load = async () => {
       try {
-        const data = await api.get<SiteCrawl>(`/api/projects/${projectId}/site-crawl`)
+        const data = await api.get<SiteAudit>(`/api/projects/${projectId}/site-crawl`)
         if (cancelled) return
-        setCrawl(data)
+        setAudit(data)
         statusRef.current = data.status
       } catch {
-        if (!cancelled) setCrawl(null)
+        if (!cancelled) setAudit(null)
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
     void load()
-    // Poll only while there's something to wait for; stop once terminal.
     const timer = setInterval(() => {
       if (statusRef.current === "QUEUED" || statusRef.current === "RUNNING") void load()
     }, POLL_MS)
@@ -82,70 +104,67 @@ export function SiteCrawlCard({ projectId }: { projectId: string }) {
     }
   }, [projectId])
 
-  const pages = useMemo(() => crawl?.pages ?? [], [crawl])
+  const severity = useMemo(
+    () =>
+      [
+        { key: "high", label: "High", value: audit?.issuesHigh ?? 0, fill: "var(--neg)" },
+        { key: "medium", label: "Medium", value: audit?.issuesMedium ?? 0, fill: "var(--warn)" },
+        { key: "low", label: "Low", value: audit?.issuesLow ?? 0, fill: "var(--border-strong)" },
+      ].filter((s) => s.value > 0),
+    [audit],
+  )
 
-  // Composition: each page counted once, most specific role first, so the slices
-  // sum to the page total instead of double-counting a hub that's also an
-  // authority.
-  const composition = useMemo(() => {
-    let hub = 0, authority = 0, orphan = 0, normal = 0
-    for (const p of pages) {
-      if (p.isOrphan) orphan++
-      else if (p.isHub) hub++
-      else if (p.isAuthority) authority++
-      else normal++
-    }
-    return [
-      { key: "hub", label: "Hub", value: hub, fill: "var(--brand)" },
-      { key: "authority", label: "Authority", value: authority, fill: "var(--pos)" },
-      { key: "orphan", label: "Orphan", value: orphan, fill: "var(--warn)" },
-      { key: "normal", label: "Standard", value: normal, fill: "var(--border-strong)" },
-    ].filter((s) => s.value > 0)
-  }, [pages])
+  const categories = useMemo(
+    () =>
+      (audit?.categories ?? [])
+        // Categories the audit couldn't assess come back as 0 — charting them
+        // reads as "you scored zero" rather than "not measured".
+        .filter((c) => c.score > 0)
+        .map((c) => ({ name: prettyCategory(c.category), score: Math.round(c.score) })),
+    [audit],
+  )
 
-  const byDepth = useMemo(() => {
-    const counts = new Map<number, number>()
-    for (const p of pages) counts.set(p.depth, (counts.get(p.depth) ?? 0) + 1)
-    return [...counts.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([depth, count]) => ({ depth: depth === 0 ? "Home" : `L${depth}`, pages: count }))
-  }, [pages])
+  const brokenPages = useMemo(
+    () => (audit?.pages ?? []).filter((p) => p.statusCode != null && p.statusCode >= 400),
+    [audit],
+  )
 
   if (loading) {
     return (
       <div className="card">
-        <div className="card-h"><div className="t">Site crawl</div></div>
+        <div className="card-h"><div className="t">Site audit</div></div>
         <Skeleton className="h-48 w-full rounded-lg bg-muted/60" />
       </div>
     )
   }
 
-  // No row at all (project predates the feature, or no API key configured) —
-  // render nothing rather than an empty card promising data that isn't coming.
-  if (!crawl || crawl.status === "NONE") return null
+  // No row at all (project predates the feature, or no API key) — render nothing
+  // rather than an empty card promising data that isn't coming.
+  if (!audit || audit.status === "NONE") return null
 
-  const running = crawl.status === "QUEUED" || crawl.status === "RUNNING"
+  const running = audit.status === "QUEUED" || audit.status === "RUNNING"
+  const health = audit.healthScore ?? null
 
   return (
     <div className="card">
       <div className="card-h">
         <div>
-          <div className="t">Site crawl</div>
+          <div className="t">Site audit</div>
           <div className="tiny muted" style={{ marginTop: 2 }}>
             {running
-              ? "Collecting pages from your site"
-              : crawl.status === "FAILED"
-                ? "We couldn't finish crawling this site"
-                : `${crawl.pagesFound ?? 0} pages · ${crawl.totalLinks ?? 0} internal links`}
+              ? "Auditing your site"
+              : audit.status === "FAILED"
+                ? "We couldn't finish auditing this site"
+                : `${audit.pagesFound ?? 0} pages · ${audit.totalIssues ?? 0} issues · ${audit.totalPassing ?? 0} passing`}
           </div>
         </div>
       </div>
 
       {running ? (
         <div style={{ padding: "8px 0 4px" }}>
-          <div className="tiny" style={{ marginBottom: 10, fontWeight: 500 }}>Crawling pages…</div>
-          {/* Indeterminate bar: the upstream crawler doesn't report a percentage,
-              so a moving stripe is honest where a progress bar would be a lie. */}
+          <div className="tiny" style={{ marginBottom: 10, fontWeight: 500 }}>Crawling and auditing pages…</div>
+          {/* Indeterminate: the upstream audit reports no percentage, so a moving
+              stripe is honest where a progress bar would be a fiction. */}
           <div
             aria-hidden
             style={{
@@ -161,70 +180,100 @@ export function SiteCrawlCard({ projectId }: { projectId: string }) {
           />
           <div className="tiny muted" style={{ marginTop: 10, lineHeight: 1.5 }}>
             This usually takes a few minutes. You can leave this page — we&apos;ll keep
-            crawling in the background, and the full site data will be here when you
-            come back.
+            auditing in the background, and the full site report will be here when
+            you come back.
           </div>
-
-          {/* Pages discovered so far, faded so they read as provisional. Empty
-              until the upstream job returns, which is why this is conditional
-              rather than a fixed-height list of blanks. */}
-          {pages.length > 0 && (
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-              {pages.slice(0, 6).map((p) => (
-                <div
-                  key={p.url}
-                  className="tiny"
-                  style={{
-                    color: "var(--text-mute)",
-                    opacity: 0.75,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={p.url}
-                >
-                  {p.title || p.url}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
-      ) : crawl.status === "FAILED" ? (
+      ) : audit.status === "FAILED" ? (
         <div className="tiny muted" style={{ padding: "18px 0" }}>
-          {crawl.error || "The crawl didn't complete. It'll retry on the next project update."}
+          {audit.error || "The audit didn't complete."}
         </div>
       ) : (
         <>
           <div className="grid g-2" style={{ gap: 16, alignItems: "center" }}>
-            <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[200px]">
-              <PieChart>
-                <ChartTooltip content={<ChartTooltipContent nameKey="label" hideLabel />} />
-                <Pie data={composition} dataKey="value" nameKey="label" innerRadius={52} strokeWidth={3}>
-                  {composition.map((s) => (
-                    <Cell key={s.key} fill={s.fill} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            {/* Site health — the headline number, coloured by band. */}
+            <div style={{ display: "grid", placeItems: "center", padding: "8px 0" }}>
+              <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                <ChartContainer config={severityConfig} className="aspect-square h-[168px]">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { k: "score", v: health ?? 0, fill: health != null ? healthColor(health) : "var(--border)" },
+                        { k: "rest", v: Math.max(0, 100 - (health ?? 0)), fill: "var(--bg-inset)" },
+                      ]}
+                      dataKey="v"
+                      nameKey="k"
+                      innerRadius={58}
+                      outerRadius={78}
+                      startAngle={90}
+                      endAngle={-270}
+                      strokeWidth={0}
+                    >
+                      <Cell fill={health != null ? healthColor(health) : "var(--border)"} />
+                      <Cell fill="var(--bg-inset)" />
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
+                <div style={{ position: "absolute", textAlign: "center", pointerEvents: "none" }}>
+                  <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1 }}>
+                    {health != null ? Math.round(health) : "—"}
+                    {health != null && <span style={{ fontSize: 14, opacity: 0.6 }}>%</span>}
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 4 }}>
+                    Site health{audit.grade ? ` · ${audit.grade}` : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <ChartContainer config={chartConfig} className="max-h-[200px] w-full">
-              <BarChart data={byDepth} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                <XAxis dataKey="depth" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
-                <YAxis tickLine={false} axisLine={false} width={32} fontSize={11} allowDecimals={false} />
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Bar dataKey="pages" fill="var(--brand)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
+            {/* Issues by severity */}
+            {severity.length > 0 ? (
+              <ChartContainer config={severityConfig} className="mx-auto aspect-square max-h-[168px]">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent nameKey="label" hideLabel />} />
+                  <Pie data={severity} dataKey="value" nameKey="label" innerRadius={46} strokeWidth={3}>
+                    {severity.map((s) => (
+                      <Cell key={s.key} fill={s.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="tiny muted" style={{ display: "grid", placeItems: "center", height: 168 }}>
+                No issues found
+              </div>
+            )}
           </div>
 
-          <div className="row" style={{ gap: 14, flexWrap: "wrap", marginTop: 4 }}>
-            {composition.map((s) => (
+          <div className="row" style={{ gap: 14, flexWrap: "wrap", marginTop: 2, marginBottom: 10 }}>
+            {severity.map((s) => (
               <span key={s.key} className="row tiny muted" style={{ gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: s.fill }} />
                 {s.label} <b style={{ color: "var(--text)" }}>{s.value}</b>
               </span>
             ))}
+            {brokenPages.length > 0 && (
+              <span className="row tiny" style={{ gap: 6, color: "var(--neg)" }}>
+                <b>{brokenPages.length}</b> broken page{brokenPages.length === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
+
+          {/* Score per audit category */}
+          {categories.length > 0 && (
+            <ChartContainer config={categoryConfig} className="max-h-[190px] w-full">
+              <BarChart data={categories} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} interval={0} />
+                <YAxis tickLine={false} axisLine={false} width={32} fontSize={11} domain={[0, 100]} />
+                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+                  {categories.map((c) => (
+                    <Cell key={c.name} fill={healthColor(c.score)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          )}
         </>
       )}
     </div>
