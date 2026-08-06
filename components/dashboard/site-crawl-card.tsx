@@ -144,6 +144,10 @@ export function SiteCrawlCard({ projectId }: { projectId: string }) {
 
   const running = audit.status === "QUEUED" || audit.status === "RUNNING"
   const health = audit.healthScore ?? null
+  // Degraded: the audit couldn't run (site blocked it, or it timed out) and we
+  // fell back to crawling for structure only. A COMPLETED row with no health
+  // score means exactly that — the backend also leaves a reason in `error`.
+  const degraded = audit.status === "COMPLETED" && health == null
 
   return (
     <div className="card">
@@ -154,8 +158,10 @@ export function SiteCrawlCard({ projectId }: { projectId: string }) {
             {running
               ? "Auditing your site"
               : audit.status === "FAILED"
-                ? "We couldn't finish auditing this site"
-                : `${audit.pagesFound ?? 0} pages · ${audit.totalIssues ?? 0} issues · ${audit.totalPassing ?? 0} passing`}
+                ? "We couldn't crawl this website"
+                : degraded
+                  ? `${audit.pagesFound ?? 0} pages found · full audit unavailable`
+                  : `${audit.pagesFound ?? 0} pages · ${audit.totalIssues ?? 0} issues · ${audit.totalPassing ?? 0} passing`}
           </div>
         </div>
       </div>
@@ -185,8 +191,30 @@ export function SiteCrawlCard({ projectId }: { projectId: string }) {
           </div>
         </div>
       ) : audit.status === "FAILED" ? (
-        <div className="tiny muted" style={{ padding: "18px 0" }}>
-          {audit.error || "The audit didn't complete."}
+        <div className="tiny muted" style={{ padding: "18px 0", lineHeight: 1.5 }}>
+          {audit.error ||
+            "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
+        </div>
+      ) : degraded ? (
+        // Structure only: we reached the pages but couldn't score them, so the
+        // page list is shown and the charts are omitted rather than drawn empty.
+        <div style={{ padding: "4px 0" }}>
+          <div className="tiny muted" style={{ marginBottom: 12, lineHeight: 1.5 }}>
+            We reached your site but couldn&apos;t complete a full SEO audit — it may be
+            blocking automated access. These are the pages we found.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(audit.pages ?? []).slice(0, 8).map((p) => (
+              <div
+                key={p.url}
+                className="tiny"
+                style={{ color: "var(--text-mute)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                title={p.url}
+              >
+                {p.title || p.url}
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <>
