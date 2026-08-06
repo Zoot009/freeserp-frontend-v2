@@ -615,6 +615,11 @@
 .fs-app .proj-switch:hover > span,
 .fs-app .proj-switch:focus-visible > span { text-decoration: underline; }
 .fs-app .proj-switch:focus-visible { outline: none; }
+/* "Open the live site" icon beside the switcher. Muted at rest so it doesn't
+   compete with the domain, brand on hover so it reads as its own control. */
+.fs-app .proj-switch-ext { transition: color 0.15s ease; }
+.fs-app .proj-switch-ext:hover,
+.fs-app .proj-switch-ext:focus-visible { color: var(--brand); }
 .fs-app .page-h .sub {
   color: var(--text-mute);
   font-size: 13.5px;

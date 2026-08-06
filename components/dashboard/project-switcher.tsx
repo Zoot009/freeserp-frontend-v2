@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { ChevronDown, Plus } from "lucide-react"
+import { ChevronDown, ExternalLink, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -10,9 +10,7 @@ import { Favicon } from "@/components/favicon"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -48,7 +46,6 @@ export function ProjectSwitcher({
   value?: string | null
   onSelect?: (projectId: string | null) => void
 }) {
-  const t = useTranslations("dashboardNav")
   // "New project" already exists under dashProjects in all four locales — reuse
   // it rather than adding a duplicate key that could drift.
   const tProjects = useTranslations("dashProjects")
@@ -90,7 +87,10 @@ export function ProjectSwitcher({
   // placeholder label here meant every page load flashed it for a frame.
   if (!active) return null
 
+  // gap 6, not 8: the chevron already carries its own optical space on the
+  // right, so a wider gap read as the icon drifting away from the domain.
   return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%" }}>
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         {/* A plain button, not the shadcn <Button>: this sits INSIDE the page
@@ -122,18 +122,6 @@ export function ProjectSwitcher({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-68 max-h-none overflow-visible p-1.5">
-        <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-xs font-normal text-muted-foreground">
-          {t("projects")}
-        </DropdownMenuLabel>
-        {/* The LIST scrolls, not the menu. max-h-none stays on the content above
-            because Radix's own available-height measurement resolves too small
-            here (see the account menu) — so the height is bounded explicitly
-            instead, and the menu stays the same size at 5 projects or 50.
-            "New project" sits outside this box so it never scrolls away.
-            scrollbar-thin (globals.css) replaces the browser default, which
-            rendered as a wide grey gutter down the menu; pr-1 keeps rows from
-            sitting underneath it. */}
-        <DropdownMenuGroup className="scrollbar-thin max-h-72 overflow-y-auto overscroll-contain pr-1">
         {projects.map((p) => {
           const isActive = p.id === activeId
           return (
@@ -167,20 +155,47 @@ export function ProjectSwitcher({
             </DropdownMenuItem>
           )
         })}
-        </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {/* Label left, plus pinned right — the reference's shape. */}
         <DropdownMenuItem
-          className="gap-2.5 px-2 py-2 focus:bg-muted focus:text-foreground"
+          className="justify-between gap-4 px-2 py-2 text-brand focus:bg-muted focus:text-brand"
           onClick={() => router.push("/dashboard/projects")}
         >
-          {/* Boxed to the same 20px as the favicons above, so the label column
-              lines up instead of the plus sitting slightly off. */}
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <Plus className="size-4" />
-          </span>
           <span className="text-sm">{tProjects("newProject")}</span>
+          <Plus className="size-4 shrink-0" />
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+      {/* Straight to the live site. Outside the DropdownMenuTrigger on purpose —
+          nested inside it, a click would open the menu instead of the link.
+          noreferrer alongside noopener so the destination can't see the
+          dashboard URL, which carries the project id. */}
+      <a
+        href={`https://${active.domain}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${active.domain} (opens in a new tab)`}
+        title={`https://${active.domain}`}
+        className="proj-switch-ext"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          alignSelf: "center",
+          color: "var(--text-mute)",
+          flexShrink: 0,
+          // Sized to the chevron next to it so the two read as one control pair.
+          // The glyph's mass sits high (the arrow points up-right), so it optically
+          // floats above a row of lowercase text even when the boxes are centred —
+          // the 1px nudge corrects that, not the geometry.
+          height: 20,
+          width: 20,
+          transform: "translateY(1px)",
+        }}
+      >
+        <ExternalLink size={18} strokeWidth={2.25} />
+      </a>
+    </span>
   )
 }
