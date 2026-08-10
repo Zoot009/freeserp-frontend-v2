@@ -255,47 +255,7 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
   )
 }
 
-// Keyword-independent page-health score — the "Page score" column. Clicking it
-// opens the full Page Score Checker audit report for the scored page.
-function AuditBadge({ score, onClick, loading }: { score: number | null; onClick?: () => void; loading?: boolean }) {
-  if (loading) {
-    return (
-      <span className="tiny muted" title="Opening audit report…">
-        <span className="spin" style={{ display: "inline-block", width: 13, height: 13, borderRadius: "50%", border: "2px solid var(--border-strong)", borderTopColor: "var(--brand)", boxSizing: "border-box", verticalAlign: "middle" }} />
-      </span>
-    )
-  }
-  if (score == null) {
-    return <span className="tiny muted" title="On-page health of the page — computed automatically after the first check">—</span>
-  }
-  const color = score >= 80 ? "var(--pos)" : score >= 60 ? "var(--warn)" : "var(--neg)"
-  const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
-  const clickable = !!onClick
-  return (
-    <span
-      title={clickable ? "Page audit score — click for the full audit report" : "Page audit score — general on-page health"}
-      className="tabular"
-      onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClick!() } } : undefined}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "2px 8px",
-        borderRadius: "var(--r-sm)",
-        background: soft,
-        color,
-        fontWeight: 600,
-        fontSize: 12,
-        lineHeight: 1.4,
-        cursor: clickable ? "pointer" : "default",
-      }}
-    >
-      {score}
-    </span>
-  )
-}
+// (AuditBadge lived here — the P.S badge. Removed with the page score.)
 
 function CountdownTimer({ targetDate }: { targetDate: string | null }) {
   const [timeLeft, setTimeLeft] = useState<string>("")
@@ -1021,20 +981,8 @@ export default function ProjectKeywordsPage() {
   // Page score click → run a full on-page audit (the Page Score Checker) for
   // the keyword's scored page and open its report. Mirrors the audit tool's
   // own submit flow: POST creates/reuses the audit, then route to results.
-  const [auditingKwId, setAuditingKwId] = useState<string | null>(null)
-  const openAuditReport = async (url: string, kwId: string) => {
-    if (auditingKwId) return
-    setAuditingKwId(kwId)
-    try {
-      // /open reuses a recent audit for the same URL instead of paying for a
-      // fresh external run on every click.
-      const res = await api.post<{ audit: { id: string } }>("/api/on-page-audit/open", { url })
-      router.push(`/dashboard/onpage-audit/results?id=${res.audit.id}&projectId=${projectId}&keywordId=${kwId}`)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to open the audit report.")
-      setAuditingKwId(null)
-    }
-  }
+  // (openAuditReport lived here — it opened the Page Score report from the P.S
+  // badge. Both are gone with the page score; page auditing is its own tool now.)
 
   // Keyword score click (ranking keyword) → open the full detailed Keyword Score
   // Checker report for the keyword + its ranking page, instead of the compact
@@ -1847,7 +1795,11 @@ export default function ProjectKeywordsPage() {
       {/* Stat strip — one card, divider-separated cells */}
       <div className="card stat-strip" style={{ marginBottom: 14 }}>
         <div className="cell">
-          <div className="lbl">{t("statSeoScore")}</div>
+          {/* Labelled for what it actually averages. It reads stats.seoScore,
+              which is the mean of each keyword's score — so "SEO Score" was a
+              broader claim than the number supports, and it sat above a caption
+              already saying "avg. keyword score". */}
+          <div className="lbl">{t("colKeywordScore")}</div>
           <div className="row" style={{ gap: 10, alignItems: "center" }}>
             <div className="val tabular">{stats.seoScore ?? "—"}</div>
             <ScoreGauge score={stats.seoScore} />
@@ -2181,13 +2133,18 @@ export default function ProjectKeywordsPage() {
                   <th style={{ whiteSpace: "nowrap", width: 100 }}>{t("colFirstCheck")}</th>
                   <SortHeader label={t("colVolume")} k="vol" sort={sort} onClick={clickSort} width={100} />
                   <th style={{ width: "22%" }}>{t("colUrl")}</th>
+                  {/* Keyword score only. The Page Score half of this column was
+                      removed — it measured a different thing (how well one URL
+                      is built) and sat beside a keyword metric, which read as
+                      two views of the same number. Page auditing now lives in
+                      its own tool. */}
                   <SortHeader
-                    label={`${t("colPageScoreAbbr")} / ${t("colKeywordScoreAbbr")}`}
-                    title={`${t("colPageScore")} / ${t("colKeywordScore")}`}
+                    label={t("colKeywordScoreAbbr")}
+                    title={t("colKeywordScore")}
                     k="score"
                     sort={sort}
                     onClick={clickSort}
-                    width={120}
+                    width={96}
                     info={<ScoreInfoTip />}
                   />
                   <SortHeader label={t("colLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={140} />
@@ -2268,21 +2225,11 @@ export default function ProjectKeywordsPage() {
                           <span className="tiny muted" title="No URL — keyword is ranking deeper than the top 100">—</span>
                         )}
                       </td>
-                      {/* P.S / K.S combined into one column to save space. */}
+                      {/* Keyword score. `pageScore` is misleadingly named — it
+                          is the KEYWORD score; the page score was pageAuditScore,
+                          which is gone. */}
                       <td>
                         <div className="ps-ks">
-                          <span className="ps">
-                          <AuditBadge
-                            score={kw.pageAuditScore}
-                            loading={auditingKwId === kw.id || (isActive && kw.pageAuditScore == null)}
-                            onClick={
-                              kw.pageScoreUrl
-                                ? () => openAuditReport(kw.pageScoreUrl!, kw.id)
-                                : undefined
-                            }
-                          />
-                          </span>
-                          <span className="sep" aria-hidden>/</span>
                           <span className="ks">
                           <ScoreBadge
                             score={kw.pageScore}

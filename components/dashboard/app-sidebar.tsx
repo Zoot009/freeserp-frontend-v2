@@ -12,7 +12,7 @@ import {
   Zap,
   Sparkles,
   Search,
-  MonitorCheck,
+
   ScanSearch,
   Settings,
   ChevronsUpDown,
@@ -62,11 +62,10 @@ const TOOLS: Item[] = [
   { title: "Quick Serp", url: "/dashboard/serp-checker", icon: Zap },
   { title: "Keyword Magic Tool", url: "/dashboard/keyword-magic", icon: Sparkles },
   { title: "Keyword Score Checker", url: "/dashboard/keyword-analysis", icon: Search },
-  { title: "Page Score Checker", url: "/dashboard/onpage-audit", icon: MonitorCheck },
-  // Distinct from Page Score Checker above: that one scores a single URL from a
-  // fetch, this drives a real browser (and can crawl the whole site) through 63
-  // rules covering technical, on-page, performance, accessibility, structured
-  // data and security.
+  // Page Score Checker was removed: it scored a single URL from a plain fetch,
+  // which Page Audit below does properly — real browser, 63 rules, and it can
+  // crawl the whole site. Two tools measuring the same thing to different
+  // depths only raised the question of which number to believe.
   { title: "Page Audit", url: "/dashboard/page-audit", icon: ScanSearch },
   { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
   { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2, soon: true },
