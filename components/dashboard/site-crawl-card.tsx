@@ -8,13 +8,14 @@
  * fetched down by what the server actually returned (2xx / 3xx / 4xx-5xx /
  * unreachable). Hovering a segment names it and gives its count.
  *
- * Results are cached for 15 days — a whole-site audit is the most expensive job
- * here and technical health doesn't move day to day. Two buttons override that:
- * a targeted retry of just the pages that failed, and a full re-crawl.
+ * Results are cached server-side and re-crawled on a cadence, because a
+ * whole-site audit is the most expensive job here and technical health doesn't
+ * move day to day. That's deliberately not surfaced: one "Re-crawl website"
+ * button is the whole control surface.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, RefreshCw, RotateCcw } from "lucide-react"
+import { ChevronDown, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -281,7 +282,7 @@ function CategoryScores({ categories }: { categories: AuditCategory[] }) {
 
 const DAY_MS = 86_400_000
 
-/** "in 12 days" / "in 4 hours" / "shortly" — coarse on purpose, this is a cache. */
+/** "in 4 hours" / "in 20 min" — coarse on purpose; it's a cooldown, not a deadline. */
 function untilLabel(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now()
   if (ms <= 0) return "now"
@@ -294,16 +295,24 @@ function untilLabel(iso: string): string {
 }
 
 /**
- * The two ways to refresh an audit, and the cache line that explains why you
- * usually don't need either.
+ * The re-crawl action, in the card HEADER beside the "Updated" date.
  *
- * They are separate buttons rather than one with a menu because they cost wildly
- * different amounts: the targeted retry re-fetches a handful of known-bad URLs,
- * while a full audit re-walks the entire domain and is the most expensive job
- * this app runs. Collapsing them into one control would hide that difference at
- * exactly the moment it matters.
+ * It sat at the bottom of the body, below the page list, which put it a scroll
+ * away from the date it relates to and left it stranded in the empty space this
+ * card has whenever the taller panel beside it sets the row height. It belongs
+ * next to "Updated: Aug 8" — that's the line that prompts the question.
+ *
+ * A link-style button, not a filled one: it matches "View full report" in the
+ * neighbouring card, and a full site audit is not the primary thing to do here.
+ *
+ * This briefly carried a second "retry only the failed pages" button and a line
+ * explaining the 15-day cache. Both were removed as noise — the cache is an
+ * implementation detail that costs the reader something and gives nothing back,
+ * and a choice between two kinds of crawl is a decision nobody opening a
+ * dashboard wants to make. FAILED_ONLY still exists on the API; the card just
+ * always asks for a full crawl.
  */
-function RecrawlControls({
+function RecrawlAction({
   audit,
   projectId,
   onQueued,
@@ -312,73 +321,40 @@ function RecrawlControls({
   projectId: string
   onQueued: () => void
 }) {
-  const [busy, setBusy] = useState<"FULL" | "FAILED_ONLY" | null>(null)
-  const failed = audit.failedPages ?? 0
+  const [busy, setBusy] = useState(false)
   const cooldownUntil = audit.recrawlAvailableAt
   const cooling = !!cooldownUntil && new Date(cooldownUntil).getTime() > Date.now()
 
-  const run = async (mode: "FULL" | "FAILED_ONLY") => {
-    setBusy(mode)
+  const run = async () => {
+    setBusy(true)
     try {
-      await api.post(`/api/projects/${projectId}/site-crawl/recrawl`, { mode })
-      toast.success(
-        mode === "FULL"
-          ? "Full site crawl queued — this takes a few minutes."
-          : `Retrying ${failed} page${failed === 1 ? "" : "s"} — results merge into this report.`,
-      )
+      await api.post(`/api/projects/${projectId}/site-crawl/recrawl`, { mode: "FULL" })
+      toast.success("Re-crawl queued — this takes a few minutes.")
       onQueued()
     } catch (err) {
-      // The backend refuses with a specific reason (already running, cooldown,
-      // nothing to retry) and each is worth surfacing verbatim — "try again"
-      // would be wrong advice for every one of them.
+      // The backend refuses with a specific reason (already running, cooldown)
+      // and each is worth surfacing verbatim — "try again" would be wrong advice
+      // for both of them.
       toast.error(err instanceof ApiError ? err.message : "Couldn't start the crawl — please try again.")
     } finally {
-      setBusy(null)
+      setBusy(false)
     }
   }
 
   return (
-    <div className="mt-4 border-t pt-3.5">
-      <div className="flex flex-wrap items-center gap-2">
-        {failed > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1.5 text-xs"
-            disabled={busy !== null || cooling}
-            onClick={() => void run("FAILED_ONLY")}
-          >
-            <RotateCcw className={cn("size-3.5", busy === "FAILED_ONLY" && "animate-spin")} />
-            Retry {failed} failed page{failed === 1 ? "" : "s"}
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
-          disabled={busy !== null || cooling}
-          onClick={() => void run("FULL")}
-        >
-          <RefreshCw className={cn("size-3.5", busy === "FULL" && "animate-spin")} />
-          Re-crawl whole site
-        </Button>
-      </div>
-
-      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-        {cooling && cooldownUntil ? (
-          <>This site was crawled recently — you can run another {untilLabel(cooldownUntil)}.</>
-        ) : audit.cacheExpiresAt && !audit.stale ? (
-          <>
-            Cached for {audit.cacheDays ?? 15} days. Re-crawls automatically {untilLabel(audit.cacheExpiresAt)}.
-          </>
-        ) : (
-          <>This report is out of date and will be re-crawled on its next run.</>
-        )}
-        {audit.lastMode === "FAILED_ONLY" && (
-          <> Scores below are from the last full crawl — a retry only updates page status.</>
-        )}
-      </p>
-    </div>
+    <button
+      type="button"
+      onClick={() => void run()}
+      disabled={busy || cooling}
+      // The cooldown is the only reason this is ever disabled, and a control
+      // greyed out with no explanation reads as broken — so it says so on hover
+      // rather than in a line of body copy nobody needed the rest of the time.
+      title={cooling && cooldownUntil ? `Crawled recently — you can run another ${untilLabel(cooldownUntil)}` : undefined}
+      className="inline-flex items-center gap-1.5 font-semibold text-primary transition-opacity hover:underline disabled:pointer-events-none disabled:opacity-40"
+    >
+      <RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
+      {busy ? "Queueing…" : "Re-crawl"}
+    </button>
   )
 }
 
@@ -467,7 +443,12 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
       meta={
         running ? (
           <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-[3px] text-xs font-semibold text-primary">Crawling…</span>
-        ) : updated ? <span>Updated: {updated}</span> : null
+        ) : (
+          <>
+            {updated && <span>Updated: {updated}</span>}
+            <RecrawlAction audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
+          </>
+        )
       }
       bodyClassName="p-5"
     >
@@ -546,14 +527,11 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
           </div>
         </div>
       ) : audit.status === "FAILED" ? (
-        <>
-          <p className="py-4 text-xs leading-relaxed text-muted-foreground">
-            {audit.error || "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
-          </p>
-          {/* A failed crawl is exactly when someone wants to try again — fixed
-              the robots.txt, lifted the firewall rule, brought the site back. */}
-          <RecrawlControls audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
-        </>
+        // The header's Re-crawl link covers the retry — a failed crawl is exactly
+        // when someone wants one, and it's already in view here.
+        <p className="py-4 text-xs leading-relaxed text-muted-foreground">
+          {audit.error || "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
+        </p>
       ) : (
         <>
           {/* Stacked, not three across: this card now sits in the narrow column
@@ -636,8 +614,6 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
               )}
             </>
           )}
-
-          <RecrawlControls audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
         </>
       )}
     </Widget>

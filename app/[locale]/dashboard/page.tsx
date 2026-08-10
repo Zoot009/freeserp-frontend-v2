@@ -514,58 +514,80 @@ export default function SeoDashboardPage() {
 
             <SetupCard projectId={projectId} gsc={gscState} />
 
-            {/* ── Position Tracking + Site Audit ── */}
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-              <PositionTrackingCard
-                projectId={projectId}
-                loading={rowsLoading || statsLoading}
-                visibility={m.visibility}
-                avgPos={m.avgPos}
-                history={overview?.history ?? []}
-                bands={m.bands}
-                tracked={m.tracked}
-                ranked={m.ranked}
-                rangeLabel={RANGE_LABEL[range]}
-                rangeDays={RANGE_DAYS[range]}
-                // `history` (traffic) carries EVERY check day; overview.history
-                // only the days something ranked. The gap between the two is
-                // what the empty state needs to explain itself.
-                checkDays={history.length}
-                scope={m.scope}
-                keywords={m.topKeywords}
-              />
-              {/* Renders its own <Widget id="site-crawl">, so it hides and
-                  restores exactly like every other card. col-start pins it to
-                  column 2 — without it, the audit stretched across the whole row
-                  whenever Position Tracking was hidden. */}
-              <SiteCrawlCard projectId={projectId} className="lg:col-start-2" />
+            {/*
+              ── The four main cards, in two independently-flowing columns ──
+
+              These were two separate grid ROWS (Position Tracking | Site Audit,
+              then Traffic Analytics | Keyword Movement). A row is only as short
+              as its tallest card, so Position Tracking — with its keyword table
+              and pagination — set a height the Site Audit card came nowhere near,
+              and the second row couldn't start until that row ended. The result
+              was hundreds of pixels of blank page under the audit before Keyword
+              Movement appeared.
+
+              One grid, two columns, each stacking its own cards: the wide column
+              runs Position Tracking → Traffic Analytics, the narrow one runs
+              Site Audit → Keyword Movement directly under it. The two sides no
+              longer line up card-for-card, which is the point — nothing waits on
+              a neighbour it has no relationship to.
+            */}
+            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+              {/* Wide column. */}
+              <div className="flex min-w-0 flex-col gap-4">
+                <PositionTrackingCard
+                  projectId={projectId}
+                  loading={rowsLoading || statsLoading}
+                  visibility={m.visibility}
+                  avgPos={m.avgPos}
+                  history={overview?.history ?? []}
+                  bands={m.bands}
+                  tracked={m.tracked}
+                  ranked={m.ranked}
+                  rangeLabel={RANGE_LABEL[range]}
+                  rangeDays={RANGE_DAYS[range]}
+                  // `history` (traffic) carries EVERY check day; overview.history
+                  // only the days something ranked. The gap between the two is
+                  // what the empty state needs to explain itself.
+                  checkDays={history.length}
+                  scope={m.scope}
+                  keywords={m.topKeywords}
+                />
+              </div>
+
+              {/* Narrow column. Both cards render their own <Widget>, so hiding
+                  one just drops it out of the stack and the other moves up. */}
+              <div className="flex min-w-0 flex-col gap-4">
+                <SiteCrawlCard projectId={projectId} />
+                <KeywordMovementCard
+                  projectId={projectId}
+                  loading={statsLoading || rowsLoading}
+                  // Straight from the backend's first-vs-last comparison. Falling
+                  // back to zeroes-with-zero-comparable makes the card say "no
+                  // basis to compare" rather than "nothing moved".
+                  movements={movement ?? { improved: 0, declined: 0, added: 0, lost: 0, comparable: 0 }}
+                  tracked={m.tracked}
+                  rangeLabel={RANGE_LABEL[range]}
+                />
+              </div>
             </div>
 
-            {/* ── Traffic Analytics + Keyword Movement ── */}
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-              <TrafficCard
-                projectId={projectId}
-                loading={statsLoading}
-                history={history}
-                estTraffic={m.estTraffic}
-                pages={pagesNow}
-                domain={domain}
-                rangeLabel={RANGE_LABEL[range]}
-                rangeDays={RANGE_DAYS[range]}
-                gsc={gscState}
-              />
-              <KeywordMovementCard
-                className="lg:col-start-2"
-                projectId={projectId}
-                loading={statsLoading || rowsLoading}
-                // Straight from the backend's first-vs-last comparison. Falling
-                // back to zeroes-with-zero-comparable makes the card say "no
-                // basis to compare" rather than "nothing moved".
-                movements={movement ?? { improved: 0, declined: 0, added: 0, lost: 0, comparable: 0 }}
-                tracked={m.tracked}
-                rangeLabel={RANGE_LABEL[range]}
-              />
-            </div>
+            {/* Full width, below both columns. A time series is the one thing on
+                this page that gets genuinely better with horizontal room: in the
+                narrow column, 30 days of daily samples were compressed into a
+                few hundred pixels and individual days were unreadable. It also
+                has no partner card to sit beside, so pinning it to one column
+                left the other half of the row blank. */}
+            <TrafficCard
+              projectId={projectId}
+              loading={statsLoading}
+              history={history}
+              estTraffic={m.estTraffic}
+              pages={pagesNow}
+              domain={domain}
+              rangeLabel={RANGE_LABEL[range]}
+              rangeDays={RANGE_DAYS[range]}
+              gsc={gscState}
+            />
 
             <DashboardFooter refreshed={refreshed} />
           </>

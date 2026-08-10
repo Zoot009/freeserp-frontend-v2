@@ -19,7 +19,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { ArrowUpRight, TriangleAlert } from "lucide-react"
+import { ArrowUpRight, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,9 @@ type GscPerformance = {
   totals: GscMetrics
   previous: GscMetrics
   series: ({ date: string } & GscMetrics)[]
+  /** Up to 1,000 rows each — already in the response, hence the pagination below. */
+  topPages: ({ page: string } & GscMetrics)[]
+  topQueries: ({ query: string } & GscMetrics)[]
 }
 
 type Source = "freeserp" | "google"
@@ -135,28 +138,33 @@ function Stat({
   )
 }
 
+type Series = { key: string; label: string; color: string }
+
 /** Shared chart frame, so the two sources can't drift apart visually. */
 function TimeChart({
-  data, dataKey, label, color, domainStart, now, ticks, zeroFloor,
+  data, series, domainStart, now, ticks, zeroFloor,
 }: {
   data: { ts: number }[]
-  dataKey: string
-  label: string
-  color: string
+  /** One or more series drawn on a shared axis. All are counts, so a shared
+   *  scale is honest; a second axis would invite comparing two different units. */
+  series: Series[]
   domainStart: number
   now: number
   ticks: number[]
   zeroFloor: boolean
 }) {
+  const config = Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }]))
   return (
     <div className="mt-5 overflow-hidden rounded-[10px] border bg-bg-inset">
-      <ChartContainer config={{ [dataKey]: { label, color } }} className="!aspect-auto h-[190px] w-full">
+      <ChartContainer config={config} className="!aspect-auto h-[230px] w-full">
         <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <defs>
-            <linearGradient id={`fill-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={`var(--color-${dataKey})`} stopOpacity={0.28} />
-              <stop offset="100%" stopColor={`var(--color-${dataKey})`} stopOpacity={0} />
-            </linearGradient>
+            {series.map((s) => (
+              <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={`var(--color-${s.key})`} stopOpacity={0} />
+              </linearGradient>
+            ))}
           </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           {/* A TIME axis, not a category axis. Keyed on the date label, recharts
@@ -187,22 +195,154 @@ function TimeChart({
             className="text-[11px]"
           />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, pl) => dayLabel(Number(pl?.[0]?.payload?.ts))} />} />
-          <Area
-            dataKey={dataKey}
-            type="monotone"
-            stroke={`var(--color-${dataKey})`}
-            strokeWidth={2}
-            fill={`url(#fill-${dataKey})`}
-            /* Dots on, deliberately. With them off, three samples in a 30-day
-               window are indistinguishable from thirty — the line looks
-               continuous either way. The dots are the honest signal of how much
-               was actually measured. */
-            dot={{ r: 2.5, strokeWidth: 0, fill: `var(--color-${dataKey})` }}
-            isAnimationActive={false}
-            connectNulls
-          />
+          {series.map((s) => (
+            <Area
+              key={s.key}
+              dataKey={s.key}
+              type="monotone"
+              stroke={`var(--color-${s.key})`}
+              strokeWidth={2}
+              fill={`url(#fill-${s.key})`}
+              /* Dots on, deliberately. With them off, three samples in a 30-day
+                 window are indistinguishable from thirty — the line looks
+                 continuous either way. The dots are the honest signal of how
+                 much was actually measured. */
+              dot={{ r: 2.5, strokeWidth: 0, fill: `var(--color-${s.key})` }}
+              isAnimationActive={false}
+              connectNulls
+            />
+          ))}
         </AreaChart>
       </ChartContainer>
+    </div>
+  )
+}
+
+/** Names the lines. Only worth drawing when there's more than one. */
+function ChartLegend({ series }: { series: Series[] }) {
+  if (series.length < 2) return null
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+      {series.map((s) => (
+        <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="h-[3px] w-3.5 shrink-0 rounded-full" style={{ background: s.color }} />
+          {s.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ── Top pages / queries ──────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10
+
+/** Path only, so a column of URLs doesn't repeat the same origin 10 times. */
+function shortUrl(raw: string): string {
+  try {
+    const u = new URL(raw)
+    const path = `${u.pathname}${u.search}`
+    return path === "/" ? "/" : path.replace(/\/$/, "")
+  } catch {
+    return raw
+  }
+}
+
+type Row = GscMetrics & { key: string; href?: string }
+
+/**
+ * The pages and queries behind the totals above.
+ *
+ * Search Console returns up to 1,000 of each and the card was throwing both
+ * away, sending anyone who wanted to know WHICH page earned the clicks off to
+ * the full report. Ten at a time with pagination: enough to see the shape
+ * without turning a dashboard card into a table nobody scrolls.
+ */
+function DimTable({ perf }: { perf: GscPerformance }) {
+  const [tab, setTab] = useState<"pages" | "queries">("pages")
+  const [page, setPage] = useState(0)
+
+  const rows: Row[] =
+    tab === "pages"
+      ? (perf.topPages ?? []).map((r) => ({ ...r, key: shortUrl(r.page), href: r.page }))
+      : (perf.topQueries ?? []).map((r) => ({ ...r, key: r.query }))
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  // Clamp rather than reset in an effect: switching to a shorter tab while on
+  // page 8 should land on its last page, not silently snap to the first.
+  const current = Math.min(page, pageCount - 1)
+  const slice = rows.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE)
+
+  const GRID = "grid grid-cols-[minmax(0,1fr)_72px_92px_64px_72px] items-center gap-3"
+  const TABS = [
+    { id: "pages", label: "Top pages", n: perf.topPages?.length ?? 0 },
+    { id: "queries", label: "Top queries", n: perf.topQueries?.length ?? 0 },
+  ] as const
+
+  return (
+    <div className="mt-6 border-t pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => { setTab(t.id); setPage(0) }}
+              className={cn(
+                "rounded-[7px] px-2.5 py-[5px] text-[13px] transition-colors",
+                tab === t.id ? "bg-card font-semibold shadow-sm" : "font-medium text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label} <span className="tabular-nums opacity-60">{t.n}</span>
+            </button>
+          ))}
+        </div>
+
+        {pageCount > 1 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {current * PAGE_SIZE + 1}–{Math.min(rows.length, (current + 1) * PAGE_SIZE)} of {rows.length}
+            </span>
+            <Button variant="outline" size="icon" className="size-7" disabled={current === 0} onClick={() => setPage(current - 1)} aria-label="Previous page">
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <Button variant="outline" size="icon" className="size-7" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} aria-label="Next page">
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          Google reports no {tab} for this range.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <div className={cn(GRID, "border-b pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
+            <span>{tab === "pages" ? "Page" : "Query"}</span>
+            <span className="text-right">Clicks</span>
+            <span className="text-right">Impressions</span>
+            <span className="text-right">CTR</span>
+            <span className="text-right">Position</span>
+          </div>
+          {slice.map((r) => (
+            <div key={r.key} className={cn(GRID, "border-b py-2 text-[13px] last:border-0")}>
+              {r.href ? (
+                <a href={r.href} target="_blank" rel="noopener noreferrer" title={r.href} className="truncate text-primary hover:underline">
+                  {r.key}
+                </a>
+              ) : (
+                <span className="truncate" title={r.key}>{r.key}</span>
+              )}
+              <span className="text-right font-semibold tabular-nums">{nf(r.clicks)}</span>
+              <span className="text-right tabular-nums text-muted-foreground">{nf(r.impressions)}</span>
+              <span className="text-right tabular-nums text-muted-foreground">{(r.ctr * 100).toFixed(1)}%</span>
+              <span className="text-right tabular-nums text-muted-foreground">{r.position ? r.position.toFixed(1) : "—"}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -270,7 +410,16 @@ export function TrafficCard(p: TrafficProps) {
   // selected, which is what makes the gap either side of a short series legible.
   const ticks = [domainStart, (domainStart + now) / 2, now]
 
-  const ownChart = p.history.map((h) => ({ ts: new Date(h.t).getTime(), traffic: h.traffic }))
+  // `pages` was already in this payload and never drawn — only surfaced as the
+  // single "Ranking Pages" figure. At full width there's room to show how it
+  // moved alongside traffic, which is the more useful reading: visits climbing
+  // while ranking pages stay flat means existing pages improved, whereas both
+  // climbing means new pages started ranking.
+  const ownChart = p.history.map((h) => ({ ts: new Date(h.t).getTime(), traffic: h.traffic, pages: h.pages }))
+  const ownSeries: Series[] = [
+    { key: "traffic", label: "Est. visits", color: "var(--primary)" },
+    { key: "pages", label: "Ranking pages", color: "var(--warn)" },
+  ]
   const gscChart = (perf?.series ?? []).map((s) => ({ ts: new Date(s.date).getTime(), clicks: s.clicks }))
 
   /** Absolute change vs the preceding window. Lower is better for position. */
@@ -354,19 +503,20 @@ export function TrafficCard(p: TrafficProps) {
             <>
               <TimeChart
                 data={ownChart}
-                dataKey="traffic"
-                label="Est. visits"
-                color="var(--primary)"
+                series={ownSeries}
                 domainStart={domainStart}
                 now={now}
                 ticks={ticks}
                 zeroFloor
               />
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {ownChart.length === 1
-                  ? "One check in this range — the trend needs at least two."
-                  : `${ownChart.length} checks in this range. Each dot is one day's measurement.`}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <ChartLegend series={ownSeries} />
+                <p className="text-[11px] text-muted-foreground">
+                  {ownChart.length === 1
+                    ? "One check in this range — the trend needs at least two."
+                    : `${ownChart.length} checks in this range. Each dot is one day's measurement.`}
+                </p>
+              </div>
             </>
           ) : (
             <Notice
@@ -474,11 +624,13 @@ export function TrafficCard(p: TrafficProps) {
 
           {gscChart.length > 0 ? (
             <>
+              {/* Clicks only. Impressions are in this payload too, but they run
+                  one to two orders of magnitude higher (2,443 vs 61 on a real
+                  account) — on the shared axis these series use, the clicks line
+                  would flatten onto the baseline and read as zero. */}
               <TimeChart
                 data={gscChart}
-                dataKey="clicks"
-                label="Clicks"
-                color="var(--primary)"
+                series={[{ key: "clicks", label: "Clicks", color: "var(--primary)" }]}
                 domainStart={domainStart}
                 now={now}
                 ticks={ticks}
@@ -495,6 +647,8 @@ export function TrafficCard(p: TrafficProps) {
               body="Google reports nothing for these dates. Its data also lags about two days, so a very short range can come back empty."
             />
           )}
+
+          <DimTable perf={perf} />
         </>
       ) : null}
     </Widget>
