@@ -63,7 +63,7 @@ const TOOLS: Item[] = [
   { title: "Keyword Score Checker", url: "/dashboard/keyword-analysis", icon: Search },
   { title: "Page Score Checker", url: "/dashboard/onpage-audit", icon: MonitorCheck },
   { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
-  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2, soon: true },
+  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2 },
   { title: "Settings", url: "/dashboard/billing", icon: Settings },
 ]
 
