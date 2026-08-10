@@ -126,7 +126,16 @@ export default function PageAuditPage() {
     setReport(null)
     setJob(null)
     try {
-      const res = await api.post<{ jobId: string }>("/api/page-audit", { url: url.trim(), mode })
+      const res = await api.post<{ jobId: string; reportId?: string | null }>("/api/page-audit", {
+        url: url.trim(),
+        mode,
+      })
+      // An existing recent report — go straight to it. No spinner, no polling,
+      // no mention of why: from here it is simply the audit for that URL.
+      if (res.reportId) {
+        router.push(`/dashboard/page-audit/${res.reportId}`)
+        return
+      }
       startedAt.current = Date.now()
       setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
       stopPolling()
