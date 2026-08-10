@@ -44,21 +44,19 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 
 const WORKSPACE: Item[] = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Rank Tracker", url: "/dashboard/projects", icon: LineChart },
+  { title: "Google Tracker", url: "/dashboard/projects", icon: LineChart },
   // Its own project list, separate from the web projects above — which is also
   // why it isn't a card on the SEO Dashboard: that page is scoped to one web
   // project at a time and a YouTube panel would have nothing to scope to.
   { title: "YouTube Tracker", url: "/dashboard/youtube", icon: Youtube },
   { title: "Bing Tracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
   { title: "Yahoo Tracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
-  { title: "AI Overview", url: "/dashboard/ai-overview", icon: BotMessageSquare, soon: true },
-  { title: "Audit Tools", url: "/dashboard/website-audit", icon: ClipboardCheck, soon: true },
   { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin, soon: true },
   { title: "LLM Tracker", url: "/dashboard/llm-tracker", icon: BrainCircuit, soon: true },
-  { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
-  { title: "Favorites", url: "/dashboard/favorites", icon: Star },
 ]
 const TOOLS: Item[] = [
+  { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
+  { title: "Favorites", url: "/dashboard/favorites", icon: Star },
   { title: "Quick Serp", url: "/dashboard/serp-checker", icon: Zap },
   { title: "Keyword Magic Tool", url: "/dashboard/keyword-magic", icon: Sparkles },
   { title: "Keyword Score Checker", url: "/dashboard/keyword-analysis", icon: Search },
@@ -68,7 +66,9 @@ const TOOLS: Item[] = [
   // depths only raised the question of which number to believe.
   { title: "Page Audit", url: "/dashboard/page-audit", icon: ScanSearch },
   { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
-  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2, soon: true },
+  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2 },
+  { title: "AI Overview", url: "/dashboard/ai-overview", icon: BotMessageSquare, soon: true },
+  { title: "Audit Tools", url: "/dashboard/website-audit", icon: ClipboardCheck, soon: true },
   { title: "Settings", url: "/dashboard/billing", icon: Settings },
 ]
 
