@@ -20,7 +20,21 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Widget } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
 
-export type Movements = { improved: number; declined: number; added: number; lost: number }
+export type Movements = {
+  improved: number
+  declined: number
+  added: number
+  lost: number
+  /**
+   * Keywords with two or more completed checks in the range — the only ones
+   * that COULD have moved.
+   *
+   * Without it, "0 improved" is indistinguishable from "we have nothing to
+   * compare against yet", and the card confidently reported no movement for
+   * projects whose first check had barely finished.
+   */
+  comparable: number
+}
 
 const ROWS = [
   { key: "improved", label: "Improved", tone: "bg-emerald-500" },
@@ -42,6 +56,8 @@ export type KeywordMovementProps = {
 
 export function KeywordMovementCard(p: KeywordMovementProps) {
   const counts = ROWS.map((r) => p.movements[r.key])
+  // `comparable` is what makes the four numbers mean anything, so it's named in
+  // the header rather than buried in the note below.
   const peak = Math.max(1, ...counts)
   const noMovement = counts.every((n) => n === 0)
 
@@ -49,7 +65,7 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
     <Widget
       id="keyword-movement"
       title="Keyword Movement"
-      hint="How many tracked keywords gained, lost, entered or left the top 100 in this range."
+      hint="Each keyword's first check in this range compared against its latest. Improved and Declined are moves within the top 100; New entered it, Lost dropped out. A keyword checked only once can't be compared, so it isn't counted."
       meta={<span>{p.rangeLabel}</span>}
       className={p.className}
       bodyClassName="p-5"
@@ -88,10 +104,20 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
                 <Link href={`/dashboard/project/${p.projectId}/keywords?add=1`}>Add keywords</Link>
               </Button>
             </>
+          ) : p.movements.comparable === 0 ? (
+            /* The important case, and the one this card used to get wrong.
+               Movement is a comparison, so it needs two checks of the SAME
+               keyword inside the range. With one check there is nothing to
+               compare, and reporting "nothing moved" claims a measurement that
+               was never taken. */
+            <p className="text-[13px] leading-relaxed text-muted-foreground/80">
+              Nothing to compare yet — movement needs two checks of the same keyword inside this range. Your{" "}
+              {p.tracked} tracked keyword{p.tracked === 1 ? " has" : "s have"} been checked once so far.
+            </p>
           ) : (
             <p className="text-[13px] leading-relaxed text-muted-foreground/80">
-              None of your {p.tracked} tracked keyword{p.tracked === 1 ? "" : "s"} moved in this range. Movement
-              usually shows within two weeks of the first check.
+              None of the {p.movements.comparable} keyword{p.movements.comparable === 1 ? "" : "s"} checked twice in
+              this range changed position.
             </p>
           )}
         </div>

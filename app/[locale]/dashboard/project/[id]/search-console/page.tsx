@@ -203,6 +203,16 @@ export default function SearchConsolePage() {
     onError: () => setError(t("connectError")),
   })
 
+  /**
+   * Link a property, honouring the server's domain-coverage check.
+   *
+   * The API rejects a property that doesn't cover the project's domain with
+   * `gsc_property_domain_mismatch` rather than silently accepting it — linking
+   * the wrong one puts another site's clicks and impressions under this
+   * project's name everywhere. That's recoverable but genuinely wanted
+   * sometimes (a migration, an oddly-named property), so the refusal is turned
+   * into a question here and retried with `confirm` if the answer is yes.
+   */
   const linkSite = useCallback(
     async (url: string) => {
       setBusy(true)
@@ -211,12 +221,32 @@ export default function SearchConsolePage() {
         await api.put(`/api/gsc/projects/${projectId}/site`, { siteUrl: url })
         setSiteUrl(url)
       } catch (err) {
+        if (err instanceof ApiError && err.code === "gsc_property_domain_mismatch") {
+          const ok = window.confirm(
+            `${url} doesn't look like it covers ${projectDomain}.\n\n` +
+              `Linking it will show that site's clicks, impressions and average position under this project ` +
+              `everywhere in the dashboard.\n\nLink it anyway?`,
+          )
+          if (!ok) {
+            setBusy(false)
+            return
+          }
+          try {
+            await api.put(`/api/gsc/projects/${projectId}/site`, { siteUrl: url, confirm: true })
+            setSiteUrl(url)
+          } catch (retryErr) {
+            setError(retryErr instanceof Error ? retryErr.message : "Failed to link property")
+          } finally {
+            setBusy(false)
+          }
+          return
+        }
         setError(err instanceof Error ? err.message : "Failed to link property")
       } finally {
         setBusy(false)
       }
     },
-    [projectId],
+    [projectId, projectDomain],
   )
 
   const disconnect = useCallback(async () => {

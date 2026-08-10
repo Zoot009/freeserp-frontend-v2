@@ -91,6 +91,17 @@ type OverviewResponse = {
   history: { t: string; avgPos: number }[]
 }
 
+/** `/api/projects/:id/overview` — the per-project time series and movement. */
+type ProjectOverviewResponse = {
+  history: TrafficPoint[]
+  /**
+   * Measured first-check vs last-check movement inside the range. Optional
+   * because a backend that predates it simply omits the field; the card then
+   * shows its "no comparable checks" state rather than four confident zeroes.
+   */
+  movement?: { improved: number; declined: number; added: number; lost: number; comparable: number }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Position → click-through rate, so visibility weights a #1 far above a #9. */
@@ -106,6 +117,10 @@ function ctr(pos: number | null): number {
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 const RANGE_LABEL: Record<Range, string> = { "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" }
+// Width of each range in days — the domain the charts plot their time axis
+// against, so a sample sits at the date it was taken. 24h is a fraction, which
+// is fine: it's only ever multiplied by a day in milliseconds.
+const RANGE_DAYS: Record<Range, number> = { "24h": 1, "7d": 7, "30d": 30, "90d": 90 }
 
 /** Exclusive ranking bands, so the counts sum to the keywords tracked. */
 const BAND_DEFS = [
@@ -173,6 +188,9 @@ export default function SeoDashboardPage() {
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
   const [history, setHistory] = useState<TrafficPoint[]>([])
+  // Measured movement from the backend. Null = the endpoint didn't report any,
+  // which the card shows as "nothing comparable yet" rather than as four zeroes.
+  const [movement, setMovement] = useState<ProjectOverviewResponse["movement"] | null>(null)
   const [range, setRange] = useState<Range>("30d")
   const [loadedProjects, setLoadedProjects] = useState(false)
   // null until the request settles — the setup card distinguishes "not
@@ -275,11 +293,12 @@ export default function SeoDashboardPage() {
     const scope = `projectId=${encodeURIComponent(projectId)}`
     void Promise.all([
       api.get<OverviewResponse>(`/api/overview?range=${range}&${scope}`).catch(() => null),
-      api.get<{ history: TrafficPoint[] }>(`/api/projects/${projectId}/overview?range=${range}`).catch(() => null),
+      api.get<ProjectOverviewResponse>(`/api/projects/${projectId}/overview?range=${range}`).catch(() => null),
     ]).then(([ov, proj]) => {
       if (cancelled) return
       setOverview(ov)
       setHistory(proj?.history ?? [])
+      setMovement(proj?.movement ?? null)
       setStatsLoading(false)
     })
     return () => { cancelled = true }
@@ -325,8 +344,6 @@ export default function SeoDashboardPage() {
     // blank rather than printing a zero that means something different.
     const unranked = kws.length - ranked.length
     bands.push({ label: "Unranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
-
-    const top100 = movement(1, 100)
 
     const kwVis = (k: Keyword) => (totalVol > 0 ? round1((ctr(k.position) * (k.searchVolume ?? 0) / totalVol) * 100) : 0)
     const toTop = (k: Keyword): TopKeyword => ({
@@ -396,12 +413,12 @@ export default function SeoDashboardPage() {
       visibility,
       bands,
       topKeywords,
-      movements: {
-        improved: kws.filter((k) => (k.d7 ?? 0) > 0).length,
-        declined: kws.filter((k) => (k.d7 ?? 0) < 0).length,
-        added: top100.added,
-        lost: top100.lost,
-      },
+      // Movement is NOT derived here any more — it comes measured from the
+      // overview endpoint. Reconstructing it from each keyword's 7-day delta
+      // could never see a keyword entering or leaving the top 100, because the
+      // delta is null whenever either end was unranked: New and Lost could only
+      // ever be 0. The band table above still uses the reconstruction, which is
+      // sound there — it only compares ranked positions against each other.
     }
   }, [detail])
 
@@ -509,6 +526,11 @@ export default function SeoDashboardPage() {
                 tracked={m.tracked}
                 ranked={m.ranked}
                 rangeLabel={RANGE_LABEL[range]}
+                rangeDays={RANGE_DAYS[range]}
+                // `history` (traffic) carries EVERY check day; overview.history
+                // only the days something ranked. The gap between the two is
+                // what the empty state needs to explain itself.
+                checkDays={history.length}
                 scope={m.scope}
                 keywords={m.topKeywords}
               />
@@ -527,15 +549,19 @@ export default function SeoDashboardPage() {
                 history={history}
                 estTraffic={m.estTraffic}
                 pages={pagesNow}
+                domain={domain}
                 rangeLabel={RANGE_LABEL[range]}
+                rangeDays={RANGE_DAYS[range]}
                 gsc={gscState}
-                onChecked={refresh}
               />
               <KeywordMovementCard
                 className="lg:col-start-2"
                 projectId={projectId}
                 loading={statsLoading || rowsLoading}
-                movements={m.movements}
+                // Straight from the backend's first-vs-last comparison. Falling
+                // back to zeroes-with-zero-comparable makes the card say "no
+                // basis to compare" rather than "nothing moved".
+                movements={movement ?? { improved: 0, declined: 0, added: 0, lost: 0, comparable: 0 }}
                 tracked={m.tracked}
                 rangeLabel={RANGE_LABEL[range]}
               />

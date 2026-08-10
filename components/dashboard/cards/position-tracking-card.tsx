@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react"
-import { Area, AreaChart, YAxis } from "recharts"
+import { Area, AreaChart, XAxis, YAxis } from "recharts"
 import { Link, useRouter } from "@/i18n/navigation"
 import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Monitor, Smartphone } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -425,21 +425,33 @@ export type PositionTrackingProps = {
   tracked: number
   ranked: number
   rangeLabel: string
+  /** Days the selected range covers — sets the chart's time axis. */
+  rangeDays: number
+  /**
+   * Days inside the range that produced a completed check, ranked or not.
+   *
+   * `history` only carries days where something ranked, so on its own it can't
+   * tell "you haven't checked yet" from "you've checked and nothing ranks" —
+   * and the empty state was giving the first answer to people in the second
+   * situation.
+   */
+  checkDays: number
   scope: Scope
   /** Every tracked keyword, split into Winners/Losers by the tabs below. */
   keywords: TopKeyword[]
 }
 
+const dayLabel = (ms: number) =>
+  new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+
 export function PositionTrackingCard(p: PositionTrackingProps) {
-  const chart = p.history.map((h) => ({
-    label: new Date(h.t).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    pos: h.avgPos,
-  }))
-  // First / middle / last tick under the curve, as in the reference. Drawn from
-  // the real series, so the axis can never disagree with the line above it.
-  const ticks = chart.length > 1
-    ? [chart[0]!.label, chart[Math.floor((chart.length - 1) / 2)]!.label, chart[chart.length - 1]!.label]
-    : []
+  // Plotted against real timestamps inside the selected window — see the same
+  // note on TrafficCard. A category axis spaced samples evenly, so two checks
+  // days apart were drawn as though they spanned the whole range.
+  const chart = p.history.map((h) => ({ ts: new Date(h.t).getTime(), pos: h.avgPos }))
+  const now = Date.now()
+  const domainStart = now - p.rangeDays * 86_400_000
+  const ticks = [domainStart, (domainStart + now) / 2, now]
 
   return (
     <Widget
@@ -488,32 +500,68 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
           ) : chart.length > 1 ? (
             <div className="mt-4 overflow-hidden rounded-[10px] border bg-bg-inset">
               <ChartContainer config={{ pos: { label: "Avg. position", color: "var(--primary)" } }} className="!aspect-auto h-[158px] w-full">
-                <AreaChart data={chart} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
+                <AreaChart data={chart} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="pt-vis" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--color-pos)" stopOpacity={0.3} />
                       <stop offset="100%" stopColor="var(--color-pos)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
+                  <XAxis type="number" dataKey="ts" scale="time" domain={[domainStart, now]} ticks={ticks} hide />
                   {/* Reversed: a lower number is a better rank, so the line climbs when you improve. */}
                   <YAxis hide reversed domain={["dataMin - 2", "dataMax + 2"]} />
-                  <ChartTooltip content={<ChartTooltipContent labelKey="label" />} />
-                  <Area dataKey="pos" type="monotone" stroke="var(--color-pos)" strokeWidth={2} fill="url(#pt-vis)" dot={false} isAnimationActive={false} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, pl) => dayLabel(Number(pl?.[0]?.payload?.ts))} />} />
+                  <Area
+                    dataKey="pos"
+                    type="monotone"
+                    stroke="var(--color-pos)"
+                    strokeWidth={2}
+                    fill="url(#pt-vis)"
+                    dot={{ r: 2.5, strokeWidth: 0, fill: "var(--color-pos)" }}
+                    isAnimationActive={false}
+                  />
                 </AreaChart>
               </ChartContainer>
             </div>
           ) : (
-            <div className="mt-4 grid h-[158px] place-items-center rounded-[10px] border border-dashed bg-bg-inset text-center">
+            <div className="mt-4 grid h-[158px] place-items-center rounded-[10px] border border-dashed bg-bg-inset px-4 text-center">
+              {/* Says WHICH of the two reasons applies. "The curve starts after
+                  the second daily check" was shown even to a project that HAD
+                  run several checks — the checks just found nothing ranking, and
+                  a line of average position can't be drawn from days with no
+                  ranked keywords. Being told to wait for a check you already ran
+                  reads as the card being broken. */}
               <div>
-                <div className="text-[13px] font-medium text-muted-foreground">Not enough history yet</div>
-                <div className="mt-1 text-xs text-muted-foreground/70">The curve starts after the second daily check</div>
+                <div className="text-[13px] font-medium text-muted-foreground">
+                  {chart.length === 1 ? "Only one day of ranking data" : "Not enough history yet"}
+                </div>
+                <div className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground/70">
+                  {chart.length === 1 && p.checkDays > 1 ? (
+                    <>
+                      {p.checkDays} checks ran in this range, but only one found keywords inside the top 100 —
+                      the curve needs two.
+                    </>
+                  ) : chart.length === 1 ? (
+                    <>The curve appears once a second check finds ranking keywords.</>
+                  ) : p.checkDays > 0 ? (
+                    <>
+                      {p.checkDays} check{p.checkDays === 1 ? "" : "s"} ran in this range, but nothing ranked inside
+                      the top 100 yet.
+                    </>
+                  ) : (
+                    <>No completed checks in this range.</>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
-          {ticks.length === 3 && (
+          {/* Range endpoints, not data endpoints. The axis describes the window
+              you picked, so a short series reads as short rather than as one
+              that happens to fill it. */}
+          {chart.length > 1 && (
             <div className="mt-2 flex justify-between text-xs text-muted-foreground/70">
-              {ticks.map((t, i) => <span key={`${t}-${i}`}>{t}</span>)}
+              {ticks.map((t) => <span key={t}>{dayLabel(t)}</span>)}
             </div>
           )}
         </div>

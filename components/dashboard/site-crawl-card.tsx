@@ -8,13 +8,15 @@
  * fetched down by what the server actually returned (2xx / 3xx / 4xx-5xx /
  * unreachable). Hovering a segment names it and gives its count.
  *
- * The upstream job reports no incremental progress, so a running crawl polls
- * for a status flip rather than a percentage.
+ * Results are cached for 15 days — a whole-site audit is the most expensive job
+ * here and technical health doesn't move day to day. Two buttons override that:
+ * a targeted retry of just the pages that failed, and a full re-crawl.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown } from "lucide-react"
-import { api } from "@/lib/api"
+import { ChevronDown, RefreshCw, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
+import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { InfoHint, Widget } from "@/components/dashboard/widget"
@@ -35,6 +37,17 @@ type SiteAudit = {
   status: "NONE" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"
   domain: string
   pagesFound?: number
+  /** When the last WHOLE-site crawl landed. A failed-page retry doesn't move it. */
+  fullCrawlAt?: string | null
+  /** When this cached result is re-crawled automatically. */
+  cacheExpiresAt?: string | null
+  cacheDays?: number
+  stale?: boolean
+  lastMode?: "FULL" | "FAILED_ONLY" | null
+  /** How many pages a "retry what failed" pass would pick up. */
+  failedPages?: number
+  /** Manual re-crawls are refused until this time. */
+  recrawlAvailableAt?: string | null
   /** 0–100 from the upstream audit. Null once our own crawler takes over — that
    *  path reports real page counts instead. */
   auditProgress?: number | null
@@ -264,10 +277,119 @@ function CategoryScores({ categories }: { categories: AuditCategory[] }) {
   )
 }
 
+// ── Re-crawl ─────────────────────────────────────────────────────────────────
+
+const DAY_MS = 86_400_000
+
+/** "in 12 days" / "in 4 hours" / "shortly" — coarse on purpose, this is a cache. */
+function untilLabel(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now()
+  if (ms <= 0) return "now"
+  const days = Math.round(ms / DAY_MS)
+  if (days >= 1) return `in ${days} day${days === 1 ? "" : "s"}`
+  const hours = Math.round(ms / 3_600_000)
+  if (hours >= 1) return `in ${hours} hour${hours === 1 ? "" : "s"}`
+  const mins = Math.max(1, Math.round(ms / 60_000))
+  return `in ${mins} min`
+}
+
+/**
+ * The two ways to refresh an audit, and the cache line that explains why you
+ * usually don't need either.
+ *
+ * They are separate buttons rather than one with a menu because they cost wildly
+ * different amounts: the targeted retry re-fetches a handful of known-bad URLs,
+ * while a full audit re-walks the entire domain and is the most expensive job
+ * this app runs. Collapsing them into one control would hide that difference at
+ * exactly the moment it matters.
+ */
+function RecrawlControls({
+  audit,
+  projectId,
+  onQueued,
+}: {
+  audit: SiteAudit
+  projectId: string
+  onQueued: () => void
+}) {
+  const [busy, setBusy] = useState<"FULL" | "FAILED_ONLY" | null>(null)
+  const failed = audit.failedPages ?? 0
+  const cooldownUntil = audit.recrawlAvailableAt
+  const cooling = !!cooldownUntil && new Date(cooldownUntil).getTime() > Date.now()
+
+  const run = async (mode: "FULL" | "FAILED_ONLY") => {
+    setBusy(mode)
+    try {
+      await api.post(`/api/projects/${projectId}/site-crawl/recrawl`, { mode })
+      toast.success(
+        mode === "FULL"
+          ? "Full site crawl queued — this takes a few minutes."
+          : `Retrying ${failed} page${failed === 1 ? "" : "s"} — results merge into this report.`,
+      )
+      onQueued()
+    } catch (err) {
+      // The backend refuses with a specific reason (already running, cooldown,
+      // nothing to retry) and each is worth surfacing verbatim — "try again"
+      // would be wrong advice for every one of them.
+      toast.error(err instanceof ApiError ? err.message : "Couldn't start the crawl — please try again.")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t pt-3.5">
+      <div className="flex flex-wrap items-center gap-2">
+        {failed > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 text-xs"
+            disabled={busy !== null || cooling}
+            onClick={() => void run("FAILED_ONLY")}
+          >
+            <RotateCcw className={cn("size-3.5", busy === "FAILED_ONLY" && "animate-spin")} />
+            Retry {failed} failed page{failed === 1 ? "" : "s"}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          disabled={busy !== null || cooling}
+          onClick={() => void run("FULL")}
+        >
+          <RefreshCw className={cn("size-3.5", busy === "FULL" && "animate-spin")} />
+          Re-crawl whole site
+        </Button>
+      </div>
+
+      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        {cooling && cooldownUntil ? (
+          <>This site was crawled recently — you can run another {untilLabel(cooldownUntil)}.</>
+        ) : audit.cacheExpiresAt && !audit.stale ? (
+          <>
+            Cached for {audit.cacheDays ?? 15} days. Re-crawls automatically {untilLabel(audit.cacheExpiresAt)}.
+          </>
+        ) : (
+          <>This report is out of date and will be re-crawled on its next run.</>
+        )}
+        {audit.lastMode === "FAILED_ONLY" && (
+          <> Scores below are from the last full crawl — a retry only updates page status.</>
+        )}
+      </p>
+    </div>
+  )
+}
+
 export function SiteCrawlCard({ projectId, className }: { projectId: string; className?: string }) {
   const [audit, setAudit] = useState<SiteAudit | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPages, setShowPages] = useState(false)
+  // Bumped after a re-crawl is queued. Re-runs the loader immediately so the
+  // card flips to "Crawling…" instead of sitting on the finished report until
+  // the next 8s tick — and the poll only restarts once the status says RUNNING.
+  const [reloadKey, setReloadKey] = useState(0)
   // In a ref so the interval reads the latest status without being torn down
   // and recreated every tick.
   const statusRef = useRef<SiteAudit["status"] | null>(null)
@@ -296,7 +418,7 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
       if (statusRef.current === "QUEUED" || statusRef.current === "RUNNING") void load()
     }, POLL_MS)
     return () => { cancelled = true; clearInterval(timer) }
-  }, [projectId])
+  }, [projectId, reloadKey])
 
   // Every page we fetched, bucketed by what the server returned. "Blocked" is a
   // page we couldn't get a status for at all.
@@ -424,9 +546,14 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
           </div>
         </div>
       ) : audit.status === "FAILED" ? (
-        <p className="py-4 text-xs leading-relaxed text-muted-foreground">
-          {audit.error || "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
-        </p>
+        <>
+          <p className="py-4 text-xs leading-relaxed text-muted-foreground">
+            {audit.error || "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
+          </p>
+          {/* A failed crawl is exactly when someone wants to try again — fixed
+              the robots.txt, lifted the firewall rule, brought the site back. */}
+          <RecrawlControls audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
+        </>
       ) : (
         <>
           {/* Stacked, not three across: this card now sits in the narrow column
@@ -509,6 +636,8 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
               )}
             </>
           )}
+
+          <RecrawlControls audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
         </>
       )}
     </Widget>

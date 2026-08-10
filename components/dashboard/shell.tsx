@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Globe, Moon, Search, Sun } from "lucide-react"
+import { Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useTheme } from "@/components/theme-provider"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumbs"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { Separator } from "@/components/ui/separator"
 import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
 import { UserMenu } from "@/components/dashboard/user-menu"
@@ -114,9 +115,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
                 {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </Button>
-              <Button variant="outline" size="icon" aria-label="Notifications">
-                <Bell className="size-4" />
-              </Button>
+              {/* The real bell, with the unread count and the panel. This slot
+                  used to hold a bare <Bell/> in a Button with no handler — the
+                  working component existed but was only mounted by the old
+                  topbar, which this shell replaced. */}
+              <NotificationBell />
               {/* Upgrade and the locale switcher both moved inside this menu, so
                   the account surface is one dropdown instead of three controls.
                   A real <button> so it's keyboard-reachable as a menu trigger. */}
