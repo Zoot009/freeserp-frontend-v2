@@ -20,7 +20,12 @@ import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AuditReportResults, transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
+import {
+  AuditReportResults,
+  SECTION_INTERNAL_LINKS,
+  transformReport,
+  type AuditReport,
+} from "@/components/page-audit/audit-ui"
 import { cn } from "@/lib/utils"
 
 type JobState = {
@@ -147,7 +152,20 @@ export default function PageAuditPage() {
   if (report) {
     return (
       <div className="px-6 pb-10 pt-5">
-        <AuditReportResults report={report} onNewAudit={reset} isAuthenticated />
+        <AuditReportResults
+          report={report}
+          onNewAudit={reset}
+          isAuthenticated
+          /**
+           * Internal Links is omitted because its backend genuinely isn't here.
+           * That section drives a separate link-graph service (submit/status/
+           * result endpoints, its own Prisma models and queue) which was NOT
+           * part of the port — so it could only ever sit on "Crawling…" and then
+           * show an error. Hiding it is honest; leaving a permanently-failing
+           * panel in a finished report is not.
+           */
+          hiddenSections={[SECTION_INTERNAL_LINKS]}
+        />
       </div>
     )
   }

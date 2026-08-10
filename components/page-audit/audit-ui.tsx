@@ -3245,6 +3245,25 @@ function InternalLinkSection({
   const [linkGraph, setLinkGraph] = useState<InternalLinkGraphData | null>(initial ?? null)
   const [errorMsg, setErrorMsg] = useState("")
 
+  /**
+   * Coerce whatever an API called `error` into something React can render.
+   *
+   * The package assumed its backend's `{ error: "some string" }`. This app's
+   * error envelope is `{ error: { code, message, requestId } }`, so putting it
+   * straight into state and rendering it crashed the whole report with
+   * "Objects are not valid as a React child (found: object with keys
+   * {code, message})" — the audit finished fine, then the page died trying to
+   * display why one section couldn't load.
+   */
+  const errText = (v: unknown, fallback: string): string => {
+    if (typeof v === "string" && v.trim()) return v
+    if (v && typeof v === "object") {
+      const m = (v as { message?: unknown }).message
+      if (typeof m === "string" && m.trim()) return m
+    }
+    return fallback
+  }
+
   useEffect(() => {
     if (!url) return
     // We already have the persisted graph from the report — nothing to fetch.
@@ -3269,7 +3288,7 @@ function InternalLinkSection({
         const submitData = await safeJson(submitRes)
 
         if (!submitRes.ok) {
-          if (!cancelled) { setErrorMsg(submitData.error || "Failed to start crawl"); setPhase("error") }
+          if (!cancelled) { setErrorMsg(errText(submitData.error, "Failed to start crawl")); setPhase("error") }
           return
         }
 
@@ -3294,7 +3313,7 @@ function InternalLinkSection({
           const statusData = await safeJson(statusRes)
 
           if (!statusRes.ok) {
-            if (!cancelled) { setErrorMsg(statusData.error || "Status check failed"); setPhase("error") }
+            if (!cancelled) { setErrorMsg(errText(statusData.error, "Status check failed")); setPhase("error") }
             return
           }
 
@@ -3309,7 +3328,7 @@ function InternalLinkSection({
             return
           }
           if (status === "failed") {
-            if (!cancelled) { setErrorMsg(statusData.error || "Crawl job failed"); setPhase("error") }
+            if (!cancelled) { setErrorMsg(errText(statusData.error, "Crawl job failed")); setPhase("error") }
             return
           }
         }
@@ -4180,9 +4199,14 @@ export function AuditReportResults({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auditReportId: report.id }),
       })
-      const data = (await res.json()) as { shareToken?: string; error?: string }
+      const data = (await res.json()) as { shareToken?: string; error?: unknown }
       if (!res.ok || !data.shareToken) {
-        setShareError(data.error || "Couldn't create a share link.")
+        // Same coercion as the link-graph section: this app's `error` is an
+        // object, and rendering one crashes React.
+        const msg = typeof data.error === "string"
+          ? data.error
+          : (data.error as { message?: string } | undefined)?.message
+        setShareError(msg || "Couldn't create a share link.")
       } else {
         setShareToken(data.shareToken)
       }
