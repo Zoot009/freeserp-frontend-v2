@@ -1142,7 +1142,8 @@
     "country": "Country",
     "device": "Device",
     "appearance": "Appearance",
-    "date": "Date"
+    "date": "Date",
+    "reconnectCta": "Reconnect Google"
   },
   "quotaUpsell": {
     "eyebrow": "Upgrade",

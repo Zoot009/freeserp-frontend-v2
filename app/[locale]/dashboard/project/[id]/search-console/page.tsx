@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { LineChart } from "@/components/dashboard/primitives"
 import { Dropdown } from "@/components/dashboard/dropdown"
+import { propertyCoversDomain } from "@/components/dashboard/cards/setup-card"
 import { downloadCSV } from "@/lib/csv"
 
 const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
@@ -82,6 +83,9 @@ export default function SearchConsolePage() {
   const [busy, setBusy] = useState(false)
   const [perfLoading, setPerfLoading] = useState(false)
   const [error, setError] = useState("")
+  // Google rejected the stored grant — the row still says "connected", but only
+  // signing in again will fix it.
+  const [needsReauth, setNeedsReauth] = useState(false)
 
   // The query object sent to the backend for the active range.
   const rangeQuery = useMemo(
@@ -107,14 +111,30 @@ export default function SearchConsolePage() {
     return { connected: c.connected, linked: link.siteUrl }
   }, [projectId])
 
+  /**
+   * A stored connection can stop working without us being told: revoking access
+   * from a Google account, or letting an unused refresh token lapse, kills the
+   * grant while our row survives. /api/gsc/connection only reports whether that
+   * row EXISTS, so `connected` stayed true, the reconnect button (which renders
+   * only when disconnected) stayed hidden, and the page offered nothing but
+   * "Disconnect" beside an error telling you to reconnect.
+   *
+   * Any 401 from a GSC call means the grant is dead, whatever the row says.
+   */
+  const noteError = useCallback((err: unknown, fallback: string) => {
+    if (err instanceof ApiError && err.status === 401) setNeedsReauth(true)
+    setError(err instanceof Error ? err.message : fallback)
+  }, [])
+
   const loadSites = useCallback(async () => {
     try {
       const { sites } = await api.get<{ sites: Site[] }>("/api/gsc/sites")
       setSites(sites)
+      setNeedsReauth(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load properties")
+      noteError(err, "Failed to load properties")
     }
-  }, [])
+  }, [noteError])
 
   const loadPerformance = useCallback(async () => {
     setError("")
@@ -125,13 +145,14 @@ export default function SearchConsolePage() {
         query: rangeQuery,
       })
       setPerf(data)
+      setNeedsReauth(false)
     } catch (err) {
       setPerf(null)
-      setError(err instanceof Error ? err.message : "Failed to load performance")
+      noteError(err, "Failed to load performance")
     } finally {
       setPerfLoading(false)
     }
-  }, [projectId, rangeQuery])
+  }, [projectId, rangeQuery, noteError])
 
   useEffect(() => {
     if (!user) return
@@ -143,7 +164,7 @@ export default function SearchConsolePage() {
         if (!active) return
         if (base.connected && !base.linked) await loadSites()
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load")
+        if (active) noteError(err, "Failed to load")
       } finally {
         if (active) setLoading(false)
       }
@@ -151,7 +172,7 @@ export default function SearchConsolePage() {
     return () => {
       active = false
     }
-  }, [user, loadBase, loadSites])
+  }, [user, loadBase, loadSites, noteError])
 
   useEffect(() => {
     if (user && siteUrl) loadPerformance()
@@ -166,8 +187,13 @@ export default function SearchConsolePage() {
       try {
         await api.post("/api/gsc/connect", { code })
         toast.success(t("connectedToast"))
+        setNeedsReauth(false)
         const base = await loadBase()
         if (base.connected && !base.linked) await loadSites()
+        // Reconnecting from the revoked state: the property was already linked,
+        // so go straight back to the report rather than leaving the stale error
+        // and an empty panel on screen.
+        if (base.linked) await loadPerformance()
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to connect")
       } finally {
@@ -233,10 +259,13 @@ export default function SearchConsolePage() {
     [projectId, rangeQuery],
   )
 
+  // Substring matching used to be enough here, but "includes" happily suggests
+  // notfreeserp.com for a freeserp.com project. propertyCoversDomain compares
+  // hosts on label boundaries, so only a property that genuinely covers this
+  // domain (itself, a parent, or a subdomain of it) gets pre-selected.
   const suggestedSite = useMemo(() => {
     if (!sites || !projectDomain) return null
-    const dom = projectDomain.toLowerCase()
-    return sites.find((s) => siteHost(s.siteUrl).toLowerCase().includes(dom))?.siteUrl ?? null
+    return sites.find((s) => propertyCoversDomain(s.siteUrl, projectDomain))?.siteUrl ?? null
   }, [sites, projectDomain])
 
   if (authLoading || loading) {
@@ -283,10 +312,17 @@ export default function SearchConsolePage() {
 
       {error && (
         <div
-          className="card tight"
-          style={{ marginBottom: 14, borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}
+          className="card tight row"
+          style={{ marginBottom: 14, gap: 12, alignItems: "center", flexWrap: "wrap", borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}
         >
-          {error}
+          <span style={{ flex: 1, minWidth: 200 }}>{error}</span>
+          {/* The only thing that fixes a revoked grant is signing in again, so
+              the banner that reports it carries the button that does it. */}
+          {needsReauth && (
+            <button type="button" className="btn primary" onClick={() => connectGsc()} disabled={busy}>
+              {busy ? t("connecting") : t("reconnectCta")}
+            </button>
+          )}
         </div>
       )}
 

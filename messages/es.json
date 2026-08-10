@@ -1142,7 +1142,8 @@
     "country": "País",
     "device": "Dispositivo",
     "appearance": "Aspecto",
-    "date": "Fecha"
+    "date": "Fecha",
+    "reconnectCta": "Reconectar Google"
   },
   "quotaUpsell": {
     "eyebrow": "Mejorar plan",

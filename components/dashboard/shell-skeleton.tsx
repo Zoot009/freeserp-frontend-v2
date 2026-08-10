@@ -56,6 +56,50 @@ function AccountRowSkeleton({ round }: { round?: boolean }) {
   )
 }
 
+/**
+ * A widget's outer chrome: border, radius and the header band with its title
+ * bar and ✕. Drawn once here so every placeholder card lines up with the real
+ * <Widget>'s px-4/py-3 header.
+ */
+function CardShell({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col rounded-lg border bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="ml-auto size-4 rounded" />
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * The SEO widget's six metric tiles as placeholders.
+ *
+ * Exported because SeoStatsCard renders this same state itself, one stage later
+ * — session resolved, overview data still in flight. It used to draw six solid
+ * slabs instead, so the tiles the shell had just shown were replaced by a
+ * different shape mid-load and the refresh read as two separate skeletons.
+ * One component, so the two can't drift apart again.
+ *
+ * Carries no padding of its own — the real Widget supplies it via bodyClassName,
+ * and CardShell's caller wraps it here to match.
+ */
+export function SeoTilesSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="space-y-2.5 rounded-lg border p-3.5">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-6 w-14" />
+          <Skeleton className="h-8 w-full rounded bg-muted/60" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function DashboardSkeleton() {
   return (
     <SidebarProvider>
@@ -87,55 +131,76 @@ export function DashboardSkeleton() {
           </div>
         </header>
 
-        <div className="flex-1 space-y-4 p-6">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-80" />
-          </div>
-
-          {/* Four stat cards, matching the Overview's top row. */}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-3 rounded-xl border p-5">
-                <Skeleton className="h-3.5 w-28" />
-                <Skeleton className="h-8 w-20" />
-                <Skeleton className="h-3 w-32" />
-              </div>
-            ))}
-          </div>
-
-          {/* Analytics chart + coverage panel. */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div className="space-y-4 rounded-xl border p-5 lg:col-span-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-64" />
-              {/* Large fill areas sit lighter than the text bars, so the
-                  placeholder reads as depth rather than solid slabs. */}
-              <Skeleton className="h-64 w-full rounded-lg bg-muted/60" />
-            </div>
-            <div className="space-y-4 rounded-xl border p-5">
-              <Skeleton className="h-4 w-24" />
-              <div className="flex justify-center py-6">
-                <Skeleton className="size-36 rounded-full bg-muted/60" />
-              </div>
-              <div className="space-y-2.5">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-3.5 w-6" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 rounded-xl border p-5">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-72" />
-            <Skeleton className="h-24 w-full rounded-lg bg-muted/60" />
-          </div>
-        </div>
+        <DashboardGridSkeleton withHeader />
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+/**
+ * The dashboard's widget grid as placeholders.
+ *
+ * Shared between the shell (session still resolving) and the page itself (session
+ * resolved, project list still in flight). Those two states used to draw
+ * different placeholders, so a refresh showed one skeleton, then a SECOND,
+ * differently-shaped one, before the content — reading as a double load.
+ *
+ * `withHeader` adds the title row, which only the shell needs; the page draws
+ * its own real header while it waits.
+ */
+export function DashboardGridSkeleton({ withHeader = false }: { withHeader?: boolean }) {
+  return (
+        <div className="flex flex-1 flex-col gap-4 px-6 pb-10 pt-5">
+          {withHeader && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Skeleton className="h-8 w-80" />
+              <div className="ml-auto flex items-center gap-2.5">
+                <Skeleton className="h-9 w-44 rounded-[9px]" />
+                <Skeleton className="h-[38px] w-44 rounded-[9px]" />
+              </div>
+            </div>
+          )}
+
+          {/* The five headline figures. */}
+          <StatStripSkeleton />
+
+          {/* Finish setup: header band + four numbered columns. */}
+          <CardShell>
+            <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-2.5">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                </div>
+              ))}
+            </div>
+          </CardShell>
+
+          {/* The two wide/narrow rows: Position Tracking + Site Audit, then
+              Traffic Analytics + Keyword Movement. */}
+          {[0, 1].map((row) => (
+            <div key={row} className="grid gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+              <CardShell><Skeleton className="m-5 h-56 rounded-[10px] bg-muted/60" /></CardShell>
+              <CardShell><Skeleton className="m-5 h-56 rounded-[10px] bg-muted/60" /></CardShell>
+            </div>
+          ))}
+        </div>
+  )
+}
+
+/**
+ * The five headline stat cards as placeholders.
+ *
+ * Exported because StatStrip renders this same state itself, one stage later —
+ * session resolved, project data still in flight. One component, so the shape
+ * can't change halfway through a load and read as a second skeleton.
+ */
+export function StatStripSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[116px] rounded-xl" />)}
+    </div>
   )
 }

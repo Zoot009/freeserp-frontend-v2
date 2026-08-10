@@ -15,6 +15,7 @@ import {
   MonitorCheck,
   Settings,
   ChevronsUpDown,
+  Youtube,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import {
@@ -34,6 +35,10 @@ type Item = { title: string; url: string; icon: React.ComponentType<{ className?
 const WORKSPACE: Item[] = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
   { title: "Rank Tracker", url: "/dashboard/projects", icon: LineChart },
+  // Its own project list, separate from the web projects above — which is also
+  // why it isn't a card on the SEO Dashboard: that page is scoped to one web
+  // project at a time and a YouTube panel would have nothing to scope to.
+  { title: "YouTube Tracker", url: "/dashboard/youtube", icon: Youtube },
   { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
   { title: "Favorites", url: "/dashboard/favorites", icon: Star },
 ]

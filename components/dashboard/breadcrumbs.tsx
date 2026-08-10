@@ -25,22 +25,33 @@ type CrumbDef = { key: string; href?: string }
 type Crumb = { label: string; href?: string }
 
 // Curated trails per route. A crumb without `href` is the leaf for that path.
+//
+// Every non-leaf crumb carries an href on purpose. The tool routes used to open
+// with a bare `{ key: "tools" }` — "Other Tools" is a SIDEBAR GROUP HEADING, not
+// a page, so it had nowhere to point and rendered as dead text. With the leaf
+// already non-interactive (it's the page you're on), that left trails where
+// nothing at all was clickable. Tools now hang off the workspace root instead,
+// which is a real destination and matches how every other route reads.
+const WORKSPACE: CrumbDef = { key: "workspace", href: "/dashboard" }
+
 const CRUMB_KEYS: Record<string, CrumbDef[]> = {
-  "/dashboard": [{ key: "workspace", href: "/dashboard" }, { key: "overview" }],
-  "/dashboard/projects": [{ key: "workspace", href: "/dashboard" }, { key: "projects" }],
+  "/dashboard": [WORKSPACE, { key: "overview" }],
+  "/dashboard/home": [WORKSPACE, { key: "homeDash" }],
+  "/dashboard/projects": [WORKSPACE, { key: "projects" }],
   "/dashboard/project": [
-    { key: "workspace", href: "/dashboard" },
+    WORKSPACE,
     { key: "projects", href: "/dashboard/projects" },
     { key: "project" },
   ],
-  "/dashboard/keywords": [{ key: "workspace", href: "/dashboard" }, { key: "keywords" }],
-  "/dashboard/favorites": [{ key: "workspace", href: "/dashboard" }, { key: "favorites" }],
-  "/dashboard/serp-checker": [{ key: "tools" }, { key: "quickSerp" }],
-  "/dashboard/keyword-magic": [{ key: "tools" }, { key: "keywordMagic" }],
-  "/dashboard/keyword-analysis": [{ key: "tools" }, { key: "keywordAnalysis" }],
-  "/dashboard/onpage-audit": [{ key: "tools" }, { key: "onPageAudit" }],
-  "/dashboard/alerts": [{ key: "tools" }, { key: "alerts" }],
-  "/dashboard/billing": [{ key: "tools" }, { key: "settings" }],
+  "/dashboard/youtube": [WORKSPACE, { key: "youtube" }],
+  "/dashboard/keywords": [WORKSPACE, { key: "keywords" }],
+  "/dashboard/favorites": [WORKSPACE, { key: "favorites" }],
+  "/dashboard/serp-checker": [WORKSPACE, { key: "quickSerp" }],
+  "/dashboard/keyword-magic": [WORKSPACE, { key: "keywordMagic" }],
+  "/dashboard/keyword-analysis": [WORKSPACE, { key: "keywordAnalysis" }],
+  "/dashboard/onpage-audit": [WORKSPACE, { key: "onPageAudit" }],
+  "/dashboard/alerts": [WORKSPACE, { key: "alerts" }],
+  "/dashboard/billing": [WORKSPACE, { key: "settings" }],
 }
 
 // Path segments that are database ids (uuid/cuid/ObjectId…) shouldn't become
@@ -92,6 +103,13 @@ function crumbsFor(
     if (isIdSegment(seg)) continue
     extra.push({ label: humanize(seg), href: acc })
   }
+
+  // A curated trail's leaf has no href — it's written as the end of the line.
+  // Once deeper segments push it into the middle it needs one, or the crumb
+  // that names the section you're inside can't take you back to it.
+  const leaf = base[base.length - 1]!
+  if (extra.length > 0 && !leaf.href) leaf.href = matched
+
   return [...base, ...extra]
 }
 

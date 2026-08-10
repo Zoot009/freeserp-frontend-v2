@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { ChevronDown, ExternalLink, Plus } from "lucide-react"
+import { Check, ChevronDown, ExternalLink, Plus } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -91,7 +91,7 @@ export function ProjectSwitcher({
   // right, so a wider gap read as the icon drifting away from the domain.
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%" }}>
-    <DropdownMenu modal={false}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {/* A plain button, not the shadcn <Button>: this sits INSIDE the page
             heading, so it inherits the h1's size and weight via `font: inherit`
@@ -121,47 +121,56 @@ export function ProjectSwitcher({
           <ChevronDown size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-68 max-h-none overflow-visible p-1.5">
+
+      {/* A plain menu, not a search combobox. The combobox that briefly lived
+          here scrolled badly: it's portaled inside a non-modal popover, so the
+          wheel never reached the list and only the scrollbar thumb worked.
+          DropdownMenu is modal — Radix locks the page and routes the wheel into
+          the menu itself, so scrolling just works with no handler of our own.
+
+          collisionPadding keeps it off the viewport edge, and the base content
+          class already caps height at --radix-dropdown-menu-content-available-height,
+          so a long project list scrolls instead of running off the screen. */}
+      <DropdownMenuContent align="start" sideOffset={8} collisionPadding={12} className="w-72 p-1.5">
         {projects.map((p) => {
           const isActive = p.id === activeId
           return (
             <DropdownMenuItem
               key={p.id}
-              onClick={() => choose(p.id)}
-              // px-2 py-2 rather than the base py-1.5: these rows carry two lines
-              // of text, which the default single-line padding left cramped.
-              // Active gets the soft brand fill only — tinting the whole row
-              // brand blue dragged the domain line with it and killed its
-              // contrast, so the weight/colour shift is applied to the name.
+              onSelect={() => choose(p.id)}
+              // focus:bg-muted, NOT the inherited focus:bg-accent. This theme
+              // maps --accent to the BRAND blue (see globals.css), and the rows
+              // below set their own text colours, which beat the white
+              // accent-foreground — so the stock highlight rendered a solid
+              // blue band with dark, near-unreadable text on it.
               className={cn(
-                "items-center gap-2.5 px-2 py-2 focus:bg-muted focus:text-foreground",
+                // focus:text-foreground pairs with the bg override — the base
+                // style's focus colour is accent-foreground (white here), which
+                // only stays invisible because the spans below set their own.
+                "items-center gap-2.5 rounded-md px-2 py-2 focus:bg-muted focus:text-foreground",
                 isActive && "bg-brand-soft focus:bg-brand-soft",
               )}
             >
               <span className="flex size-5 shrink-0 items-center justify-center">
                 <Favicon domain={p.domain} size={20} bare />
               </span>
-              <div className="flex min-w-0 flex-col gap-0.5 leading-none">
-                <span
-                  className={cn(
-                    "truncate text-sm",
-                    isActive ? "font-medium text-brand" : "text-foreground",
-                  )}
-                >
-                  {p.name}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">{p.domain}</span>
-              </div>
+              {/* Domain only. The project name sat above it as a second line,
+                  but for almost every project here the two are the same string,
+                  so the row read as the same thing printed twice. */}
+              <span className={cn("min-w-0 truncate text-sm", isActive ? "font-medium text-brand" : "text-foreground")}>
+                {p.domain}
+              </span>
+              {isActive && <Check className="ml-auto size-4 shrink-0 text-brand" />}
             </DropdownMenuItem>
           )
         })}
+
         <DropdownMenuSeparator />
-        {/* Label left, plus pinned right — the reference's shape. */}
         <DropdownMenuItem
-          className="justify-between gap-4 px-2 py-2 text-brand focus:bg-muted focus:text-brand"
-          onClick={() => router.push("/dashboard/projects")}
+          onSelect={() => router.push("/dashboard/projects")}
+          className="justify-between gap-4 rounded-md px-2 py-2 text-brand focus:bg-muted focus:text-brand"
         >
-          <span className="text-sm">{tProjects("newProject")}</span>
+          <span>{tProjects("newProject")}</span>
           <Plus className="size-4 shrink-0" />
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -1142,7 +1142,8 @@
     "country": "Pays",
     "device": "Appareil",
     "appearance": "Apparence",
-    "date": "Date"
+    "date": "Date",
+    "reconnectCta": "Reconnecter Google"
   },
   "quotaUpsell": {
     "eyebrow": "Passer au niveau supérieur",

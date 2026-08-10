@@ -848,6 +848,21 @@ export default function ProjectKeywordsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAddKw, setShowAddKw] = useState(false)
 
+  // `?add=1` opens the add-keyword panel on arrival — that panel owns the
+  // location picker and the desktop/mobile toggle, so links elsewhere that
+  // promise "set location & device" land ON the control instead of dropping the
+  // user at the table to hunt for it. The param is scrubbed immediately so a
+  // refresh or a bookmark doesn't keep reopening the panel.
+  const wantsAdd = searchParams.get("add") === "1"
+  useEffect(() => {
+    if (!wantsAdd) return
+    setShowAddKw(true)
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("add")
+    window.history.replaceState(null, "", url.toString())
+  }, [wantsAdd])
+
   // ── AI keyword suggestions (new-project onboarding flow) ────────────────
   // `?new=1` is set by the projects page right after creation. It puts this
   // page into the analysis flow instead of showing an empty keyword table.

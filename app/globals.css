@@ -199,7 +199,14 @@
      * that previously broke `position: sticky` for the dashboard sidebar/topbar
      * and any other sticky descendants. */
     overflow-x: clip;
-    max-width: 100vw;
+    /* 100%, not 100vw: 100vw is the viewport INCLUDING the scrollbar gutter, so
+     * every time the scrollbar appeared or vanished the page resized under it. */
+    max-width: 100%;
+    /* Reserve the scrollbar's space permanently. Radix menus and dialogs lock
+     * body scroll while open, which removes the scrollbar — without a stable
+     * gutter the whole layout jumped wider the moment a dropdown opened and
+     * snapped back on close. */
+    scrollbar-gutter: stable;
     /* Apply scrollbar styles to html element */
     scrollbar-width: thin;
     scrollbar-color: var(--border) var(--background);
@@ -211,9 +218,19 @@
   body {
     @apply bg-background text-foreground;
     overflow-x: clip;
-    max-width: 100vw;
+    max-width: 100%;
     scrollbar-width: thin;
     scrollbar-color: var(--border) var(--background);
+  }
+
+  /* react-remove-scroll (under every Radix menu/dialog/sheet) pads the body by
+   * the scrollbar width when it locks scrolling, to make up for the scrollbar it
+   * just removed. `scrollbar-gutter: stable` above already holds that space, so
+   * the padding is a SECOND gap — the layout shifted left on open and back on
+   * close. Inline styles are what it writes, hence !important. */
+  body[data-scroll-locked] {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
   }
   /* Webkit scrollbar styling for html and body */
   html::-webkit-scrollbar,

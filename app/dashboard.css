@@ -1304,6 +1304,51 @@
 /* Indeterminate crawl bar. The upstream crawler reports no percentage, so this
    moves continuously rather than pretending to track progress. */
 @keyframes fs-crawl-stripe { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
+
+/* A quiet scrollbar for lists inside cards.
+ *
+ * The platform default is ~16px of grey gutter, which on a 250px panel reads as
+ * a piece of chrome bolted to the card rather than part of it. Unprefixed (not
+ * .fs-app) because the dashboard cards render outside that scope. */
+.fs-quiet-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.fs-quiet-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.fs-quiet-scroll::-webkit-scrollbar-track { background: transparent; }
+.fs-quiet-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.fs-quiet-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* A highlight that sweeps along the filled part of the crawl bar.
+ *
+ * The bar is DETERMINATE — its width is the real percentage — but a percentage
+ * that only moves every few minutes looks frozen, which reads as "stuck" rather
+ * than "working". The sweep carries the liveness; the width still carries the
+ * truth. Unprefixed (not .fs-app) because the dashboard cards render outside
+ * that scope. */
+@keyframes fs-crawl-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.fs-crawl-sweep {
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: fs-crawl-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-crawl-sweep { animation: none; }
+}
+
+/* Placeholder "breathing". Tailwind's animate-pulse runs 0.5→1 opacity in 2s,
+   which on a page full of skeletons reads as flashing. This is slower and much
+   shallower — the block stays clearly present the whole time, it just settles. */
+@keyframes fs-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+/* Respect a user who has asked the OS to stop moving things. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] { animation: none !important; }
+}
 .fs-app .skeleton {
   background: linear-gradient(90deg, var(--bg-inset) 25%, var(--bg-sub) 37%, var(--bg-inset) 63%);
   background-size: 400px 100%;

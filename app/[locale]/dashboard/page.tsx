@@ -1,66 +1,84 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
-import { Link, useRouter } from "@/i18n/navigation"
+/**
+ * SEO Dashboard — one project at a time.
+ *
+ * Layout follows the reference: five headline figures across the top, the setup
+ * strip, then two wide/narrow rows — Position Tracking beside Site Audit, and
+ * Traffic Analytics beside Keyword Movement.
+ *
+ * Everything here comes from real endpoints:
+ *   • /api/projects              — the project list behind the switcher
+ *   • /api/projects/:id          — keywords with their latest check (position,
+ *                                  deltas, volume, modelled traffic) plus the
+ *                                  domain's authority + backlinks
+ *   • /api/overview              — coverage stats and the average-position trend
+ *   • /api/projects/:id/overview — estimated traffic + ranking pages over time
+ *   • /api/gsc/connection        — whether Search Console is actually linked
+ *   • /api/projects/:id/site-crawl — inside the Site Audit card
+ *
+ * Each card is still a widget: the ✕ on its header removes it, and "Customise
+ * dashboard" in the footer opens the panel that puts it back.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Link } from "@/i18n/navigation"
+import { Plus } from "lucide-react"
 import { api } from "@/lib/api"
-import { Icon } from "@/components/dashboard/icons"
+import { Button } from "@/components/ui/button"
+import { HiddenWidgets, WidgetProvider, useWidgets, type WidgetDef } from "@/components/dashboard/widget"
+import { DashboardGridSkeleton } from "@/components/dashboard/shell-skeleton"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
-  StatTile,
-  LineChart,
-  Donut,
-  Legend,
-  KeywordTable,
-  ActivityFeed,
-  serpFeaturesToChips,
-  trendToSparkline,
-  type KeywordRow,
-  type ActivityItem,
-  type SerpFeatures,
-  type MonthlySearch,
-} from "@/components/dashboard/primitives"
+import { KeywordSetupCard } from "@/components/dashboard/cards/keyword-setup-card"
+import { StatStrip } from "@/components/dashboard/cards/stat-strip"
+import { SetupCard, type GscState } from "@/components/dashboard/cards/setup-card"
+import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
+import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
+import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
 
-// Rows on the dashboard need a projectId alongside the keyword id so that
-// clicking a row can route to the project-scoped detail URL.
-type EnrichedRow = KeywordRow & { projectId: string }
+// ── Types ────────────────────────────────────────────────────────────────────
 
-type ProjectSummary = {
-  id: string
-  name: string
-  domain: string
-  isActive: boolean
-  createdAt: string
-  _count: { keywords: number }
-}
+type ProjectSummary = { id: string; name: string; domain: string }
 
 type Keyword = {
   id: string
   keyword: string
+  /** Market + device this keyword is checked in — set per keyword, not per project. */
   location: string | null
+  device: string | null
   position: number | null
+  firstPosition?: number | null
   d1: number | null
   d7: number | null
   url: string | null
   monthlyTraffic: number | null
   searchVolume: number | null
-  serpFeatures: SerpFeatures | null
-  searchVolumeTrend: MonthlySearch[] | null
+  serpFeatures: Record<string, unknown> | null
+  searchVolumeTrend: { year: number; month: number; searchVolume: number }[] | null
+  /** When a rank check last completed. Distinguishes "checked, ranks past 100"
+   *  from "never checked" — the two look identical on `position: null`. */
+  checkedAt?: string | null
+  /** Most recent COMPLETED competitor analysis. Present → the Rank action opens
+   *  that report instead of starting a fresh (paid) run. */
+  latestAnalysisId?: string | null
 }
 
 type ProjectDetail = {
   id: string
   name: string
   domain: string
+  domainAuthority: number | null
+  domainBacklinks: number | null
+  backlinksCheckedAt?: string | null
+  lastScheduledCheck?: string | null
   keywords: Keyword[]
 }
 
-type OverviewRange = "24h" | "7d" | "30d" | "90d"
+type Range = "24h" | "7d" | "30d" | "90d"
 
 type OverviewResponse = {
-  range: OverviewRange
+  range: Range
   stats: {
     totalKeywords: number
     ranked: number
@@ -73,345 +91,460 @@ type OverviewResponse = {
   history: { t: string; avgPos: number }[]
 }
 
-export default function DashboardOverviewPage() {
-  const t = useTranslations("dashOverview")
-  // The page title now reuses the nav's "Overview" label, so the heading and the
-  // sidebar entry can't drift apart.
-  const tNav = useTranslations("dashboardNav")
-  const router = useRouter()
-  const [projects, setProjects] = useState<ProjectSummary[]>([])
-  const [keywords, setKeywords] = useState<EnrichedRow[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [range, setRange] = useState<OverviewRange>("7d")
-  const [overview, setOverview] = useState<OverviewResponse | null>(null)
-  // The project this page is scoped to — tiles, coverage, chart and keyword
-  // rows all narrow to it. Null only until the project list arrives; the effect
-  // below then settles on the first one, because the switcher offers no "all
-  // projects" entry to get back to an unscoped view.
-  const [projectId, setProjectId] = useState<string | null>(null)
-  // Separate flags: the tiles/chart/coverage come from /api/overview, the rows
-  // from the project detail. Both start true so the very first paint is
-  // placeholders rather than zeroes that then jump to real figures.
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [rowsLoading, setRowsLoading] = useState(true)
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-  // Settle on the first project as soon as the list lands, so the page is never
-  // stuck on an unscoped view the switcher can't return to.
+/** Position → click-through rate, so visibility weights a #1 far above a #9. */
+function ctr(pos: number | null): number {
+  if (pos == null) return 0
+  const curve = [0.317, 0.247, 0.187, 0.133, 0.095, 0.068, 0.049, 0.037, 0.029, 0.024]
+  if (pos <= 10) return curve[Math.ceil(pos) - 1] ?? 0.024
+  if (pos <= 20) return 0.012
+  if (pos <= 50) return 0.005
+  if (pos <= 100) return 0.002
+  return 0
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10
+const RANGE_LABEL: Record<Range, string> = { "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" }
+
+/** Exclusive ranking bands, so the counts sum to the keywords tracked. */
+const BAND_DEFS = [
+  { label: "Top 3", lo: 1, hi: 3 },
+  { label: "4 – 10", lo: 4, hi: 10 },
+  { label: "11 – 20", lo: 11, hi: 20 },
+  { label: "21 – 100", lo: 21, hi: 100 },
+]
+
+// The catalogue the Hidden Widgets panel restores from — every widget id used
+// below has to appear here, or a hidden card would have no way back.
+const WIDGETS: WidgetDef[] = [
+  { id: "setup", label: "Finish setup" },
+  { id: "position-tracking", label: "Position Tracking" },
+  { id: "site-crawl", label: "Site Audit" },
+  { id: "traffic", label: "Traffic Analytics" },
+  { id: "keyword-movement", label: "Keyword Movement" },
+]
+
+/**
+ * The bottom of the dashboard: the Hidden Widgets panel, then the last-refresh
+ * line.
+ *
+ * The panel is always rendered. It used to sit behind a "Customise dashboard"
+ * toggle, which meant a card you'd removed with its ✕ had no visible way back
+ * until you noticed the link — the panel is the answer to "where did it go?",
+ * so it shouldn't need finding.
+ */
+function DashboardFooter({ refreshed }: { refreshed: string | null }) {
+  const { hidden, ready, showAll } = useWidgets()
+  const count = ready ? hidden.length : 0
+
+  return (
+    <>
+      <HiddenWidgets />
+      {(refreshed || count > 0) && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+          {refreshed && <span>Last full refresh {refreshed}</span>}
+          {count > 0 && (
+            <>
+              {refreshed && <span aria-hidden>·</span>}
+              {/* Duplicates the panel's own "Show all", on purpose: the panel
+                  can be a scroll away once the dashboard is full, and this line
+                  is where the eye lands last. */}
+              <button
+                type="button"
+                onClick={showAll}
+                className="font-semibold text-primary transition-opacity hover:opacity-80"
+              >
+                Show all {count} hidden widget{count === 1 ? "" : "s"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+export default function SeoDashboardPage() {
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<ProjectDetail | null>(null)
+  const [overview, setOverview] = useState<OverviewResponse | null>(null)
+  const [history, setHistory] = useState<TrafficPoint[]>([])
+  const [range, setRange] = useState<Range>("30d")
+  const [loadedProjects, setLoadedProjects] = useState(false)
+  // null until the request settles — the setup card distinguishes "not
+  // connected" from "we don't know yet" and shouldn't claim either early.
+  const [gscConnected, setGscConnected] = useState<boolean | null>(null)
+  // The Search Console GRANT is account-wide, but the property is linked per
+  // project — so "connected" alone said nothing about whether THIS project has
+  // data behind it, and every project claimed to be set up off one connection.
+  const [gscSite, setGscSite] = useState<{ siteUrl: string | null; projectDomain: string } | null>(null)
+  // A failed list request must not read as "you have no projects" — the two
+  // states look identical otherwise, and the API does fail (quota, network).
+  const [projectsError, setProjectsError] = useState<string | null>(null)
+  const [rowsLoading, setRowsLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  // Project list — fetched once; the switcher only changes which id we scope to.
+  useEffect(() => {
+    let cancelled = false
+    api.get<ProjectSummary[]>("/api/projects")
+      .then((list) => { if (!cancelled) { setProjects(list ?? []); setProjectsError(null) } })
+      .catch((e: unknown) => {
+        if (cancelled) return
+        setProjects([])
+        setProjectsError(e instanceof Error ? e.message : "Couldn't load your projects.")
+      })
+      .finally(() => { if (!cancelled) setLoadedProjects(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Whether Search Console is linked. Account-wide, so it's fetched once rather
+  // than per project. A failure leaves it null: unknown, not disconnected.
+  useEffect(() => {
+    let cancelled = false
+    api.get<{ connected: boolean }>("/api/gsc/connection")
+      .then((r) => { if (!cancelled) setGscConnected(!!r?.connected) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
+
+  // Which Search Console property this project is pointed at, if any. Scoped to
+  // the project, so switching projects re-asks rather than carrying the last
+  // one's answer over.
+  useEffect(() => {
+    if (!projectId) { setGscSite(null); return }
+    let cancelled = false
+    setGscSite(null)
+    api.get<{ siteUrl: string | null; projectDomain: string }>(`/api/gsc/projects/${projectId}/site`)
+      .then((r) => { if (!cancelled && r) setGscSite(r) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [projectId])
+
   useEffect(() => {
     if (projectId === null && projects.length > 0) setProjectId(projects[0]!.id)
   }, [projects, projectId])
 
-  // Stats + average-position history for the selected project.
-  //
-  // Guarded on projectId: without it the first render fired an UNSCOPED request,
-  // so the page painted every project's totals for a beat before the scoped
-  // numbers replaced them. Waiting costs nothing — the project list is already
-  // in flight — and the page shows one set of figures instead of two.
-  useEffect(() => {
-    if (!projectId) return
-    let cancelled = false
-    // Reset on every scope change, so switching project shows placeholders
-    // rather than the previous project's figures while the new ones load.
-    setStatsLoading(true)
-    ;(async () => {
-      try {
-        const scope = `&projectId=${encodeURIComponent(projectId)}`
-        const data = await api.get<OverviewResponse>(`/api/overview?range=${range}${scope}`)
-        if (!cancelled) setOverview(data)
-      } catch {
-        if (!cancelled) setOverview(null)
-      } finally {
-        if (!cancelled) setStatsLoading(false)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [range, projectId])
+  const loadDetail = useCallback(async (id: string) => {
+    try { return await api.get<ProjectDetail>(`/api/projects/${id}`) } catch { return null }
+  }, [])
 
-  // The project list. Fetched ONCE on mount — it doesn't depend on the
-  // selection, and refetching it per selection was what let the keyword rows lag
-  // a step behind the tiles.
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const list = await api.get<ProjectSummary[]>("/api/projects")
-        if (!cancelled) setProjects(list)
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : t("loadError")
-        if (!cancelled) setError(msg)
-      } finally {
-        if (!cancelled) setLoaded(true)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [t])
-
-  // Keyword rows for the selected project only.
+  // Keywords + domain metrics for the selected project.
   useEffect(() => {
     if (!projectId) return
     let cancelled = false
     setRowsLoading(true)
-    ;(async () => {
-      try {
-        const detail = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
-        if (cancelled) return
-        setKeywords(
-          detail.keywords.map((k) => {
-            const pos = k.position
-            return {
-              id: k.id,
-              kw: k.keyword,
-              pos,
-              prev: pos != null && k.d1 != null ? pos + k.d1 : pos,
-              vol: k.searchVolume ?? 0,
-              url: k.url,
-              feat: serpFeaturesToChips(k.serpFeatures),
-              trend: trendToSparkline(k.searchVolumeTrend),
-              // Carry the parent project's id so a row click can build the
-              // project-scoped detail URL (the keyword id alone wouldn't be
-              // enough now that the route is /project/[id]/keywords/[kwId]).
-              projectId: detail.id,
-            }
-          }),
-        )
-      } catch {
-        // Non-fatal: the tiles still render from /api/overview. Clear the rows
-        // rather than stranding the previous project's keywords on screen.
-        if (!cancelled) setKeywords([])
-      } finally {
-        if (!cancelled) setRowsLoading(false)
-      }
-    })()
+    void loadDetail(projectId).then((d) => {
+      if (cancelled) return
+      setDetail(d)
+      setRowsLoading(false)
+    })
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, loadDetail])
 
-  // Headline stats come from the real aggregate endpoint (all projects, not the
-  // first 3, and no synthetic data). estTraffic stays modelled from the loaded
-  // keyword volumes — it's clearly labelled "modelled".
-  const stats = overview?.stats
-  const totalKeywords = stats?.totalKeywords ?? 0
-  const ranked = stats?.ranked ?? 0
-  const avgPos = stats?.avgPosition ?? 0
-  const inTop10 = stats?.inTop10 ?? 0
-  const inTop3 = stats?.inTop3 ?? 0
-  const inTop30 = stats?.inTop30 ?? 0
-  const outside30 = stats?.outside30 ?? 0
-  const estTraffic = keywords.reduce((sum, k) => {
-    const t = k.pos != null && k.pos <= 30 ? Math.max(0, Math.round(k.vol * (0.32 / k.pos))) : 0
-    return sum + t
-  }, 0)
+  // No keywords yet. The setup card below owns the explanation (and the
+  // analysis run); this page just keeps refetching so the moment keywords land
+  // the dashboard fills in without a manual reload.
+  const noKeywords = !!detail && detail.keywords.length === 0
+  useEffect(() => {
+    if (!noKeywords || !projectId) return
+    const t = setInterval(() => { void loadDetail(projectId).then((d) => d && setDetail(d)) }, 5000)
+    // Five minutes: an AI analysis plus its first rank checks routinely outlasts
+    // the old 60s window, which stranded the page on stale zeroes.
+    const stop = setTimeout(() => clearInterval(t), 5 * 60_000)
+    return () => { clearInterval(t); clearTimeout(stop) }
+  }, [noKeywords, projectId, loadDetail])
 
-  // Real average-position trend for the selected range (one point per bucket).
-  const rankHistory = (overview?.history ?? []).map((h) => ({ pos: h.avgPos }))
+  // Bumped to force a refetch of everything on demand — after "Run a check"
+  // queues a job, say — without duplicating the fetch logic.
+  const [refreshTick, setRefreshTick] = useState(0)
+  const refresh = useCallback(() => {
+    setRefreshTick((n) => n + 1)
+    if (projectId) void loadDetail(projectId).then((d) => d && setDetail(d))
+  }, [projectId, loadDetail])
 
-  // Latest movements: keywords sorted by absolute delta desc
-  const latestMovements = [...keywords]
-    .filter((k) => k.prev != null && k.pos != null && k.prev !== k.pos)
-    .sort((a, b) => Math.abs((b.prev! - b.pos!)) - Math.abs((a.prev! - a.pos!)))
-    .slice(0, 6)
+  // Coverage stats + the two time series, re-fetched whenever the range changes.
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
+    setStatsLoading(true)
+    const scope = `projectId=${encodeURIComponent(projectId)}`
+    void Promise.all([
+      api.get<OverviewResponse>(`/api/overview?range=${range}&${scope}`).catch(() => null),
+      api.get<{ history: TrafficPoint[] }>(`/api/projects/${projectId}/overview?range=${range}`).catch(() => null),
+    ]).then(([ov, proj]) => {
+      if (cancelled) return
+      setOverview(ov)
+      setHistory(proj?.history ?? [])
+      setStatsLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [projectId, range, refreshTick])
 
-  const activity: ActivityItem[] = latestMovements.slice(0, 5).map((k) => {
-    const diff = (k.prev ?? 0) - (k.pos ?? 0)
-    return {
-      type: diff > 0 ? "rank-up" : "rank-down",
-      kw: k.kw,
-      text: diff > 0
-        ? t("activityMovedUp", { count: diff, pos: k.pos ?? 0 })
-        : t("activityDropped", { count: -diff, pos: k.pos ?? 0 }),
-      time: t("activityRecent"),
+  // ── Derived metrics ───────────────────────────────────────────────────────
+  const m = useMemo(() => {
+    const kws = detail?.keywords ?? []
+    const ranked = kws.filter((k) => k.position != null)
+    const positions = ranked.map((k) => k.position as number)
+    const totalVol = kws.reduce((s, k) => s + (k.searchVolume ?? 0), 0)
+
+    const visNow = ranked.reduce((s, k) => s + ctr(k.position) * (k.searchVolume ?? 0), 0)
+    // Unrounded on purpose — the card decides how to show it. Rounding to one
+    // decimal here turned a real 0.0013% into a flat "0%", which sat next to an
+    // average position of 2.5 and read as a broken number rather than a tiny one.
+    const visibility = totalVol > 0 ? (visNow / totalVol) * 100 : 0
+
+    // Where each keyword stood 7 days ago, reconstructed from its delta — the
+    // basis for every "new"/"lost" figure below. A keyword whose reconstructed
+    // position lands past 100 was outside the results then, which is how a band
+    // can gain a keyword that has no earlier ranking at all.
+    const prevPos = (k: Keyword): number | null =>
+      k.position == null ? null : k.d7 != null ? (k.position as number) + k.d7 : (k.position as number)
+
+    const inBand = (p: number | null, lo: number, hi: number) => p != null && p >= lo && p <= hi
+    const movement = (lo: number, hi: number) => {
+      const nowIds = new Set(kws.filter((k) => inBand(k.position, lo, hi)).map((k) => k.id))
+      const beforeIds = new Set(kws.filter((k) => inBand(prevPos(k), lo, hi)).map((k) => k.id))
+      let added = 0, lost = 0
+      for (const id of nowIds) if (!beforeIds.has(id)) added++
+      for (const id of beforeIds) if (!nowIds.has(id)) lost++
+      return { count: nowIds.size, added, lost }
     }
-  })
 
-  const donutValue = totalKeywords ? Math.round((inTop10 / totalKeywords) * 100) : 0
-  const selectedProject = projectId ? projects.find((p) => p.id === projectId) ?? null : null
+    const share = (n: number) => (kws.length ? Math.round((n / kws.length) * 100) : 0)
+    const bands: Band[] = BAND_DEFS.map((d) => {
+      const mv = movement(d.lo, d.hi)
+      return { label: d.label, count: mv.count, added: mv.added, lost: mv.lost, share: share(mv.count) }
+    })
+    // The remainder. Nothing "enters" or "leaves" it in the band sense — it's
+    // everything the other four rows didn't claim — so its movement cells stay
+    // blank rather than printing a zero that means something different.
+    const unranked = kws.length - ranked.length
+    bands.push({ label: "Unranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
+
+    const top100 = movement(1, 100)
+
+    const kwVis = (k: Keyword) => (totalVol > 0 ? round1((ctr(k.position) * (k.searchVolume ?? 0) / totalVol) * 100) : 0)
+    const toTop = (k: Keyword): TopKeyword => ({
+      id: k.id,
+      keyword: k.keyword,
+      position: k.position,
+      delta: k.d7,
+      visibility: kwVis(k),
+      volume: k.searchVolume,
+      checked: !!k.checkedAt,
+      latestAnalysisId: k.latestAnalysisId ?? null,
+      // Same gate the keywords page applies to its "Rank #100+ → #1" button: a
+      // keyword still being checked has no rank yet, so offering to take it "to
+      // #1" would be promising against a number we haven't measured.
+      canRank: k.position != null ? k.position > 1 : !!k.checkedAt,
+    })
+    // EVERY tracked keyword, not a top-N slice: Position Tracking splits these
+    // into Winners/Losers tabs and shows a count on each, so a cap here would
+    // make those counts lie. The list scrolls instead.
+    //
+    // Ranked first by the visibility each contributes, then the unranked by
+    // search volume. Unranked used to be dropped entirely, so a project whose
+    // keywords all sit past #100 showed "no ranked keywords yet" and hid every
+    // keyword it was tracking.
+    const topKeywords: TopKeyword[] = [
+      ...ranked.sort((a, b) => kwVis(b) - kwVis(a) || (a.position ?? 999) - (b.position ?? 999)),
+      ...kws.filter((k) => k.position == null).sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0)),
+    ].map(toTop)
+
+    // The SERP these positions actually came from. Location and device are per
+    // keyword, so the card reports the dominant pair rather than asserting a
+    // hardcoded market — and flags when the project spans several.
+    const tally = (vals: (string | null)[], fallback: string) => {
+      const counts = new Map<string, number>()
+      for (const v of vals) if (v) counts.set(v, (counts.get(v) ?? 0) + 1)
+      const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
+      return {
+        top: sorted[0]?.[0] ?? fallback,
+        distinct: sorted.length,
+        // Every distinct value, busiest first — the scope line names them all
+        // rather than reporting a count nobody can expand.
+        all: sorted.length ? sorted.map(([code]) => code) : [fallback],
+      }
+    }
+    const loc = tally(kws.map((k) => k.location), "us")
+    const dev = tally(kws.map((k) => k.device), "desktop")
+    // How many markets are actually in play, not just whether it's >1: the scope
+    // line says "+2 more" rather than silently naming the dominant one, which
+    // read as a claim that every keyword was checked there.
+    const locationCount = Math.max(1, loc.distinct)
+    const deviceCount = Math.max(1, dev.distinct)
+
+    return {
+      scope: {
+        location: loc.top,
+        device: dev.top,
+        mixed: loc.distinct > 1 || dev.distinct > 1,
+        locationCount,
+        deviceCount,
+        locations: loc.all,
+        devices: dev.all,
+      },
+      tracked: kws.length,
+      ranked: ranked.length,
+      estTraffic: kws.reduce((s, k) => s + (k.monthlyTraffic ?? 0), 0),
+      avgPos: positions.length ? round1(positions.reduce((a, b) => a + b, 0) / positions.length) : null,
+      visibility,
+      bands,
+      topKeywords,
+      movements: {
+        improved: kws.filter((k) => (k.d7 ?? 0) > 0).length,
+        declined: kws.filter((k) => (k.d7 ?? 0) < 0).length,
+        added: top100.added,
+        lost: top100.lost,
+      },
+    }
+  }, [detail])
+
+  const pagesNow = history.length ? history[history.length - 1]!.pages : 0
+  const domain = detail?.domain ?? projects.find((p) => p.id === projectId)?.domain ?? ""
+  // Account grant + this project's property, as one value. The two are fetched
+  // separately because they answer different questions, but every consumer needs
+  // both to say anything true about Search Console for THIS project.
+  const gscState: GscState = {
+    connected: gscConnected,
+    siteUrl: gscSite?.siteUrl ?? null,
+    projectDomain: gscSite?.projectDomain ?? domain ?? null,
+  }
+  const noProjects = loadedProjects && projects.length === 0 && !projectsError
+  const refreshed = detail?.lastScheduledCheck
+    ? new Date(detail.lastScheduledCheck).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null
 
   return (
-    <div className="page">
-      <div className="page-h">
-        <div>
-          {/* "Overview" + the project switcher, replacing the old "Welcome back"
-              eyebrow/title pair — the page is identified by what it IS, with the
-              tracked projects reachable right beside it. */}
-          {/* One heading — "Overview: freeserp.com ⌄" — with the switcher inside
-              the h1 so it inherits its size and weight and reads as the variable
-              half of the title rather than a control sitting next to it.
-              Controlled: picking a project FILTERS this page rather than
-              navigating away. null = every project. */}
-          <h1 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {/* The colon only earns its place once there's a project after it —
-                otherwise the heading reads "Overview:" with nothing following
-                while the list loads. */}
-            <span>{tNav("overview")}{selectedProject ? ":" : ""}</span>
+    <WidgetProvider defs={WIDGETS}>
+      <div className="flex flex-col gap-4 px-6 pb-10 pt-5">
+        {/* ── Header ──
+            No breadcrumb here: the shell's top bar already carries one, and two
+            stacked trails read as a mistake. The switcher supplies its own
+            chevron AND its own open-in-new-tab link, so the heading adds
+            neither — it only names the page. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-bold leading-tight tracking-[-0.02em]">
+            <span className="shrink-0">SEO Dashboard{domain ? ":" : ""}</span>
             <ProjectSwitcher value={projectId} onSelect={setProjectId} />
           </h1>
-          {/* No subtitle once a project is selected — the heading already names
-              it, and the old "tracking across N projects" line was counting
-              projects this page no longer aggregates. Kept only for the error
-              and no-projects-yet cases, which still need to say something. */}
-          {(error || (loaded && projects.length === 0)) && (
-            <div className="sub">
-              {error ? <span style={{ color: "var(--neg)" }}>{error}</span> : t("subEmpty")}
+
+          <div className="ml-auto flex shrink-0 items-center gap-2.5">
+            <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
+              {(["24h", "7d", "30d", "90d"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className={
+                    "rounded-[7px] px-2.5 py-[5px] text-[13px] transition-colors " +
+                    (r === range
+                      ? "bg-primary font-semibold text-primary-foreground"
+                      : "font-medium text-muted-foreground hover:bg-border/60 hover:text-foreground")
+                  }
+                >
+                  {r}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-        <div className="row">
-          <div className="pill-toggle">
-            {(["24h", "7d", "30d", "90d"] as const).map((r) => (
-              <button key={r} className={r === range ? "active" : ""} onClick={() => setRange(r)}>{r}</button>
-            ))}
+            <Button asChild className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold">
+              <Link href="/dashboard/projects"><Plus className="size-4" /> Create SEO Project</Link>
+            </Button>
           </div>
-          <Link href="/dashboard/projects"><button className="btn primary"><Icon.plus /> {t("newProject")}</button></Link>
         </div>
-      </div>
 
-      {/* STAT TILES */}
-      <div className="grid g-4" style={{ marginBottom: 14 }}>
-        {/* The project-count delta/tip are gone: this page is scoped to ONE
-            project now, so "1 project · across 6 projects" was both redundant
-            and contradictory. */}
-        <StatTile
-          lbl={t("statKeywordsTracked")}
-          val={statsLoading ? <Skeleton className="h-8 w-16" /> : totalKeywords.toLocaleString()}
-        />
-        <StatTile
-          lbl={t("statAvgPosition")}
-          val={statsLoading ? <Skeleton className="h-8 w-16" /> : avgPos ? avgPos.toFixed(1) : "—"}
-          tip={statsLoading ? <Skeleton className="h-3 w-20" /> : ranked ? t("rankedCount", { count: ranked }) : t("noData")}
-        />
-        <StatTile
-          lbl={t("statEstTraffic")}
-          // Modelled from the keyword rows, so it tracks rowsLoading.
-          val={rowsLoading ? <Skeleton className="h-8 w-24" /> : estTraffic ? estTraffic.toLocaleString() : "—"}
-        />
-        <StatTile
-          lbl={t("statInTop10")}
-          val={statsLoading ? <Skeleton className="h-8 w-12" /> : inTop10.toString()}
-          tip={
-            statsLoading
-              ? <Skeleton className="h-3 w-32" />
-              : totalKeywords
-                ? t("inTop10Tip", { percent: Math.round((inTop10 / totalKeywords) * 100), top3: inTop3 })
-                : t("inTop3Only", { top3: inTop3 })
-          }
-        />
-      </div>
-
-      <div className="grid g-21" style={{ marginBottom: 14 }}>
-        {/* ANALYTICS CHART */}
-        <div className="card">
-          <div className="card-h">
-            <div>
-              <div className="t">{t("analytics")}</div>
-              <div className="tiny muted" style={{ marginTop: 2 }}>{t("analyticsSub", { range })}</div>
-            </div>
-            <div className="row tiny muted">
-              <span className="row" style={{ gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--brand)" }} />{t("avgPositionLegend")}</span>
+        {projectsError && loadedProjects && projects.length === 0 ? (
+          <div className="grid place-items-center rounded-lg border border-destructive/30 bg-destructive/5 py-16 text-center">
+            <div className="max-w-md px-4">
+              <h2 className="text-base font-bold">Couldn&apos;t load your projects</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">{projectsError}</p>
+              <Button size="sm" variant="outline" className="mt-4" onClick={() => window.location.reload()}>Try again</Button>
             </div>
           </div>
-          {statsLoading ? (
-            <Skeleton className="h-[240px] w-full rounded-lg bg-muted/60" />
-          ) : rankHistory.length > 0 ? (
-            <LineChart data={rankHistory} invert yFormat={(v) => "#" + Math.round(v)} height={240} />
-          ) : (
-            <div style={{ height: 240, display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-              {t("noRankingData")}
+        ) : noProjects ? (
+          <div className="grid place-items-center rounded-lg border border-dashed py-20 text-center">
+            <div className="max-w-sm">
+              <h2 className="text-base font-bold">Add your first website</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">Create a project and FreeSERP starts tracking its keywords, crawling its pages and watching its AI-search visibility.</p>
+              <Button asChild size="sm" className="mt-4"><Link href="/dashboard/projects">Create SEO Project</Link></Button>
             </div>
-          )}
-        </div>
-
-        {/* PROJECT PROGRESS DONUT */}
-        <div className="card">
-          <div className="card-h">
-            <div className="t">{t("coverage")}</div>
-            <button className="icon-btn" style={{ width: 24, height: 24 }} aria-label={t("more")}><Icon.dots /></button>
           </div>
-          {statsLoading ? (
-            <>
-              <div style={{ display: "grid", placeItems: "center", padding: "24px 0" }}>
-                <Skeleton className="size-36 rounded-full bg-muted/60" />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between" }}>
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-3.5 w-6" />
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <Donut value={donutValue} label={t("inTop10")} />
-              <Legend
-                items={[
-                  { color: "var(--brand)", label: t("inTop10"), count: inTop10 },
-                  { color: "var(--bg-inset)", label: t("inTop30"), count: inTop30, dark: true },
-                  { color: "var(--border-strong)", label: t("outsideTop30"), count: outside30 },
-                ]}
-              />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* SITE CRAWL — automatic whole-site crawl of the selected project's
-          domain. Renders nothing until a project resolves, and nothing at all
-          for projects with no crawl row. */}
-      {projectId && (
-        <div style={{ marginBottom: 14 }}>
-          <SiteCrawlCard projectId={projectId} />
-        </div>
-      )}
-
-      {/* KEYWORDS TABLE */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="card-h" style={{ padding: "16px 18px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
-          <div>
-            <div className="t">{t("latestMovements")}</div>
-            <div className="tiny muted" style={{ marginTop: 2 }}>{t("latestMovementsSub")}</div>
-          </div>
-          <div className="row">
-            <Link href="/dashboard/keywords"><button className="btn sm">{t("viewAll")} <Icon.chevR /></button></Link>
-          </div>
-        </div>
-        {rowsLoading ? (
-          <div style={{ padding: "18px" }}>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, padding: "10px 0" }}>
-                <Skeleton className="h-4 flex-1" />
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            ))}
-          </div>
-        ) : latestMovements.length > 0 ? (
-          <KeywordTable
-            rows={latestMovements}
-            // `latestMovements` is EnrichedRow[] (carries projectId), but the
-            // KeywordTable primitive types its callback as plain KeywordRow.
-            // Cast back so we can build the project-scoped URL.
-            onRow={(k) => {
-              const r = k as EnrichedRow
-              router.push(`/dashboard/project/${r.projectId}/keywords/${r.id}`)
-            }}
-          />
+        ) : !projectId ? (
+          // The SAME placeholder grid the shell draws, so the hand-off from
+          // "session loading" to "projects loading" is invisible. Two different
+          // shapes here made one refresh look like two separate loads.
+          <DashboardGridSkeleton />
         ) : (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-            {t("noMovements")}
-          </div>
+          <>
+            {/* Reports the REAL analysis run rather than asserting one exists —
+                the old banner promised "this page fills in on its own" while
+                nothing was actually running. */}
+            {noKeywords && <KeywordSetupCard projectId={projectId} domain={domain} autoStart />}
+
+            {/* ── The five headline figures ── */}
+            <StatStrip
+              loading={rowsLoading}
+              da={detail?.domainAuthority ?? null}
+              backlinks={detail?.domainBacklinks ?? null}
+              tracked={m.tracked}
+              organicKeywords={m.ranked}
+              estTraffic={m.estTraffic}
+            />
+
+            <SetupCard projectId={projectId} gsc={gscState} />
+
+            {/* ── Position Tracking + Site Audit ── */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+              <PositionTrackingCard
+                projectId={projectId}
+                loading={rowsLoading || statsLoading}
+                visibility={m.visibility}
+                avgPos={m.avgPos}
+                history={overview?.history ?? []}
+                bands={m.bands}
+                tracked={m.tracked}
+                ranked={m.ranked}
+                rangeLabel={RANGE_LABEL[range]}
+                scope={m.scope}
+                keywords={m.topKeywords}
+              />
+              {/* Renders its own <Widget id="site-crawl">, so it hides and
+                  restores exactly like every other card. col-start pins it to
+                  column 2 — without it, the audit stretched across the whole row
+                  whenever Position Tracking was hidden. */}
+              <SiteCrawlCard projectId={projectId} className="lg:col-start-2" />
+            </div>
+
+            {/* ── Traffic Analytics + Keyword Movement ── */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+              <TrafficCard
+                projectId={projectId}
+                loading={statsLoading}
+                history={history}
+                estTraffic={m.estTraffic}
+                pages={pagesNow}
+                rangeLabel={RANGE_LABEL[range]}
+                gsc={gscState}
+                onChecked={refresh}
+              />
+              <KeywordMovementCard
+                className="lg:col-start-2"
+                projectId={projectId}
+                loading={statsLoading || rowsLoading}
+                movements={m.movements}
+                tracked={m.tracked}
+                rangeLabel={RANGE_LABEL[range]}
+              />
+            </div>
+
+            <DashboardFooter refreshed={refreshed} />
+          </>
         )}
       </div>
-
-      {activity.length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div className="card">
-            <div className="card-h"><div className="t">{t("activity")}</div></div>
-            <ActivityFeed items={activity} />
-          </div>
-        </div>
-      )}
-    </div>
+    </WidgetProvider>
   )
 }
