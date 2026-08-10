@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
+import { Link } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,9 +43,12 @@ const POLL_MS = 2500
  */
 const POLL_TIMEOUT_MS = 15 * 60_000
 
+/** Page allowance for this account. Free gets 100, any paid plan 500. */
+type Limits = { maxPages: number; planMaxPages: number; maxConcurrent: number; plan: string }
+
 const MODES = [
   { id: "single", label: "This page", hint: "Audit one URL" },
-  { id: "site", label: "Whole site", hint: "Crawl and audit up to 100 pages" },
+  { id: "site", label: "Whole site", hint: "Crawl outward from this URL" },
 ] as const
 
 export default function PageAuditPage() {
@@ -54,8 +58,20 @@ export default function PageAuditPage() {
   const [report, setReport] = useState<AuditReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [limits, setLimits] = useState<Limits | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const startedAt = useRef(0)
+
+  // Non-fatal: without it the form just doesn't name a page count, and the
+  // server clamps to the plan budget regardless.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .get<Limits>("/api/page-audit/limits")
+      .then((l) => { if (!cancelled) setLimits(l) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
 
   const stopPolling = useCallback(() => {
     if (timer.current) clearInterval(timer.current)
@@ -166,9 +182,23 @@ export default function PageAuditPage() {
             </button>
           ))}
           <span className="text-xs text-muted-foreground">
-            {MODES.find((m) => m.id === mode)!.hint}
+            {mode === "site" && limits
+              ? `Crawls up to ${limits.maxPages.toLocaleString()} pages on your plan`
+              : MODES.find((m) => m.id === mode)!.hint}
           </span>
         </div>
+
+        {/* Named, not silently applied. A free account asking for a 500-page
+            crawl and quietly getting 100 looks like the crawler gave up. */}
+        {mode === "site" && limits && limits.plan === "free" && (
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Free plans audit up to {limits.maxPages.toLocaleString()} pages per site.{" "}
+            <Link href="/dashboard/billing" className="font-semibold text-primary hover:underline">
+              Upgrade
+            </Link>{" "}
+            to raise it to 500.
+          </p>
+        )}
 
         <form
           className="mt-3.5 flex flex-wrap gap-2"
