@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 // "loading" | "unauthenticated" status string the ported code expects, so the
 // ~4,600 lines below read unchanged.
 import { useAuth } from "@/lib/auth"
+import { api, ApiError } from "@/lib/api"
 import * as d3 from "d3"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -3805,100 +3806,6 @@ function RecommendationsSection({ report }: { report: AuditReport }) {
 // Connect-Search-Console prompt (authenticated reports only). Renders a button
 // in the report's action bar; opening it shows a proper centered modal. It also
 // auto-opens once per site — cancel it and the button stays at the top to reopen.
-function SearchConsoleCTA({ url }: { url: string }) {
-  const host = useMemo(() => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, "")
-    } catch {
-      return ""
-    }
-  }, [url])
-  const [status, setStatus] = useState<"loading" | "connect" | "connected">("loading")
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    if (!host) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const r = await fetch(`/api/integrations/gsc/site?host=${encodeURIComponent(host)}`)
-        const d = await r.json()
-        if (cancelled) return
-        // Hide the prompt once this site has any connection — even if no property
-        // matched yet (the project page handles picking/fixing the property).
-        const next = d.connected ? "connected" : "connect"
-        setStatus(next)
-        // Auto-open the popup once per site (until the user closes it).
-        if (next === "connect") {
-          let seen = false
-          try {
-            seen = localStorage.getItem(`gsc-cta-x-${host}`) === "1"
-          } catch {
-            /* storage unavailable */
-          }
-          if (!seen) setOpen(true)
-        }
-      } catch {
-        if (!cancelled) setStatus("connect")
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [host])
-
-  if (status !== "connect") return null
-
-  const connectHref = `/api/integrations/gsc/connect?host=${encodeURIComponent(host)}`
-  function onOpenChange(o: boolean) {
-    setOpen(o)
-    // Closing = "maybe later": remember so it won't auto-pop again (button stays).
-    if (!o) {
-      try {
-        localStorage.setItem(`gsc-cta-x-${host}`, "1")
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  return (
-    <>
-      <Button size="sm" className="gap-1.5 text-xs" onClick={() => setOpen(true)}>
-        <Search className="h-3 w-3" />
-        Connect Search Console
-      </Button>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2.5">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                <Search className="h-4 w-4" />
-              </span>
-              Connect Google Search Console
-            </DialogTitle>
-            <DialogDescription className="pt-1 leading-relaxed">
-              Link <span className="font-medium text-foreground">{host}</span> to see its real
-              clicks, impressions, rankings &amp; keyword cannibalization right next to this audit.
-              It&rsquo;s read-only — we never change anything in your account.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Maybe later
-            </Button>
-            <Button asChild size="sm">
-              <a href={connectHref} className="gap-1.5">
-                <Link2 className="h-3.5 w-3.5" />
-                Connect
-              </a>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
 
 // The checks shown for a category — from full check objects when available,
 // else synthesized from issues/passingChecks. Shared by the report sections and
@@ -4194,24 +4101,21 @@ export function AuditReportResults({
     setShareLoading(true)
     setShareError(null)
     try {
-      const res = await fetch("/api/proxy/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ auditReportId: report.id }),
-      })
-      const data = (await res.json()) as { shareToken?: string; error?: unknown }
-      if (!res.ok || !data.shareToken) {
-        // Same coercion as the link-graph section: this app's `error` is an
-        // object, and rendering one crashes React.
-        const msg = typeof data.error === "string"
-          ? data.error
-          : (data.error as { message?: string } | undefined)?.message
-        setShareError(msg || "Couldn't create a share link.")
-      } else {
-        setShareToken(data.shareToken)
-      }
-    } catch {
-      setShareError("Network error. Please try again.")
+      // Our API, via the shared client so the JWT rides along. The package
+      // POSTed to its own Next route handler, which read a NextAuth session out
+      // of a frontend Prisma client — neither exists here.
+      //
+      // Idempotent server-side: re-sharing returns the token already handed out,
+      // so a link someone has been given never silently rotates.
+      const data = await api.post<{ shareToken?: string }>(
+        `/api/page-audit/reports/${report.id}/share`,
+        {},
+      )
+      if (data.shareToken) setShareToken(data.shareToken)
+      else setShareError("Couldn't create a share link.")
+    } catch (err) {
+      // ApiError already carries a human-readable message off our error envelope.
+      setShareError(err instanceof ApiError ? err.message : "Network error. Please try again.")
     } finally {
       setShareLoading(false)
     }
@@ -4221,19 +4125,12 @@ export function AuditReportResults({
     setShareLoading(true)
     const token = shareToken
     try {
-      await fetch("/api/proxy/share", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ auditReportId: report.id }),
-      })
-      // Drop any recommendation curation tied to this (now-revoked) token.
-      if (token) {
-        await fetch("/api/share-selection", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        }).catch(() => {})
-      }
+      await api.delete(`/api/page-audit/reports/${report.id}/share`)
+      // The package also cleaned up per-share "which sections to include"
+      // curation here. That lives in its own /api/share-selection store, which
+      // wasn't ported, so there is nothing to drop — a revoked token simply
+      // stops resolving.
+      void token
     } catch {
       /* best-effort */
     } finally {
@@ -4316,7 +4213,6 @@ export function AuditReportResults({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {isAuthenticated && !shared && <SearchConsoleCTA url={report.url} />}
               {!shared && (
                 <Button
                   variant="outline"

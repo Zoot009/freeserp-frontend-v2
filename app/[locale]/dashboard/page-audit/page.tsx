@@ -15,17 +15,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
-import { Link } from "@/i18n/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  AuditReportResults,
-  SECTION_INTERNAL_LINKS,
-  transformReport,
-  type AuditReport,
-} from "@/components/page-audit/audit-ui"
+import { transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
+import { AuditHistory } from "@/components/page-audit/audit-history"
 import { cn } from "@/lib/utils"
 
 type JobState = {
@@ -57,6 +53,8 @@ const MODES = [
 ] as const
 
 export default function PageAuditPage() {
+  const router = useRouter()
+  const [historyKey, setHistoryKey] = useState(0)
   const [url, setUrl] = useState("")
   const [mode, setMode] = useState<"single" | "site">("single")
   const [job, setJob] = useState<JobState | null>(null)
@@ -110,6 +108,8 @@ export default function PageAuditPage() {
         } else if (next.status === "FAILED" || next.state === "failed") {
           stopPolling()
           setError(next.error ?? "The audit failed.")
+          // A failed audit still writes a row, so the table needs to know.
+          setHistoryKey((k) => k + 1)
         }
       } catch {
         // A single failed poll is not a failed audit — the next tick retries.
@@ -148,27 +148,16 @@ export default function PageAuditPage() {
     setError(null)
   }
 
-  // ── Finished: hand over to the package's report UI ──
-  if (report) {
-    return (
-      <div className="px-6 pb-10 pt-5">
-        <AuditReportResults
-          report={report}
-          onNewAudit={reset}
-          isAuthenticated
-          /**
-           * Internal Links is omitted because its backend genuinely isn't here.
-           * That section drives a separate link-graph service (submit/status/
-           * result endpoints, its own Prisma models and queue) which was NOT
-           * part of the port — so it could only ever sit on "Crawling…" and then
-           * show an error. Hiding it is honest; leaving a permanently-failing
-           * panel in a finished report is not.
-           */
-          hiddenSections={[SECTION_INTERNAL_LINKS]}
-        />
-      </div>
-    )
-  }
+  /**
+   * A finished audit redirects to its own URL rather than swapping in place.
+   *
+   * The report then lives somewhere linkable and survives a refresh, the back
+   * button returns here, and the history table's rows and a fresh run land on
+   * exactly the same page instead of two subtly different renderings of it.
+   */
+  useEffect(() => {
+    if (report?.id) router.replace(`/dashboard/page-audit/${report.id}`)
+  }, [report?.id, router])
 
   const running = !!job && job.status === "PROCESSING"
 
@@ -271,6 +260,10 @@ export default function PageAuditPage() {
           </div>
         </div>
       )}
+
+      {/* refreshKey re-runs the query when an audit finishes, so the new row
+          appears without a manual reload. */}
+      <AuditHistory refreshKey={historyKey} />
     </div>
   )
 }

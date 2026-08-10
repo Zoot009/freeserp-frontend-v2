@@ -5,7 +5,7 @@
 
 import axios, { type AxiosResponse } from "axios"
 
-const API_BASE =
+export const API_BASE =
   typeof window === "undefined"
     ? process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"
     : process.env.NEXT_PUBLIC_API_URL || ""
