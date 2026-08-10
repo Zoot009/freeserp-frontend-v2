@@ -20,12 +20,15 @@ import {
   transformReport,
   type AuditReport,
 } from "@/components/page-audit/audit-ui"
+import { SiteIssues } from "@/components/page-audit/site-issues"
 
 export default function AuditReportPage() {
   const params = useParams()
   const router = useRouter()
   const reportId = String(params.reportId ?? "")
   const [report, setReport] = useState<AuditReport | null>(null)
+  const [totals, setTotals] = useState({ pages: 0, issues: 0 })
+  const [isSite, setIsSite] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -33,6 +36,11 @@ export default function AuditReportPage() {
     try {
       const data = await api.get<Record<string, unknown>>(`/api/page-audit/reports/${reportId}`)
       setReport(transformReport(data))
+      // Kept off the AuditReport shape: `totals` is ours, not the imported UI's,
+      // and transformReport would drop it.
+      const t = data.totals as { pages?: number; issues?: number } | undefined
+      setTotals({ pages: t?.pages ?? 0, issues: t?.issues ?? 0 })
+      setIsSite((data.mode as string) === "SITE")
       setError(null)
     } catch (err) {
       setError(
@@ -94,6 +102,14 @@ export default function AuditReportPage() {
           <ArrowLeft className="size-4" /> All audits
         </Link>
       </Button>
+      {/* Site audits lead with the rollup. The imported report below renders one
+          row per issue, which is right for a single page (~10 rows) and a wall
+          for a site — the analyzer emits a row per page per failing rule, so 64
+          pages produced 267 rows for 23 real problems. This answers "what's
+          wrong" and "which pages" without scrolling 28,000 pixels. */}
+      {isSite && (
+        <SiteIssues reportId={reportId} pagesAnalyzed={totals.pages} totalIssues={totals.issues} />
+      )}
       <AuditReportResults
         report={report}
         onNewAudit={() => router.push("/dashboard/page-audit")}
