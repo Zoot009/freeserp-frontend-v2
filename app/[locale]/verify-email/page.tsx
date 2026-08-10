@@ -29,7 +29,7 @@ export default function VerifyEmailPage() {
     if (!loading && !user && !token) router.push("/login")
     // Already verified: onboarded users go to the dashboard, brand-new ones to the
     // role page — never flash the dashboard on the way to onboarding.
-    if (!loading && user?.emailVerified) router.push(user.occupationRole ? "/dashboard/projects" : "/onboarding")
+    if (!loading && user?.emailVerified) router.push(user.occupationRole ? "/dashboard" : "/flow")
   }, [user, token, loading, router])
 
   // Entrance animation — mirrors the login page
@@ -135,7 +135,7 @@ export default function VerifyEmailPage() {
       // GTM event after onboarding), then go STRAIGHT to onboarding — routing via
       // the dashboard flashed it for a frame before bouncing to the role page.
       try { sessionStorage.setItem("fs_just_signed_up", "1") } catch {}
-      setTimeout(() => router.push(user?.occupationRole ? "/dashboard/projects" : "/onboarding"), 1200)
+      setTimeout(() => router.push(user?.occupationRole ? "/dashboard" : "/flow"), 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       // Clear digits on wrong OTP

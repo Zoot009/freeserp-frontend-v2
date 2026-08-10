@@ -101,6 +101,14 @@ export const Icon = {
       <path d="M5.5 14H10.5M8 11V14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   ),
+  // Play-in-rounded-rect. Used for the YouTube tracking section; deliberately a
+  // generic video glyph rather than the YouTube wordmark, which is trademarked.
+  video: ({ size = 16, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <rect x="1.25" y="3" width="13.5" height="10" rx="3" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M6.75 6.15L10.4 8L6.75 9.85V6.15Z" fill="currentColor" />
+    </svg>
+  ),
   smartphone: ({ size = 16, ...p }: IconProps) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
       <rect x="4" y="1.5" width="8" height="13" rx="1.6" stroke="currentColor" strokeWidth="1.4" />

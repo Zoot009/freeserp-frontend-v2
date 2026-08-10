@@ -35,7 +35,7 @@ const SCHEDULED_CHECKS_ENABLED = true
 
 // Per-project keyword cap for free users. Paid users have no cap. Must stay
 // in sync with FREE_KEYWORDS_PER_PROJECT_LIMIT in the backend.
-const FREE_KEYWORDS_PER_PROJECT_LIMIT = 10
+const FREE_KEYWORDS_PER_PROJECT_LIMIT = 3
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
 // 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
@@ -352,7 +352,7 @@ function AddKeywordsModal({
   // homepage. Distinct from the Google-autocomplete chips below, which are
   // related-to-what-you-just-typed. Empty unless the run completed.
   aiSuggestions?: AiSuggestion[]
-  aiStatus?: "idle" | "running" | "done" | "failed"
+  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed"
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
@@ -848,13 +848,31 @@ export default function ProjectKeywordsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAddKw, setShowAddKw] = useState(false)
 
+  // `?add=1` opens the add-keyword panel on arrival — that panel owns the
+  // location picker and the desktop/mobile toggle, so links elsewhere that
+  // promise "set location & device" land ON the control instead of dropping the
+  // user at the table to hunt for it. The param is scrubbed immediately so a
+  // refresh or a bookmark doesn't keep reopening the panel.
+  const wantsAdd = searchParams.get("add") === "1"
+  useEffect(() => {
+    if (!wantsAdd) return
+    setShowAddKw(true)
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("add")
+    window.history.replaceState(null, "", url.toString())
+  }, [wantsAdd])
+
   // ── AI keyword suggestions (new-project onboarding flow) ────────────────
   // `?new=1` is set by the projects page right after creation. It puts this
   // page into the analysis flow instead of showing an empty keyword table.
   const isNewProject = searchParams.get("new") === "1"
   const [aiRun, setAiRun] = useState<SuggestionRun | null>(null)
-  const [aiPhase, setAiPhase] = useState<"idle" | "running" | "done" | "failed">(
-    isNewProject ? "running" : "idle",
+  // "choosing" → the new-project screen now ASKS whether to run the AI analysis
+  // (crawl + OpenAI + volume, which costs money) or add keywords manually, instead
+  // of auto-running it. The run only starts when the user picks "Analyze".
+  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed">(
+    isNewProject ? "choosing" : "idle",
   )
   // Guards the START call only — polling must be free to re-arm on remount.
   const aiStartedRef = useRef(false)
@@ -1040,10 +1058,27 @@ export default function ProjectKeywordsPage() {
   }
 
   // Load usage info — drives the daily-checks counter shown in the header.
+  // Seed from a session cache first so a page refresh restores the "checks reset
+  // in …" notice instantly instead of flashing in once /api/usage returns.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const cached = sessionStorage.getItem("fs:usage")
+      if (cached) {
+        const parsed = JSON.parse(cached) as UsageInfo
+        if (parsed && typeof parsed.dailyLimit === "number") setUsage((prev) => prev ?? parsed)
+      }
+    } catch { /* ignore a bad/absent cache */ }
+  }, [])
   useEffect(() => {
     if (!token || !user?.emailVerified) return
     api.get<UsageInfo>("/api/usage")
-      .then((data) => { if (data && typeof data.dailyLimit === "number") setUsage(data) })
+      .then((data) => {
+        if (data && typeof data.dailyLimit === "number") {
+          setUsage(data)
+          try { sessionStorage.setItem("fs:usage", JSON.stringify(data)) } catch { /* quota/full — non-fatal */ }
+        }
+      })
       .catch(() => undefined)
   }, [token, user?.emailVerified])
 
@@ -1069,8 +1104,9 @@ export default function ProjectKeywordsPage() {
   // — that's what makes it safe to fire on every mount of a `?new=1` page.
   useEffect(() => {
     if (!isNewProject || !token || !user?.emailVerified) return
-    // Terminal — the run already resolved, don't re-arm anything.
-    if (aiPhase === "done" || aiPhase === "failed") return
+    // Only after the user chose "Analyze" (aiPhase → "running"). While "choosing"
+    // / "idle" / terminal we don't POST — that's what makes declining cost nothing.
+    if (aiPhase !== "running") return
 
     let cancelled = false
     let timer: ReturnType<typeof setInterval> | undefined
@@ -1141,7 +1177,9 @@ export default function ProjectKeywordsPage() {
   // condition.
   useEffect(() => {
     if (!isNewProject) return
-    if (aiPhase === "done" || aiPhase === "failed") return
+    // Only clocks the analysis itself — not the "choosing" screen (no time limit
+    // on deciding) or the terminal states.
+    if (aiPhase !== "running") return
     // Anchored to the first mount so remounts can't keep pushing it out.
     if (aiDeadlineRef.current === null) aiDeadlineRef.current = Date.now() + AI_ANALYSIS_TIMEOUT_MS
     const remaining = Math.max(0, aiDeadlineRef.current - Date.now())
@@ -1539,6 +1577,17 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
+  // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
+  // adding is limited by the keyword cap — so we show a small non-blocking
+  // "checks reset in …" notice rather than locking the add button. The daily
+  // allowance resets at 00:00 UTC; `nextUtcMidnightIso` is stable within a day,
+  // so CountdownTimer doesn't re-init on every render. Paid never shows it.
+  const outOfChecks = !!usage && plan !== "paid" && usage.dailyRemaining <= 0
+  const nextUtcMidnightIso = (() => {
+    const now = new Date()
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0)).toISOString()
+  })()
+
   return (
     <div className="page">
       {/* Header */}
@@ -1685,6 +1734,22 @@ export default function ProjectKeywordsPage() {
             >
               <Icon.plus /> {t("keywordsBtn")}
             </button>
+            {/* Out of TODAY's rank checks (free). A non-blocking notice — adding
+                keywords is NOT gated by checks (it's gated by the keyword cap),
+                so we don't lock the button; we just show when checks come back. */}
+            {outOfChecks && (
+              <span
+                className="kd-checks-reset"
+                title={t("outOfChecksTip")}
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("billing:quota", { detail: { code: "free_daily_quota_exhausted" } }),
+                  )
+                }
+              >
+                <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+              </span>
+            )}
             {/* Search Console — temporarily hidden (feature paused). Restore by
                 uncommenting; the /search-console route still exists.
             <Link
@@ -1987,10 +2052,38 @@ export default function ProjectKeywordsPage() {
             <CompetitorsCard projectId={project.id} yourAvg={stats.avgPos > 0 ? stats.avgPos : null} />
           </div>
 
-          {/* Right column — the AI analysis screen for a just-created project,
-              then the empty "Start tracking" state before any keywords exist,
-              otherwise the SERP rank-tracking table. */}
-          {aiPhase === "running" ? (
+          {/* Right column — for a just-created project we first ASK whether to
+              run the (paid) AI analysis or add keywords by hand; then the analysis
+              screen if they chose it; then the empty "Start tracking" state before
+              any keywords exist; otherwise the SERP rank-tracking table. */}
+          {aiPhase === "choosing" ? (
+            <div
+              className="card"
+              style={{
+                padding: "56px 32px", textAlign: "center", border: "1px dashed var(--border-strong)",
+                background: "transparent", display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", minHeight: 300,
+              }}
+            >
+              <div className="eyebrow" style={{ justifyContent: "center" }}>
+                <span className="spark"><Icon.spark /></span> {t("aiChoiceEyebrow")}
+              </div>
+              <div className="b" style={{ fontSize: 18, marginTop: 8 }}>{t("aiChoiceTitle")}</div>
+              <div className="tiny muted" style={{ marginTop: 8, maxWidth: 400 }}>{t("aiChoiceDesc")}</div>
+              <div className="row" style={{ gap: 10, marginTop: 22, justifyContent: "center", flexWrap: "wrap" }}>
+                <button type="button" className="btn primary" onClick={() => setAiPhase("running")}>
+                  <Icon.spark /> {t("aiChoiceAnalyze")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => { setAiPhase("idle"); exitNewProjectFlow(); setShowAddKw(true) }}
+                >
+                  {t("aiChoiceManual")}
+                </button>
+              </div>
+            </div>
+          ) : aiPhase === "running" ? (
             <AiAnalysisLoader
               domain={project.domain}
               status={aiRun?.status}
@@ -2023,6 +2116,11 @@ export default function ProjectKeywordsPage() {
               <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
                 <Icon.plus /> {t("addKeywords")}
               </button>
+              {outOfChecks && (
+                <span className="kd-checks-reset" style={{ marginTop: 12 }} title={t("outOfChecksTip")}>
+                  <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
+                </span>
+              )}
             </div>
           ) : (
           <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 0 }}>

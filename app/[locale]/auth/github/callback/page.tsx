@@ -48,7 +48,7 @@ function GithubCallbackInner() {
     }
 
     void loginWithGithub(code, githubRedirectUri())
-      .then((r) => router.replace(r.isNewUser ? "/onboarding" : validated.next))
+      .then((r) => router.replace(r.isNewUser ? "/flow" : validated.next))
       .catch((e: unknown) =>
         setError(e instanceof Error ? e.message : "GitHub sign-in failed. Please try again."),
       )

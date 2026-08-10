@@ -23,7 +23,7 @@ export default function OtpLoginPage() {
 // abused as an open redirect (mirrors login/page.tsx safeNext).
 function safeNext(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-    return "/dashboard/projects"
+    return "/dashboard"
   }
   return next
 }
@@ -160,7 +160,7 @@ function OtpLoginForm() {
       }
       // New accounts go straight to onboarding (flag above still fires the
       // conversion after it); existing users to their intended destination.
-      setTimeout(() => router.push(isNewUser ? "/onboarding" : nextPath), 1000)
+      setTimeout(() => router.push(isNewUser ? "/flow" : nextPath), 1000)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorVerifyFailed"))
       setDigits(["", "", "", "", "", ""])

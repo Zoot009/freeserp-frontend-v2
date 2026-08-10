@@ -24,7 +24,7 @@ export default function LoginPage() {
 // the ?next param can't be abused as an open redirect to another origin.
 function safeNext(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
-    return "/dashboard/projects"
+    return "/dashboard"
   }
   return next
 }
@@ -65,7 +65,7 @@ function LoginForm() {
         const { isNewUser } = await loginWithGoogle(access_token)
         // A brand-new account (signed up via this button) goes to onboarding, not
         // the dashboard, so it never flashes the dashboard before the role page.
-        if (isNewUser) { router.replace("/onboarding"); return }
+        if (isNewUser) { router.replace("/flow"); return }
         router.push(nextPath)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t("errorGoogleFailed"))
@@ -82,7 +82,7 @@ function LoginForm() {
     try {
       const accessToken = await facebookLogin()
       const { isNewUser } = await loginWithFacebook(accessToken)
-      if (isNewUser) { router.replace("/onboarding"); return }
+      if (isNewUser) { router.replace("/flow"); return }
       router.push(nextPath)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("errorFacebookFailed"))

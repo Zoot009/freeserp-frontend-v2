@@ -75,22 +75,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Resolve the current session from /api/auth/me. Only an actual 401 clears the
   // token — a timeout or network blip leaves it intact so the session can recover
   // on the next attempt rather than silently logging the user out.
-  const checkAuth = useCallback(async () => {
-    setLoading(true)
+  const checkAuth = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const { user } = await api.get<{ user: User }>("/api/auth/me")
       setUser(user)
     } catch (err) {
-      setUser(null)
-      if (err instanceof ApiError && err.status === 401) setAccessToken(null)
+      // ONLY a real 401 ends the session. Clearing `user` on every error made a
+      // transient failure indistinguishable from a logout: DashboardShell
+      // redirects to /login the instant `user` is null, so an aborted request
+      // bounced a signed-in user to the login page. Switching locale did exactly
+      // that — the navigation remounts this provider and cancels the in-flight
+      // /api/auth/me. On a blip we keep the current user (cache-hydrated or
+      // otherwise) and let the next check settle it, which is what the note
+      // above always intended.
+      if (err instanceof ApiError && err.status === 401) {
+        setUser(null)
+        setAccessToken(null)
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
+  // Hydrate the session from a local cache first so a RELOAD renders the app
+  // instantly instead of flashing "Loading…" while /api/auth/me is in flight,
+  // then verify in the background (silent = no loading toggle). Falls back to a
+  // normal blocking check when there's no cache (first-ever visit / logged out).
   useEffect(() => {
-    void checkAuth()
+    let cached: User | null = null
+    try {
+      const c = localStorage.getItem("fs_user")
+      if (c) cached = JSON.parse(c) as User
+    } catch { /* ignore a bad/absent cache */ }
+    if (cached) {
+      setUser(cached)
+      setLoading(false)
+      void checkAuth(true)
+    } else {
+      void checkAuth(false)
+    }
   }, [checkAuth])
+
+  // Keep the cache in sync so the next reload can hydrate from it.
+  useEffect(() => {
+    try {
+      if (user) localStorage.setItem("fs_user", JSON.stringify(user))
+      else localStorage.removeItem("fs_user")
+    } catch { /* storage full / disabled — non-fatal */ }
+  }, [user])
 
   // Back/forward bfcache restores a frozen page — if the initial /api/auth/me was
   // still in flight when the page was cached, its promise never settles and the

@@ -2,80 +2,172 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { Sidebar } from "./sidebar"
-import { Topbar } from "./topbar"
-import { TrialCountdownBanner } from "./trial-countdown-banner"
-import { TrialEndedGate } from "./trial-ended-gate"
+import { useTheme } from "@/components/theme-provider"
+import { api, ApiError } from "@/lib/api"
+import { toast } from "sonner"
+import { AppSidebar } from "@/components/dashboard/app-sidebar"
+import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumbs"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
+import { Separator } from "@/components/ui/separator"
+import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
+import { UserMenu } from "@/components/dashboard/user-menu"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+
+const normalizeDomain = (v: string) =>
+  v.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [navOpen, setNavOpen] = useState(false)
-  // Desktop sidebar collapse (icon-only rail). Persisted per browser; read in
-  // an effect so SSR and the first client render agree (expanded).
-  const [collapsed, setCollapsed] = useState(false)
-  useEffect(() => {
-    setCollapsed(localStorage.getItem("fs-sb-collapsed") === "1")
-  }, [])
-  const toggleCollapsed = () =>
-    setCollapsed((c) => {
-      localStorage.setItem("fs-sb-collapsed", c ? "0" : "1")
-      return !c
-    })
+  const { resolvedTheme, setTheme } = useTheme()
+
+  const [hasWebsite, setHasWebsite] = useState<boolean | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [website, setWebsite] = useState("")
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login")
     else if (!loading && user && !user.emailVerified) router.replace("/verify-email")
-    // One-time required onboarding: a verified user who hasn't picked a role yet
-    // is sent to the dedicated page until occupationRole is set.
-    else if (!loading && user && !user.occupationRole) router.replace("/onboarding")
+    else if (!loading && user && !user.occupationRole) router.replace("/flow")
   }, [user, loading, router])
 
-  // A redirect above is pending whenever the user isn't fully onboarded — not
-  // signed in, email unverified, or hasn't picked a role yet. Show the loader,
-  // NOT the dashboard, so a brand-new account goes loading → onboarding instead
-  // of flashing the dashboard for a frame before the effect bounces it away.
-  const redirecting = !user || !user.emailVerified || !user.occupationRole
+  useEffect(() => {
+    if (loading || !user?.emailVerified || !user?.occupationRole) return
+    api
+      .get<{ id: string }[]>("/api/projects")
+      .then((list) => setHasWebsite((list?.length ?? 0) > 0))
+      .catch(() => setHasWebsite(true))
+  }, [loading, user?.emailVerified, user?.occupationRole])
 
+  useEffect(() => {
+    const open = () => setShowAdd(true)
+    const added = () => setHasWebsite(true)
+    window.addEventListener("fx:add-website", open)
+    window.addEventListener("fx:website-added", added)
+    return () => {
+      window.removeEventListener("fx:add-website", open)
+      window.removeEventListener("fx:website-added", added)
+    }
+  }, [])
+
+  const redirecting = !user || !user.emailVerified || !user.occupationRole
   if (loading || redirecting) {
-    return (
-      <div className="fs-app" translate="no">
-        <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          Loading…
-        </div>
-      </div>
-    )
+    return <DashboardSkeleton />
+  }
+
+  const name = (user?.name || user?.email || "You").split("@")[0]
+  const initial = name.trim().charAt(0).toUpperCase()
+  const isPaid = user?.plan === "paid"
+  const isDark = resolvedTheme === "dark"
+
+  const addWebsite = async () => {
+    const domain = normalizeDomain(website)
+    if (!domain || !domain.includes(".")) { toast.error("Enter a valid website, e.g. example.com"); return }
+    setAdding(true)
+    try {
+      const p = await api.post<{ id?: string }>("/api/projects", { name: domain, domain })
+      setHasWebsite(true); setShowAdd(false); setWebsite("")
+      toast.success(`Tracking ${domain}`)
+      if (p?.id) router.push(`/dashboard`)
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't add that website — please try again.")
+    } finally { setAdding(false) }
   }
 
   return (
-    <div className="fs-app" translate="no">
-      {/* The gate wraps the ENTIRE app — sidebar and topbar included — because it
-          blurs what it covers, and a blur that stopped at the content area would
-          leave a sharp sidebar floating over a frosted page. */}
-      <TrialEndedGate>
-        <div className={"app" + (collapsed ? " sb-collapsed" : "")}>
-          {/* Spans the whole grid as its own row, so the promo bar sits above the
-              sidebar and topbar rather than only over the content column. */}
-          <TrialCountdownBanner />
-          <Sidebar
-            open={navOpen}
-            onClose={() => setNavOpen(false)}
-            collapsed={collapsed}
-            onToggleCollapse={toggleCollapsed}
-          />
-          <div
-            className="sb-overlay"
-            data-open={navOpen}
-            onClick={() => setNavOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="main">
-            <Topbar onMenuClick={() => setNavOpen(true)} />
-            {children}
+    <SidebarProvider>
+      <AppSidebar
+        name={name}
+        plan={isPaid ? "Pro plan" : "Free plan"}
+        initial={initial}
+      />
+      {/* bg-card, not the default bg-background: --background IS the page canvas
+          in this theme (and equals --sidebar in dark), so the panel came out the
+          same tone as the gutter it floats on. --card is the elevated surface —
+          white on grey in light, #14181f on #0b0d12 in dark. */}
+      <SidebarInset className="bg-card">
+        {/* One row: trigger, then the breadcrumb trail beside it, with the search
+            field pushed hard right (ml-auto) ahead of the icon cluster.
+            bg-card matches the panel, so the bar reads as part of it — and it
+            gives the outline buttons a surface to contrast against, which
+            bg-background did not in dark mode. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card px-4">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="hidden !h-4 sm:block" />
+            <DashboardBreadcrumb className="hidden sm:flex" />
+            <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
+                {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </Button>
+              {/* The real bell, with the unread count and the panel. This slot
+                  used to hold a bare <Bell/> in a Button with no handler — the
+                  working component existed but was only mounted by the old
+                  topbar, which this shell replaced. */}
+              <NotificationBell />
+              {/* Upgrade and the locale switcher both moved inside this menu, so
+                  the account surface is one dropdown instead of three controls.
+                  A real <button> so it's keyboard-reachable as a menu trigger. */}
+              <UserMenu side="bottom" align="end">
+                <button
+                  type="button"
+                  aria-label={name}
+                  className="flex size-9 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+                >
+                  {initial}
+                </button>
+              </UserMenu>
+            </div>
+        </header>
+
+        {/* Every dashboard page gets the .fs-app scope so its scoped CSS applies —
+            /dashboard is back to the Overview page from main, which is built on
+            those classes and renders unstyled without the wrapper. The
+            transparent background keeps the shadcn inset panel clean. */}
+        <div className="fs-app flex-1" style={{ background: "transparent" }}>{children}</div>
+      </SidebarInset>
+
+      {/* Add-website gate popup (shadcn Dialog) */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mb-1 flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <Globe className="size-5" />
+            </div>
+            <DialogTitle className="text-xl">Add your website</DialogTitle>
+            <DialogDescription>
+              Enter a domain to start tracking its Google rankings. You&apos;ll need a website before you can use the tools.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addWebsite()}
+              placeholder="yourwebsite.com"
+            />
+            <Button onClick={addWebsite} disabled={adding} className="bg-brand text-white hover:bg-brand-deep">
+              {adding ? "Adding…" : "Add website"}
+            </Button>
           </div>
-        </div>
-      </TrialEndedGate>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
   )
 }
