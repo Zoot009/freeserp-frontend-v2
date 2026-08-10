@@ -498,6 +498,7 @@
     "signOut": "Se déconnecter",
     "keywordAnalysis": "Analyse de mots-clés",
     "onPageAudit": "Audit On-Page",
+    "competitorAnalysis": "Analyse de la concurrence",
     "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
     "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai"
   },
