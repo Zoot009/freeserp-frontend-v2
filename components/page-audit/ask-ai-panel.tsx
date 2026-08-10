@@ -16,10 +16,19 @@ import {
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
+import { api, ApiError } from "@/lib/api"
 import type { AuditReport } from "@/components/page-audit/audit-ui"
-// The audit-ask API route was NOT ported (it needs the package's OpenAI/DeepSeek
-// chat backend). The response shape is inlined so this panel still compiles;
-// the panel itself is not mounted until that endpoint exists.
+/**
+ * Answered by POST /api/page-audit/ask, backed by DeepSeek.
+ *
+ * The type is inlined rather than imported: the package took it from its own
+ * Next route handler, which doesn't exist here.
+ *
+ * Saved chat history is a separate matter. The /api/chat/sessions calls below
+ * target endpoints this app doesn't have, so they 404 and `canSave` stays
+ * false — asking works, threads just aren't persisted. That path needs the
+ * package's ChatSession/ChatMessage models, which weren't ported.
+ */
 type AuditAskResponse = { output: string }
 
 /**
@@ -186,15 +195,22 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/tools/audit-ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context: buildContext(report), question: trimmed }),
-      })
-      const data = (await res.json()) as AuditAskResponse | { error: string }
-      if (!res.ok || "error" in data) {
-        const msg = ("error" in data && data.error) || "Something went wrong."
-        setMessages((prev) => [...prev, { role: "assistant", content: msg, error: true, time: nowMs() }])
+      // Our API, via the shared client so the JWT rides along. The package
+      // posted to its own Next route handler wrapping an OpenAI service; this
+      // one is DeepSeek, rate-limited per user because every call costs money.
+      let data: AuditAskResponse | { error: string }
+      try {
+        data = await api.post<AuditAskResponse>("/api/page-audit/ask", {
+          context: buildContext(report),
+          question: trimmed,
+        })
+      } catch (err) {
+        // ApiError carries a human-readable message off our error envelope —
+        // "not configured", "busy, try again", the rate-limit notice.
+        data = { error: err instanceof ApiError ? err.message : "Something went wrong." }
+      }
+      if ("error" in data) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.error, error: true, time: nowMs() }])
       } else {
         const assistantMsg: ChatMessage = {
           role: "assistant",

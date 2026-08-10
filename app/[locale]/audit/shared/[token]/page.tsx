@@ -19,7 +19,6 @@ import { RefreshCw, XCircle } from "lucide-react"
 import { API_BASE } from "@/lib/api"
 import {
   AuditReportResults,
-  SECTION_INTERNAL_LINKS,
   transformReport,
   type AuditReport,
 } from "@/components/page-audit/audit-ui"
@@ -79,7 +78,6 @@ export default function SharedAuditPage() {
           report={report}
           onNewAudit={() => { window.location.href = "/" }}
           shared
-          hiddenSections={[SECTION_INTERNAL_LINKS]}
         />
       </div>
     </main>

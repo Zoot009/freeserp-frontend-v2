@@ -16,7 +16,6 @@ import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
   AuditReportResults,
-  SECTION_INTERNAL_LINKS,
   transformReport,
   type AuditReport,
 } from "@/components/page-audit/audit-ui"
@@ -106,8 +105,6 @@ export default function AuditReportPage() {
         report={report}
         onNewAudit={() => router.push("/dashboard/page-audit")}
         isAuthenticated
-        // Internal Links needs a link-graph service that wasn't part of the port.
-        hiddenSections={[SECTION_INTERNAL_LINKS]}
         /* Site audits replace the Recommendations section with the rollup. Same
            slot — first thing after the scores — and the list it displaces is
            empty here regardless. A single-page report keeps the original. */
