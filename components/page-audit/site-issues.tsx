@@ -288,7 +288,10 @@ export function SiteIssues({
   const [tab, setTab] = useState<"issues" | "pages">("issues")
 
   return (
-    <section className="mb-6 overflow-hidden rounded-lg border bg-card shadow-sm">
+    // id + scroll-mt inherited from the Recommendations slot this replaces, so
+    // the report's quick-links nav still has something to anchor to. No margin:
+    // the parent is a space-y-6 stack and would double it.
+    <section id="sec-rec" className="scroll-mt-32 overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="text-[15px] font-semibold leading-tight">Site audit</h2>

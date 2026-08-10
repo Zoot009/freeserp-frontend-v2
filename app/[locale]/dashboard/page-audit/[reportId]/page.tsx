@@ -102,20 +102,20 @@ export default function AuditReportPage() {
           <ArrowLeft className="size-4" /> All audits
         </Link>
       </Button>
-      {/* Site audits lead with the rollup. The imported report below renders one
-          row per issue, which is right for a single page (~10 rows) and a wall
-          for a site — the analyzer emits a row per page per failing rule, so 64
-          pages produced 267 rows for 23 real problems. This answers "what's
-          wrong" and "which pages" without scrolling 28,000 pixels. */}
-      {isSite && (
-        <SiteIssues reportId={reportId} pagesAnalyzed={totals.pages} totalIssues={totals.issues} />
-      )}
       <AuditReportResults
         report={report}
         onNewAudit={() => router.push("/dashboard/page-audit")}
         isAuthenticated
         // Internal Links needs a link-graph service that wasn't part of the port.
         hiddenSections={[SECTION_INTERNAL_LINKS]}
+        /* Site audits replace the Recommendations section with the rollup. Same
+           slot — first thing after the scores — and the list it displaces is
+           empty here regardless. A single-page report keeps the original. */
+        recommendationsSlot={
+          isSite ? (
+            <SiteIssues reportId={reportId} pagesAnalyzed={totals.pages} totalIssues={totals.issues} />
+          ) : undefined
+        }
       />
     </div>
   )

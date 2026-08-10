@@ -3978,6 +3978,7 @@ export function AuditReportResults({
   isAuthenticated = false,
   shared = false,
   hiddenSections,
+  recommendationsSlot,
 }: {
   report: AuditReport
   onNewAudit: () => void
@@ -3986,6 +3987,15 @@ export function AuditReportResults({
   shared?: boolean
   /** Section keys to omit — set per share link (shared view only). */
   hiddenSections?: string[]
+  /**
+   * Rendered INSTEAD of the Recommendations section.
+   *
+   * Site audits pass their by-problem rollup here: it belongs in the same slot
+   * (first thing after the scores, where "what should I do" lives), and the
+   * recommendation list it displaces is empty in this app anyway — the
+   * generator wasn't part of the port.
+   */
+  recommendationsSlot?: React.ReactNode
 }) {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -4475,11 +4485,16 @@ export function AuditReportResults({
           {showToc && <QuickLinks items={navItems} />}
           <div className="min-w-0 space-y-6">
         {!shared && <AskAiPanel report={report} />}
-        {!hidden.has(SECTION_RECOMMENDATIONS) && (
-          <div id="sec-rec" className="scroll-mt-32">
-            <RecommendationsSection report={report} />
-          </div>
-        )}
+        {/* A caller can put its own panel in the Recommendations slot. Site
+            audits do: the rollup by problem belongs exactly where the
+            per-recommendation list would have been, and that list is empty here
+            anyway — the recommendation generator wasn't part of the port. */}
+        {recommendationsSlot ??
+          (!hidden.has(SECTION_RECOMMENDATIONS) && (
+            <div id="sec-rec" className="scroll-mt-32">
+              <RecommendationsSection report={report} />
+            </div>
+          ))}
         {!hidden.has(SECTION_INTERNAL_LINKS) && (
           <div id="sec-internal-links" className="scroll-mt-32">
             <InternalLinkSection
