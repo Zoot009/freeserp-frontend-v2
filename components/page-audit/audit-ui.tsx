@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 // "loading" | "unauthenticated" status string the ported code expects, so the
 // ~4,600 lines below read unchanged.
 import { useAuth } from "@/lib/auth"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, API_BASE } from "@/lib/api"
 import * as d3 from "d3"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -226,7 +226,14 @@ export interface AuditReport {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3999"
+/**
+ * This app's API, not the audit package's.
+ *
+ * The package defaulted to its own service on :3999, so every direct call it
+ * made here — screenshots, link-graph — went to a port with nothing on it and
+ * failed silently. That is why the report showed "Screenshot unavailable".
+ */
+export const API_URL = API_BASE
 
 export const CATEGORY_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   TECHNICAL:       { label: "Technical",        icon: Code2,    color: "text-blue-500" },
@@ -563,13 +570,13 @@ export function prefetchScreenshot(url: string, auditReportId?: string): Promise
 
   const promise = (async (): Promise<ScreenshotData> => {
     try {
-      const res = await fetch(`${API_URL}/api/screenshots`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(auditReportId ? { url, auditReportId } : { url }),
-      })
-      if (!res.ok) throw new Error("Screenshot failed")
-      const data = await res.json()
+      // Through the api client: the endpoint is behind auth (capturing means
+      // driving a real browser, so it can't be open), and the client is what
+      // attaches the JWT and refreshes it.
+      const data = await api.post<{ screenshots?: { desktop?: string | null; mobile?: string | null } }>(
+        "/api/page-audit/screenshots",
+        auditReportId ? { url, auditReportId } : { url },
+      )
       const result: ScreenshotData = {
         desktop: data.screenshots?.desktop ?? null,
         mobile: data.screenshots?.mobile ?? null,
