@@ -500,6 +500,7 @@
     "signOut": "Cerrar sesión",
     "keywordAnalysis": "Análisis de palabras clave",
     "onPageAudit": "Auditoría On-Page",
+    "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
     "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba"
   },

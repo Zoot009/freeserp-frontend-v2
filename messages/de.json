@@ -500,6 +500,7 @@
     "signOut": "Abmelden",
     "keywordAnalysis": "Keyword-Analyse",
     "onPageAudit": "On-Page-Audit",
+    "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
     "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test"
   },

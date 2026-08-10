@@ -16,8 +16,17 @@ import {
   Settings,
   ChevronsUpDown,
   Youtube,
+  Compass,
+  MessageCircle,
+  BotMessageSquare,
+  ClipboardCheck,
+  MapPin,
+  BrainCircuit,
+  Users,
+  Link2,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
+import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
   SidebarContent,
@@ -30,7 +39,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }> }
+type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
 
 const WORKSPACE: Item[] = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
@@ -39,6 +48,12 @@ const WORKSPACE: Item[] = [
   // why it isn't a card on the SEO Dashboard: that page is scoped to one web
   // project at a time and a YouTube panel would have nothing to scope to.
   { title: "YouTube Tracker", url: "/dashboard/youtube", icon: Youtube },
+  { title: "Bing Tracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
+  { title: "Yahoo Tracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
+  { title: "AI Overview", url: "/dashboard/ai-overview", icon: BotMessageSquare, soon: true },
+  { title: "Audit Tools", url: "/dashboard/website-audit", icon: ClipboardCheck, soon: true },
+  { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin, soon: true },
+  { title: "LLM Tracker", url: "/dashboard/llm-tracker", icon: BrainCircuit, soon: true },
   { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
   { title: "Favorites", url: "/dashboard/favorites", icon: Star },
 ]
@@ -47,6 +62,8 @@ const TOOLS: Item[] = [
   { title: "Keyword Magic Tool", url: "/dashboard/keyword-magic", icon: Sparkles },
   { title: "Keyword Score Checker", url: "/dashboard/keyword-analysis", icon: Search },
   { title: "Page Score Checker", url: "/dashboard/onpage-audit", icon: MonitorCheck },
+  { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
+  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2, soon: true },
   { title: "Settings", url: "/dashboard/billing", icon: Settings },
 ]
 
@@ -72,6 +89,23 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       <SidebarMenu>
         {items.map((it) => {
           const Icon = it.icon
+          if (it.soon) {
+            return (
+              <SidebarMenuItem key={it.url}>
+                <SidebarMenuButton
+                  disabled
+                  tooltip={`${it.title} (Coming soon)`}
+                  className="cursor-not-allowed opacity-60"
+                >
+                  <Icon />
+                  <span>{it.title}</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                    Soon
+                  </Badge>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          }
           return (
             <SidebarMenuItem key={it.url}>
               <SidebarMenuButton asChild isActive={isActive(it.url, pathname)} tooltip={it.title}>
@@ -105,7 +139,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
         <Group label="Rank Tracker Workspace" items={WORKSPACE} />
         <Group label="Other Tools" items={TOOLS} />
       </SidebarContent>
