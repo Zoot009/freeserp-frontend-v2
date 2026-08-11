@@ -12,13 +12,11 @@ import {
   Zap,
   Sparkles,
   Search,
-
   ScanSearch,
   ChevronsUpDown,
   Youtube,
   Compass,
   MessageCircle,
-  BotMessageSquare,
   MapPin,
   BrainCircuit,
   Users,
@@ -65,7 +63,6 @@ const TOOLS: Item[] = [
   { title: "Website Audit", url: "/dashboard/page-audit", icon: ScanSearch },
   { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
   { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2 },
-  { title: "AI Overview", url: "/dashboard/ai-overview", icon: BotMessageSquare, soon: true },
 ]
 
 function isActive(url: string, pathname: string | null): boolean {

@@ -261,7 +261,7 @@ export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
                         <td>
                           <span className="row" style={{ gap: 8, alignItems: "center" }}>
                             <Flag code={kw.location} title={kw.location?.toUpperCase()} />
-                            <span className="kw">{kw.keyword}</span>
+                            <span className="kw" title={kw.keyword}>{kw.keyword}</span>
                           </span>
                         </td>
                         <td>

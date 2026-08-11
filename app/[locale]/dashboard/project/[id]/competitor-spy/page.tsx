@@ -381,7 +381,7 @@ function ComparisonTable({ rows, kind }: { rows: KeywordRow[]; kind: "shared" | 
             const theirWins = r.yourPosition != null && r.yourPosition > r.theirPosition
             return (
               <tr key={r.keywordId}>
-                <td><div className="kw">{r.keyword}</div></td>
+                <td><div className="kw" title={r.keyword}>{r.keyword}</div></td>
                 <td style={yourWins ? winStyle : undefined}><PosBadge pos={r.yourPosition} /></td>
                 <td style={theirWins ? winStyle : undefined}><PosBadge pos={r.theirPosition} /></td>
                 <td><DiffCell your={r.yourPosition} their={r.theirPosition} /></td>
@@ -419,7 +419,7 @@ function GapsTable({ rows }: { rows: KeywordRow[] }) {
         <tbody>
           {sorted.map((r) => (
             <tr key={r.keywordId}>
-              <td><div className="kw">{r.keyword}</div></td>
+              <td><div className="kw" title={r.keyword}>{r.keyword}</div></td>
               <td><PosBadge pos={r.theirPosition} /></td>
               <td>
                 {r.theirUrl

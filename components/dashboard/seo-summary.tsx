@@ -37,6 +37,8 @@ export type SeoSummaryProps = {
   keywordsTrend: TrendPoint[]
   aiOverview: number
   aiOverviewPct: number
+  /** Keywords where our domain is a cited source in the AI Overview. */
+  aiOverviewCited?: number
   aiOverviewKeywords: AiKeyword[]
 }
 
@@ -184,7 +186,10 @@ export function SeoSummary(p: SeoSummaryProps) {
   const fallbackAiv: AiVisibility = {
     computedAt: "", domain: "", keywordsChecked: p.tracked,
     channels: {
-      aiOverview: { available: true, mentions: p.aiOverview, cited: null, checked: p.tracked },
+      // `cited` now comes from the citation verdict the keywords list already
+      // carries, so the Cited column populates without the /ai-visibility
+      // endpoint (which doesn't exist yet — the fetch above 404s and lands here).
+      aiOverview: { available: true, mentions: p.aiOverview, cited: p.aiOverviewCited ?? null, checked: p.tracked },
       chatgpt: { available: false, mentions: 0, cited: null, checked: 0 },
       gemini: { available: false, mentions: 0, cited: null, checked: 0 },
     },

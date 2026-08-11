@@ -11,6 +11,8 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import {
   FeatChip,
   PosCell,
+  SortHeader,
+  SummaryChip,
   serpFeaturesToChips,
   trendToSparkline,
   type KeywordRow,
@@ -357,7 +359,7 @@ export default function KeywordsListPage() {
                     <FavoriteButton entityType="keyword" entityId={r.id!} initial={favKw.has(r.id!)} />
                   </td>
                   <td>
-                    <div className="kw">{r.kw}</div>
+                    <div className="kw" title={r.kw}>{r.kw}</div>
                     {(r.location || r.device) && (
                       <div className="row tiny muted" style={{ marginTop: 2, gap: 6, alignItems: "center" }}>
                         {r.location && (
@@ -430,38 +432,6 @@ export default function KeywordsListPage() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function SortHeader({
-  label,
-  k,
-  sort,
-  onClick,
-}: {
-  label: string
-  k: "kw" | "pos" | "vol" | "traffic" | "delta"
-  sort: { key: string; dir: "asc" | "desc" }
-  onClick: (k: "kw" | "pos" | "vol" | "traffic" | "delta") => void
-}) {
-  return (
-    <th onClick={() => onClick(k)} style={{ cursor: "pointer", userSelect: "none" }}>
-      {label}
-      {sort.key === k && (
-        <span style={{ color: "var(--brand)", marginLeft: 4 }}>{sort.dir === "asc" ? "↑" : "↓"}</span>
-      )}
-    </th>
-  )
-}
-
-function SummaryChip({ lbl, val, total, pct, ofLabel }: { lbl: string; val: string; total?: number; pct?: number; ofLabel?: string }) {
-  return (
-    <div className="card tight row" style={{ padding: "8px 14px", flex: "0 0 auto", gap: 8, alignItems: "baseline", whiteSpace: "nowrap" }}>
-      <span className="tiny muted">{lbl}</span>
-      <span className="b tabular" style={{ fontSize: 15 }}>{val}</span>
-      {total != null && <span className="tiny muted">{ofLabel}</span>}
-      {pct != null && pct > 0 && <span className="tiny muted">({pct}%)</span>}
     </div>
   )
 }
