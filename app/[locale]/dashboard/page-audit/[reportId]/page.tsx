@@ -86,7 +86,7 @@ export default function AuditReportPage() {
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{error}</p>
           <Button asChild variant="outline" size="sm" className="mt-5 gap-1.5">
             <Link href="/dashboard/page-audit">
-              <ArrowLeft className="size-4" /> Back to Page Audit
+              <ArrowLeft className="size-4" /> Back to Website Audit
             </Link>
           </Button>
         </div>
