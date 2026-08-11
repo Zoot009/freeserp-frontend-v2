@@ -49,7 +49,7 @@ const WORKSPACE: Item[] = [
   { title: "YouTube Tracker", url: "/dashboard/youtube", icon: Youtube },
   { title: "Bing Tracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
   { title: "Yahoo Tracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
-  { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin, soon: true },
+  { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
   { title: "LLM Tracker", url: "/dashboard/llm-tracker", icon: BrainCircuit, soon: true },
 ]
 const TOOLS: Item[] = [
