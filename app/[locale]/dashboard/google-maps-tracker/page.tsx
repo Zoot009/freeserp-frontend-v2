@@ -136,7 +136,18 @@ export default function GoogleMapsTrackerPage() {
         try {
           const { scan: updated } = await api.get<{ scan: Scan }>(`/api/maps-tracker/scans/${scanId}`)
           setScan(updated)
-          if (isTerminal(updated.status)) {
+          // The AI report is generated as a separate step AFTER the scan
+          // itself finishes, so a terminal scan status alone doesn't mean
+          // there's nothing left to wait for — keep polling until the AI
+          // report (if one was requested) also reaches a terminal status,
+          // otherwise a "Generating…" spinner opened right after the scan
+          // completes never notices the report finish behind it.
+          const aiSettled =
+            !updated.aiAnalysisRequested ||
+            !updated.aiReport ||
+            updated.aiReport.status === "COMPLETED" ||
+            updated.aiReport.status === "FAILED"
+          if (isTerminal(updated.status) && aiSettled) {
             stopPolling()
             void loadHistory()
           }

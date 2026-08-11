@@ -61,7 +61,7 @@ function GridPin({ pin, onClick }: { pin: MapPinData; onClick?: () => void }) {
   const color = rankColor(pin.rank, pin.status)
   const idle = pin.status === "PENDING"
   return (
-    <AdvancedMarker position={{ lat: pin.lat, lng: pin.lng }} onClick={onClick}>
+    <AdvancedMarker position={{ lat: pin.lat, lng: pin.lng }} onClick={onClick} zIndex={idle ? 1 : 5}>
       <div
         role={onClick ? "button" : undefined}
         tabIndex={onClick ? 0 : undefined}
@@ -69,23 +69,31 @@ function GridPin({ pin, onClick }: { pin: MapPinData; onClick?: () => void }) {
           if (onClick && (e.key === "Enter" || e.key === " ")) onClick()
         }}
         style={{
-          width: idle ? 14 : 26,
-          height: idle ? 14 : 26,
+          width: idle ? 20 : 28,
+          height: idle ? 20 : 28,
           borderRadius: "50%",
           display: "grid",
           placeItems: "center",
           fontSize: 11,
           fontWeight: 700,
           cursor: onClick ? "pointer" : "default",
-          background: idle ? "transparent" : color.bg,
+          // Idle pins get an opaque white fill (not transparent) so they
+          // read clearly against any map tile color — green parks, water,
+          // dense road networks — instead of disappearing into the terrain.
+          background: idle ? "#FFFFFF" : color.bg,
           color: color.fg,
-          border: idle ? "2px solid #9CA3AF" : pin.status === "RUNNING" ? "2px solid #FFFFFF" : "none",
+          border: idle ? "2.5px solid #4B5563" : pin.status === "RUNNING" ? "2px solid #FFFFFF" : "none",
           opacity: pin.status === "RUNNING" ? 0.75 : 1,
-          boxShadow: idle ? "none" : "0 1px 3px rgba(0,0,0,0.3)",
+          boxShadow: idle ? "0 1px 4px rgba(0,0,0,0.35)" : "0 1px 3px rgba(0,0,0,0.3)",
+          boxSizing: "border-box",
         }}
         aria-label={`Point ${pin.row},${pin.col}${pin.rank != null ? `, rank ${pin.rank}` : ""}`}
       >
-        {!idle && color.label}
+        {idle ? (
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4B5563" }} />
+        ) : (
+          color.label
+        )}
       </div>
     </AdvancedMarker>
   )
