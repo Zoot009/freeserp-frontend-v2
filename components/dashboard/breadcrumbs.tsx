@@ -49,7 +49,6 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   "/dashboard/serp-checker": [WORKSPACE, { key: "quickSerp" }],
   "/dashboard/keyword-magic": [WORKSPACE, { key: "keywordMagic" }],
   "/dashboard/keyword-analysis": [WORKSPACE, { key: "keywordAnalysis" }],
-  "/dashboard/onpage-audit": [WORKSPACE, { key: "onPageAudit" }],
   "/dashboard/alerts": [WORKSPACE, { key: "alerts" }],
   "/dashboard/billing": [WORKSPACE, { key: "settings" }],
 }

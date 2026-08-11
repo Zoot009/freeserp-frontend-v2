@@ -187,13 +187,13 @@ export default function HomeDashboard() {
               <div><div className="sr-audit-val">0</div><div className="sr-lbl">Crawled pages</div></div>
             </div>
           </div>
-          <Link className="sr-full" href="/dashboard/onpage-audit">Run a page audit →</Link>
+          <Link className="sr-full" href="/dashboard/page-audit">Run a website audit →</Link>
         </section>
       </div>
 
       {/* Row 3 — Set-up cards (mapped to FreeSERP tools) */}
       <div className="sr-row cols-4">
-        <SetupCard title="On-Page SEO Checker" desc="Collect ideas on strategy, content, backlinks and more." href="/dashboard/onpage-audit" />
+        <SetupCard title="Website Audit" desc="Crawl your site and collect concrete fixes across 63 SEO checks." href="/dashboard/page-audit" />
         <SetupCard title="Keyword Magic" desc="Find hundreds of keyword ideas with volume & difficulty." href="/dashboard/keyword-magic" />
         <SetupCard title="Backlink Audit" desc="Strengthen your backlink profile and rankings." href={selectedId ? `/dashboard/project/${selectedId}/keywords` : "/dashboard/projects"} />
         <SetupCard title="Quick SERP" desc="Check where any domain ranks for a keyword, instantly." href="/dashboard/serp-checker" />

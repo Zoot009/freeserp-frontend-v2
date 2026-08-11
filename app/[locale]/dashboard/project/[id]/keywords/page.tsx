@@ -86,7 +86,7 @@ interface Keyword {
   // column. Null when the keyword isn't ranking / not yet scored.
   pageAuditScore: number | null
   // The exact page that was scored (ranking URL, or domain homepage when not
-  // ranking) — the target for the full Page Score Checker audit on click.
+  // ranking). Also the URL the Keyword Score Checker report opens against.
   pageScoreUrl: string | null
 }
 
@@ -977,12 +977,6 @@ export default function ProjectKeywordsPage() {
       setScoreLoading(false)
     }
   }
-
-  // Page score click → run a full on-page audit (the Page Score Checker) for
-  // the keyword's scored page and open its report. Mirrors the audit tool's
-  // own submit flow: POST creates/reuses the audit, then route to results.
-  // (openAuditReport lived here — it opened the Page Score report from the P.S
-  // badge. Both are gone with the page score; page auditing is its own tool now.)
 
   // Keyword score click (ranking keyword) → open the full detailed Keyword Score
   // Checker report for the keyword + its ranking page, instead of the compact
