@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * Page Audit — crawl a URL (or a whole site) with a real browser, run 63 SEO
+ * Website Audit — crawl a URL (or a whole site) with a real browser, run 63 SEO
  * rules over it, and render the report.
  *
  * The report UI itself is the imported package's, dropped in whole
@@ -173,7 +173,7 @@ export default function PageAuditPage() {
   return (
     <div className="flex flex-col gap-5 px-6 pb-10 pt-5">
       <div>
-        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">Page Audit</h1>
+        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">Website Audit</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Loads your page in a real browser and runs 63 SEO checks over it — technical, on-page,
           performance, accessibility, structured data and security.
