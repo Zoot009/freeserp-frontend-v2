@@ -11,6 +11,7 @@ import { GridSizeDropdown, RadiusDropdown, UnitToggle, spacingCaption } from "@/
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
 import { ScanResults, PointDrawer } from "@/components/maps-tracker/scan-results"
 import { ScanHistoryTable, flattenHistoryRows } from "@/components/maps-tracker/scan-history-table"
+import { Tooltip } from "@/components/maps-tracker/tooltip"
 import { totalPoints, RECOMMENDED_GRID_SIZE, type DistanceUnit } from "@/components/maps-tracker/grid"
 import type { MapLocation, Scan, ScanHistoryItem, CreateScanResponse } from "@/components/maps-tracker/types"
 
@@ -285,20 +286,22 @@ export default function GoogleMapsTrackerPage() {
           onDeleted={removeLocation}
         />
         <KeywordPicker keywords={keywords} onChange={setKeywords} />
-        <button
-          type="button"
-          className={"icon-btn" + (aiRequested ? " active" : "")}
-          onClick={() => setAiRequested((v) => !v)}
-          title={aiRequested ? "AI analysis will run after the scan finishes (+25 daily-quota points)" : "Generate AI analysis after scan finishes"}
-          style={{
-            background: aiRequested ? "var(--brand)" : undefined,
-            color: aiRequested ? "#fff" : undefined,
-            borderRadius: "var(--r-md)",
-            padding: "8px 10px",
-          }}
-        >
-          <Icon.ai />
-        </button>
+        <Tooltip label={aiRequested ? "AI analysis will run automatically once the scan finishes." : "Generate an AI analysis of the results after this scan finishes."}>
+          <button
+            type="button"
+            className={"icon-btn" + (aiRequested ? " active" : "")}
+            onClick={() => setAiRequested((v) => !v)}
+            aria-label={aiRequested ? "AI analysis enabled — click to disable" : "Enable AI analysis"}
+            style={{
+              background: aiRequested ? "var(--brand)" : undefined,
+              color: aiRequested ? "#fff" : undefined,
+              borderRadius: "var(--r-md)",
+              padding: "8px 10px",
+            }}
+          >
+            <Icon.ai />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Map canvas — always rendered, even with no location picked yet, so the
