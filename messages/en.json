@@ -499,7 +499,6 @@
     "accountMenu": "Account menu",
     "signOut": "Sign out",
     "keywordAnalysis": "Keyword Score Checker",
-    "onPageAudit": "Page Score Checker",
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
     "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial"
