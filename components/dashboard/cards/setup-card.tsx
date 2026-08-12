@@ -127,7 +127,7 @@ export function SetupCard({ projectId, gsc }: { projectId: string; gsc: GscState
     searchConsoleStep(projectId, gsc),
     {
       title: "Website Audit",
-      description: "Crawl your site in a real browser and collect concrete fixes across 63 SEO checks.",
+      description: "Check your site's technical health, content, speed and security — with the exact fixes.",
       href: "/dashboard/page-audit",
       cta: "Set up",
       done: null,

@@ -178,8 +178,8 @@ export default function PageAuditPage() {
       <div>
         <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">Website Audit</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Loads your page in a real browser and runs 63 SEO checks over it — technical, on-page,
-          performance, accessibility, structured data and security.
+          A full check of your page — technical health, on-page content, speed, accessibility,
+          structured data and security — with the exact fixes, in priority order.
         </p>
       </div>
 
