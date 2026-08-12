@@ -201,7 +201,10 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
       let data: AuditAskResponse | { error: string }
       try {
         data = await api.post<AuditAskResponse>("/api/page-audit/ask", {
-          context: buildContext(report),
+          // Serialised, not passed as an object: the endpoint takes context as
+          // text (it goes straight into the prompt). Sending the object failed
+          // validation on arrival, so every question answered "Validation failed".
+          context: JSON.stringify(buildContext(report)),
           question: trimmed,
         })
       } catch (err) {
