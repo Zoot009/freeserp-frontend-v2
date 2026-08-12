@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useTheme } from "@/components/theme-provider"
@@ -30,6 +30,7 @@ const normalizeDomain = (v: string) =>
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
   const { resolvedTheme, setTheme } = useTheme()
 
   const [hasWebsite, setHasWebsite] = useState<boolean | null>(null)
@@ -84,6 +85,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't add that website — please try again.")
     } finally { setAdding(false) }
+  }
+
+  /**
+   * A finished audit report is a document, not a dashboard page.
+   *
+   * It is long, it is the only thing on screen worth reading, and it is what
+   * gets shared and exported — so it renders without the sidebar, breadcrumb
+   * and global search competing with it. Everything else in /dashboard keeps
+   * the full shell.
+   *
+   * Matched on the report's own route only. The trailing segment is required,
+   * so /dashboard/page-audit — the form and history — is untouched, and the
+   * pattern is unanchored so the locale prefix (/en/dashboard/…) still matches.
+   * The report page carries its own "All audits" link back, so nothing becomes
+   * unreachable by dropping the nav.
+   */
+  const focusMode = /\/dashboard\/page-audit\/[^/]+$/.test(pathname ?? "")
+  if (focusMode) {
+    return <div className="fs-app min-h-screen bg-card">{children}</div>
   }
 
   return (
