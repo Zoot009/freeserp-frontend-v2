@@ -24,6 +24,7 @@ import {
   Users,
   Link2,
 } from "lucide-react"
+import { api } from "@/lib/api"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -84,6 +85,30 @@ type Props = React.ComponentProps<typeof Sidebar> & {
 export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const pathname = usePathname()
 
+  // Google Maps Tracker is in early access — every scan point is real
+  // DataForSEO spend and there's no credit system in front of it yet, so
+  // access is allowlisted server-side (MAPS_TRACKER_ACCESS_EMAILS). Defaults
+  // to "soon" (locked) until the check resolves — fail closed, not open.
+  const [mapsTrackerAllowed, setMapsTrackerAllowed] = React.useState(false)
+  React.useEffect(() => {
+    let cancelled = false
+    api
+      .get<{ allowed: boolean }>("/api/maps-tracker/access")
+      .then(({ allowed }) => {
+        if (!cancelled) setMapsTrackerAllowed(allowed)
+      })
+      .catch(() => {
+        /* stays locked on any error — fail closed */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const workspace = WORKSPACE.map((it) =>
+    it.title === "Google Maps Tracker" ? { ...it, soon: !mapsTrackerAllowed } : it,
+  )
+
   const Group = ({ label, items }: { label: string; items: Item[] }) => (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
@@ -141,7 +166,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
-        <Group label="Rank Tracker Workspace" items={WORKSPACE} />
+        <Group label="Rank Tracker Workspace" items={workspace} />
         <Group label="Other Tools" items={TOOLS} />
       </SidebarContent>
 
