@@ -3239,136 +3239,40 @@ interface InternalLinkGraphData {
   metadata: InternalLinkGraphMeta
 }
 
+/**
+ * The link graph is built ONCE, by the audit worker, and stored on the report.
+ *
+ * This used to fall back to crawling on demand through `/api/link-graph/v2/*`
+ * — endpoints belonging to the imported package's own microservice, which was
+ * never ported to this backend. So whenever a report had no stored graph, the
+ * section asked a route that does not exist and rendered the 404 body as if it
+ * were an analysis result:
+ *
+ *   Internal link analysis unavailable: Route POST /api/link-graph/v2/submit not found
+ *
+ * There is nothing for the browser to retry here. Either the worker stored a
+ * graph or it didn't, so say which.
+ */
 function InternalLinkSection({
-  url,
-  auditReportId,
   initial,
 }: {
-  url: string
-  auditReportId?: string
-  /** Link graph persisted on the AuditReport — skip fetching when present. */
+  /** Link graph persisted on the AuditReport by the audit worker. */
   initial?: InternalLinkGraphData | null
 }) {
-  const [phase, setPhase] = useState<"submitting" | "polling" | "done" | "error">(initial ? "done" : "submitting")
-  const [linkGraph, setLinkGraph] = useState<InternalLinkGraphData | null>(initial ?? null)
-  const [errorMsg, setErrorMsg] = useState("")
+  const linkGraph = initial ?? null
 
-  /**
-   * Coerce whatever an API called `error` into something React can render.
-   *
-   * The package assumed its backend's `{ error: "some string" }`. This app's
-   * error envelope is `{ error: { code, message, requestId } }`, so putting it
-   * straight into state and rendering it crashed the whole report with
-   * "Objects are not valid as a React child (found: object with keys
-   * {code, message})" — the audit finished fine, then the page died trying to
-   * display why one section couldn't load.
-   */
-  const errText = (v: unknown, fallback: string): string => {
-    if (typeof v === "string" && v.trim()) return v
-    if (v && typeof v === "object") {
-      const m = (v as { message?: unknown }).message
-      if (typeof m === "string" && m.trim()) return m
-    }
-    return fallback
-  }
-
-  useEffect(() => {
-    if (!url) return
-    // We already have the persisted graph from the report — nothing to fetch.
-    if (initial) return
-    let cancelled = false
-
-    async function safeJson(res: Response): Promise<any> {
-      const ct = res.headers.get("content-type") || ""
-      if (!ct.includes("application/json")) {
-        throw new Error(`Backend returned HTTP ${res.status} (not JSON). Restart the backend server.`)
-      }
-      return res.json()
-    }
-
-    async function run() {
-      try {
-        const submitRes = await fetch(`${API_URL}/api/link-graph/v2/submit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, depth: 3, maxPages: 40, stripTracking: true, auditReportId }),
-        })
-        const submitData = await safeJson(submitRes)
-
-        if (!submitRes.ok) {
-          if (!cancelled) { setErrorMsg(errText(submitData.error, "Failed to start crawl")); setPhase("error") }
-          return
-        }
-
-        if (submitData.status === "cached" && submitData.result) {
-          if (!cancelled) { setLinkGraph(submitData.result); setPhase("done") }
-          return
-        }
-
-        const jobId: string = submitData.jobId
-        if (!jobId) {
-          if (!cancelled) { setErrorMsg("No job ID returned"); setPhase("error") }
-          return
-        }
-
-        if (!cancelled) setPhase("polling")
-
-        while (!cancelled) {
-          await new Promise(r => setTimeout(r, 5000))
-          if (cancelled) break
-
-          const statusRes = await fetch(`${API_URL}/api/link-graph/v2/status/${jobId}`)
-          const statusData = await safeJson(statusRes)
-
-          if (!statusRes.ok) {
-            if (!cancelled) { setErrorMsg(errText(statusData.error, "Status check failed")); setPhase("error") }
-            return
-          }
-
-          const status: string = statusData.status
-          if (status === "completed") {
-            const resultUrl = auditReportId
-              ? `${API_URL}/api/link-graph/v2/result/${jobId}?auditReportId=${encodeURIComponent(auditReportId)}`
-              : `${API_URL}/api/link-graph/v2/result/${jobId}`
-            const resultRes = await fetch(resultUrl)
-            const resultData = await safeJson(resultRes)
-            if (!cancelled) { setLinkGraph(resultData.result); setPhase("done") }
-            return
-          }
-          if (status === "failed") {
-            if (!cancelled) { setErrorMsg(errText(statusData.error, "Crawl job failed")); setPhase("error") }
-            return
-          }
-        }
-      } catch (err: any) {
-        if (!cancelled) { setErrorMsg(err.message || "Unexpected error"); setPhase("error") }
-      }
-    }
-
-    run()
-    return () => { cancelled = true }
-  }, [url, auditReportId, initial])
-
-  if (phase === "error") {
-    return (
-      <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
-        <div className="px-6 py-5 flex items-center gap-3 text-sm text-muted-foreground">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <span>Internal link analysis unavailable: {errorMsg}</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (phase !== "done" || !linkGraph) {
+  if (!linkGraph) {
     return (
       <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
         <div className="border-b border-border/40 px-6 py-5">
           <h2 className="text-lg font-bold">Internal Link Analysis</h2>
         </div>
-        <div className="px-6 py-5 flex items-center gap-3 text-sm text-muted-foreground">
-          <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-accent" />
-          <span>{phase === "submitting" ? "Starting crawl…" : "Crawling site links…"}</span>
+        <div className="px-6 py-5 flex items-start gap-3 text-sm text-muted-foreground">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <span>
+            No internal link data was collected for this report. Re-run the audit to
+            generate it.
+          </span>
         </div>
       </div>
     )
@@ -4212,7 +4116,10 @@ export function AuditReportResults({
   return (
     <>
       {/* ── Results Header ── */}
-      <section className="border-b border-border/40 bg-card pt-20 pb-8">
+      {/* pt-8, not pt-20: both callers already pad above this (the dashboard page
+          has pt-5 plus the "All audits" link, the shared view py-8), so 80px here
+          stacked on top of that and pushed the grade and preview a screenful down. */}
+      <section className="border-b border-border/40 bg-card pt-8 pb-8">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
 
           {/* Top bar: breadcrumb + action */}
@@ -4497,11 +4404,7 @@ export function AuditReportResults({
           ))}
         {!hidden.has(SECTION_INTERNAL_LINKS) && (
           <div id="sec-internal-links" className="scroll-mt-32">
-            <InternalLinkSection
-              url={report.url}
-              auditReportId={report.id}
-              initial={report.linkGraph}
-            />
+            <InternalLinkSection initial={report.linkGraph} />
           </div>
         )}
         {(() => {
