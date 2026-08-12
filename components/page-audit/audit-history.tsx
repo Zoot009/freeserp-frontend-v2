@@ -32,6 +32,23 @@ export type AuditListItem = {
 }
 
 /**
+ * Which of the two audits this row was.
+ *
+ * "This page" and "Whole site" are different jobs producing differently-shaped
+ * reports — one URL versus a crawl of up to 500 — but the history rendered them
+ * identically, so a 76 from a single page sat next to a 76 averaged over a whole
+ * site with nothing to tell them apart.
+ *
+ * The page count rides along for site audits because it is the thing that makes
+ * the number comparable, and it is only meaningful there. A failed crawl
+ * analysed nothing, so it is omitted rather than shown as zero.
+ */
+function modeLabel(r: AuditListItem): string {
+  if (r.mode !== "SITE") return "Single page"
+  return r.pagesAnalyzed > 1 ? `Whole site · ${r.pagesAnalyzed} pages` : "Whole site"
+}
+
+/**
  * A failure, in two or three words.
  *
  * "Failed" on its own tells the reader nothing they can do something about,
@@ -230,7 +247,12 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
                   is fine. The letter tile alone is honest. */}
               <SiteFavicon host={hostOf(r.url)} lookUp={r.status !== "FAILED"} />
               <div className="min-w-0">
-                <div className="truncate font-semibold">{hostOf(r.url)}</div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-semibold">{hostOf(r.url)}</span>
+                  <span className="shrink-0 rounded border border-border/60 bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                    {modeLabel(r)}
+                  </span>
+                </div>
                 <div className="truncate text-xs text-muted-foreground">{r.url}</div>
               </div>
             </div>

@@ -181,6 +181,8 @@ export interface AuditReport {
   url: string
   status: "PROCESSING" | "COMPLETED" | "FAILED"
   pagesAnalyzed: number
+  /** Which audit produced this: one URL, or a crawl outward from it. */
+  mode?: "SINGLE" | "SITE"
 
   scoring: {
     overall: CategoryScore
@@ -402,6 +404,7 @@ export function transformReport(data: Record<string, unknown>): AuditReport {
     url: data.url as string,
     status: data.status as AuditReport["status"],
     pagesAnalyzed: data.pagesAnalyzed as number,
+    mode: (data.mode as AuditReport["mode"]) ?? undefined,
     scoring: {
       overall: {
         score: data.overallScore as number,
@@ -4134,6 +4137,18 @@ export function AuditReportResults({
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground/40 hover:text-accent transition-colors">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
+                {/* Which audit this was. The two produce differently-shaped
+                    reports — one URL versus a crawl — and the page gave no way
+                    to tell, so a single-page score read as a whole-site verdict. */}
+                {report.mode && (
+                  <span className="ml-1 shrink-0 rounded border border-border/60 bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
+                    {report.mode === "SITE"
+                      ? report.pagesAnalyzed > 1
+                        ? `Whole site · ${report.pagesAnalyzed} pages`
+                        : "Whole site"
+                      : "Single page"}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
