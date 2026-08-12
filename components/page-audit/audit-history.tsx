@@ -21,6 +21,7 @@ import {
   ChevronRight,
   ExternalLink,
   Search,
+  X,
 } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
@@ -365,7 +366,7 @@ export function AuditHistory({
 
   return (
     <section className="rounded-lg border bg-card shadow-sm">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b px-4 py-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             History
@@ -376,17 +377,27 @@ export function AuditHistory({
             {heading} <span className="font-normal text-muted-foreground">({total})</span>
           </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-[7px] bg-muted p-0.5">
+
+        {/* Controls share one row and one height. The search field used to be
+            w-full, which made it claim the whole line the moment the header
+            wrapped and pushed the toggle onto a line of its own. */}
+        <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label="History grouping"
+            className="inline-flex h-9 shrink-0 items-center rounded-lg border border-border/60 bg-muted/50 p-1"
+          >
             {(["sites", "runs"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
+                role="tab"
+                aria-selected={view === v}
                 onClick={() => setView(v)}
                 className={cn(
-                  "rounded-[5px] px-2.5 py-1 text-xs transition-colors",
+                  "h-7 rounded-md px-3 text-xs transition-all",
                   view === v
-                    ? "bg-background font-semibold text-foreground shadow-sm"
+                    ? "bg-background font-semibold text-foreground shadow-sm ring-1 ring-border/50"
                     : "font-medium text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -394,8 +405,9 @@ export function AuditHistory({
               </button>
             ))}
           </div>
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
               onChange={(e) => {
@@ -403,8 +415,24 @@ export function AuditHistory({
                 setPage(0)
               }}
               placeholder="Search by URL"
-              className="pl-9"
+              aria-label="Search audits by URL"
+              className="h-9 w-48 rounded-lg pl-8 pr-8 text-[13px] sm:w-60"
             />
+            {/* A filter you can't see the edge of is a filter people forget is
+                on, then read the shortened list as lost history. */}
+            {q && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("")
+                  setPage(0)
+                }}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
