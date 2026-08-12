@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useState } from "react"
-import { Check, Loader2, Lightbulb, X } from "lucide-react"
+import { Check, Lightbulb, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
@@ -119,12 +119,11 @@ export function AuditProgressOverlay({
 
       <div className="w-full max-w-md">
         <div className="text-center">
-          <div className="relative mx-auto flex size-14 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-2xl bg-primary/15" />
-            <span className="absolute inset-0 rounded-2xl border border-border/60 bg-muted/50" />
-            <Loader2 className="relative size-6 animate-spin text-primary" />
-          </div>
-          <h2 className="mt-4 text-lg font-bold leading-tight">Auditing {host}</h2>
+          {/* Just the spinner. The tile-plus-ping it replaced pulsed a square
+              halo out past a rounded box, which read as a rendering glitch
+              rather than as motion — and the stage list below is already
+              carrying the "something is happening" signal. */}
+          <h2 className="text-lg font-bold leading-tight">Auditing {host}</h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             {mode === "site"
               ? "Going through your site page by page — technical health, content, speed, accessibility and security. This takes a few minutes."
