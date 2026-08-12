@@ -140,7 +140,18 @@ function SiteFavicon({ host, lookUp = true }: { host: string; lookUp?: boolean }
   )
 }
 
-export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
+export function AuditHistory({
+  refreshKey = 0,
+  mode,
+}: {
+  refreshKey?: number
+  /**
+   * Which tab the page is on. The history shows that kind of audit only —
+   * a single-page score and a whole-site score answer different questions, and
+   * interleaving them in one list made the table impossible to read down.
+   */
+  mode?: "single" | "site"
+}) {
   const router = useRouter()
   const [items, setItems] = useState<AuditListItem[]>([])
   const [total, setTotal] = useState(0)
@@ -148,7 +159,7 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
   const [q, setQ] = useState("")
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async (pageIdx: number, query: string) => {
+  const load = useCallback(async (pageIdx: number, query: string, kind?: "single" | "site") => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -156,6 +167,7 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
         offset: String(pageIdx * PAGE_SIZE),
       })
       if (query.trim()) params.set("q", query.trim())
+      if (kind) params.set("mode", kind)
       const data = await api.get<{ items: AuditListItem[]; total: number }>(
         `/api/page-audit/reports?${params.toString()}`,
       )
@@ -169,11 +181,18 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
     }
   }, [])
 
+  // Switching tabs re-filters from the top. Staying on page 3 of the site
+  // audits after switching to single-page ones would ask for an offset the
+  // shorter list may not reach, and answer with an empty table.
+  useEffect(() => {
+    setPage(0)
+  }, [mode])
+
   // Debounced so typing a URL doesn't fire a request per keystroke.
   useEffect(() => {
-    const t = setTimeout(() => void load(page, q), q ? 350 : 0)
+    const t = setTimeout(() => void load(page, q, mode), q ? 350 : 0)
     return () => clearTimeout(t)
-  }, [load, page, q, refreshKey])
+  }, [load, page, q, mode, refreshKey])
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1
@@ -189,7 +208,10 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">History</p>
           <h2 className="mt-0.5 text-[15px] font-semibold leading-tight">
-            All audits <span className="font-normal text-muted-foreground">({total})</span>
+            {/* Named for the filter actually applied. "All audits (3)" over a
+                list showing only site crawls misreports how much history exists. */}
+            {mode === "site" ? "Whole-site audits" : mode === "single" ? "Single-page audits" : "All audits"}{" "}
+            <span className="font-normal text-muted-foreground">({total})</span>
           </h2>
         </div>
         <div className="relative w-full max-w-xs">
@@ -218,7 +240,13 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
         </div>
       ) : items.length === 0 ? (
         <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
-          {q ? `No audits match "${q}".` : "No audits yet — run one above and it'll appear here."}
+          {q
+            ? `No audits match "${q}".`
+            : mode === "site"
+              ? "No whole-site audits yet — run one above and it'll appear here."
+              : mode === "single"
+                ? "No single-page audits yet — run one above and it'll appear here."
+                : "No audits yet — run one above and it'll appear here."}
         </p>
       ) : (
         items.map((r, i) => (

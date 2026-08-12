@@ -271,8 +271,9 @@ export default function PageAuditPage() {
       )}
 
       {/* refreshKey re-runs the query when an audit finishes, so the new row
-          appears without a manual reload. */}
-      <AuditHistory refreshKey={historyKey} />
+          appears without a manual reload. `mode` keeps the history on the same
+          kind of audit as the tab above it, rather than mixing both. */}
+      <AuditHistory refreshKey={historyKey} mode={mode} />
     </div>
   )
 }
