@@ -7,11 +7,27 @@ import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import type { MapLocation } from "./types"
 
-// Resolves places CLIENT-SIDE via the Google Maps JS "Places" library
-// (Autocomplete widget for search, PlacesService.getDetails for a pasted
-// Place ID) — this app has no server-side Google Places credential, and the
-// map is already loading this same JS SDK. The backend just validates +
-// persists whatever comes back. See the plan's §5.7/§10.3 adaptation note.
+// Resolves places CLIENT-SIDE via the Google Maps JS "Places" library — this
+// app has no server-side Google Places credential, and the map is already
+// loading this same JS SDK. The backend just validates + persists whatever
+// comes back. See the plan's §5.7/§10.3 adaptation note.
+//
+// Uses the new PlaceAutocompleteElement/Place classes, not the legacy
+// Autocomplete/PlacesService pair — as of March 2025 those are blocked for
+// any API project enabled after that date: suggestions still render, but
+// selecting one silently fails to resolve (no error, just nothing happens).
+
+const PLACE_FIELDS = [
+  "id",
+  "displayName",
+  "formattedAddress",
+  "location",
+  "rating",
+  "userRatingCount",
+  "types",
+  "nationalPhoneNumber",
+  "websiteURI",
+]
 
 type ResolvedPlace = {
   placeId: string
@@ -26,20 +42,20 @@ type ResolvedPlace = {
   website?: string
 }
 
-function fromPlaceResult(place: google.maps.places.PlaceResult): ResolvedPlace | null {
-  const loc = place.geometry?.location
-  if (!place.place_id || !loc) return null
+function fromPlace(place: google.maps.places.Place): ResolvedPlace | null {
+  const loc = place.location
+  if (!place.id || !loc) return null
   return {
-    placeId: place.place_id,
-    name: place.name ?? "Unnamed location",
-    address: place.formatted_address ?? "",
+    placeId: place.id,
+    name: place.displayName ?? "Unnamed location",
+    address: place.formattedAddress ?? "",
     latitude: loc.lat(),
     longitude: loc.lng(),
-    rating: place.rating,
-    reviewCount: place.user_ratings_total,
+    rating: place.rating ?? undefined,
+    reviewCount: place.userRatingCount ?? undefined,
     primaryCategory: place.types?.[0]?.replace(/_/g, " "),
-    phone: place.formatted_phone_number,
-    website: place.website,
+    phone: place.nationalPhoneNumber ?? undefined,
+    website: place.websiteURI ?? undefined,
   }
 }
 
@@ -72,8 +88,8 @@ export function LocationPicker({
   const [confirmDelete, setConfirmDelete] = useState<MapLocation | null>(null)
   const [error, setError] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const autocompleteHostRef = useRef<HTMLDivElement>(null)
+  const autocompleteElRef = useRef<google.maps.places.PlaceAutocompleteElement | null>(null)
   const placesLib = useMapsLibrary("places")
 
   useEffect(() => {
@@ -122,21 +138,38 @@ export function LocationPicker({
     }
   }, [confirmDelete, onDeleted])
 
-  // Wire the Autocomplete widget once the Places library + input are ready.
+  // Mount the PlaceAutocompleteElement widget once the Places library + host
+  // div are ready. It's a web component (not a JSX-declared element here),
+  // so it's constructed from the loaded library and appended imperatively —
+  // same wiring shape as the old Autocomplete effect, just a whole element
+  // instead of attaching behavior to an existing <input>.
   useEffect(() => {
-    if (!placesLib || mode !== "search" || !searchInputRef.current) return
-    const ac = new placesLib.Autocomplete(searchInputRef.current, {
-      fields: ["place_id", "name", "formatted_address", "geometry", "rating", "user_ratings_total", "types", "formatted_phone_number", "website"],
-    })
-    autocompleteRef.current = ac
-    const listener = ac.addListener("place_changed", () => {
-      const resolved = fromPlaceResult(ac.getPlace())
-      if (resolved) void savePlace(resolved)
-      else setError("Couldn't resolve that place — try selecting a suggestion from the list.")
-    })
+    if (!placesLib || mode !== "search" || !autocompleteHostRef.current) return
+    const el = new placesLib.PlaceAutocompleteElement()
+    el.style.width = "100%"
+    autocompleteHostRef.current.appendChild(el)
+    autocompleteElRef.current = el
+
+    const onSelect = (event: Event) => {
+      const { placePrediction } = event as google.maps.places.PlacePredictionSelectEvent
+      void (async () => {
+        try {
+          const place = placePrediction.toPlace()
+          await place.fetchFields({ fields: PLACE_FIELDS })
+          const resolved = fromPlace(place)
+          if (resolved) void savePlace(resolved)
+          else setError("Couldn't resolve that place — try a different search.")
+        } catch {
+          setError("Couldn't resolve that place — try a different search.")
+        }
+      })()
+    }
+    el.addEventListener("gmp-select", onSelect)
+
     return () => {
-      listener.remove()
-      autocompleteRef.current = null
+      el.removeEventListener("gmp-select", onSelect)
+      el.remove()
+      autocompleteElRef.current = null
     }
   }, [placesLib, mode, savePlace])
 
@@ -145,17 +178,9 @@ export function LocationPicker({
     setBusy(true)
     setError(null)
     try {
-      const svc = new placesLib.PlacesService(document.createElement("div"))
-      const place = await new Promise<google.maps.places.PlaceResult>((resolve, reject) => {
-        svc.getDetails(
-          { placeId: placeIdInput.trim(), fields: ["place_id", "name", "formatted_address", "geometry", "rating", "user_ratings_total", "types", "formatted_phone_number", "website"] },
-          (result, status) => {
-            if (status === "OK" && result) resolve(result)
-            else reject(new Error("Place ID not found."))
-          },
-        )
-      })
-      const resolved = fromPlaceResult(place)
+      const place = new placesLib.Place({ id: placeIdInput.trim() })
+      await place.fetchFields({ fields: PLACE_FIELDS })
+      const resolved = fromPlace(place)
       if (!resolved) throw new Error("Place ID not found.")
       await savePlace(resolved)
       setPlaceIdInput("")
@@ -302,7 +327,7 @@ export function LocationPicker({
                   <Icon.close />
                 </button>
               </div>
-              <input ref={searchInputRef} className="input" placeholder="Business name or address" disabled={busy} />
+              <div ref={autocompleteHostRef} />
               {!placesLib && <div className="tiny muted" style={{ marginTop: 8 }}>Loading Google Places…</div>}
             </div>
           )}
