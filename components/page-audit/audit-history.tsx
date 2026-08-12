@@ -7,11 +7,11 @@
  * the browser: an account that audits daily accumulates hundreds of reports, and
  * the row a user wants is almost always found by typing part of the URL.
  *
- * Two views over the same history. "Sites" collapses runs by domain, which is
+ * Two views over the same history. "By site" collapses runs by domain, which is
  * the question someone auditing the same handful of domains repeatedly actually
- * has — three freeserp.com rows scattered down a paginated list are three
- * unconnected numbers, but collapsed they are a trend. "Runs" is the flat log,
- * for when you want a specific audit.
+ * has — seven freeserp.com rows scattered down a paginated list push every
+ * other site off the page, and collapsed they are one line you can expand.
+ * "Every run" is the flat log, for when you want a specific audit.
  */
 
 import { useCallback, useEffect, useState } from "react"
@@ -46,15 +46,18 @@ export type AuditListItem = {
   criticalCount?: number
 }
 
-/** One domain's history, collapsed. */
+/**
+ * One domain's history, collapsed.
+ *
+ * No score series or run-to-run delta. Audits are started by hand, so two
+ * consecutive runs can be minutes or three weeks apart — a sparkline across
+ * them draws the reader's clicking habits, not the site's progress. Worth
+ * adding once audits run on a schedule and the x-axis means something.
+ */
 type SiteGroup = {
   host: string
   audits: number
   latest: AuditListItem
-  /** Oldest → newest, scored runs only. */
-  series: Array<{ score: number; at: string }>
-  /** Latest scored run minus the one before it; null with nothing to compare. */
-  trend: number | null
 }
 
 const PAGE_SIZE = 10
@@ -132,71 +135,6 @@ function SiteFavicon({ host, lookUp = true }: { host: string; lookUp?: boolean }
           onError={() => setFailed(true)}
         />
       )}
-    </span>
-  )
-}
-
-/**
- * Score history as a single glyph.
- *
- * Scaled to the series' own min/max, not 0-100: the interesting movement is
- * usually a few points, and against a fixed 0-100 axis every site would draw
- * the same flat line. The tradeoff is that height is only comparable within one
- * row, which is why the number and the delta sit next to it.
- */
-function Sparkline({ points, trend }: { points: number[]; trend: number | null }) {
-  if (points.length < 2) return null
-
-  const w = 54
-  const h = 16
-  const pad = 2
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const span = max - min || 1
-  const step = (w - pad * 2) / (points.length - 1)
-  const d = points
-    .map((p, i) => `${pad + i * step},${pad + (h - pad * 2) * (1 - (p - min) / span)}`)
-    .join(" ")
-
-  return (
-    <svg
-      width={w}
-      height={h}
-      viewBox={`0 0 ${w} ${h}`}
-      aria-hidden
-      className={cn(
-        "shrink-0",
-        trend == null || trend === 0
-          ? "text-muted-foreground/50"
-          : trend > 0
-            ? "text-emerald-500"
-            : "text-red-500",
-      )}
-    >
-      <polyline
-        points={d}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/** "+8" / "-3", or nothing when there is no earlier run to compare against. */
-function TrendTag({ trend }: { trend: number | null }) {
-  if (trend == null || trend === 0) return null
-  return (
-    <span
-      className={cn(
-        "shrink-0 text-[11px] font-semibold tabular-nums",
-        trend > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
-      )}
-      title={`${trend > 0 ? "Up" : "Down"} ${Math.abs(trend)} since the previous audit`}
-    >
-      {trend > 0 ? `+${trend}` : trend}
     </span>
   )
 }
@@ -537,11 +475,9 @@ export function AuditHistory({
                     </div>
                     <div className="truncate text-xs text-muted-foreground">{g.latest.url}</div>
                   </div>
-                  <Sparkline points={g.series.map((p) => p.score)} trend={g.trend} />
                 </div>
                 <IssuesCell r={g.latest} />
-                <span className="flex items-center justify-end gap-1.5">
-                  <TrendTag trend={g.trend} />
+                <span className="flex justify-end">
                   <ScoreCell r={g.latest} />
                 </span>
                 <span className={cn("text-right font-semibold", gradeTone(g.latest.overallScore))}>
