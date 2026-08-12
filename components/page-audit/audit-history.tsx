@@ -27,6 +27,34 @@ export type AuditListItem = {
   pagesAnalyzed: number
   shareToken: string | null
   createdAt: string
+  /** Why a FAILED audit failed. Null on anything that didn't fail. */
+  errorMessage?: string | null
+}
+
+/**
+ * A failure, in two or three words.
+ *
+ * "Failed" on its own tells the reader nothing they can do something about,
+ * and the full message is a sentence too long for a table cell — so the cell
+ * gets the short form and the full text stays in the tooltip.
+ *
+ * Matches the raw net:: codes as well as the sentences the worker now writes,
+ * because reports audited before that change stored the unformatted Chromium
+ * error and should still read correctly here.
+ */
+function failureLabel(msg?: string | null): string {
+  if (!msg) return "Failed"
+  if (/no domain named|ERR_NAME_NOT_RESOLVED|ERR_NAME_RESOLUTION_FAILED|ENOTFOUND/i.test(msg)) {
+    return "No such domain"
+  }
+  if (/refused the connection|ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ECONNREFUSED/i.test(msg)) {
+    return "Unreachable"
+  }
+  if (/didn't respond in time|ERR_CONNECTION_TIMED_OUT|ETIMEDOUT|Timeout/i.test(msg)) {
+    return "Timed out"
+  }
+  if (/invalid HTTPS certificate|ERR_CERT_|ERR_SSL_/i.test(msg)) return "Bad certificate"
+  return "Failed"
 }
 
 const PAGE_SIZE = 10
@@ -69,7 +97,7 @@ const hostOf = (raw: string) => {
  *
  * Worth knowing: this tells DuckDuckGo which domains an account has audited.
  */
-function SiteFavicon({ host }: { host: string }) {
+function SiteFavicon({ host, lookUp = true }: { host: string; lookUp?: boolean }) {
   const [failed, setFailed] = useState(false)
 
   return (
@@ -78,7 +106,7 @@ function SiteFavicon({ host }: { host: string }) {
       aria-hidden
     >
       {host.charAt(0).toUpperCase()}
-      {!failed && (
+      {lookUp && !failed && (
         // eslint-disable-next-line @next/next/no-img-element -- a 28px icon gains
         // nothing from the image optimizer, and next/image would need the favicon
         // host allow-listed in next.config.
@@ -157,7 +185,7 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-[36px_minmax(0,1fr)_72px_64px_88px_28px] items-center gap-3 border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="grid grid-cols-[36px_minmax(0,1fr)_112px_64px_88px_28px] items-center gap-3 border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <span>#</span>
         <span>Website</span>
         <span className="text-right">Score</span>
@@ -188,7 +216,7 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
               }
             }}
             className={cn(
-              "grid grid-cols-[36px_minmax(0,1fr)_72px_64px_88px_28px] items-center gap-3 border-b px-4 py-2.5 text-[13px] last:border-0",
+              "grid grid-cols-[36px_minmax(0,1fr)_112px_64px_88px_28px] items-center gap-3 border-b px-4 py-2.5 text-[13px] last:border-0",
               openable(r) ? "cursor-pointer transition-colors hover:bg-muted" : "opacity-70",
             )}
           >
@@ -196,7 +224,11 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
             {/* Favicon inside the website cell, not as its own grid column, so
                 the header row's alignment is untouched. */}
             <div className="flex min-w-0 items-center gap-2.5">
-              <SiteFavicon host={hostOf(r.url)} />
+              {/* No icon lookup for a failed audit. The lookup service answers a
+                  generic globe for a domain it can't resolve, which on a row that
+                  failed BECAUSE the domain doesn't exist reads as though the site
+                  is fine. The letter tile alone is honest. */}
+              <SiteFavicon host={hostOf(r.url)} lookUp={r.status !== "FAILED"} />
               <div className="min-w-0">
                 <div className="truncate font-semibold">{hostOf(r.url)}</div>
                 <div className="truncate text-xs text-muted-foreground">{r.url}</div>
@@ -208,8 +240,11 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
                   {Math.round(r.overallScore)}
                 </span>
               ) : (
-                <span className="text-xs text-muted-foreground">
-                  {r.status === "FAILED" ? "Failed" : "Running"}
+                <span
+                  className="whitespace-nowrap text-xs text-muted-foreground"
+                  title={r.status === "FAILED" ? r.errorMessage ?? undefined : undefined}
+                >
+                  {r.status === "FAILED" ? failureLabel(r.errorMessage) : "Running"}
                 </span>
               )}
             </span>
