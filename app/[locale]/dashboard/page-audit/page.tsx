@@ -19,9 +19,9 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import { transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
 import { AuditHistory } from "@/components/page-audit/audit-history"
+import { AuditProgressOverlay } from "@/components/page-audit/audit-progress"
 import { cn } from "@/lib/utils"
 
 type JobState = {
@@ -61,6 +61,7 @@ export default function PageAuditPage() {
   const [report, setReport] = useState<AuditReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [hideProgress, setHideProgress] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const startedAt = useRef(0)
@@ -125,6 +126,8 @@ export default function PageAuditPage() {
     setError(null)
     setReport(null)
     setJob(null)
+    // A new run gets the full screen back, even if the last one was dismissed.
+    setHideProgress(false)
     try {
       const res = await api.post<{ jobId: string; reportId?: string | null }>("/api/page-audit", {
         url: url.trim(),
@@ -175,8 +178,8 @@ export default function PageAuditPage() {
       <div>
         <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">Website Audit</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Loads your page in a real browser and runs 63 SEO checks over it — technical, on-page,
-          performance, accessibility, structured data and security.
+          A full check of your page — technical health, on-page content, speed, accessibility,
+          structured data and security — with the exact fixes, in priority order.
         </p>
       </div>
 
@@ -246,33 +249,40 @@ export default function PageAuditPage() {
         )}
       </div>
 
-      {running && (
-        <div className="rounded-lg border bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-[15px] font-semibold">Auditing {url}</span>
-            <span className="text-[13px] tabular-nums text-muted-foreground">{Math.round(job.progress)}%</span>
-          </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-700"
-              style={{ width: `${Math.max(4, job.progress)}%` }}
-            />
-          </div>
-          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-            {mode === "site"
-              ? "Crawling your site in a real browser, then scoring every page. This takes a few minutes — you can leave this page and come back."
-              : "Loading the page in a real browser and running the checks. This usually takes under a minute."}
-          </p>
-          <div className="mt-4 space-y-2">
-            <Skeleton className="h-24 w-full rounded-lg" />
-            <Skeleton className="h-24 w-full rounded-lg" />
-          </div>
+      {/* Full-screen while it runs, unless the user dismissed it. Dismissing
+          only hides the screen: the audit is a queued job, so it finishes and
+          lands in the history either way. */}
+      {running && !hideProgress && (
+        <AuditProgressOverlay
+          url={url}
+          mode={mode}
+          progress={job.progress}
+          onHide={() => setHideProgress(true)}
+        />
+      )}
+
+      {/* The compact form, for when the overlay has been dismissed. */}
+      {running && hideProgress && (
+        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 shadow-sm">
+          <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+          <span className="text-[13px] font-medium">Auditing {url}</span>
+          <span className="text-[13px] tabular-nums text-muted-foreground">
+            {Math.round(job.progress)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => setHideProgress(false)}
+            className="ml-auto text-[13px] font-semibold text-primary hover:underline"
+          >
+            Show progress
+          </button>
         </div>
       )}
 
       {/* refreshKey re-runs the query when an audit finishes, so the new row
-          appears without a manual reload. */}
-      <AuditHistory refreshKey={historyKey} />
+          appears without a manual reload. `mode` keeps the history on the same
+          kind of audit as the tab above it, rather than mixing both. */}
+      <AuditHistory refreshKey={historyKey} mode={mode} />
     </div>
   )
 }

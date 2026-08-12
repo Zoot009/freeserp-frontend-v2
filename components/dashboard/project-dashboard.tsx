@@ -120,6 +120,14 @@ export function ProjectDashboard({ projectId }: { projectId: string }) {
       const v = sf && typeof sf === "object" ? (sf as Record<string, unknown>).aiOverview : null
       return Array.isArray(v) ? v.length > 0 : Boolean(v)
     })
+    // Keywords where WE are one of the AI Overview's cited sources. Counted only
+    // from an explicit `cited: true`: the verdict is absent when unknown (a check
+    // predating AI Overview tracking, or an unresolved async placeholder), and
+    // counting absence as "not cited" would understate the number silently.
+    const aiOverviewCited = kws.filter((k) => {
+      const sf = k.serpFeatures as { aiOverviewCitation?: { cited?: boolean } } | null | undefined
+      return sf?.aiOverviewCitation?.cited === true
+    }).length
     // Aggregate each keyword's 12-month search-volume history into one monthly
     // total series — a real basis for the Organic Traffic sparkline.
     const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -140,7 +148,7 @@ export function ProjectDashboard({ projectId }: { projectId: string }) {
     const byPos = [...ranked].sort((a, b) => (a.position as number) - (b.position as number))
     return {
       total: kws.length, ranked: ranked.length, totalVol,
-      aiOverview: aiOverviewKeywords.length, aiOverviewKeywords, trafficTrend, keywordsTrend,
+      aiOverview: aiOverviewKeywords.length, aiOverviewCited, aiOverviewKeywords, trafficTrend, keywordsTrend,
       visibility,
       diff: round1(visibility - visibilityPrev),
       estTraffic: kws.reduce((s, k) => s + (k.monthlyTraffic ?? 0), 0),
@@ -209,6 +217,7 @@ export function ProjectDashboard({ projectId }: { projectId: string }) {
         keywordsTrend={d.keywordsTrend}
         aiOverview={d.aiOverview}
         aiOverviewPct={d.total > 0 ? Math.round((d.aiOverview / d.total) * 100) : 0}
+        aiOverviewCited={d.aiOverviewCited}
         aiOverviewKeywords={d.aiOverviewKeywords}
       />
 

@@ -22,6 +22,8 @@ import { track } from "@/lib/analytics"
 import {
   PosCell,
   DeltaCell,
+  aiCitationState,
+  type AiCitationState,
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
@@ -77,16 +79,14 @@ interface Keyword {
   status: string | null
   checkedAt: string | null
   latestAnalysisId: string | null
-  // Page-audit score (0–100) of the ranking page, computed when a competitor
-  // analysis runs for the keyword. Null until then.
+  // Keyword Score (0–100) of the ranking page for this keyword — the "Keyword
+  // score" column. Mirrored from the Keyword Score Checker report. Null until
+  // the keyword ranks and that report has run.
   pageScore: number | null
   pageScoreGrade: string | null
   pageScoreLabel: string | null
-  // Keyword-independent audit score of the ranking page — the "Page score"
-  // column. Null when the keyword isn't ranking / not yet scored.
-  pageAuditScore: number | null
   // The exact page that was scored (ranking URL, or domain homepage when not
-  // ranking) — the target for the full Page Score Checker audit on click.
+  // ranking). Also the URL the Keyword Score Checker report opens against.
   pageScoreUrl: string | null
 }
 
@@ -116,7 +116,29 @@ interface ProjectDetail {
 
 type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
 
-type SortKey = "kw" | "pos" | "d1" | "d7" | "vol" | "checkedAt" | "score"
+type SortKey = "kw" | "pos" | "d1" | "d7" | "vol" | "checkedAt" | "score" | "aio"
+
+// Sort rank for the AI Overview column. Ascending puts the actionable rows first:
+// where we're cited, then where Google answered without us, then the states we
+// can't act on.
+//
+// `pending` is not an AiCitationState — it maps to `unknown` there — but it gets
+// its own rank so the rows worth re-checking group together instead of scattering
+// among genuinely unchecked ones.
+type AioSortState = AiCitationState | "pending"
+
+const AIO_RANK: Record<AioSortState, number> = {
+  cited: 0,
+  "not-cited": 1,
+  pending: 2,
+  unknown: 3,
+  "no-overview": 4,
+}
+
+function aioRank(features: SerpFeatures | null): number {
+  if (features?.aiOverviewData?.pending) return AIO_RANK.pending
+  return AIO_RANK[aiCitationState(features)]
+}
 
 // ───── Helpers ─────────────────────────────────────────────────────────────
 
@@ -125,6 +147,65 @@ function projectColor(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   return palette[h % palette.length]
+}
+
+/**
+ * AI Overview citation verdict for one keyword.
+ *
+ * Four states, plus `pending` which overrides them: Google acknowledged an AI
+ * Overview but returned a placeholder without its sources, so the citation is
+ * genuinely unknown rather than negative — showing "Not cited" there would be a
+ * lie the user can't distinguish from a real one.
+ *
+ * "No AI Overview" and "not checked yet" both render as a plain dash: neither is
+ * actionable and a table shouldn't shout about them. Their tooltips differ,
+ * because the two facts are not the same.
+ */
+function AiOverviewCell({ features }: { features: SerpFeatures | null }) {
+  const t = useTranslations("projKeywords")
+  const data = features?.aiOverviewData
+  const citation = features?.aiOverviewCitation
+  const state = aiCitationState(features)
+
+  if (data?.pending) {
+    return (
+      <span className="aio pending" title={t("aioPendingTip")}>
+        <span className="dot" aria-hidden />
+        {t("aioPending")}
+      </span>
+    )
+  }
+  if (state === "cited") {
+    // refCount is the true citation count; `references` is always [] in the list
+    // payload (trimmed for wire size), so never measure it here.
+    const n = data?.refCount ?? 0
+    return (
+      <span
+        className="aio cited"
+        title={n > 0 ? t("aioCitedTip", { position: citation?.citedPosition ?? 0, count: n }) : t("aioCitedTipNoCount")}
+      >
+        <span className="dot" aria-hidden />
+        {citation?.citedPosition != null ? t("aioCitedAt", { position: citation.citedPosition }) : t("aioCited")}
+      </span>
+    )
+  }
+  if (state === "not-cited") {
+    const domains = data?.domainCount ?? 0
+    return (
+      <span
+        className="aio not-cited"
+        title={domains > 0 ? t("aioNotCitedTip", { count: domains }) : t("aioNotCitedTipNoCount")}
+      >
+        <span className="dot" aria-hidden />
+        {t("aioNotCited")}
+      </span>
+    )
+  }
+  return (
+    <span className="tiny muted" title={state === "no-overview" ? t("aioNoneTip") : t("aioUnknownTip")}>
+      —
+    </span>
+  )
 }
 
 function StatusDot({ status }: { status: string | null }) {
@@ -978,12 +1059,6 @@ export default function ProjectKeywordsPage() {
     }
   }
 
-  // Page score click → run a full on-page audit (the Page Score Checker) for
-  // the keyword's scored page and open its report. Mirrors the audit tool's
-  // own submit flow: POST creates/reuses the audit, then route to results.
-  // (openAuditReport lived here — it opened the Page Score report from the P.S
-  // badge. Both are gone with the page score; page auditing is its own tool now.)
-
   // Keyword score click (ranking keyword) → open the full detailed Keyword Score
   // Checker report for the keyword + its ranking page, instead of the compact
   // modal. Reuses a recent analysis for the same url+keyword so repeated clicks
@@ -1418,12 +1493,6 @@ export default function ProjectKeywordsPage() {
       .map((k) => k.position)
       .filter((p): p is number => p != null && Number.isFinite(p))
     const ranked = scoped.filter((k) => k.position != null)
-    // Aggregate SEO score — the average of the keywords' page-audit scores
-    // (the same 0–100 scale as the table's "Keyword score" column). Null until
-    // at least one keyword has been analysed.
-    const scoresArr = scoped
-      .map((k) => k.pageScore)
-      .filter((s): s is number => s != null && Number.isFinite(s))
     // 7-day movement — real deltas only, from each keyword's d7 window.
     const d7s = ranked
       .map((k) => k.d7)
@@ -1443,9 +1512,6 @@ export default function ProjectKeywordsPage() {
       lost: ranked.filter((k) => (k.d1 ?? 0) < 0).length,
       noChange: ranked.filter((k) => (k.d1 ?? 0) === 0).length,
       estTraffic: scoped.reduce((s, k) => s + (k.monthlyTraffic ?? 0), 0),
-      seoScore: scoresArr.length
-        ? Math.round(scoresArr.reduce((a, b) => a + b, 0) / scoresArr.length)
-        : null,
       // Positive = average rank improved over the last 7 days.
       avgPosD7: d7s.length ? d7s.reduce((a, b) => a + b, 0) / d7s.length : null,
       top3D7: prevPositions.length
@@ -1494,6 +1560,7 @@ export default function ProjectKeywordsPage() {
         vol: (k) => k.searchVolume ?? 0,
         // Un-scored keywords (null) sort to the bottom.
         score: (k) => k.pageScore ?? -1,
+        aio: (k) => aioRank(k.serpFeatures),
       }
       const fn = map[sort.key as Exclude<SortKey, "kw" | "checkedAt">]
       return (fn(a) - fn(b)) * dir
@@ -1794,20 +1861,6 @@ export default function ProjectKeywordsPage() {
 
       {/* Stat strip — one card, divider-separated cells */}
       <div className="card stat-strip" style={{ marginBottom: 14 }}>
-        <div className="cell">
-          {/* Labelled for what it actually averages. It reads stats.seoScore,
-              which is the mean of each keyword's score — so "SEO Score" was a
-              broader claim than the number supports, and it sat above a caption
-              already saying "avg. keyword score". */}
-          <div className="lbl">{t("colKeywordScore")}</div>
-          <div className="row" style={{ gap: 10, alignItems: "center" }}>
-            <div className="val tabular">{stats.seoScore ?? "—"}</div>
-            <ScoreGauge score={stats.seoScore} />
-          </div>
-          <span className="tiny muted">
-            {stats.seoScore != null ? t("avgKeywordScore") : t("runAnalysisToGrade")}
-          </span>
-        </div>
         <div className="cell">
           <div className="lbl">{t("keywordsTracked")}</div>
           <div className="val tabular">{stats.total.toLocaleString()}</div>
@@ -2120,35 +2173,48 @@ export default function ProjectKeywordsPage() {
             <table className="tbl" style={{ minWidth: 980 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 40 }}>
+                  <th style={{ width: 40 }} title={t("tipSelectAll")}>
                     <input
                       type="checkbox"
                       checked={filtered.length > 0 && filtered.every((kw) => selectedKeywords.has(kw.id))}
                       onChange={handleSelectAll}
-                      title={t("colKeyword")}
+                      title={t("tipSelectAll")}
                     />
                   </th>
-                  <SortHeader label={t("colKeyword")} k="kw" sort={sort} onClick={clickSort} />
-                  <SortHeader label={t("colPosition")} k="pos" sort={sort} onClick={clickSort} width={120} />
-                  <th style={{ whiteSpace: "nowrap", width: 100 }}>{t("colFirstCheck")}</th>
-                  <SortHeader label={t("colVolume")} k="vol" sort={sort} onClick={clickSort} width={100} />
-                  <th style={{ width: "22%" }}>{t("colUrl")}</th>
+                  <SortHeader label={t("colKeyword")} title={t("tipKeyword")} k="kw" sort={sort} onClick={clickSort} width={220} />
+                  <SortHeader label={t("colPosition")} title={t("tipPosition")} k="pos" sort={sort} onClick={clickSort} width={104} />
+                  <th style={{ whiteSpace: "nowrap", width: 92 }} title={t("tipFirstCheck")}>{t("colFirstCheck")}</th>
+                  <SortHeader label={t("colVolume")} title={t("tipVolume")} k="vol" sort={sort} onClick={clickSort} width={88} />
+                  <th style={{ width: 220 }} title={t("tipUrl")}>{t("colUrl")}</th>
                   {/* Keyword score only. The Page Score half of this column was
                       removed — it measured a different thing (how well one URL
                       is built) and sat beside a keyword metric, which read as
                       two views of the same number. Page auditing now lives in
                       its own tool. */}
                   <SortHeader
-                    label={t("colKeywordScoreAbbr")}
-                    title={t("colKeywordScore")}
+                    // Short label on purpose: the th is white-space:nowrap, so the
+                    // header text — not `width` — sets the column's floor, and
+                    // "KEYWORD SCORE" plus the ⓘ was forcing it ~40px wider than
+                    // the two-digit badge needs. Only one score column remains, so
+                    // "Score" is unambiguous; the full name is in the tooltip.
+                    label={t("colScoreShort")}
+                    title={t("tipKeywordScore")}
                     k="score"
                     sort={sort}
                     onClick={clickSort}
-                    width={96}
+                    width={72}
                     info={<ScoreInfoTip />}
                   />
-                  <SortHeader label={t("colLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={140} />
-                  <th style={{ width: 190, whiteSpace: "nowrap" }}>{t("colActions")}</th>
+                  <SortHeader
+                    label={t("colAiOverview")}
+                    title={t("colAiOverviewTitle")}
+                    k="aio"
+                    sort={sort}
+                    onClick={clickSort}
+                    width={104}
+                  />
+                  <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
+                  <th style={{ width: 190, whiteSpace: "nowrap" }} title={t("tipActions")}>{t("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2174,9 +2240,11 @@ export default function ProjectKeywordsPage() {
                         />
                       </td>
                       <td>
-                        <span className="row" style={{ gap: 8, alignItems: "center" }}>
+                        {/* minWidth:0 lets the .kw ellipsis engage — without it the
+                            flex child sizes to its content and never truncates. */}
+                        <span className="row" style={{ gap: 8, alignItems: "center", minWidth: 0 }}>
                           <Flag code={kw.location} title={kw.location?.toUpperCase()} />
-                          <span className="kw">{kw.keyword}</span>
+                          <span className="kw" title={kw.keyword}>{kw.keyword}</span>
                         </span>
                       </td>
                       <td>
@@ -2202,7 +2270,7 @@ export default function ProjectKeywordsPage() {
                         <PosCell position={kw.firstPosition} checked={!!kw.checkedAt} />
                       </td>
                       <td className="tabular">{kw.searchVolume != null ? kw.searchVolume.toLocaleString() : "—"}</td>
-                      <td style={{ maxWidth: 320 }}>
+                      <td style={{ maxWidth: 220 }}>
                         {kw.url ? (
                           <a
                             href={kw.url}
@@ -2229,23 +2297,22 @@ export default function ProjectKeywordsPage() {
                           is the KEYWORD score; the page score was pageAuditScore,
                           which is gone. */}
                       <td>
-                        <div className="ps-ks">
-                          <span className="ks">
-                          <ScoreBadge
-                            score={kw.pageScore}
-                            grade={kw.pageScoreGrade}
-                            label={kw.pageScoreLabel}
-                            loading={openingReportKwId === kw.id || (isActive && kw.pageScore == null)}
-                            onClick={() => openKeywordReport(kw)}
-                            emptyTitle="Not ranking yet — click to score a page for this keyword"
-                            onEmptyClick={() =>
-                              router.push(
-                                `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}&domain=${encodeURIComponent(project.domain)}`
-                              )
-                            }
-                          />
-                          </span>
-                        </div>
+                        <ScoreBadge
+                          score={kw.pageScore}
+                          grade={kw.pageScoreGrade}
+                          label={kw.pageScoreLabel}
+                          loading={openingReportKwId === kw.id || (isActive && kw.pageScore == null)}
+                          onClick={() => openKeywordReport(kw)}
+                          emptyTitle="Not ranking yet — click to score a page for this keyword"
+                          onEmptyClick={() =>
+                            router.push(
+                              `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}&domain=${encodeURIComponent(project.domain)}`
+                            )
+                          }
+                        />
+                      </td>
+                      <td>
+                        <AiOverviewCell features={kw.serpFeatures} />
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
@@ -2815,39 +2882,6 @@ export default function ProjectKeywordsPage() {
   )
 }
 
-// Semi-circle score gauge for the stat strip. Color + label follow the same
-// grade bands as the keyword-score badges (green / amber / red).
-function ScoreGauge({ score }: { score: number | null }) {
-  const color =
-    score == null
-      ? "var(--border-strong)"
-      : score >= 70
-        ? "var(--pos)"
-        : score >= 40
-          ? "var(--warn)"
-          : "var(--neg)"
-  const label =
-    score == null ? "No data" : score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Fair" : "Poor"
-  const C = Math.PI * 30 // semicircle length for r=30
-  const filled = ((score ?? 0) / 100) * C
-  return (
-    <svg width="76" height="48" viewBox="0 0 76 48" aria-label={`SEO score ${score ?? "unknown"} — ${label}`}>
-      <path d="M 8 42 A 30 30 0 0 1 68 42" fill="none" stroke="var(--bg-inset)" strokeWidth="8" strokeLinecap="round" />
-      {score != null && (
-        <path
-          d="M 8 42 A 30 30 0 0 1 68 42"
-          fill="none"
-          stroke={color}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${C + 10}`}
-        />
-      )}
-      <text x="38" y="42" textAnchor="middle" fontSize="10" fill="var(--text-mute)">{label}</text>
-    </svg>
-  )
-}
-
 // Green/red movement pill under a stat (↑ 6.3). Renders nothing without real
 // movement — no fabricated deltas.
 function DeltaPill({ value, format }: { value: number | null; format?: (n: number) => string }) {
@@ -3115,8 +3149,8 @@ function ScheduleToggle({
   )
 }
 
-// "What are P.S / K.S?" — the ⓘ in the score column header. Click to reveal what
-// each score means and where it comes from. The panel is portaled to <body>
+// "What is the Keyword Score?" — the ⓘ in the score column header. Click to
+// reveal what it means and where it comes from. The panel is portaled to <body>
 // because the table lives in a horizontal-scroll container that would clip it.
 function ScoreInfoTip() {
   const t = useTranslations("projKeywords")
@@ -3171,11 +3205,6 @@ function ScoreInfoTip() {
         <div className="fs-app" style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 80 }}>
           <div className="score-info-pop" role="dialog" aria-label={t("scoreInfoAria")}>
             <div className="r">
-              <span className="tag">{t("colPageScoreAbbr")}</span>
-              <span>{t("scoreInfoPs")}</span>
-            </div>
-            <div className="r">
-              <span className="tag">{t("colKeywordScoreAbbr")}</span>
               <span>{t("scoreInfoKs")}</span>
             </div>
             <div className="hint">{t("scoreInfoHint")}</div>

@@ -126,9 +126,9 @@ export function SetupCard({ projectId, gsc }: { projectId: string; gsc: GscState
   const steps: Step[] = [
     searchConsoleStep(projectId, gsc),
     {
-      title: "On Page SEO Checker",
-      description: "Score a single page and collect concrete fixes for content, meta and structure.",
-      href: "/dashboard/onpage-audit",
+      title: "Website Audit",
+      description: "Check your site's technical health, content, speed and security — with the exact fixes.",
+      href: "/dashboard/page-audit",
       cta: "Set up",
       done: null,
     },

@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
 import { Favicon } from "@/components/favicon"
 
 interface Competitor {
@@ -100,11 +101,20 @@ function deltaOver(
   return past?.position != null ? past.position - current : null
 }
 
-type Tab = "overview" | "serp" | "history"
+type Tab = "overview" | "serp" | "aio" | "history"
+
+const TABS: Tab[] = ["overview", "serp", "aio", "history"]
+
+/** ?tab= deep link, so a shared URL can land straight on a given tab (e.g.
+ *  ?tab=aio for the citations panel). Unrecognised or absent → overview. */
+function tabFromParam(raw: string | null): Tab {
+  return TABS.includes(raw as Tab) ? (raw as Tab) : "overview"
+}
 
 export default function KeywordDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
   // Project id and keyword id both come from the route path now —
@@ -115,7 +125,7 @@ export default function KeywordDetailPage() {
   const [data, setData] = useState<KeywordDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [tab, setTab] = useState<Tab>("overview")
+  const [tab, setTab] = useState<Tab>(() => tabFromParam(searchParams.get("tab")))
   const [historyPage, setHistoryPage] = useState(1)
   const [serpPage, setSerpPage] = useState(1)
   const ITEMS_PER_PAGE = 10
@@ -265,6 +275,9 @@ export default function KeywordDetailPage() {
         </button>
         <button className={"tab " + (tab === "serp" ? "active" : "")} onClick={() => setTab("serp")}>
           SERP results {competitors.length > 0 && <span className="muted" style={{ marginLeft: 4 }}>({competitors.length})</span>}
+        </button>
+        <button className={"tab " + (tab === "aio" ? "active" : "")} onClick={() => setTab("aio")}>
+          AI Overview
         </button>
         <button className={"tab " + (tab === "history" ? "active" : "")} onClick={() => setTab("history")}>
           History {history.length > 0 && <span className="muted" style={{ marginLeft: 4 }}>({history.length})</span>}
@@ -519,6 +532,10 @@ export default function KeywordDetailPage() {
             </div>
           )}
         </div>
+      )}
+
+      {tab === "aio" && (
+        <AiOverviewPanel projectId={projectId} keywordId={kwId} projectDomain={project.domain} />
       )}
 
       {tab === "history" && (

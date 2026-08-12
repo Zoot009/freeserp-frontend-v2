@@ -28,7 +28,6 @@ const TOOLS: NavEntry[] = [
   { href: "/dashboard/serp-checker", labelKey: "quickSerp", icon: Icon.zap },
   { href: "/dashboard/keyword-magic", labelKey: "keywordMagic", icon: Icon.key },
   { href: "/dashboard/keyword-analysis", labelKey: "keywordAnalysis", icon: Icon.search },
-  { href: "/dashboard/onpage-audit", labelKey: "onPageAudit", icon: Icon.monitor },
   { href: "/dashboard/competitor-analysis", labelKey: "competitorAnalysis", icon: Icon.users },
   { href: "/dashboard/billing", labelKey: "settings", icon: Icon.settings },
 ]

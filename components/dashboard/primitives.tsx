@@ -368,6 +368,41 @@ export type KeywordRow = {
   trend?: number[]
 }
 
+// One source cited inside an AI Overview.
+export type AiOverviewReference = {
+  domain: string
+  url: string
+  title?: string
+  /** Publisher label DataForSEO reports, e.g. "RunRepeat". */
+  source?: string
+}
+
+// Tenant-neutral AI Overview detail (serpFeatures.aiOverviewData).
+// NOTE: `references` is always [] on list payloads — the backend trims it for
+// wire size and serves the full list from the per-keyword ai-overview endpoint.
+// Use refCount/domainCount for counts here, not references.length.
+export type AiOverviewData = {
+  present: boolean
+  /** Google returned an async placeholder: citations are UNKNOWN, not absent. */
+  pending?: boolean
+  references: AiOverviewReference[]
+  refCount: number
+  domainCount: number
+  expansionDomains?: string[]
+  expansionBlocks?: number
+}
+
+// Per-project citation verdict. ABSENT means unknown — never render it as
+// "not cited"; that's what the four-state aiCitationState() below is for.
+export type AiOverviewCitation = {
+  cited: boolean
+  /** 1-based index into the AI Overview's citation list. */
+  citedPosition?: number
+  citedUrl?: string
+  /** Cited in a nested AI block (product considerations / PAA), not the overview. */
+  citedInExpansion?: boolean
+}
+
 // Backend SERP-feature flags (ProjectRankCheck.serpFeatures), as surfaced by the
 // projects API. All optional — only the features Google showed are present.
 export type SerpFeatures = {
@@ -379,6 +414,28 @@ export type SerpFeatures = {
   imagePack?: boolean
   videoPack?: boolean
   aiOverview?: boolean
+  aiOverviewData?: AiOverviewData
+  aiOverviewCitation?: AiOverviewCitation
+}
+
+/**
+ * Four states, mirroring the backend's aiCitationState (serp/aiOverview.ts).
+ *
+ * `unknown` is distinct from `not-cited` on purpose: a check predating this
+ * feature, an unresolved async placeholder, or an HTML-fallback check genuinely
+ * tells us nothing, and showing "not cited" there would be a lie. `no-overview`
+ * is separate too — no AI Overview on the page is not the same as being left
+ * out of one.
+ */
+export type AiCitationState = "cited" | "not-cited" | "no-overview" | "unknown"
+
+export function aiCitationState(sf: SerpFeatures | null | undefined): AiCitationState {
+  const data = sf?.aiOverviewData
+  if (!data || data.pending) return "unknown"
+  if (!data.present) return "no-overview"
+  const citation = sf?.aiOverviewCitation
+  if (!citation) return "unknown"
+  return citation.cited ? "cited" : "not-cited"
 }
 
 // One point of the 12-month search-volume history (ProjectKeyword.searchVolumeTrend).
@@ -389,7 +446,10 @@ export type MonthlySearch = { year: number; month: number; searchVolume: number 
 export function serpFeaturesToChips(sf: SerpFeatures | null | undefined): string[] {
   if (!sf || typeof sf !== "object") return []
   const out: string[] = []
-  if (sf.aiOverview) out.push("AI")
+  // Being cited in the AI Overview is the headline signal, so it gets its own
+  // chip. Legacy rows (boolean only, no aiOverviewData) fall through to plain
+  // "AI" — unknown citation state, same as before this feature existed.
+  if (sf.aiOverview) out.push(aiCitationState(sf) === "cited" ? "AICITED" : "AI")
   if (sf.featuredSnippet) out.push("FS")
   if (Array.isArray(sf.peopleAlsoAsk) && sf.peopleAlsoAsk.length) out.push("PAA")
   if (sf.videoPack) out.push("VID")
@@ -412,6 +472,7 @@ export function FeatChip({ f }: { f: string }) {
   const t = useTranslations("dashPrimitives")
   const map: Record<string, { label: string; title: string }> = {
     AI: { label: "AI", title: t("feat.AI") },
+    AICITED: { label: "AI ✓", title: t("feat.AICITED") },
     FS: { label: "FS", title: t("feat.FS") },
     PAA: { label: "PAA", title: t("feat.PAA") },
     VID: { label: "Vid", title: t("feat.VID") },
@@ -422,7 +483,61 @@ export function FeatChip({ f }: { f: string }) {
     NEWS: { label: "News", title: t("feat.NEWS") },
   }
   const m = map[f] || { label: f, title: f }
-  return <span className="chip outline" title={m.title}>{m.label}</span>
+  // Cited in the AI Overview is a win, so it reads as a positive chip rather than
+  // another neutral outline among six.
+  return <span className={f === "AICITED" ? "chip brand" : "chip outline"} title={m.title}>{m.label}</span>
+}
+
+/**
+ * Clickable sortable table header. Generic over the sort key so every list page
+ * can share one implementation — pass your own union as `K` and it stays typed
+ * at the call site.
+ */
+export function SortHeader<K extends string>({
+  label,
+  k,
+  sort,
+  onClick,
+  width,
+}: {
+  label: string
+  k: K
+  sort: { key: string; dir: "asc" | "desc" }
+  onClick: (k: K) => void
+  width?: number
+}) {
+  return (
+    <th onClick={() => onClick(k)} style={{ cursor: "pointer", userSelect: "none", width }}>
+      {label}
+      {sort.key === k && (
+        <span style={{ color: "var(--brand)", marginLeft: 4 }}>{sort.dir === "asc" ? "↑" : "↓"}</span>
+      )}
+    </th>
+  )
+}
+
+/** One "label value" pill in a list page's summary strip. */
+export function SummaryChip({
+  lbl,
+  val,
+  total,
+  pct,
+  ofLabel,
+}: {
+  lbl: string
+  val: string
+  total?: number
+  pct?: number
+  ofLabel?: string
+}) {
+  return (
+    <div className="card tight row" style={{ padding: "8px 14px", flex: "0 0 auto", gap: 8, alignItems: "baseline", whiteSpace: "nowrap" }}>
+      <span className="tiny muted">{lbl}</span>
+      <span className="b tabular" style={{ fontSize: 15 }}>{val}</span>
+      {total != null && <span className="tiny muted">{ofLabel}</span>}
+      {pct != null && pct > 0 && <span className="tiny muted">({pct}%)</span>}
+    </div>
+  )
 }
 
 export function KeywordTable({
@@ -449,7 +564,7 @@ export function KeywordTable({
         {rows.map((k, i) => (
           <tr key={k.id ?? i} onClick={() => onRow?.(k)} style={{ cursor: onRow ? "pointer" : "default" }}>
             <td>
-              <div className="kw">{k.kw}</div>
+              <div className="kw" title={k.kw}>{k.kw}</div>
               {k.url && <div className="tiny muted mono" style={{ marginTop: 2 }}>{k.url}</div>}
             </td>
             <td><PosBadge pos={k.pos ?? undefined} /></td>

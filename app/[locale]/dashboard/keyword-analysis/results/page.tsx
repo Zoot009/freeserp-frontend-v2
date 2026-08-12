@@ -27,7 +27,7 @@ type Analysis = {
 
 const POLL_MS = 2500
 
-// Score band → tone, matching the Page Score Checker's pos/brand/neg palette.
+// Score band → tone, using the shared pos/brand/neg palette.
 function scoreToneVar(v: number): { color: string; bg: string } {
   if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
   if (v >= 60) return { color: "var(--brand)", bg: "var(--brand-soft)" }
