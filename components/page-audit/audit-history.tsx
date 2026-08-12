@@ -46,6 +46,54 @@ const hostOf = (raw: string) => {
   }
 }
 
+/**
+ * The site's favicon, over a letter tile.
+ *
+ * Resolved through a lookup service rather than from the site itself: an icon
+ * can live at any of several places (/favicon.ico, a <link rel="icon">, the web
+ * manifest), so doing it properly would mean parsing each site from the browser
+ * — one request per row, on domains that a failed audit has already shown may
+ * serve nothing at all.
+ *
+ * DuckDuckGo's, not Google's, on measured results against this app's own audit
+ * history: Google's s2 service answered 404-plus-generic-globe for several live
+ * domains that DuckDuckGo returned the real icon for, including
+ * lodhacrown.nobrokerss.com. It also returns an empty body for a domain with no
+ * icon at all, which trips onError below and leaves the letter showing —
+ * cleaner than painting a grey globe on every such row.
+ *
+ * The letter tile sits underneath rather than replacing the image, so a row
+ * reads as itself while the icon loads and keeps reading as itself if the icon
+ * never arrives. No layout shift either way, because the tile is what occupies
+ * the space.
+ *
+ * Worth knowing: this tells DuckDuckGo which domains an account has audited.
+ */
+function SiteFavicon({ host }: { host: string }) {
+  const [failed, setFailed] = useState(false)
+
+  return (
+    <span
+      className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted/50 font-mono text-[11px] font-bold text-foreground/60"
+      aria-hidden
+    >
+      {host.charAt(0).toUpperCase()}
+      {!failed && (
+        // eslint-disable-next-line @next/next/no-img-element -- a 28px icon gains
+        // nothing from the image optimizer, and next/image would need the favicon
+        // host allow-listed in next.config.
+        <img
+          src={`https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full bg-background object-contain p-1"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  )
+}
+
 export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
   const router = useRouter()
   const [items, setItems] = useState<AuditListItem[]>([])
@@ -145,9 +193,14 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
             )}
           >
             <span className="tabular-nums text-muted-foreground">{page * PAGE_SIZE + i + 1}</span>
-            <div className="min-w-0">
-              <div className="truncate font-semibold">{hostOf(r.url)}</div>
-              <div className="truncate text-xs text-muted-foreground">{r.url}</div>
+            {/* Favicon inside the website cell, not as its own grid column, so
+                the header row's alignment is untouched. */}
+            <div className="flex min-w-0 items-center gap-2.5">
+              <SiteFavicon host={hostOf(r.url)} />
+              <div className="min-w-0">
+                <div className="truncate font-semibold">{hostOf(r.url)}</div>
+                <div className="truncate text-xs text-muted-foreground">{r.url}</div>
+              </div>
             </div>
             <span className="flex justify-end">
               {r.status === "COMPLETED" && r.overallScore != null ? (
