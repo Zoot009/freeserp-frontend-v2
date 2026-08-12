@@ -78,7 +78,16 @@ export interface AiReport {
 export interface Scan {
   id: string
   status: ScanStatus
-  location: { id: string; name: string; address: string; latitude: number; longitude: number }
+  location: {
+    id: string
+    name: string
+    address: string
+    latitude: number
+    longitude: number
+    rating: number | null
+    reviewCount: number | null
+    primaryCategory: string | null
+  }
   centerLat: number
   centerLng: number
   gridSize: number
@@ -160,4 +169,34 @@ export interface CreateScanResponse {
   status: ScanStatus
   totalPoints: number
   estimatedSeconds: number
+}
+
+export interface CompetitorRow {
+  key: string
+  placeId: string | null
+  name: string
+  address: string | null
+  rating: number | null
+  reviewCount: number | null
+  category: string | null
+  isTarget: boolean
+  foundPoints: number
+  scoredPoints: number
+  percentOfResults: number
+  arp: number | null
+  atrp: number | null
+  solv: number | null
+}
+
+export interface CompetitorLeaderboard {
+  rows: CompetitorRow[]
+  insights: {
+    yourSolv: number | null
+    topSolv: number | null
+    isMarketLeader: boolean
+    yourTop3DistanceMeters: number | null
+    marketAverageTop3DistanceMeters: number | null
+    totalCompetitors: number
+    activeCompetitors: number
+  }
 }

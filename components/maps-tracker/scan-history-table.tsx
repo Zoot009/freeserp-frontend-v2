@@ -1,6 +1,7 @@
 "use client"
 
-import { MapPin } from "lucide-react"
+import { MapPin, FileText } from "lucide-react"
+import { Link } from "@/i18n/navigation"
 import { rankColor } from "./grid"
 import type { ScanHistoryItem, ScanHistoryKeyword } from "./types"
 
@@ -133,6 +134,7 @@ export function ScanHistoryTable({ rows, onOpenScan }: { rows: ScanHistoryRow[];
               <th>ARP</th>
               <th>ATRP</th>
               <th>SoLV</th>
+              <th>Report</th>
             </tr>
           </thead>
           <tbody>
@@ -187,6 +189,22 @@ export function ScanHistoryTable({ rows, onOpenScan }: { rows: ScanHistoryRow[];
                       value={row.keyword.solv != null ? row.keyword.solv.toFixed(2) : "—"}
                       good={row.keyword.solv == null ? null : row.keyword.solv >= 30}
                     />
+                  </td>
+                  <td>
+                    {row.scanStatus === "QUEUED" || row.scanStatus === "RUNNING" ? (
+                      <span className="tiny muted">—</span>
+                    ) : (
+                      <Link
+                        href={`/reports/maps-tracker/${row.scanId}/${row.keyword.id}`}
+                        target="_blank"
+                        className="icon-btn"
+                        title="Open scan report in a new tab"
+                        aria-label="Open scan report in a new tab"
+                        onClick={(e) => e.stopPropagation()} // don't also trigger the row's onOpenScan
+                      >
+                        <FileText size={14} />
+                      </Link>
+                    )}
                   </td>
                 </tr>
               )
