@@ -32,20 +32,21 @@ export type AuditListItem = {
 }
 
 /**
- * Which of the two audits this row was.
+ * How much of the site this score covers, as a page count.
  *
- * "This page" and "Whole site" are different jobs producing differently-shaped
- * reports — one URL versus a crawl of up to 500 — but the history rendered them
- * identically, so a 76 from a single page sat next to a 76 averaged over a whole
- * site with nothing to tell them apart.
+ * A count rather than a "Single page" / "Whole site" badge: the badge said
+ * "Single page" on nine rows out of ten, which is a label repeated so often it
+ * stops carrying information while still taking up the space of something that
+ * does. The number is the part that actually differs — and it is what makes two
+ * scores comparable, since a 76 across 64 pages means something a 76 across one
+ * page does not.
  *
- * The page count rides along for site audits because it is the thing that makes
- * the number comparable, and it is only meaningful there. A failed crawl
- * analysed nothing, so it is omitted rather than shown as zero.
+ * Null when there is nothing to state: a failed run analysed no pages, and "0
+ * pages" next to "No such domain" is just noise.
  */
-function modeLabel(r: AuditListItem): string {
-  if (r.mode !== "SITE") return "Single page"
-  return r.pagesAnalyzed > 1 ? `Whole site · ${r.pagesAnalyzed} pages` : "Whole site"
+function pagesLabel(r: AuditListItem): string | null {
+  if (r.status === "FAILED" || r.pagesAnalyzed < 1) return null
+  return r.pagesAnalyzed === 1 ? "1 page" : `${r.pagesAnalyzed} pages`
 }
 
 /**
@@ -247,11 +248,13 @@ export function AuditHistory({ refreshKey = 0 }: { refreshKey?: number }) {
                   is fine. The letter tile alone is honest. */}
               <SiteFavicon host={hostOf(r.url)} lookUp={r.status !== "FAILED"} />
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-baseline gap-2">
                   <span className="truncate font-semibold">{hostOf(r.url)}</span>
-                  <span className="shrink-0 rounded border border-border/60 bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
-                    {modeLabel(r)}
-                  </span>
+                  {pagesLabel(r) && (
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {pagesLabel(r)}
+                    </span>
+                  )}
                 </div>
                 <div className="truncate text-xs text-muted-foreground">{r.url}</div>
               </div>

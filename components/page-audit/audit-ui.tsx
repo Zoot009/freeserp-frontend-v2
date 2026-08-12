@@ -4137,16 +4137,12 @@ export function AuditReportResults({
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground/40 hover:text-accent transition-colors">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
-                {/* Which audit this was. The two produce differently-shaped
-                    reports — one URL versus a crawl — and the page gave no way
-                    to tell, so a single-page score read as a whole-site verdict. */}
-                {report.mode && (
-                  <span className="ml-1 shrink-0 rounded border border-border/60 bg-muted/60 px-1.5 py-px text-[10px] font-medium text-muted-foreground">
-                    {report.mode === "SITE"
-                      ? report.pagesAnalyzed > 1
-                        ? `Whole site · ${report.pagesAnalyzed} pages`
-                        : "Whole site"
-                      : "Single page"}
+                {/* How much of the site this score covers. Without it a report
+                    from one URL and a report from a 64-page crawl are the same
+                    hostname and the same grade, read the same way. */}
+                {report.pagesAnalyzed > 0 && (
+                  <span className="ml-1 shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {report.pagesAnalyzed === 1 ? "1 page" : `${report.pagesAnalyzed} pages`}
                   </span>
                 )}
               </div>
