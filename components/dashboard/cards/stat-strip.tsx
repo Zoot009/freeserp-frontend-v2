@@ -14,52 +14,13 @@
  * stays empty rather than inventing a proportion to fill it with.
  */
 
-import { InfoHint } from "@/components/dashboard/widget"
+// Stat and scoreBand now live in components/dashboard/stat-card, so the project
+// page presents a figure identically instead of carrying its own copy that
+// drifts the moment either is touched.
+import { StatCard as Stat, scoreBand } from "@/components/dashboard/stat-card"
 import { StatStripSkeleton } from "@/components/dashboard/shell-skeleton"
-import { cn } from "@/lib/utils"
 
 const nf = (n: number) => n.toLocaleString()
-const clamp = (n: number) => Math.max(0, Math.min(100, n))
-
-/** Weak scores red, middling amber, strong green — the band is readable before
- *  the number is. */
-const scoreBand = (v: number | null) => {
-  if (v == null) return { bar: "bg-muted-foreground/30", text: "text-muted-foreground/50" }
-  if (v >= 60) return { bar: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" }
-  if (v >= 30) return { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" }
-  return { bar: "bg-red-500", text: "text-red-600 dark:text-red-400" }
-}
-
-function Stat({
-  label, hint, value, caption, tone, fill, fillClass,
-}: {
-  label: string
-  hint: string
-  value: React.ReactNode
-  caption: string
-  tone?: string
-  /** Percentage of the track to fill, or null when the metric has no ceiling. */
-  fill?: number | null
-  fillClass?: string
-}) {
-  return (
-    <div className="min-w-0 rounded-xl border bg-card px-4.5 py-4 shadow-sm">
-      <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-        <span className="truncate">{label}</span>
-        <InfoHint>{hint}</InfoHint>
-      </div>
-      <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2">
-        <span className={cn("text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums", tone ?? "text-primary")}>{value}</span>
-        <span className="text-[13px] text-muted-foreground">{caption}</span>
-      </div>
-      <div className="mt-3.5 h-[5px] overflow-hidden rounded-[3px] bg-muted">
-        {fill != null && fill > 0 && (
-          <div className={cn("h-full rounded-[3px]", fillClass ?? "bg-primary")} style={{ width: `${clamp(fill)}%` }} />
-        )}
-      </div>
-    </div>
-  )
-}
 
 export type StatStripProps = {
   loading: boolean

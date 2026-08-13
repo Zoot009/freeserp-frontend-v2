@@ -14,6 +14,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
+import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { Flag } from "@/components/flag"
@@ -1859,110 +1860,121 @@ export default function ProjectKeywordsPage() {
         </div>
       </div>
 
-      {/* Stat strip — one card, divider-separated cells */}
-      <div className="card stat-strip" style={{ marginBottom: 14 }}>
-        <div className="cell">
-          <div className="lbl">{t("keywordsTracked")}</div>
-          <div className="val tabular">{stats.total.toLocaleString()}</div>
-          <span className="tiny muted">{t("inTop3Count", { count: stats.top3 })}</span>
-        </div>
-        <div className="cell">
-          <div className="lbl">{t("avgPosition")}</div>
-          <div className="val tabular">{stats.avgPos ? stats.avgPos.toFixed(1) : "—"}</div>
-          {stats.avgPosD7 != null && Math.round(stats.avgPosD7 * 10) !== 0 ? (
-            <DeltaPill value={Math.round(stats.avgPosD7 * 10) / 10} format={(n) => n.toFixed(1)} />
-          ) : (
-            <span className="tiny muted">
-              {stats.total > 0
-                ? t("rankedCount", { count: stats.total - (statusCounts["FAILED"] || 0) - (statusCounts["NONE"] || 0) })
-                : t("noData")}
-            </span>
-          )}
-        </div>
-        <div className="cell">
-          <div className="lbl">{t("top3Keywords")}</div>
-          <div className="val tabular">{stats.top3.toLocaleString()}</div>
-          {stats.top3D7 != null && stats.top3D7 !== 0 ? (
-            <DeltaPill value={stats.top3D7} />
-          ) : (
-            <span className="tiny muted">
-              {stats.total ? `${Math.round((stats.top3 / stats.total) * 100)}%` : "—"}
-            </span>
-          )}
-        </div>
-        <div className="cell">
-          <div className="lbl">{t("inTop10")}</div>
-          <div className="val tabular">{stats.top10.toLocaleString()}</div>
-          {stats.top10D7 != null && stats.top10D7 !== 0 ? (
-            <DeltaPill value={stats.top10D7} />
-          ) : (
-            <span className="tiny muted">
-              {stats.total ? `${Math.round((stats.top10 / stats.total) * 100)}%` : "—"}
-            </span>
-          )}
-        </div>
-        <div className="cell">
-          <div className="lbl">{t("estTraffic")}</div>
-          <div className="val tabular">
-            {stats.estTraffic > 0
-              ? stats.estTraffic >= 1000
-                ? `${(stats.estTraffic / 1000).toFixed(1)}K`
-                : stats.estTraffic.toLocaleString()
-              : "—"}
+      {/* Stat strip.
+          Rebuilt on the Overview's StatCard rather than the old divider-cell
+          card, so the two pages present a number the same way — and, more to the
+          point, so every figure carries an explanation. "2.5" and "9 / 100" mean
+          nothing on their own, and a bare label has nowhere to say what counts
+          as good. */}
+      {(() => {
+        const da = project.domainAuthority
+        const band = scoreBand(da)
+        const ranked = stats.total - (statusCounts["FAILED"] || 0) - (statusCounts["NONE"] || 0)
+        const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toLocaleString())
+        /** Greyed when there is nothing to report, so real numbers stand out. */
+        const dim = (n: number | null | undefined) => (n ? undefined : "text-muted-foreground/50")
+
+        return (
+          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4 xl:grid-cols-7">
+            <StatCard
+              label={t("keywordsTracked")}
+              hint="Keywords being checked for this project. Each one is queried on the project's schedule."
+              value={stats.total.toLocaleString()}
+              tone={dim(stats.total)}
+              caption={t("inTop3Count", { count: stats.top3 })}
+              fill={null}
+            />
+
+            <StatCard
+              label={t("avgPosition")}
+              hint="Mean Google position across every keyword that currently ranks. Lower is better — keywords outside the top 100 are excluded rather than counted as 100."
+              value={stats.avgPos ? stats.avgPos.toFixed(1) : "—"}
+              tone={dim(stats.avgPos)}
+              caption={
+                stats.avgPosD7 != null && Math.round(stats.avgPosD7 * 10) !== 0 ? (
+                  <DeltaPill value={Math.round(stats.avgPosD7 * 10) / 10} format={(n) => n.toFixed(1)} />
+                ) : stats.total > 0 ? (
+                  t("rankedCount", { count: ranked })
+                ) : (
+                  t("noData")
+                )
+              }
+              fill={null}
+            />
+
+            <StatCard
+              label={t("top3Keywords")}
+              hint="Keywords ranking in positions 1–3, where the large majority of clicks land."
+              value={stats.top3.toLocaleString()}
+              tone={dim(stats.top3)}
+              caption={
+                stats.top3D7 != null && stats.top3D7 !== 0 ? (
+                  <DeltaPill value={stats.top3D7} />
+                ) : stats.total ? (
+                  `${Math.round((stats.top3 / stats.total) * 100)}% of tracked`
+                ) : (
+                  "—"
+                )
+              }
+              fill={stats.total ? (stats.top3 / stats.total) * 100 : 0}
+            />
+
+            <StatCard
+              label={t("inTop10")}
+              hint="Keywords ranking on page one. Position 11 and below get a small fraction of the traffic of position 10."
+              value={stats.top10.toLocaleString()}
+              tone={dim(stats.top10)}
+              caption={
+                stats.top10D7 != null && stats.top10D7 !== 0 ? (
+                  <DeltaPill value={stats.top10D7} />
+                ) : stats.total ? (
+                  `${Math.round((stats.top10 / stats.total) * 100)}% of tracked`
+                ) : (
+                  "—"
+                )
+              }
+              fill={stats.total ? (stats.top10 / stats.total) * 100 : 0}
+            />
+
+            <StatCard
+              label={t("estTraffic")}
+              hint="Estimated monthly visits, modelled from each keyword's position and search volume. An estimate, not measured traffic — connect Search Console for actual numbers."
+              value={stats.estTraffic > 0 ? compact(stats.estTraffic) : "—"}
+              tone={dim(stats.estTraffic)}
+              caption={t("monthlyModelled")}
+              // Traffic has no ceiling to be a proportion of.
+              fill={null}
+            />
+
+            <StatCard
+              label={t("statDomainAuthority")}
+              hint="A 0–100 estimate of the domain's strength, from the number and quality of sites linking to it. Under 30 is weak, 30–59 middling, 60+ strong."
+              value={da ?? "—"}
+              tone={band.text}
+              caption={
+                da == null
+                  ? t("daOutOf100")
+                  : da >= 60
+                    ? "strong · of 100"
+                    : da >= 30
+                      ? "moderate · of 100"
+                      : "weak · of 100"
+              }
+              fill={da}
+              fillClass={band.bar}
+            />
+
+            <StatCard
+              label={t("backlinks")}
+              hint="Total inbound links found pointing at this domain, refreshed from the backlink provider."
+              value={project.domainBacklinks != null ? compact(project.domainBacklinks) : "—"}
+              tone={dim(project.domainBacklinks)}
+              caption={t("siteWide")}
+              fill={null}
+            />
           </div>
-          <span className="tiny muted">{t("monthlyModelled")}</span>
-        </div>
-        {(() => {
-          const da = project.domainAuthority
-          // DA strength → bar color (Moz-style bands): <20 red, 20–39 amber,
-          // 40+ green. The color alone conveys strength; no label needed.
-          const barColor =
-            da == null ? "var(--brand)"
-            : da >= 40 ? "var(--pos)"
-            : da >= 20 ? "var(--warn)"
-            : "var(--neg)"
-          return (
-            <div className="cell">
-              <div className="lbl">{t("statDomainAuthority")}</div>
-              <div className="val tabular">
-                {da ?? "—"}
-                {da != null && (
-                  <span style={{ fontSize: 13, fontWeight: 400, color: "var(--text-mute)" }}> / 100</span>
-                )}
-              </div>
-              {da != null ? (
-                <div
-                  title="Domain Authority (0–100)"
-                  style={{ height: 5, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden", marginTop: 7, maxWidth: 120 }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.max(4, da)}%`,
-                      background: barColor,
-                      borderRadius: 999,
-                      transition: "width .6s cubic-bezier(.16,1,.3,1)",
-                    }}
-                  />
-                </div>
-              ) : (
-                <span className="tiny muted">{t("daOutOf100")}</span>
-              )}
-            </div>
-          )
-        })()}
-        <div className="cell">
-          <div className="lbl">{t("backlinks")}</div>
-          <div className="val tabular">
-            {project.domainBacklinks != null
-              ? project.domainBacklinks >= 1000
-                ? `${(project.domainBacklinks / 1000).toFixed(1)}K`
-                : project.domainBacklinks.toLocaleString()
-              : "—"}
-          </div>
-          <span className="tiny muted">{t("siteWide")}</span>
-        </div>
-      </div>
+        )
+      })()}
 
       {error && (
         <div
