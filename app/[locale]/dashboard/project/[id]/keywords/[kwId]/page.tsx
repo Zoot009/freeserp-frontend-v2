@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import { StatCard } from "@/components/dashboard/stat-card"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
 import { Favicon } from "@/components/favicon"
 
@@ -286,70 +287,77 @@ export default function KeywordDetailPage() {
 
       {tab === "overview" && (
         <>
-          {/* STAT TILES */}
-          <div className="grid g-4" style={{ marginBottom: 14 }}>
-            <div className="stat">
-              <div className="lbl">Position</div>
-              <div className="val tabular">
-                {inFlight
-                  ? "—"
-                  : latestCheck?.position != null
-                    ? `#${latestCheck.position}`
-                    : "100+"}
-              </div>
-              <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                <ChangeCell change={latestCheck?.change ?? null} />
-                {latestCheck?.previousPos != null && (
-                  <span className="tiny muted">from #{latestCheck.previousPos}</span>
-                )}
-              </div>
-            </div>
-            <div className="stat">
-              <div className="lbl">1-day change</div>
-              <div className="val" style={{ fontSize: 18 }}><ChangeCell change={d1} /></div>
-              <span className="tiny muted">vs ~24 hours ago</span>
-            </div>
-            <div className="stat">
-              <div className="lbl">7-day change</div>
-              <div className="val" style={{ fontSize: 18 }}><ChangeCell change={d7} /></div>
-              <span className="tiny muted">vs ~7 days ago</span>
-            </div>
-            <div className="stat">
-              <div className="lbl">Search volume</div>
-              <div className="val tabular">
-                {data.searchVolume != null ? data.searchVolume.toLocaleString() : "—"}
-              </div>
-              {volTrend.length > 0 ? (
-                <div style={{ marginTop: 4 }}><Sparkline data={volTrend} /></div>
-              ) : (
-                <span className="tiny muted">/mo · trend builds over time</span>
-              )}
-            </div>
-            <div className="stat">
-              <div className="lbl">Monthly traffic</div>
-              <div className="val tabular">
-                {latestCheck?.monthlyTraffic != null ? latestCheck.monthlyTraffic.toLocaleString() : "—"}
-              </div>
-              <span className="tiny muted">modelled from position × volume</span>
-            </div>
-            <div className="stat">
-              <div className="lbl">Last checked</div>
-              <div className="val" style={{ fontSize: 18 }}>
-                {latestCheck?.checkedAt
+          {/* The same StatCard the Overview and the project page use, so a
+              figure is presented identically wherever it appears — and so each
+              one carries an explanation rather than a bare label. */}
+          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+            <StatCard
+              label="Position"
+              hint="Where this keyword currently ranks on Google. Below the top 100 shows as 100+, because Google stops reporting past that."
+              value={inFlight ? "—" : latestCheck?.position != null ? `#${latestCheck.position}` : "100+"}
+              caption={
+                <span className="flex items-center gap-2">
+                  <ChangeCell change={latestCheck?.change ?? null} />
+                  {latestCheck?.previousPos != null && <span>from #{latestCheck.previousPos}</span>}
+                </span>
+              }
+              fill={null}
+            />
+            <StatCard
+              label="1-day change"
+              hint="Movement against the most recent check at least a day old. A positive number means the position improved."
+              value={<ChangeCell change={d1} />}
+              caption="vs ~24 hours ago"
+              fill={null}
+            />
+            <StatCard
+              label="7-day change"
+              hint="Movement against the most recent check at least a week old — steadier than the daily figure, which reacts to normal SERP noise."
+              value={<ChangeCell change={d7} />}
+              caption="vs ~7 days ago"
+              fill={null}
+            />
+            <StatCard
+              label="Search volume"
+              hint="Average monthly searches for this keyword in its country, from the keyword data provider."
+              value={data.searchVolume != null ? data.searchVolume.toLocaleString() : "—"}
+              tone={data.searchVolume ? undefined : "text-muted-foreground/50"}
+              caption={
+                volTrend.length > 0 ? <Sparkline data={volTrend} /> : "/mo · trend builds over time"
+              }
+              fill={null}
+            />
+            <StatCard
+              label="Monthly traffic"
+              hint="Estimated visits this keyword brings, modelled from its position and search volume. An estimate, not measured traffic."
+              value={latestCheck?.monthlyTraffic != null ? latestCheck.monthlyTraffic.toLocaleString() : "—"}
+              tone={latestCheck?.monthlyTraffic ? undefined : "text-muted-foreground/50"}
+              caption="modelled from position × volume"
+              fill={null}
+            />
+            <StatCard
+              label="Last checked"
+              hint="When this keyword was last queried. Checks run on the project's schedule, or whenever you run one by hand."
+              value={
+                latestCheck?.checkedAt
                   ? new Date(latestCheck.checkedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
-                  : "Never"}
-              </div>
-              <span className="tiny muted">
-                {latestCheck?.checkedAt
+                  : "Never"
+              }
+              caption={
+                latestCheck?.checkedAt
                   ? new Date(latestCheck.checkedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-                  : "Run a check from the project page"}
-              </span>
-            </div>
-            <div className="stat">
-              <div className="lbl">SERP features</div>
-              <div className="val" style={{ fontSize: 18 }}>{competitors.length}</div>
-              <span className="tiny muted">competitor pages ranked</span>
-            </div>
+                  : "Run a check from the project page"
+              }
+              fill={null}
+            />
+            <StatCard
+              label="SERP features"
+              hint="How many competitor pages were captured in the search results for this keyword on the last check."
+              value={competitors.length}
+              tone={competitors.length ? undefined : "text-muted-foreground/50"}
+              caption="competitor pages ranked"
+              fill={null}
+            />
           </div>
 
           {/* Rank chart */}

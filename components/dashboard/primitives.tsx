@@ -1,5 +1,6 @@
 "use client"
 
+import { useId, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Icon } from "./icons"
 
@@ -197,30 +198,66 @@ export function Sparkline({
 
 type ChartPoint = { day?: number | string; pos?: number; imp?: number; value?: number }
 
+/**
+ * Axis ticks that never repeat a label.
+ *
+ * A rank axis is integers — there is no position #2.5 — but the old code always
+ * cut the domain into four equal parts and rounded each for display. On a
+ * keyword sitting at #1 the domain was 1–3, so the ticks came out 1, 1.5, 2,
+ * 2.5, 3 and the axis read "#1 #2 #2 #3 #3". Stepping in whole numbers is what
+ * fixes that; deduping by the FORMATTED label catches whatever the caller's
+ * formatter collapses too.
+ */
+function axisTicks(min: number, max: number, integerOnly: boolean, target = 4): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return []
+  if (min === max) {
+    // A flat series still needs a scale to sit in, or the line glues to an edge.
+    return integerOnly ? [Math.max(0, min - 1), min, min + 1] : [min - 1, min, min + 1]
+  }
+  const rawStep = (max - min) / target
+  const step = integerOnly ? Math.max(1, Math.round(rawStep)) : rawStep
+  const out: number[] = []
+  for (let v = min; v <= max + step / 2; v += step) out.push(v)
+  return out
+}
+
 export function LineChart({
   data,
   height = 240,
   color = "var(--brand)",
   yFormat = (v: number) => `${v}`,
+  xFormat,
   invert = false,
   showAxis = true,
+  label = "Value",
 }: {
   data: ChartPoint[]
   height?: number
   color?: string
   yFormat?: (v: number) => string
+  /** Point label for the tooltip; falls back to the point's index. */
+  xFormat?: (d: ChartPoint, i: number) => string
   invert?: boolean
   showAxis?: boolean
+  /** What the series measures. Named in the tooltip, since one series needs no legend. */
+  label?: string
 }) {
+  // Which point the pointer is nearest. null when it has left the plot.
+  const [hover, setHover] = useState<number | null>(null)
+  // useId, not Math.random: the gradient id has to match between the server
+  // render and the client one, or React discards the markup as a mismatch.
+  const gid = "lg" + useId().replace(/:/g, "")
+
   const w = 760
   const h = height
   const pad = { l: 44, r: 16, t: 14, b: 28 }
   const values = data.map((d) => d.pos ?? d.imp ?? d.value ?? 0)
   if (values.length === 0) return null
+
   const dataMin = Math.min(...values)
   const dataMax = Math.max(...values)
-  const yMin = invert ? Math.max(1, Math.floor(dataMin - 2)) : 0
-  const yMax = invert ? Math.ceil(dataMax + 2) : Math.ceil(dataMax * 1.1)
+  const yMin = invert ? Math.max(1, Math.floor(dataMin - 1)) : 0
+  const yMax = invert ? Math.ceil(dataMax + 1) : Math.ceil(dataMax * 1.1)
   const range = yMax - yMin || 1
   const cw = w - pad.l - pad.r
   const ch = h - pad.t - pad.b
@@ -228,46 +265,152 @@ export function LineChart({
   const xy = (i: number, v: number): [number, number] => {
     const x = pad.l + (i / (data.length - 1 || 1)) * cw
     const norm = invert ? (v - yMin) / range : 1 - (v - yMin) / range
-    const y = pad.t + norm * ch
-    return [x, y]
+    return [x, pad.t + norm * ch]
   }
 
   const pts = data.map((d, i) => xy(i, d.pos ?? d.imp ?? d.value ?? 0))
   const path = pts
     .map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + " " + p[1].toFixed(1))
     .join(" ")
-  const area = path + ` L ${pts[pts.length - 1][0]} ${pad.t + ch} L ${pts[0][0]} ${pad.t + ch} Z`
-  const ySteps = 4
-  const yTicks = Array.from({ length: ySteps + 1 }, (_, i) => yMin + (range * i) / ySteps)
-  const gid = "lg" + Math.random().toString(36).slice(2, 8)
+  const area = path + ` L ${pts[pts.length - 1]![0]} ${pad.t + ch} L ${pts[0]![0]} ${pad.t + ch} Z`
+
+  // Deduped by rendered label, so no axis can show the same value twice.
+  const seen = new Set<string>()
+  const ticks = axisTicks(yMin, yMax, invert)
+    .map((v) => ({ v, text: yFormat(v) }))
+    .filter((t) => (seen.has(t.text) ? false : (seen.add(t.text), true)))
+
+  const yOf = (v: number) => pad.t + (invert ? (v - yMin) / range : 1 - (v - yMin) / range) * ch
+
+  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const box = e.currentTarget.getBoundingClientRect()
+    // Pointer position in viewBox units, since the svg is scaled to its container.
+    const x = ((e.clientX - box.left) / box.width) * w
+    const step = cw / (data.length - 1 || 1)
+    const i = Math.round((x - pad.l) / step)
+    setHover(i >= 0 && i < data.length ? i : null)
+  }
+
+  const active = hover != null ? pts[hover] : null
 
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {showAxis &&
-        yTicks.map((_, i) => {
-          const y = pad.t + (i / ySteps) * ch
-          return (
-            <g key={i}>
-              <line x1={pad.l} y1={y} x2={w - pad.r} y2={y} stroke="var(--border)" strokeWidth="1" strokeDasharray={i === ySteps ? "0" : "3,3"} />
-              <text x={pad.l - 8} y={y + 4} fontSize="10" textAnchor="end" fill="var(--text-mute)" fontFamily="var(--font-mono)">
-                {invert ? yFormat(yMin + (range * i) / ySteps) : yFormat(yMax - (range * i) / ySteps)}
-              </text>
-            </g>
-          )
-        })}
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.length < 32 &&
-        pts.map((p, i) => (
-          <circle key={i} cx={p[0]} cy={p[1]} r="3" fill="var(--bg)" stroke={color} strokeWidth="1.5" />
-        ))}
-    </svg>
+    <div style={{ position: "relative" }}>
+      <svg
+        width="100%"
+        viewBox={`0 0 ${w} ${h}`}
+        style={{ display: "block", overflow: "visible" }}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+        role="img"
+        aria-label={`${label} over ${data.length} checks`}
+      >
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            {/* Lighter than before: the fill is there to give the line a base,
+                not to be the loudest thing on the card. */}
+            <stop offset="0%" stopColor={color} stopOpacity="0.14" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {showAxis &&
+          ticks.map((t) => {
+            const y = yOf(t.v)
+            return (
+              <g key={t.text}>
+                <line
+                  x1={pad.l}
+                  y1={y}
+                  x2={w - pad.r}
+                  y2={y}
+                  stroke="var(--border)"
+                  strokeWidth="1"
+                  strokeDasharray="3,3"
+                />
+                <text
+                  x={pad.l - 8}
+                  y={y + 4}
+                  fontSize="10"
+                  textAnchor="end"
+                  fill="var(--text-mute)"
+                  fontFamily="var(--font-mono)"
+                >
+                  {t.text}
+                </text>
+              </g>
+            )
+          })}
+
+        <path d={area} fill={`url(#${gid})`} />
+        <path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Markers only when they can be told apart; past that they merge into
+            a thick line and the hover dot does the job instead. */}
+        {pts.length < 32 &&
+          pts.map((p, i) => (
+            <circle
+              key={i}
+              cx={p[0]}
+              cy={p[1]}
+              r="4"
+              fill="var(--bg)"
+              stroke={color}
+              strokeWidth="2"
+            />
+          ))}
+
+        {active && (
+          <g pointerEvents="none">
+            <line
+              x1={active[0]}
+              y1={pad.t}
+              x2={active[0]}
+              y2={pad.t + ch}
+              stroke="var(--border-strong)"
+              strokeWidth="1"
+            />
+            <circle cx={active[0]} cy={active[1]} r="5.5" fill={color} stroke="var(--bg)" strokeWidth="2" />
+          </g>
+        )}
+      </svg>
+
+      {/* HTML, not SVG text: it inherits the app's type and tooltip styling
+          instead of needing its own box drawn by hand. */}
+      {hover != null && active && (
+        <div
+          style={{
+            position: "absolute",
+            left: `${(active[0] / w) * 100}%`,
+            top: `${(active[1] / h) * 100}%`,
+            transform: "translate(-50%, calc(-100% - 12px))",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            background: "var(--text)",
+            color: "var(--bg)",
+            borderRadius: 6,
+            padding: "5px 8px",
+            fontSize: 11.5,
+            lineHeight: 1.35,
+            boxShadow: "var(--shadow-md)",
+            zIndex: 2,
+          }}
+        >
+          <div style={{ opacity: 0.7 }}>
+            {xFormat ? xFormat(data[hover]!, hover) : `Check ${hover + 1}`}
+          </div>
+          <div style={{ fontWeight: 700 }}>
+            {yFormat(data[hover]!.pos ?? data[hover]!.imp ?? data[hover]!.value ?? 0)}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
