@@ -6,6 +6,8 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
+import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/dashboard/icons"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { Sparkline } from "@/components/dashboard/primitives"
@@ -183,7 +185,6 @@ function ProjectsList({
   onAdd,
   onUpgrade,
   onOpen,
-  onStartTour,
   favoriteIds,
   favReady,
 }: {
@@ -194,7 +195,6 @@ function ProjectsList({
   onAdd: () => void
   onUpgrade: () => void
   onOpen: (id: string) => void
-  onStartTour: () => void
   favoriteIds: Set<string>
   favReady: boolean
 }) {
@@ -229,31 +229,49 @@ function ProjectsList({
 
   return (
     <div className="page">
-      <div className="page-h">
-        <div>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> {t("headerEyebrow")}</div>
-          <h1>{t("headerTitle")}</h1>
-          <div className="sub">
+      {/* Headed like the Overview and Website Audit pages, not like the older
+          .page-h block this replaced: same 26px title, same muted subtitle, the
+          same right-aligned action row. The eyebrow went with it — "RANK
+          TRACKING" above a heading that reads "Rank Tracker" said the page's
+          name twice, and no other page in the dashboard carries one. */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">
+            {t("headerTitle")}
+          </h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             {isFree
               ? t("subFree", { used: projects.length, limit: FREE_PROJECTS_LIMIT })
               : t("subTracked", { count: projects.length })}
-          </div>
+          </p>
         </div>
-        <div className="row">
-          {/* Daily-checks chip moved to the navbar (UsageMeter). */}
-          <button className="btn sm" onClick={onStartTour} title={t("tourTitle")}>{t("tour")}</button>
-          <div className="pill-toggle">
-            <button className={view === "grid" ? "active" : ""} onClick={() => setView("grid")}>{t("viewGrid")}</button>
-            <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>{t("viewList")}</button>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2.5">
+          {/* Same segmented control as the Overview's range switcher. */}
+          <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
+            {(["grid", "list"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={
+                  "rounded-[7px] px-2.5 py-[5px] text-[13px] transition-colors " +
+                  (view === v
+                    ? "bg-primary font-semibold text-primary-foreground"
+                    : "font-medium text-muted-foreground hover:bg-border/60 hover:text-foreground")
+                }
+              >
+                {v === "grid" ? t("viewGrid") : t("viewList")}
+              </button>
+            ))}
           </div>
-          <button
+          <Button
             data-tutorial="new-project-btn"
             onClick={handleAdd}
             title={addTitle}
-            className="btn primary"
+            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
           >
-            <Icon.plus /> {t("newProject")}
-          </button>
+            <Plus className="size-4" /> {t("newProject")}
+          </Button>
         </div>
       </div>
 
@@ -423,7 +441,12 @@ export default function ProjectsPage() {
   const t = useTranslations("dashProjects")
   const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
-  const { startTutorial, advanceFromStep } = useTutorial()
+  // advanceFromStep only: the Tour button that called startTutorial is gone, so
+  // nothing on this page begins the tutorial any more. The provider still
+  // RESUMES one that is already in progress, and this call keeps that flow
+  // moving when a project is created — but there is currently no entry point
+  // left anywhere in the app to start it in the first place.
+  const { advanceFromStep } = useTutorial()
 
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
@@ -584,7 +607,6 @@ export default function ProjectsPage() {
         onAdd={() => setShowAddProject(true)}
         onUpgrade={() => setShowUpgrade(true)}
         onOpen={(id) => router.push(`/dashboard/project/${id}/keywords`)}
-        onStartTour={startTutorial}
         favoriteIds={favoriteIds}
         favReady={favReady}
       />
