@@ -16,6 +16,7 @@ import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
 import { InfoHint } from "@/components/dashboard/widget"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { Flag } from "@/components/flag"
@@ -171,10 +172,12 @@ function AiOverviewCell({ features }: { features: SerpFeatures | null }) {
 
   if (data?.pending) {
     return (
-      <span className="aio pending" title={t("aioPendingTip")}>
-        <span className="dot" aria-hidden />
-        {t("aioPending")}
-      </span>
+      <Hint text={t("aioPendingTip")}>
+        <span className="aio pending">
+          <span className="dot" aria-hidden />
+          {t("aioPending")}
+        </span>
+      </Hint>
     )
   }
   if (state === "cited") {
@@ -182,31 +185,31 @@ function AiOverviewCell({ features }: { features: SerpFeatures | null }) {
     // payload (trimmed for wire size), so never measure it here.
     const n = data?.refCount ?? 0
     return (
-      <span
-        className="aio cited"
-        title={n > 0 ? t("aioCitedTip", { position: citation?.citedPosition ?? 0, count: n }) : t("aioCitedTipNoCount")}
+      <Hint
+        text={n > 0 ? t("aioCitedTip", { position: citation?.citedPosition ?? 0, count: n }) : t("aioCitedTipNoCount")}
       >
-        <span className="dot" aria-hidden />
-        {citation?.citedPosition != null ? t("aioCitedAt", { position: citation.citedPosition }) : t("aioCited")}
-      </span>
+        <span className="aio cited">
+          <span className="dot" aria-hidden />
+          {citation?.citedPosition != null ? t("aioCitedAt", { position: citation.citedPosition }) : t("aioCited")}
+        </span>
+      </Hint>
     )
   }
   if (state === "not-cited") {
     const domains = data?.domainCount ?? 0
     return (
-      <span
-        className="aio not-cited"
-        title={domains > 0 ? t("aioNotCitedTip", { count: domains }) : t("aioNotCitedTipNoCount")}
-      >
-        <span className="dot" aria-hidden />
-        {t("aioNotCited")}
-      </span>
+      <Hint text={domains > 0 ? t("aioNotCitedTip", { count: domains }) : t("aioNotCitedTipNoCount")}>
+        <span className="aio not-cited">
+          <span className="dot" aria-hidden />
+          {t("aioNotCited")}
+        </span>
+      </Hint>
     )
   }
   return (
-    <span className="tiny muted" title={state === "no-overview" ? t("aioNoneTip") : t("aioUnknownTip")}>
-      —
-    </span>
+    <Hint text={state === "no-overview" ? t("aioNoneTip") : t("aioUnknownTip")}>
+      <span className="tiny muted">—</span>
+    </Hint>
   )
 }
 
@@ -221,18 +224,19 @@ function StatusDot({ status }: { status: string | null }) {
   const pulse = status === "PENDING" || status === "PROCESSING"
   // Minimal: just the colored dot; the status label lives in the tooltip.
   return (
-    <span
-      title={status ?? "NONE"}
-      style={{
-        display: "inline-block",
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        background: color,
-        flexShrink: 0,
-        animation: pulse ? "shim 1.4s ease-in-out infinite" : undefined,
-      }}
-    />
+    <Hint text={status ?? "NONE"}>
+      <span
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: color,
+          flexShrink: 0,
+          animation: pulse ? "shim 1.4s ease-in-out infinite" : undefined,
+        }}
+      />
+    </Hint>
   )
 }
 
@@ -286,10 +290,10 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
     // sends the user to the Keyword Score Checker to designate a page manually.
     if (onEmptyClick) {
       return (
+        <Hint text={emptyTitle}>
         <span
           role="button"
           tabIndex={0}
-          title={emptyTitle}
           aria-label={emptyTitle}
           onClick={(e) => { e.stopPropagation(); onEmptyClick() }}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onEmptyClick() } }}
@@ -304,16 +308,21 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
         >
           <Icon.plus />
         </span>
+        </Hint>
       )
     }
-    return <span className="tiny muted" title={emptyTitle ?? "Scored automatically once the keyword ranks"}>—</span>
+    return (
+      <Hint text={emptyTitle ?? "Scored automatically once the keyword ranks"}>
+        <span className="tiny muted">—</span>
+      </Hint>
+    )
   }
   const color = score >= 80 ? "var(--pos)" : score >= 60 ? "var(--warn)" : "var(--neg)"
   const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
   const clickable = !!onClick
   return (
+    <Hint text={`Keyword score${label ? ` — ${label}` : ""}${clickable ? " — click to view in detail" : ""}`}>
     <span
-      title={`Keyword score${label ? ` — ${label}` : ""}${clickable ? " — click to view in detail" : ""}`}
       className="tabular"
       onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
       role={clickable ? "button" : undefined}
@@ -335,6 +344,7 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
     >
       {score}
     </span>
+    </Hint>
   )
 }
 
@@ -2186,19 +2196,24 @@ export default function ProjectKeywordsPage() {
             <table className="tbl" style={{ minWidth: 980 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 40 }} title={t("tipSelectAll")}>
-                    <input
-                      type="checkbox"
-                      checked={filtered.length > 0 && filtered.every((kw) => selectedKeywords.has(kw.id))}
-                      onChange={handleSelectAll}
-                      title={t("tipSelectAll")}
-                    />
+                  <th style={{ width: 40 }}>
+                    <Hint text={t("tipSelectAll")}>
+                      <input
+                        type="checkbox"
+                        checked={filtered.length > 0 && filtered.every((kw) => selectedKeywords.has(kw.id))}
+                        onChange={handleSelectAll}
+                      />
+                    </Hint>
                   </th>
                   <SortHeader label={t("colKeyword")} title={t("tipKeyword")} k="kw" sort={sort} onClick={clickSort} width={220} />
                   <SortHeader label={t("colPosition")} title={t("tipPosition")} k="pos" sort={sort} onClick={clickSort} width={104} />
-                  <th style={{ whiteSpace: "nowrap", width: 92 }} title={t("tipFirstCheck")}>{t("colFirstCheck")}</th>
+                  <th style={{ whiteSpace: "nowrap", width: 92 }}>
+                    <Hint text={t("tipFirstCheck")}><span>{t("colFirstCheck")}</span></Hint>
+                  </th>
                   <SortHeader label={t("colVolume")} title={t("tipVolume")} k="vol" sort={sort} onClick={clickSort} width={88} />
-                  <th style={{ width: 220 }} title={t("tipUrl")}>{t("colUrl")}</th>
+                  <th style={{ width: 220 }}>
+                    <Hint text={t("tipUrl")}><span>{t("colUrl")}</span></Hint>
+                  </th>
                   {/* Keyword score only. The Page Score half of this column was
                       removed — it measured a different thing (how well one URL
                       is built) and sat beside a keyword metric, which read as
@@ -2230,7 +2245,9 @@ export default function ProjectKeywordsPage() {
                     info={<HeaderInfo>{t("colAiOverviewTitle")}</HeaderInfo>}
                   />
                   <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
-                  <th style={{ width: 190, whiteSpace: "nowrap" }} title={t("tipActions")}>{t("colActions")}</th>
+                  <th style={{ width: 190, whiteSpace: "nowrap" }}>
+                    <Hint text={t("tipActions")}><span>{t("colActions")}</span></Hint>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -3182,6 +3199,28 @@ function ScheduleToggle({
  * sortable columns and Radix opens on hover, so a click on the icon would
  * otherwise fall through and re-sort the table.
  */
+/**
+ * Wraps an element so its explanation appears in the app's tooltip.
+ *
+ * Replaces `title={...}`. A native title is an OS rectangle: it waits a second
+ * or two, ignores the app's styling entirely, sits wherever the platform feels
+ * like, and never appears for keyboard or touch users. Hovering this table gave
+ * you one of those on almost every cell, next to the styled tooltips on the
+ * stat cards above it.
+ *
+ * Renders the child untouched when there's nothing to say, so callers can pass
+ * a conditional string without branching.
+ */
+function Hint({ text, children }: { text?: string | null; children: React.ReactElement }) {
+  if (!text) return children
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className="max-w-60 text-xs">{text}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function HeaderInfo({ children }: { children: React.ReactNode }) {
   return (
     <span
@@ -3218,15 +3257,19 @@ function SortHeader({
   return (
     <th
       onClick={() => onClick(k)}
-      title={title}
       style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", width }}
     >
       {/* A flex row rather than bare inline content: the label, the sort arrow
           and the info icon each used to supply their own margin, so spacing
           depended on which of them happened to be present and the icon sat on
-          the text baseline instead of centred against it. */}
+          the text baseline instead of centred against it.
+
+          The description hangs off the label, not the whole <th>, so the ⓘ's
+          own tooltip isn't competing with a second one covering the same cell. */}
       <span className="inline-flex items-center gap-1.5 align-middle">
-        {label}
+        <Hint text={title}>
+          <span>{label}</span>
+        </Hint>
         {active && <span style={{ color: "var(--brand)" }}>{sort.dir === "asc" ? "↑" : "↓"}</span>}
         {info}
       </span>
