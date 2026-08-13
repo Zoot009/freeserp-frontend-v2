@@ -652,8 +652,15 @@ export default function KeywordDetailPage() {
         </div>
       )}
 
+      {/* The organic results go in so the panel can say which cited sources
+          also rank, and where — the page already has them for the SERP tab. */}
       {tab === "aio" && (
-        <AiOverviewPanel projectId={projectId} keywordId={kwId} projectDomain={project.domain} />
+        <AiOverviewPanel
+          projectId={projectId}
+          keywordId={kwId}
+          projectDomain={project.domain}
+          organic={competitors.map((c) => ({ position: c.position, domain: c.domain }))}
+        />
       )}
 
       {tab === "history" && (

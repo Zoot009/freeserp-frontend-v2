@@ -70,10 +70,20 @@ export function AiOverviewPanel({
   projectId,
   keywordId,
   projectDomain,
+  organic = [],
 }: {
   projectId: string
   keywordId: string
   projectDomain: string
+  /**
+   * The organic results for this same keyword.
+   *
+   * Used to answer the question the panel could not: of the sites Google chose
+   * to cite, which of them also RANK — and where. A list of eight domains says
+   * nothing on its own; "six of the eight also rank, five in the top ten" says
+   * what it takes to be cited here, and names the pages to study.
+   */
+  organic?: Array<{ position: number; domain: string }>
 }) {
   const [data, setData] = useState<AiOverviewDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -128,6 +138,39 @@ export function AiOverviewPanel({
   const copy = data.pending ? PENDING_COPY : STATE_COPY[data.state]
   const ownHost = normalizeHost(projectDomain)
 
+  /**
+   * Organic position of a cited domain, or null when it doesn't rank.
+   *
+   * Matched on the host with subdomains folded in, the same way the citation
+   * check treats the project's own domain — otherwise in.linkedin.com cited
+   * against linkedin.com ranking would read as two different sites.
+   */
+  const organicByHost = new Map(organic.map((o) => [normalizeHost(o.domain), o.position]))
+  const organicPosition = (domain: string): number | null => {
+    const host = normalizeHost(domain)
+    if (organicByHost.has(host)) return organicByHost.get(host)!
+    for (const [h, pos] of organicByHost) {
+      if (host.endsWith(`.${h}`) || h.endsWith(`.${host}`)) return pos
+    }
+    return null
+  }
+
+  // Only meaningful when we actually have the organic list to compare against.
+  const rankedCited =
+    organic.length > 0 && data.references.length > 0
+      ? data.references.reduce(
+          (acc, r) => {
+            const pos = organicPosition(r.domain)
+            if (pos != null) {
+              acc.ranked += 1
+              if (pos <= 10) acc.topTen += 1
+            }
+            return acc
+          },
+          { ranked: 0, topTen: 0, total: data.references.length },
+        )
+      : null
+
   return (
     <>
       <div className="card" style={{ marginBottom: 14 }}>
@@ -172,8 +215,30 @@ export function AiOverviewPanel({
 
         {data.present && !data.pending && (
           <div className="row" style={{ gap: 18, marginTop: 12, flexWrap: "wrap" }}>
-            <span className="tiny muted">Sources <span className="b tabular">{data.refCount}</span></span>
-            <span className="tiny muted">Domains <span className="b tabular">{data.domainCount}</span></span>
+            {/* One line, and only the second half when it says something new —
+                "Sources 8 · Domains 8" printed the same number twice, which
+                reads as a mistake rather than as a fact about the sourcing. */}
+            <span className="tiny muted">
+              <span className="b tabular">{data.refCount}</span> source
+              {data.refCount === 1 ? "" : "s"}
+              {data.domainCount !== data.refCount && (
+                <> across <span className="b tabular">{data.domainCount}</span> domains</>
+              )}
+            </span>
+            {/* The actionable half: being cited here tracks closely with
+                ranking here, so how many of the cited sites also rank — and how
+                highly — is the answer to "what would it take to get in". */}
+            {rankedCited != null && (
+              <span className="tiny muted">
+                <span className="b tabular">{rankedCited.ranked}</span> of{" "}
+                <span className="b tabular">{rankedCited.total}</span> also rank organically
+                {rankedCited.topTen > 0 && (
+                  <>
+                    , <span className="b tabular">{rankedCited.topTen}</span> in the top 10
+                  </>
+                )}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -216,6 +281,23 @@ export function AiOverviewPanel({
                           Your site
                         </span>
                       )}
+                      {/* Whether this source also earned a normal ranking, and
+                          where. It is the difference between "Google likes this
+                          site" and "Google likes this site for this query", and
+                          it is the only thing on the row you can act on. */}
+                      {(() => {
+                        const pos = organicPosition(r.domain)
+                        if (pos == null) return null
+                        return (
+                          <span
+                            className="tiny muted"
+                            style={{ marginLeft: "auto", whiteSpace: "nowrap", paddingLeft: 8 }}
+                            title={`Also ranks #${pos} in the organic results for this keyword`}
+                          >
+                            ranks <span className="b tabular">#{pos}</span>
+                          </span>
+                        )
+                      })()}
                     </div>
                     <a
                       href={r.url}
