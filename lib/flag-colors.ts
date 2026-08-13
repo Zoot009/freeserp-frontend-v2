@@ -273,31 +273,47 @@ function mix(hex: string, target: string, amount: number): string {
   return `#${toHex(r1 + (r2 - r1) * amount)}${toHex(g1 + (g2 - g1) * amount)}${toHex(b1 + (b2 - b1) * amount)}`
 }
 
-/**
- * The mark sits on a blue tile, and plenty of flags are blue.
- *
- * Ukraine, Somalia, Micronesia and Greece would otherwise paint blue spokes
- * onto a blue square and disappear. Rather than dropping those countries or
- * repainting the tile, such a colour is nudged toward white (or black, on a
- * light tile) only as far as it takes to become visible — which preserves the
- * hue, so Ukraine still reads as blue-and-yellow rather than as some invented
- * palette.
- *
- * The threshold is low on purpose. Anything higher starts "correcting" colours
- * that were always perfectly visible, and every such correction is a flag drawn
- * in the wrong colours.
- */
-const MIN_DISTANCE = 150
+/** Ink and paper for the mark. Nothing else in the app should need these. */
+const MARK_DARK = "#0B1220"
+const MARK_LIGHT = "#FFFFFF"
 
-export function ensureContrast(color: string, against: string): string {
-  if (colorDistance(color, against) >= MIN_DISTANCE) return color
-  const target = luminance(against) > 0.4 ? "#000000" : "#FFFFFF"
-  for (let amount = 0.15; amount <= 0.9; amount += 0.15) {
-    const candidate = mix(color, target, amount)
-    if (colorDistance(candidate, against) >= MIN_DISTANCE) return candidate
-  }
-  return target
+/**
+ * What colour the mark itself should be.
+ *
+ * Judged against the MIDDLE band, because that is where the centre dot and both
+ * horizontal spokes sit — the densest part of the mark. Fixing it to white
+ * would erase it on India's white stripe; choosing dark there is also what
+ * makes India correct, since a navy mark on saffron/white/green is the flag.
+ *
+ * Luminance is the right measure for this one, unlike the band colours: the
+ * question here really is light-on-dark or dark-on-light.
+ */
+export function markColorFor(middleBand: string): string {
+  return luminance(middleBand) > 0.45 ? MARK_DARK : MARK_LIGHT
 }
+
+/**
+ * Nudge a band that is nearly identical to its neighbour.
+ *
+ * Flags with two near-identical bands (a white stripe against a very pale one)
+ * would render as a single block and lose the tricolour. Only near-collisions
+ * are touched, and only slightly — every adjustment is a flag drawn in the
+ * wrong colours, so the threshold is deliberately low.
+ */
+const MIN_BAND_DISTANCE = 40
+
+function separate(band: string, from: string): string {
+  if (colorDistance(band, from) >= MIN_BAND_DISTANCE) return band
+  const target = luminance(from) > 0.5 ? MARK_DARK : MARK_LIGHT
+  for (let amount = 0.08; amount <= 0.4; amount += 0.08) {
+    const candidate = mix(band, target, amount)
+    if (colorDistance(candidate, from) >= MIN_BAND_DISTANCE) return candidate
+  }
+  return band
+}
+
+/** The three bands plus the mark colour, or null to use the brand logo. */
+export type LogoPalette = readonly [string, string, string, string]
 
 /**
  * The palette for a country, or null to use the brand colours.
@@ -305,13 +321,14 @@ export function ensureContrast(color: string, against: string): string {
  * Null is the honest answer for an unknown or absent country code: the visitor
  * gets the normal logo, which is what every visitor got before this existed.
  */
-export function paletteFor(country: string | undefined | null, tile: string): FlagPalette | null {
+export function paletteFor(country: string | undefined | null): LogoPalette | null {
   if (!country) return null
-  const palette = FLAG_COLORS[country.toUpperCase()]
-  if (!palette) return null
-  return [
-    ensureContrast(palette[0], tile),
-    ensureContrast(palette[1], tile),
-    ensureContrast(palette[2], tile),
-  ] as const
+  const flag = FLAG_COLORS[country.toUpperCase()]
+  if (!flag) return null
+
+  const top = flag[0]
+  const middle = separate(flag[1], top)
+  const bottom = separate(flag[2], middle)
+
+  return [top, middle, bottom, markColorFor(middle)] as const
 }

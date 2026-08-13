@@ -5,9 +5,6 @@ import { paletteFor } from './lib/flag-colors'
 
 const intlMiddleware = createMiddleware(routing)
 
-/** The tile the mark sits on; contrast is judged against it. */
-const TILE = '#2d5bff'
-
 /**
  * Country of the visitor, for the flag-coloured logo.
  *
@@ -46,7 +43,7 @@ function countryOf(req: NextRequest): string | null {
 export default function proxy(req: NextRequest) {
   const res = intlMiddleware(req)
 
-  const palette = paletteFor(countryOf(req), TILE)
+  const palette = paletteFor(countryOf(req))
   const value = palette ? palette.join('|') : ''
 
   // Only write when it changes, so a returning visitor isn't handed the same

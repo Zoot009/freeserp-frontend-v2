@@ -138,7 +138,7 @@ export default async function LocaleLayout({
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )fs-logo=([^;]*)/);if(!m)return;var c=decodeURIComponent(m[1]).split("|");if(c.length!==3)return;for(var i=0;i<3;i++){if(!/^#[0-9a-fA-F]{6}$/.test(c[i]))return;}var s=document.documentElement.style;s.setProperty("--fs-logo-1",c[0]);s.setProperty("--fs-logo-2",c[1]);s.setProperty("--fs-logo-3",c[2]);}catch(e){}})();`,
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )fs-logo=([^;]*)/);if(!m)return;var c=decodeURIComponent(m[1]).split("|");if(c.length!==4)return;for(var i=0;i<4;i++){if(!/^#[0-9a-fA-F]{6}$/.test(c[i]))return;}var s=document.documentElement.style;s.setProperty("--fs-logo-1",c[0]);s.setProperty("--fs-logo-2",c[1]);s.setProperty("--fs-logo-3",c[2]);s.setProperty("--fs-logo-mark",c[3]);}catch(e){}})();`,
           }}
         />
       </head>
