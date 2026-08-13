@@ -456,7 +456,7 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
               </button>
             </form>
             <p className="mt-[6px] text-center text-[10.5px] text-[#cbd5e1]">
-              Powered by <b className="font-semibold">Website Audit Tools</b>
+              Powered by <b className="font-semibold">FreeSERP</b>
             </p>
           </div>
         </div>

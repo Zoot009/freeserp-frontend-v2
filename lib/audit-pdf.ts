@@ -456,7 +456,10 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8)
     doc.setTextColor(...FAINT)
-    doc.text("Powered by Website Audit Tools", margin, pageH - 22)
+    // "Website Audit Tools" was the imported package's name, not ours. It rode
+    // along into the footer of every exported report — the one artefact of this
+    // product that gets emailed to clients under someone else's brand.
+    doc.text("Powered by FreeSERP", margin, pageH - 22)
     doc.text(`Page ${p} of ${pages}`, pageW - margin, pageH - 22, { align: "right" })
   }
 
