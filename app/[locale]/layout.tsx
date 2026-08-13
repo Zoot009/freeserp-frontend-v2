@@ -121,6 +121,27 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        {/*
+          Paints the visitor's flag colours onto the logo before first paint.
+
+          Inline and synchronous on purpose. The middleware resolves the country
+          to three hex codes and leaves them in the fs-logo cookie; reading that
+          cookie here — rather than with cookies() in this layout — is what keeps
+          every page statically rendered, since one dynamic API call would opt
+          the whole app out of static generation for the sake of a tint.
+
+          Running before paint is what stops the logo flashing brand blue and
+          then switching. It sets variables on <html>, so no component needs to
+          know the country, and it fails closed: any problem leaves the
+          variables unset and the mark renders in its normal colours.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )fs-logo=([^;]*)/);if(!m)return;var c=decodeURIComponent(m[1]).split("|");if(c.length!==3)return;for(var i=0;i<3;i++){if(!/^#[0-9a-fA-F]{6}$/.test(c[i]))return;}var s=document.documentElement.style;s.setProperty("--fs-logo-1",c[0]);s.setProperty("--fs-logo-2",c[1]);s.setProperty("--fs-logo-3",c[2]);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${bebasNeue.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans antialiased overflow-x-clip`}
       >

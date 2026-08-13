@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
-import Image from "next/image"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth"
 import gsap from "gsap"
+import { Logo } from "@/components/brand/logo"
 
 const RESEND_COOLDOWN = 60
 
@@ -182,7 +182,7 @@ export default function VerifyEmailPage() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
-              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
+              <Logo size={32} className="rounded-lg" />
             </span>
             <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
               FreeSERP

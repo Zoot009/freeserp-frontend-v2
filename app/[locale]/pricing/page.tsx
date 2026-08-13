@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -17,6 +16,7 @@ import { trackEvent } from "@/lib/track"
 import { track } from "@/lib/analytics"
 import { type BillingInterval, type TierInfo } from "@/lib/pricing"
 import { fetchBillingConfig, FALLBACK_BILLING_CONFIG, type BillingConfig } from "@/lib/billing-config"
+import { Logo } from "@/components/brand/logo"
 
 
 interface Status {
@@ -248,7 +248,7 @@ export default function PricingPage() {
       {/* Header */}
       <header className="pricing-header row" style={{ justifyContent: "space-between", padding: "14px 24px" }}>
         <Link href="/dashboard" className="row" style={{ gap: 8, textDecoration: "none", color: "var(--text)" }}>
-          <Image src="/logo.png" alt="FreeSERP" width={28} height={28} priority />
+          <Logo size={28} className="rounded-lg" />
           <span style={{ fontWeight: 600 }}>FreeSERP</span>
         </Link>
         <div className="row" style={{ gap: 12 }}>

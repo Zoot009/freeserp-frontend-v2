@@ -6,7 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useAuth } from "@/lib/auth"
 import gsap from "gsap"
-import Image from "next/image"
+import { Logo } from "@/components/brand/logo"
 
 export default function ForgotPasswordPage() {
   const t = useTranslations("forgotPassword")
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
-              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
+              <Logo size={32} className="rounded-lg" />
             </span>
             <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
               FreeSERP

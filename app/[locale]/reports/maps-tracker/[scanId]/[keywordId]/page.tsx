@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import Image from "next/image"
 import { APIProvider } from "@vis.gl/react-google-maps"
 import { api, ApiError } from "@/lib/api"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
@@ -10,6 +9,7 @@ import { spacingCaption } from "@/components/maps-tracker/grid-controls"
 import { MetricInsights } from "@/components/maps-tracker/metric-insights"
 import { CompetitorTable } from "@/components/maps-tracker/competitor-table"
 import type { Scan, CompetitorLeaderboard } from "@/components/maps-tracker/types"
+import { Logo } from "@/components/brand/logo"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -102,7 +102,7 @@ export default function ScanReportPage() {
     <div className="page" style={{ maxWidth: 920, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 8, marginTop: 8 }}>
         <div className="row" style={{ justifyContent: "center", gap: 8, alignItems: "center" }}>
-          <Image src="/logo.png" alt="FreeSERP" width={28} height={28} className="rounded-lg object-contain" priority />
+          <Logo size={28} className="rounded-lg" />
           <span style={{ fontSize: 22, fontWeight: 800 }}>FreeSERP</span>
         </div>
         <div className="tiny muted">Rank Tracker</div>

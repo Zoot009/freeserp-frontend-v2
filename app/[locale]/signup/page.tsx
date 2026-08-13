@@ -10,8 +10,8 @@ import { useGoogleLogin } from "@react-oauth/google"
 import { facebookLogin, isFacebookConfigured } from "@/lib/facebook"
 import { isGithubConfigured, startGithubLogin } from "@/lib/github"
 import gsap from "gsap"
-import Image from "next/image"
 import { persistPendingDomain } from "@/lib/pendingDomain"
+import { Logo } from "@/components/brand/logo"
 
 export default function SignupPage() {
   return (
@@ -238,7 +238,7 @@ function SignupForm() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl transition-transform group-hover:scale-105">
-              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
+              <Logo size={32} className="rounded-lg" />
             </span>
             <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
               FreeSERP

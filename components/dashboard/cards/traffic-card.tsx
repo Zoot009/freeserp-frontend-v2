@@ -17,7 +17,6 @@
  */
 
 import { useEffect, useState } from "react"
-import Image from "next/image"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { ArrowUpRight, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
@@ -29,6 +28,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Skeleton } from "@/components/ui/skeleton"
 import { InfoHint, Widget } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
+import { Logo } from "@/components/brand/logo"
 
 export type TrafficPoint = { t: string; traffic: number; pages: number }
 
@@ -88,7 +88,7 @@ function SourceToggle({
           label while the inactive half was branded, which made Google look like
           the real source and FreeSERP like the placeholder. */}
       <button type="button" onClick={() => onChange("freeserp")} className={cn(base, source === "freeserp" ? on : off)}>
-        <Image src="/logo.png" alt="" width={14} height={14} className="shrink-0" />
+        <Logo size={14} title="" className="shrink-0 rounded-[3px]" />
         FreeSERP Data
       </button>
       <Tooltip>
