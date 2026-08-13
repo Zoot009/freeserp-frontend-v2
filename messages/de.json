@@ -765,7 +765,6 @@
     "colKeywordScore": "Keyword-Score",
     "scoreInfoAria": "Was ist der Keyword-Score?",
     "scoreInfoKs": "Keyword Score — wie gut deine Seite für ihr Ranking-Keyword optimiert ist.",
-    "scoreInfoHint": "Klicke auf einen Wert, um seinen Bericht zu öffnen.",
     "colLastChecked": "Zuletzt geprüft",
     "colActions": "Aktionen",
     "noMatch": "Keine Keywords passen zu „{filter}“.",

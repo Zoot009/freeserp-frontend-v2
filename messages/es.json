@@ -765,7 +765,6 @@
     "colKeywordScore": "Puntuación de palabra clave",
     "scoreInfoAria": "¿Qué es la Puntuación de palabra clave?",
     "scoreInfoKs": "Puntuación de palabra clave: qué tan bien está optimizada tu página para su palabra clave de posicionamiento.",
-    "scoreInfoHint": "Haz clic en una puntuación para abrir su informe.",
     "colLastChecked": "Última comprobación",
     "colActions": "Acciones",
     "noMatch": "Ninguna palabra clave coincide con “{filter}”.",

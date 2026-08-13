@@ -3186,10 +3186,7 @@ function ScoreInfoTip() {
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <InfoHint>
-        {t("scoreInfoKs")}
-        <span className="mt-1 block text-muted-foreground">{t("scoreInfoHint")}</span>
-      </InfoHint>
+      <InfoHint>{t("scoreInfoKs")}</InfoHint>
     </span>
   )
 }

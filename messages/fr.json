@@ -765,7 +765,6 @@
     "colKeywordScore": "Score de mot-clé",
     "scoreInfoAria": "Qu'est-ce que le score de mot-clé ?",
     "scoreInfoKs": "Score de mot-clé — dans quelle mesure votre page est optimisée pour son mot-clé de positionnement.",
-    "scoreInfoHint": "Cliquez sur un score pour ouvrir son rapport.",
     "colLastChecked": "Dernière vérification",
     "colActions": "Actions",
     "noMatch": "Aucun mot-clé ne correspond à « {filter} ».",
