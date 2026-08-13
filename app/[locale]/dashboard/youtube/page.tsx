@@ -304,8 +304,17 @@ export default function YoutubeProjectsPage() {
                 <Favicon domain="youtube.com" size={32} bare />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold">{p.name}</div>
-                  <div className="truncate font-mono text-xs text-muted-foreground">
-                    {p.targetLabel ?? p.targetRaw}
+                  {/* Not monospace. That was carried over from the Rank Tracker
+                      card, where the subtitle is a domain and mono is right —
+                      here it is a channel name, and setting a person's channel
+                      in code type made "Cassiopeia" read as an identifier.
+                      The Channel/Video label stays, so the name is never left
+                      floating without saying what it is the name OF. */}
+                  <div className="truncate text-xs text-muted-foreground">
+                    {p.targetType === "CHANNEL" ? "Channel" : "Video"}
+                    {(p.targetLabel ?? p.targetRaw) && (
+                      <> · {p.targetLabel ?? p.targetRaw}</>
+                    )}
                   </div>
                 </div>
                 <span
