@@ -3180,7 +3180,9 @@ function ScoreInfoTip() {
   const t = useTranslations("projKeywords")
   return (
     <span
-      className="inline-flex"
+      // Scaled to 12px: InfoHint's default 14px icon is sized for 13px body
+      // text and reads oversized beside an 11.5px uppercase column label.
+      className="inline-flex [&_svg]:size-3"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -3217,9 +3219,15 @@ function SortHeader({
       title={title}
       style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", width }}
     >
-      {label}
-      {active && <span style={{ color: "var(--brand)", marginLeft: 4 }}>{sort.dir === "asc" ? "↑" : "↓"}</span>}
-      {info}
+      {/* A flex row rather than bare inline content: the label, the sort arrow
+          and the info icon each used to supply their own margin, so spacing
+          depended on which of them happened to be present and the icon sat on
+          the text baseline instead of centred against it. */}
+      <span className="inline-flex items-center gap-1.5 align-middle">
+        {label}
+        {active && <span style={{ color: "var(--brand)" }}>{sort.dir === "asc" ? "↑" : "↓"}</span>}
+        {info}
+      </span>
     </th>
   )
 }
