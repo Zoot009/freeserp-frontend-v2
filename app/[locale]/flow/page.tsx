@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
@@ -19,7 +20,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Check } from "lucide-react"
-import { Logo } from "@/components/brand/logo"
 
 const ROLE_OPTIONS = [
   { key: "business_owner", label: "Business owner / Entrepreneur" },
@@ -154,7 +154,7 @@ export default function FlowPage() {
   return (
     <main className="min-h-screen bg-white text-foreground">
       <div className="px-8 py-7">
-        <Logo size={36} className="rounded-lg" />
+        <Image src="/logo.png" alt="FreeSERP" width={36} height={36} priority />
       </div>
 
       <div className="mx-auto w-full max-w-xl px-6 pb-20">

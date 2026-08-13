@@ -10,7 +10,7 @@ import { useGoogleLogin } from "@react-oauth/google"
 import { facebookLogin, isFacebookConfigured } from "@/lib/facebook"
 import { isGithubConfigured, startGithubLogin } from "@/lib/github"
 import gsap from "gsap"
-import { Logo } from "@/components/brand/logo"
+import Image from "next/image"
 
 export default function LoginPage() {
   return (
@@ -161,7 +161,7 @@ function LoginForm() {
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105">
-              <Logo size={32} className="rounded-lg" />
+              <Image src="/logo.png" alt="FreeSERP Logo" width={32} height={32} />
             </span>
             <span className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
               FreeSERP

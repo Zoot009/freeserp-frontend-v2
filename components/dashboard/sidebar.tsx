@@ -1,12 +1,12 @@
 "use client"
 
 import { useTranslations } from "next-intl"
+import Image from "next/image"
 import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { useTrialUsage } from "@/hooks/use-trial-usage"
 import { Icon } from "./icons"
-import { Logo } from "@/components/brand/logo"
 
 type NavEntry = {
   href: string
@@ -104,7 +104,7 @@ export function Sidebar({
             than a generic sparkle glyph. Decorative: the "FreeSerp" label is
             right next to it, so alt is empty to avoid a duplicate announcement. */}
         <span className="spark sb-logo">
-          <Logo size={22} title="" className="rounded-md" />
+          <Image src="/logo.png" alt="" width={22} height={22} priority />
         </span>
         <span className="sb-label">FreeSerp</span>
         {onToggleCollapse && (

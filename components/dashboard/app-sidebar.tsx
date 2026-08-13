@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Link } from "@/i18n/navigation"
 import {
@@ -35,7 +36,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Logo } from "@/components/brand/logo"
 
 type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
 
@@ -151,7 +151,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <Logo size={32} className="size-8 rounded-lg" />
+                <Image src="/logo.png" alt="FreeSERP" width={32} height={32} className="size-8 rounded-lg object-contain" priority />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">FreeSERP</span>
                   <span className="text-xs text-muted-foreground">Rank Tracker</span>
