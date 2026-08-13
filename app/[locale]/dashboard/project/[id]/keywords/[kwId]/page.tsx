@@ -298,7 +298,7 @@ export default function KeywordDetailPage() {
           <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
             <StatCard
               label="Position"
-              hint="Where this keyword currently ranks on Google. Below the top 100 shows as 100+, because Google stops reporting past that."
+              hint="Where this keyword ranks on Google right now. Anything below the top 100 shows as 100+."
               value={inFlight ? "—" : latestCheck?.position != null ? `#${latestCheck.position}` : "100+"}
               caption={
                 <span className="flex items-center gap-2">
@@ -310,21 +310,21 @@ export default function KeywordDetailPage() {
             />
             <StatCard
               label="1-day change"
-              hint="Movement against the most recent check at least a day old. A positive number means the position improved."
+              hint="How the position has moved since yesterday. A positive number means it improved."
               value={<ChangeCell change={d1} />}
               caption="vs ~24 hours ago"
               fill={null}
             />
             <StatCard
               label="7-day change"
-              hint="Movement against the most recent check at least a week old — steadier than the daily figure, which reacts to normal SERP noise."
+              hint="How the position has moved over the past week. Steadier than the daily figure."
               value={<ChangeCell change={d7} />}
               caption="vs ~7 days ago"
               fill={null}
             />
             <StatCard
               label="Search volume"
-              hint="Average monthly searches for this keyword in its country, from the keyword data provider."
+              hint="How many people search this keyword each month in its country."
               value={data.searchVolume != null ? data.searchVolume.toLocaleString() : "—"}
               tone={data.searchVolume ? undefined : "text-muted-foreground/50"}
               caption={
@@ -334,15 +334,15 @@ export default function KeywordDetailPage() {
             />
             <StatCard
               label="Monthly traffic"
-              hint="Estimated visits this keyword brings, modelled from its position and search volume. An estimate, not measured traffic."
+              hint="How many visits this keyword is likely bringing you each month."
               value={latestCheck?.monthlyTraffic != null ? latestCheck.monthlyTraffic.toLocaleString() : "—"}
               tone={latestCheck?.monthlyTraffic ? undefined : "text-muted-foreground/50"}
-              caption="modelled from position × volume"
+              caption="visits per month"
               fill={null}
             />
             <StatCard
               label="Last checked"
-              hint="When this keyword was last queried. Checks run on the project's schedule, or whenever you run one by hand."
+              hint="When this keyword was last checked. Checks run on your project's schedule, or whenever you run one."
               value={
                 latestCheck?.checkedAt
                   ? new Date(latestCheck.checkedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
@@ -357,7 +357,7 @@ export default function KeywordDetailPage() {
             />
             <StatCard
               label="SERP features"
-              hint="How many competitor pages were captured in the search results for this keyword on the last check."
+              hint="How many competitor pages are showing in the search results for this keyword."
               value={competitors.length}
               tone={competitors.length ? undefined : "text-muted-foreground/50"}
               caption="competitor pages ranked"

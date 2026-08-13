@@ -33,11 +33,11 @@ export function OrganicRankingsCard({
       id="organic-rankings"
       className={className}
       title="Organic Rankings"
-      hint="Your estimated organic traffic over the range, and the keyword movement behind it."
+      hint="How your search traffic has moved over this period, and the keyword changes behind it."
       meta={<span>{rangeLabel}</span>}
     >
       <div className="mb-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-        Organic Traffic <InfoHint>Modelled from position × search volume for every completed check in the range.</InfoHint>
+        Organic Traffic <InfoHint>How many visits your keywords are likely bringing you over this period.</InfoHint>
       </div>
       {loading ? (
         <Skeleton className="h-24 w-full" />

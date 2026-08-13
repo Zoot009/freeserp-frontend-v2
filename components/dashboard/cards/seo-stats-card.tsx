@@ -155,7 +155,7 @@ export function SeoStatsCard(p: SeoStatsProps) {
 
           <Tile
             label="Organic Traffic"
-            hint="Estimated monthly organic visits, modelled from each keyword's position × search volume."
+            hint="How many visits your keywords are likely bringing you each month."
             value={nf(p.estTraffic)}
             footer="est. monthly visits"
             visual={<Spark data={p.trafficTrend} id="seo-spark-traffic" />}
@@ -180,7 +180,7 @@ export function SeoStatsCard(p: SeoStatsProps) {
 
           <Tile
             label="Backlinks"
-            hint="Total inbound links to the domain, refreshed daily from the backlink provider."
+            hint="How many links from other sites point at this domain."
             value={p.backlinks != null ? nf(p.backlinks) : "—"}
             footer="inbound links"
             visual={<ShareBar pct={p.backlinks ? 100 : 0} className="bg-sky-500" />}
@@ -188,7 +188,7 @@ export function SeoStatsCard(p: SeoStatsProps) {
 
           <Tile
             label="Visibility"
-            hint="CTR-weighted share of the searches your tracked keywords cover. 100% would mean every keyword ranks #1."
+            hint="How much of the available search traffic you're capturing. 100% would mean every keyword ranks #1."
             value={`${p.visibility}%`}
             delta={<Delta v={p.visibilityDelta} suffix="%" />}
             footer={<>avg. position {p.avgPos ?? "—"}</>}

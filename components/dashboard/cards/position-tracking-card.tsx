@@ -487,7 +487,7 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
                 />
                 <Figure
                   label="Avg. position"
-                  hint="Mean position across every tracked keyword that ranks in the top 100."
+                  hint="Your average Google position across the keywords that rank."
                   value={p.avgPos ?? "—"}
                   dim={p.avgPos == null}
                 />

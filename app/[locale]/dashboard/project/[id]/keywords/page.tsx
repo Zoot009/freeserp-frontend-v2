@@ -1896,7 +1896,7 @@ export default function ProjectKeywordsPage() {
           <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4 xl:grid-cols-7">
             <StatCard
               label={t("keywordsTracked")}
-              hint="Keywords being checked for this project. Each one is queried on the project's schedule."
+              hint="How many keywords you're tracking for this project."
               value={stats.total.toLocaleString()}
               tone={dim(stats.total)}
               caption={t("inTop3Count", { count: stats.top3 })}
@@ -1905,7 +1905,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("avgPosition")}
-              hint="Mean Google position across every keyword that currently ranks. Lower is better — keywords outside the top 100 are excluded rather than counted as 100."
+              hint="Your average Google position across the keywords that rank. Lower is better."
               value={stats.avgPos ? stats.avgPos.toFixed(1) : "—"}
               tone={dim(stats.avgPos)}
               caption={
@@ -1922,7 +1922,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("top3Keywords")}
-              hint="Keywords ranking in positions 1–3, where the large majority of clicks land."
+              hint="Keywords ranking in the top 3, where most clicks go."
               value={stats.top3.toLocaleString()}
               tone={dim(stats.top3)}
               caption={
@@ -1939,7 +1939,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("inTop10")}
-              hint="Keywords ranking on page one. Position 11 and below get a small fraction of the traffic of position 10."
+              hint="Keywords ranking on page one. Page two gets a small fraction of the traffic."
               value={stats.top10.toLocaleString()}
               tone={dim(stats.top10)}
               caption={
@@ -1956,7 +1956,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("estTraffic")}
-              hint="Estimated monthly visits, modelled from each keyword's position and search volume. An estimate, not measured traffic — connect Search Console for actual numbers."
+              hint="How many visits these keywords are likely bringing you each month."
               value={stats.estTraffic > 0 ? compact(stats.estTraffic) : "—"}
               tone={dim(stats.estTraffic)}
               caption={t("monthlyModelled")}
@@ -1966,7 +1966,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("statDomainAuthority")}
-              hint="A 0–100 estimate of the domain's strength, from the number and quality of sites linking to it. Under 30 is weak, 30–59 middling, 60+ strong."
+              hint="How strong this domain is, from 0 to 100. Under 30 is weak, 30–59 middling, 60+ strong."
               value={da ?? "—"}
               tone={band.text}
               caption={
@@ -1984,7 +1984,7 @@ export default function ProjectKeywordsPage() {
 
             <StatCard
               label={t("backlinks")}
-              hint="Total inbound links found pointing at this domain, refreshed from the backlink provider."
+              hint="How many links from other sites point at this domain."
               value={project.domainBacklinks != null ? compact(project.domainBacklinks) : "—"}
               tone={dim(project.domainBacklinks)}
               caption={t("siteWide")}

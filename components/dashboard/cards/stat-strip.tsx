@@ -44,7 +44,7 @@ export function StatStrip(p: StatStripProps) {
     <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-5">
       <Stat
         label="Authority Score"
-        hint="A 0–100 estimate of the domain's strength, from the number and quality of sites linking to it. Under 30 is weak, 30–59 middling, 60+ strong."
+        hint="How strong this domain is, from 0 to 100. Under 30 is weak, 30–59 middling, 60+ strong."
         value={p.da ?? "—"}
         tone={band.text}
         caption={p.da == null ? "not measured yet" : p.da >= 60 ? "strong · of 100" : p.da >= 30 ? "moderate · of 100" : "weak · of 100"}
@@ -54,7 +54,7 @@ export function StatStrip(p: StatStripProps) {
 
       <Stat
         label="Backlinks"
-        hint="Total inbound links we have found pointing at this domain, refreshed daily from the backlink provider."
+        hint="How many links from other sites point at this domain."
         value={p.backlinks != null ? nf(p.backlinks) : "—"}
         tone={dim(p.backlinks)}
         caption="inbound links"
@@ -64,7 +64,7 @@ export function StatStrip(p: StatStripProps) {
 
       <Stat
         label="Tracked Keywords"
-        hint="Keywords you have added to Position Tracking. We check each one on your project's schedule."
+        hint="How many keywords you're tracking. Each is checked on your project's schedule."
         value={nf(p.tracked)}
         tone={dim(p.tracked)}
         caption={`${rankedPct}% of them rank`}
@@ -73,7 +73,7 @@ export function StatStrip(p: StatStripProps) {
 
       <Stat
         label="Organic Keywords"
-        hint="Keywords where this domain appears anywhere in the top 100 organic results."
+        hint="Keywords where this site appears in the top 100 results."
         value={nf(p.organicKeywords)}
         tone={dim(p.organicKeywords)}
         caption="ranking in top 100"
@@ -82,10 +82,10 @@ export function StatStrip(p: StatStripProps) {
 
       <Stat
         label="Organic Traffic"
-        hint="Estimated monthly organic visits, modelled from each keyword's position × search volume."
+        hint="How many visits your keywords are likely bringing you each month."
         value={nf(p.estTraffic)}
         tone={dim(p.estTraffic)}
-        caption="est. monthly visits"
+        caption="visits per month"
         fill={null}
       />
     </div>

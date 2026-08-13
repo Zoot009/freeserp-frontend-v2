@@ -21,12 +21,12 @@ export function BacklinksCard({
     <Widget
       id="backlinks"
       title="Backlinks"
-      hint="Authority score and total inbound links for the root domain, from the backlink provider."
+      hint="How strong this domain is, and how many links from other sites point at it."
       meta={<>{checkedAt && <span>Checked {checkedAt}</span>}</>}
     >
       <div className="grid grid-cols-2 gap-4 border-b pb-3.5">
         <div>
-          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">Authority Score <InfoHint>0–100 estimate of the domain&apos;s strength, based on its backlink profile.</InfoHint></div>
+          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">Authority Score <InfoHint>How strong this domain is, from 0 to 100.</InfoHint></div>
           {loading ? <Skeleton className="h-6 w-14" /> : (
             <>
               <div className="text-xl font-bold tabular-nums text-primary">{da ?? "—"}</div>
