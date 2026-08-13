@@ -6,8 +6,10 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
-import { LineChart, PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { StatCard } from "@/components/dashboard/stat-card"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
 import { Favicon } from "@/components/favicon"
 
@@ -239,7 +241,10 @@ export default function KeywordDetailPage() {
         .filter((h) => h.position != null)
         .slice(0, 60)
         .reverse()
-        .map((h, i) => ({ day: i, pos: h.position as number }))
+        // checkedAt rides along so the axis and tooltip can say WHEN, rather
+        // than numbering the checks "1, 2, 3" and leaving the reader to guess
+        // whether that was yesterday or last month.
+        .map((h, i) => ({ day: i, pos: h.position as number, ts: new Date(h.checkedAt).getTime() }))
     : []
 
   const inFlight = data.inFlightStatus === "PENDING" || data.inFlightStatus === "PROCESSING"
@@ -371,12 +376,80 @@ export default function KeywordDetailPage() {
                   </div>
                 </div>
               </div>
-              <LineChart
-                data={chartData}
-                invert
-                yFormat={(v) => "#" + Math.round(v)}
-                height={240}
-              />
+              {/* shadcn's chart container over Recharts, the same components
+                  the Overview's position card uses — rather than the
+                  hand-rolled SVG that was here, which had no dates on the x
+                  axis and drew its own tooltip.
+
+                  Height is 220 and the fill is light on purpose: a keyword
+                  parked at #1 is a flat line at the top of its domain, so a
+                  heavy gradient under it filled the whole card with a blue
+                  block and buried the one thing worth reading. */}
+              <ChartContainer
+                config={{ pos: { label: "Position", color: "var(--primary)" } }}
+                className="!aspect-auto h-[220px] w-full"
+              >
+                <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+                  <defs>
+                    <linearGradient id="kw-rank" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-pos)" stopOpacity={0.18} />
+                      <stop offset="100%" stopColor="var(--color-pos)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="ts"
+                    type="number"
+                    scale="time"
+                    domain={["dataMin", "dataMax"]}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    minTickGap={32}
+                    tickFormatter={(v) =>
+                      new Date(Number(v)).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                    }
+                  />
+                  {/* Reversed, because a lower number is a better rank — the
+                      line has to climb when the keyword improves. allowDecimals
+                      off: there is no position #2.5, and letting Recharts pick
+                      fractional ticks is what printed "#2" twice before. */}
+                  <YAxis
+                    reversed
+                    allowDecimals={false}
+                    width={40}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={["dataMin - 1", "dataMax + 1"]}
+                    tickFormatter={(v) => `#${v}`}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(_, pl) =>
+                          new Date(Number(pl?.[0]?.payload?.ts)).toLocaleString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        }
+                        formatter={(v) => [`#${v}`, " Position"]}
+                      />
+                    }
+                  />
+                  <Area
+                    dataKey="pos"
+                    type="monotone"
+                    stroke="var(--color-pos)"
+                    strokeWidth={2}
+                    fill="url(#kw-rank)"
+                    dot={{ r: 3, strokeWidth: 2, fill: "var(--bg)", stroke: "var(--color-pos)" }}
+                    activeDot={{ r: 5 }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ChartContainer>
             </div>
           )}
 
