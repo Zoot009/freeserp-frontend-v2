@@ -2216,15 +2216,18 @@ export default function ProjectKeywordsPage() {
                     sort={sort}
                     onClick={clickSort}
                     width={72}
-                    info={<ScoreInfoTip />}
+                    info={<HeaderInfo>{t("scoreInfoKs")}</HeaderInfo>}
                   />
                   <SortHeader
                     label={t("colAiOverview")}
-                    title={t("colAiOverviewTitle")}
                     k="aio"
                     sort={sort}
                     onClick={clickSort}
                     width={104}
+                    // The same sentence that was the th's native title. Moved
+                    // into the hint so it matches every other explanation on the
+                    // page — and so it isn't announced twice from one header.
+                    info={<HeaderInfo>{t("colAiOverviewTitle")}</HeaderInfo>}
                   />
                   <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
                   <th style={{ width: 190, whiteSpace: "nowrap" }} title={t("tipActions")}>{t("colActions")}</th>
@@ -3163,21 +3166,23 @@ function ScheduleToggle({
 }
 
 /**
- * "What is the Keyword Score?" — the ⓘ in the score column header.
+ * The ⓘ next to a column label.
  *
- * The same InfoHint every other stat uses, so one explanation doesn't arrive in
- * a different-looking box from the rest. It replaces a hand-rolled popover that
- * measured the icon, clamped itself to the viewport, portaled to <body> and
- * wired up its own outside-click, Escape and resize handlers — about sixty
- * lines to do what Radix already does, and it opened on click while every other
- * hint in the app opens on hover.
+ * The same InfoHint the stat cards use, so an explanation in the table doesn't
+ * arrive in a different-looking box from one above it. It replaced a hand-rolled
+ * popover on the Score column — about sixty lines that measured the icon,
+ * clamped itself to the viewport, portaled to <body> and wired up its own
+ * outside-click, Escape and resize handlers, all of which Radix already does.
  *
- * The wrapper stops the click reaching the header behind it: this sits inside a
- * sortable column, and Radix opens on hover, so a click on the icon would
+ * Generic rather than one component per column: a header explanation is the
+ * same thing every time, and the alternative was a ScoreInfoTip beside an
+ * AiOverviewInfoTip beside the next one.
+ *
+ * The wrapper stops the click reaching the header behind it. These sit inside
+ * sortable columns and Radix opens on hover, so a click on the icon would
  * otherwise fall through and re-sort the table.
  */
-function ScoreInfoTip() {
-  const t = useTranslations("projKeywords")
+function HeaderInfo({ children }: { children: React.ReactNode }) {
   return (
     <span
       // Scaled to 12px: InfoHint's default 14px icon is sized for 13px body
@@ -3186,7 +3191,7 @@ function ScoreInfoTip() {
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <InfoHint>{t("scoreInfoKs")}</InfoHint>
+      <InfoHint>{children}</InfoHint>
     </span>
   )
 }
