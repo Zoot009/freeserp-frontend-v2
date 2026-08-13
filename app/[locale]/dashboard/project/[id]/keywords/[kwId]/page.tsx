@@ -6,7 +6,9 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { Button } from "@/components/ui/button"
 import { PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -505,15 +507,50 @@ export default function KeywordDetailPage() {
               <div className="t">SERP results</div>
               <div className="tiny muted" style={{ marginTop: 2 }}>
                 {competitors.length > 0
-                  ? `Showing ${startSerpIndex + 1}–${Math.min(startSerpIndex + ITEMS_PER_PAGE, competitors.length)} of ${competitors.length}`
+                  ? `${competitors.length} ranking page${competitors.length === 1 ? "" : "s"} for this keyword`
                   : "Top ranking pages for this keyword"}
               </div>
             </div>
-            {competitors.length > 0 && (
-              <button className="btn sm" onClick={handleExportSERP}>
-                <Icon.download /> Export CSV
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Range and arrows in the header, the same pager the Search
+                  Console tables use. It used to be a First/Prev/Next/Last row
+                  buried under the results, so paging a hundred of them meant
+                  scrolling to the bottom, clicking, and scrolling back up. */}
+              {totalSerpPages > 1 && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="tabular-nums">
+                    {startSerpIndex + 1}–
+                    {Math.min(startSerpIndex + ITEMS_PER_PAGE, competitors.length)} of{" "}
+                    {competitors.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-7"
+                    disabled={serpPage === 1}
+                    onClick={() => setSerpPage((p) => Math.max(1, p - 1))}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-7"
+                    disabled={serpPage === totalSerpPages}
+                    onClick={() => setSerpPage((p) => Math.min(totalSerpPages, p + 1))}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="size-3.5" />
+                  </Button>
+                </div>
+              )}
+              {competitors.length > 0 && (
+                <button className="btn sm" onClick={handleExportSERP}>
+                  <Icon.download /> Export CSV
+                </button>
+              )}
+            </div>
           </div>
 
           {competitors.length > 0 ? (
@@ -604,17 +641,8 @@ export default function KeywordDetailPage() {
               })}
               </div>
 
-              {totalSerpPages > 1 && (
-                <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8, borderTop: "1px solid var(--border)" }}>
-                  <div className="tiny muted">Page {serpPage} of {totalSerpPages}</div>
-                  <div className="row" style={{ gap: 6 }}>
-                    <button className="btn sm" onClick={() => setSerpPage(1)} disabled={serpPage === 1}>First</button>
-                    <button className="btn sm" onClick={() => setSerpPage((p) => Math.max(1, p - 1))} disabled={serpPage === 1}>Prev</button>
-                    <button className="btn sm" onClick={() => setSerpPage((p) => Math.min(totalSerpPages, p + 1))} disabled={serpPage === totalSerpPages}>Next</button>
-                    <button className="btn sm" onClick={() => setSerpPage(totalSerpPages)} disabled={serpPage === totalSerpPages}>Last</button>
-                  </div>
-                </div>
-              )}
+              {/* The pager lives in the header — see there. Repeating it down
+                  here would be two controls for one list. */}
             </>
           ) : (
             <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
@@ -637,7 +665,7 @@ export default function KeywordDetailPage() {
             <div>
               <div className="t">Rank history</div>
               <div className="tiny muted" style={{ marginTop: 2 }}>
-                Showing {history.length > 0 ? startHistoryIndex + 1 : 0}–{Math.min(startHistoryIndex + ITEMS_PER_PAGE, history.length)} of {history.length}
+                {history.length} check{history.length === 1 ? "" : "s"} · newest first
               </div>
             </div>
             {history.length > 0 && (() => {
@@ -655,6 +683,38 @@ export default function KeywordDetailPage() {
                     <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>
                       Worst <span className="b tabular" style={{ color: "var(--text)" }}>#{worst}</span>
                     </span>
+                  )}
+                  {/* Same header pager as the SERP tab and the Search Console
+                      tables, rather than a First/Prev/Next/Last row under the
+                      table that has to be scrolled to and scrolled back from. */}
+                  {totalHistoryPages > 1 && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="tabular-nums">
+                        {startHistoryIndex + 1}–
+                        {Math.min(startHistoryIndex + ITEMS_PER_PAGE, history.length)} of{" "}
+                        {history.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        disabled={historyPage === 1}
+                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-7"
+                        disabled={historyPage === totalHistoryPages}
+                        onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="size-3.5" />
+                      </Button>
+                    </div>
                   )}
                   <button className="btn sm" onClick={handleExportHistory}>
                     <Icon.download /> Export CSV
@@ -705,17 +765,7 @@ export default function KeywordDetailPage() {
               </table>
               </div>
 
-              {totalHistoryPages > 1 && (
-                <div className="row" style={{ justifyContent: "space-between", padding: "12px 18px", gap: 8 }}>
-                  <div className="tiny muted">Page {historyPage} of {totalHistoryPages}</div>
-                  <div className="row" style={{ gap: 6 }}>
-                    <button className="btn sm" onClick={() => setHistoryPage(1)} disabled={historyPage === 1}>First</button>
-                    <button className="btn sm" onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1}>Prev</button>
-                    <button className="btn sm" onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))} disabled={historyPage === totalHistoryPages}>Next</button>
-                    <button className="btn sm" onClick={() => setHistoryPage(totalHistoryPages)} disabled={historyPage === totalHistoryPages}>Last</button>
-                  </div>
-                </div>
-              )}
+              {/* Pager is in the header — see there. */}
             </>
           ) : (
             <div style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
