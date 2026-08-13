@@ -639,11 +639,17 @@
 }
 .fs-app .eyebrow .spark { font-size: 14px; }
 /* === CARDS === */
+/* Matched to the shadcn cards the Overview is built from: same 12px radius,
+   same hairline shadow. These sat at 16px with no shadow, so a legacy panel and
+   a shadcn one side by side read as two different design systems — which they
+   were. Changing it here rather than in the pages updates every legacy surface
+   at once instead of one component at a time. */
 .fs-app .card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   padding: 18px;
+  box-shadow: var(--shadow-sm);
 }
 .fs-app .card.tight { padding: 14px; }
 .fs-app .card-h {
@@ -1099,10 +1105,16 @@
   font-size: 12.5px; font-weight: 500;
   color: var(--text-soft);
 }
+/* Brand-filled, like the Overview's range switcher. A near-white chip on a
+   near-white track relied on a 1px shadow to show which option was selected,
+   which is close to invisible in dark mode. */
 .fs-app .pill-toggle button.active {
-  background: var(--bg);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
+  /* The Overview's own tokens, not a matching hex — if the brand is retuned,
+     both switchers move together instead of one drifting. */
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  box-shadow: none;
 }
 /* Inputs */
 .fs-app .input {
