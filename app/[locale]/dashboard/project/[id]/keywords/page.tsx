@@ -1804,6 +1804,7 @@ export default function ProjectKeywordsPage() {
                 "+ Keywords". Stays visible during the onboarding tutorial's
                 "run-check" step since that step spotlights this exact button. */}
             {(checking || pendingCount > 0 || selectedKeywords.size > 0 || (tutorialActive && tutorialStep.id === "run-check")) && (
+              <Hint text={pendingCount > 0 ? t("checkRunningTitle") : undefined}>
               <button
                 data-tutorial="run-check-btn"
                 type="button"
@@ -1811,7 +1812,6 @@ export default function ProjectKeywordsPage() {
                 // Block while a check is already running for this project — each
                 // check costs us money, so don't let the button be spammed.
                 disabled={checking || project.keywords.length === 0 || pendingCount > 0}
-                title={pendingCount > 0 ? t("checkRunningTitle") : undefined}
                 className={selectedKeywords.size > 0 ? "btn primary" : "btn"}
               >
                 {checking
@@ -1822,12 +1822,14 @@ export default function ProjectKeywordsPage() {
                       ? t("checkSelected", { count: selectedKeywords.size })
                       : t("runCheck")}
               </button>
+              </Hint>
             )}
             {selectedKeywords.size > 0 && (
+              // No Hint here: the button's own label already says exactly what
+              // the tooltip did, and repeating it on hover is noise.
               <button
                 type="button"
                 onClick={() => setConfirmDeleteKwIds(Array.from(selectedKeywords))}
-                title={t("deleteN", { count: selectedKeywords.size })}
                 className="btn"
                 style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
               >
@@ -1835,37 +1837,42 @@ export default function ProjectKeywordsPage() {
               </button>
             )}
             {/* Direct icon actions instead of a "More options" menu — one click
-                each. Icon-only, so every button carries a title + aria-label. */}
+                each. Icon-only, so the label lives in the tooltip, and stays on
+                aria-label as well: a tooltip is not an accessible name, and a
+                screen reader announcing "button" would leave nothing to go on. */}
             <div className="icon-group">
             {plan === "paid" && (
+              <Hint text={t("alerts")}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setShowAlerts(true)}
+                  aria-label={t("alerts")}
+                >
+                  <Icon.bell />
+                </button>
+              </Hint>
+            )}
+            <Hint text={t("share")}>
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => setShowAlerts(true)}
-                title={t("alerts")}
-                aria-label={t("alerts")}
+                onClick={() => setShowShare(true)}
+                aria-label={t("share")}
               >
-                <Icon.bell />
+                <Icon.globe />
               </button>
-            )}
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => setShowShare(true)}
-              title={t("share")}
-              aria-label={t("share")}
-            >
-              <Icon.globe />
-            </button>
-            <button
-              type="button"
-              className="icon-btn danger"
-              onClick={() => setConfirmDelete(true)}
-              title={t("deleteProject")}
-              aria-label={t("deleteProject")}
-            >
-              <Icon.trash />
-            </button>
+            </Hint>
+            <Hint text={t("deleteProject")}>
+              <button
+                type="button"
+                className="icon-btn danger"
+                onClick={() => setConfirmDelete(true)}
+                aria-label={t("deleteProject")}
+              >
+                <Icon.trash />
+              </button>
+            </Hint>
             </div>
           </div>
         </div>
@@ -2369,37 +2376,39 @@ export default function ProjectKeywordsPage() {
                             size={15}
                             style={{ width: 28, height: 28 }}
                           />
-                          <button
-                            onClick={() => handleRefreshKeyword(kw.id)}
-                            disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
-                            className="icon-btn"
-                            style={{ width: 28, height: 28 }}
-                            title="Refresh this keyword"
-                          >
-                            <Icon.refresh />
-                          </button>
-                          <button
-                            data-menu-trigger={kw.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (openMenuId === kw.id) {
-                                setOpenMenuId(null)
-                                setMenuPosition(null)
-                              } else {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setMenuPosition({
-                                  top: rect.bottom + 4,
-                                  right: window.innerWidth - rect.right,
-                                })
-                                setOpenMenuId(kw.id)
-                              }
-                            }}
-                            className="icon-btn"
-                            style={{ width: 28, height: 28 }}
-                            title="Options"
-                          >
-                            <Icon.dots />
-                          </button>
+                          <Hint text="Refresh this keyword">
+                            <button
+                              onClick={() => handleRefreshKeyword(kw.id)}
+                              disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
+                              className="icon-btn"
+                              style={{ width: 28, height: 28 }}
+                            >
+                              <Icon.refresh />
+                            </button>
+                          </Hint>
+                          <Hint text="Options">
+                            <button
+                              data-menu-trigger={kw.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (openMenuId === kw.id) {
+                                  setOpenMenuId(null)
+                                  setMenuPosition(null)
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setMenuPosition({
+                                    top: rect.bottom + 4,
+                                    right: window.innerWidth - rect.right,
+                                  })
+                                  setOpenMenuId(kw.id)
+                                }
+                              }}
+                              className="icon-btn"
+                              style={{ width: 28, height: 28 }}
+                            >
+                              <Icon.dots />
+                            </button>
+                          </Hint>
                           {/* Only offer "improve to #1" once we actually have rank
                               data. A keyword still being checked (no position yet)
                               must NOT show "#100+ → #1" — we don't know its rank
@@ -2407,6 +2416,15 @@ export default function ProjectKeywordsPage() {
                           {(kw.position != null
                             ? kw.position > 1
                             : !!kw.checkedAt && !isActive) && (
+                            <Hint
+                              text={
+                                kw.latestAnalysisId
+                                  ? "Open the latest competitor analysis for this keyword"
+                                  : kw.position != null
+                                    ? `Improve this keyword from #${kw.position} to #1`
+                                    : "Improve this keyword from #100+ to #1"
+                              }
+                            >
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
                               onClick={() => {
@@ -2424,13 +2442,6 @@ export default function ProjectKeywordsPage() {
                               }}
                               className="btn primary sm rank-cta"
                               style={{ whiteSpace: "nowrap", gap: 4 }}
-                              title={
-                                kw.latestAnalysisId
-                                  ? "Open the latest competitor analysis for this keyword"
-                                  : kw.position != null
-                                    ? `Improve this keyword from #${kw.position} to #1`
-                                    : "Improve this keyword from #100+ to #1"
-                              }
                             >
                               {t("rank")}
                               <span className="tabular" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -2442,6 +2453,7 @@ export default function ProjectKeywordsPage() {
                                 <span style={{ fontWeight: 700 }}>#1</span>
                               </span>
                             </button>
+                            </Hint>
                           )}
                           {/* Only shown for #1-ranked keywords — for everything
                               else the "Rank" button above already opens the latest
