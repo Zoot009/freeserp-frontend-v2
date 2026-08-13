@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { ChevronRight, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 
 // ───── Types (mirror /api/youtube/projects) ────────────────────────────────
@@ -288,54 +289,78 @@ export default function YoutubeProjectsPage() {
            column with the rest of the page empty beside it. */
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
+            /* Laid out like a Rank Tracker project card — same identity row,
+               same two-stat block, same status chip — so the two trackers read
+               as one product rather than two people's work. */
             <Link
               key={p.id}
               href={`/dashboard/youtube/${p.id}/keywords`}
-              className="group block rounded-xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40"
+              className="block rounded-xl border bg-card p-4 shadow-sm transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-[15px] font-semibold group-hover:text-primary">
-                    {p.name}
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {p.targetType === "CHANNEL" ? "Channel" : "Video"} · {p.targetLabel ?? p.targetRaw}
+              <div className="mb-3.5 flex items-center gap-3">
+                {/* Every project here is a YouTube target, so the platform mark
+                    is the honest avatar — channels and videos have no domain of
+                    their own to take a favicon from. */}
+                <Favicon domain="youtube.com" size={32} bare />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{p.name}</div>
+                  <div className="truncate font-mono text-xs text-muted-foreground">
+                    {p.targetLabel ?? p.targetRaw}
                   </div>
                 </div>
                 <span
-                  className="shrink-0 rounded-md border border-border/60 bg-muted/60 px-1.5 py-px text-[11px] font-medium text-muted-foreground"
-                  title={`Checks the top ${p.defaultDepth} results for each keyword`}
+                  className={
+                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                    (p.isPaused
+                      ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                      : p.autoCheckEnabled
+                        ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground")
+                  }
                 >
-                  Top {p.defaultDepth}
+                  {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
                 </span>
               </div>
 
-              <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
-                <span className="tabular-nums">
-                  {p.keywordCount} keyword{p.keywordCount === 1 ? "" : "s"}
-                </span>
-                <span aria-hidden>·</span>
-                {/* Paused is the state worth colouring — it means checks have
-                    silently stopped, which otherwise looks the same as manual. */}
-                <span
-                  className={
-                    p.isPaused
-                      ? "font-medium text-amber-600 dark:text-amber-400"
-                      : p.autoCheckEnabled
-                        ? "font-medium text-emerald-600 dark:text-emerald-400"
-                        : ""
-                  }
-                >
-                  {p.isPaused
-                    ? "Paused"
-                    : p.autoCheckEnabled
-                      ? `Every ${p.checkFrequency}h`
-                      : "Manual checks"}
-                </span>
-                <ChevronRight className="ml-auto size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <div className="text-xs text-muted-foreground">Keywords</div>
+                  <div className="text-[18px] font-bold tabular-nums">{p.keywordCount}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Added</div>
+                  <div className="text-[13px] font-bold tabular-nums">
+                    {new Date(p.createdAt).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Where a Rank Tracker card puts its trend line. There is no
+                  rank history on this list payload, so the slot states the
+                  search depth instead of drawing an empty chart. */}
+              <div className="mt-3.5 border-t pt-2.5 text-xs text-muted-foreground">
+                {p.keywordCount === 0
+                  ? "No keywords yet"
+                  : `Checking the top ${p.defaultDepth} results`}
               </div>
             </Link>
           ))}
+
+          {/* The dashed add-tile that closes the Rank Tracker grid, so the row
+              never ends on a ragged gap. */}
+          <button
+            onClick={() => setShowAdd(true)}
+            className="grid min-h-[168px] place-items-center rounded-xl border border-dashed p-4 text-center transition-colors hover:border-primary/50 hover:bg-muted/40"
+          >
+            <div>
+              <Plus className="mx-auto size-5 text-muted-foreground" />
+              <div className="mt-2 text-sm font-semibold">New project</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">Track a channel or video</div>
+            </div>
+          </button>
         </div>
       )}
 
