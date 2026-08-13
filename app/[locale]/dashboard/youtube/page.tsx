@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
+import { ChevronRight, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/dashboard/icons"
 
 // ───── Types (mirror /api/youtube/projects) ────────────────────────────────
@@ -237,62 +239,100 @@ export default function YoutubeProjectsPage() {
 
   return (
     <div className="page">
-      <div className="page-h">
-        <div>
-          <div className="t">YouTube</div>
-          <div className="tiny muted">Track where your videos rank in YouTube search.</div>
+      {/* Headed like Overview, Website Audit and Rank Tracker — 26px title, a
+          muted subtitle, the action pushed right. This page was still using the
+          old .page-h block with a 14px .t, so the page title was smaller than
+          the card titles underneath it. */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">YouTube</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Track where your videos rank in YouTube search.
+            {projects.length > 0 && (
+              <> · {projects.length} project{projects.length === 1 ? "" : "s"}</>
+            )}
+          </p>
         </div>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>
-          <Icon.plus /> New project
-        </button>
+        <Button
+          onClick={() => setShowAdd(true)}
+          className="ml-auto h-[38px] shrink-0 gap-1.5 rounded-[9px] text-sm font-semibold"
+        >
+          <Plus className="size-4" /> New project
+        </Button>
       </div>
 
       {error && (
-        <div className="card tight" style={{ color: "var(--neg)", fontSize: 13 }}>
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-600 dark:text-red-400">
           {error}
         </div>
       )}
 
       {!error && projects.length === 0 && (
-        <div
-          className="card"
-          style={{ border: "1px dashed var(--border-strong)", background: "transparent", textAlign: "center", padding: 40 }}
-        >
-          <div className="eyebrow">
-            <span className="spark">
-              <Icon.spark />
-            </span>{" "}
-            Nothing tracked yet
-          </div>
-          <div className="b" style={{ margin: "8px 0 14px" }}>
-            Track a channel or a single video against your keywords.
-          </div>
-          <button className="btn primary" onClick={() => setShowAdd(true)}>
-            <Icon.plus /> New YouTube project
-          </button>
+        <div className="rounded-xl border border-dashed px-6 py-14 text-center">
+          <p className="text-[15px] font-semibold">Nothing tracked yet</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+            Track a channel or a single video, add the keywords you want to rank for, and
+            see where you land in YouTube search.
+          </p>
+          <Button
+            onClick={() => setShowAdd(true)}
+            className="mt-5 h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+          >
+            <Plus className="size-4" /> New YouTube project
+          </Button>
         </div>
       )}
 
       {projects.length > 0 && (
-        <div className="grid g-3">
+        /* A real responsive grid, so one project doesn't sit alone in a narrow
+           column with the rest of the page empty beside it. */
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
-            <Link key={p.id} href={`/dashboard/youtube/${p.id}/keywords`} className="card" style={{ display: "block" }}>
-              <div className="card-h">
-                <div>
-                  <div className="t">{p.name}</div>
-                  <div className="tiny muted">
+            <Link
+              key={p.id}
+              href={`/dashboard/youtube/${p.id}/keywords`}
+              className="group block rounded-xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-semibold group-hover:text-primary">
+                    {p.name}
+                  </div>
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {p.targetType === "CHANNEL" ? "Channel" : "Video"} · {p.targetLabel ?? p.targetRaw}
                   </div>
                 </div>
-                <span className="chip outline">Top {p.defaultDepth}</span>
+                <span
+                  className="shrink-0 rounded-md border border-border/60 bg-muted/60 px-1.5 py-px text-[11px] font-medium text-muted-foreground"
+                  title={`Checks the top ${p.defaultDepth} results for each keyword`}
+                >
+                  Top {p.defaultDepth}
+                </span>
               </div>
-              <div className="row" style={{ gap: 10, marginTop: 10, alignItems: "center" }}>
-                <span className="tiny muted">
+
+              <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3 text-xs text-muted-foreground">
+                <span className="tabular-nums">
                   {p.keywordCount} keyword{p.keywordCount === 1 ? "" : "s"}
                 </span>
-                <span className={`chip ${p.autoCheckEnabled && !p.isPaused ? "pos" : ""}`.trim()}>
-                  {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
+                <span aria-hidden>·</span>
+                {/* Paused is the state worth colouring — it means checks have
+                    silently stopped, which otherwise looks the same as manual. */}
+                <span
+                  className={
+                    p.isPaused
+                      ? "font-medium text-amber-600 dark:text-amber-400"
+                      : p.autoCheckEnabled
+                        ? "font-medium text-emerald-600 dark:text-emerald-400"
+                        : ""
+                  }
+                >
+                  {p.isPaused
+                    ? "Paused"
+                    : p.autoCheckEnabled
+                      ? `Every ${p.checkFrequency}h`
+                      : "Manual checks"}
                 </span>
+                <ChevronRight className="ml-auto size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
               </div>
             </Link>
           ))}
