@@ -824,58 +824,6 @@
   to { transform: translateX(400%); }
 }
 
-/* "What are P.S / K.S?" — the ⓘ button in the score column header and its panel.
-   The panel is portaled to <body>, so it resets the <th>'s uppercase/nowrap
-   header styling back to normal prose. */
-.fs-app .score-info-btn {
-  display: inline-grid; place-items: center;
-  width: 16px; height: 16px; margin-left: 6px; padding: 0;
-  border: none; border-radius: 50%;
-  background: var(--bg-inset); color: var(--text-mute);
-  cursor: pointer; vertical-align: middle;
-  transition: color .12s ease, background .12s ease;
-}
-.fs-app .score-info-btn:hover { color: var(--brand); background: var(--brand-soft); }
-.fs-app .score-info-pop {
-  position: relative;
-  transform: translateX(-50%);
-  width: 248px;
-  display: flex; flex-direction: column; gap: 9px;
-  padding: 11px 12px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
-  color: var(--text-soft);
-  font-size: 12px; font-weight: 400; line-height: 1.45;
-  text-transform: none; letter-spacing: 0; white-space: normal; text-align: left;
-}
-/* Caret so the panel reads as attached to the ⓘ rather than floating loose. */
-.fs-app .score-info-pop::before {
-  content: ""; position: absolute; top: -5px; left: 50%; margin-left: -4px;
-  width: 8px; height: 8px;
-  background: var(--bg-elev);
-  border-left: 1px solid var(--border);
-  border-top: 1px solid var(--border);
-  transform: rotate(45deg);
-}
-.fs-app .score-info-pop .r { display: flex; align-items: flex-start; gap: 8px; }
-.fs-app .score-info-pop .tag {
-  flex-shrink: 0;
-  padding: 1px 6px; border-radius: var(--r-sm);
-  background: var(--bg-inset); color: var(--text);
-  font-size: 11px; font-weight: 600; line-height: 1.5;
-}
-.fs-app .score-info-pop .hint {
-  color: var(--text-mute); font-size: 11.5px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
-/* P.S / K.S table cell — fixed-width slots so the "/" separator and both badges
-   line up vertically down the column, even when a row shows the wider "+ Score"
-   call-to-action instead of a number. */
-
 /* Competitors insight card — tracked-competitor rows. Each row links into the
    Competitor Spy detail: favicon · (domain + ahead/behind/gaps + win bar) · remove. */
 .fs-app .cmp-track { display: flex; align-items: center; gap: 4px; }

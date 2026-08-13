@@ -15,6 +15,7 @@ import { Dropdown } from "@/components/dashboard/dropdown"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
+import { InfoHint } from "@/components/dashboard/widget"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
 import { Flag } from "@/components/flag"
@@ -3161,70 +3162,33 @@ function ScheduleToggle({
   )
 }
 
-// "What is the Keyword Score?" — the ⓘ in the score column header. Click to
-// reveal what it means and where it comes from. The panel is portaled to <body>
-// because the table lives in a horizontal-scroll container that would clip it.
+/**
+ * "What is the Keyword Score?" — the ⓘ in the score column header.
+ *
+ * The same InfoHint every other stat uses, so one explanation doesn't arrive in
+ * a different-looking box from the rest. It replaces a hand-rolled popover that
+ * measured the icon, clamped itself to the viewport, portaled to <body> and
+ * wired up its own outside-click, Escape and resize handlers — about sixty
+ * lines to do what Radix already does, and it opened on click while every other
+ * hint in the app opens on hover.
+ *
+ * The wrapper stops the click reaching the header behind it: this sits inside a
+ * sortable column, and Radix opens on hover, so a click on the icon would
+ * otherwise fall through and re-sort the table.
+ */
 function ScoreInfoTip() {
   const t = useTranslations("projKeywords")
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!pos) return
-    const close = () => setPos(null)
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement | null
-      if (btnRef.current?.contains(target as Node)) return
-      if (target?.closest?.(".score-info-pop")) return
-      close()
-    }
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close() }
-    document.addEventListener("pointerdown", onPointerDown)
-    document.addEventListener("keydown", onKey)
-    window.addEventListener("resize", close)
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown)
-      document.removeEventListener("keydown", onKey)
-      window.removeEventListener("resize", close)
-    }
-  }, [pos])
-
-  const toggle = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation() // never sort the column when the ⓘ is clicked
-    if (pos) { setPos(null); return }
-    const r = e.currentTarget.getBoundingClientRect()
-    // The panel is centred on the icon; clamp so it can't run off either edge.
-    const half = 124
-    const centre = r.left + r.width / 2
-    const left = Math.min(Math.max(centre, half + 10), window.innerWidth - half - 10)
-    setPos({ top: r.bottom + 10, left })
-  }
-
   return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        className="score-info-btn"
-        aria-label={t("scoreInfoAria")}
-        aria-expanded={!!pos}
-        title={t("scoreInfoAria")}
-        onClick={toggle}
-      >
-        <Icon.info size={12} />
-      </button>
-      {pos && typeof document !== "undefined" && createPortal(
-        <div className="fs-app" style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 80 }}>
-          <div className="score-info-pop" role="dialog" aria-label={t("scoreInfoAria")}>
-            <div className="r">
-              <span>{t("scoreInfoKs")}</span>
-            </div>
-            <div className="hint">{t("scoreInfoHint")}</div>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
+    <span
+      className="inline-flex"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <InfoHint>
+        {t("scoreInfoKs")}
+        <span className="mt-1 block text-muted-foreground">{t("scoreInfoHint")}</span>
+      </InfoHint>
+    </span>
   )
 }
 
