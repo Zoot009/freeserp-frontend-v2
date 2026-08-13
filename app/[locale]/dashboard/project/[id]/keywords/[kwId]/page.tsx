@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import { PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -387,15 +387,15 @@ export default function KeywordDetailPage() {
                   block and buried the one thing worth reading. */}
               <ChartContainer
                 config={{ pos: { label: "Position", color: "var(--primary)" } }}
-                className="!aspect-auto h-[220px] w-full"
+                className="!aspect-auto h-[200px] w-full"
               >
-                <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                  <defs>
-                    <linearGradient id="kw-rank" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-pos)" stopOpacity={0.18} />
-                      <stop offset="100%" stopColor="var(--color-pos)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                {/* A LINE, not an area.
+                    On a reversed axis an <Area> fills toward the axis baseline,
+                    which is now ABOVE the data — so the gradient hung over the
+                    line as a floating block instead of sitting under it. A rank
+                    history needs no fill to be readable, and dropping it removes
+                    the whole class of problem rather than tuning a baseline. */}
+                <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 4 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis
                     dataKey="ts"
@@ -414,13 +414,23 @@ export default function KeywordDetailPage() {
                       line has to climb when the keyword improves. allowDecimals
                       off: there is no position #2.5, and letting Recharts pick
                       fractional ticks is what printed "#2" twice before. */}
+                  {/* Reversed, because a lower number is a better rank — the
+                      line has to climb when the keyword improves.
+
+                      The domain is clamped at 1: "dataMin - 1" on a keyword at
+                      #1 asked for position #0, which does not exist, and left
+                      the line sitting in the lower half under an empty band.
+                      allowDecimals off for the same reason there is no #2.5. */}
                   <YAxis
                     reversed
                     allowDecimals={false}
                     width={40}
                     tickLine={false}
                     axisLine={false}
-                    domain={["dataMin - 1", "dataMax + 1"]}
+                    domain={[
+                      (min: number) => Math.max(1, Math.floor(min) - 1),
+                      (max: number) => Math.ceil(max) + 1,
+                    ]}
                     tickFormatter={(v) => `#${v}`}
                   />
                   <ChartTooltip
@@ -438,17 +448,16 @@ export default function KeywordDetailPage() {
                       />
                     }
                   />
-                  <Area
+                  <Line
                     dataKey="pos"
                     type="monotone"
                     stroke="var(--color-pos)"
                     strokeWidth={2}
-                    fill="url(#kw-rank)"
                     dot={{ r: 3, strokeWidth: 2, fill: "var(--bg)", stroke: "var(--color-pos)" }}
                     activeDot={{ r: 5 }}
                     isAnimationActive={false}
                   />
-                </AreaChart>
+                </LineChart>
               </ChartContainer>
             </div>
           )}

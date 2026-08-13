@@ -60,14 +60,20 @@ export function StatCard({
         </span>
       </div>
       <div className="mt-2 min-h-5 text-[13px] text-muted-foreground">{caption}</div>
-      <div className="mt-2 h-[5px] overflow-hidden rounded-[3px] bg-muted">
-        {fill != null && fill > 0 && (
-          <div
-            className={cn("h-full rounded-[3px]", fillClass ?? "bg-primary")}
-            style={{ width: `${clamp(fill)}%` }}
-          />
-        )}
-      </div>
+      {/* The empty track is only drawn when there IS a proportion to show.
+          Rendering it regardless put a stray grey rule under every card that
+          has no ceiling — position, dates, counts — which read as a divider to
+          nowhere rather than as an empty bar. */}
+      {fill != null && (
+        <div className="mt-2 h-[5px] overflow-hidden rounded-[3px] bg-muted">
+          {fill > 0 && (
+            <div
+              className={cn("h-full rounded-[3px]", fillClass ?? "bg-primary")}
+              style={{ width: `${clamp(fill)}%` }}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
