@@ -298,10 +298,24 @@ export default function YoutubeProjectsPage() {
               className="block rounded-xl border bg-card p-4 shadow-sm transition-[box-shadow,transform] hover:-translate-y-px hover:shadow-md"
             >
               <div className="mb-3.5 flex items-center gap-3">
-                {/* Every project here is a YouTube target, so the platform mark
-                    is the honest avatar — channels and videos have no domain of
-                    their own to take a favicon from. */}
-                <Favicon domain="youtube.com" size={32} bare />
+                {/* A video's real thumbnail, which is derivable from its id —
+                    the same reason the backend deliberately doesn't store one.
+                    A CHANNEL avatar is not derivable (it's an opaque
+                    googleusercontent hash) and isn't stored, so those keep the
+                    platform mark rather than a broken image. */}
+                {p.targetType === "VIDEO" && p.targetVideoId ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a 32px
+                  // thumbnail gains nothing from the optimizer, and next/image
+                  // would need i.ytimg.com allow-listed in next.config.
+                  <img
+                    src={`https://i.ytimg.com/vi/${p.targetVideoId}/mqdefault.jpg`}
+                    alt=""
+                    loading="lazy"
+                    className="size-8 shrink-0 rounded-md border border-border/60 object-cover"
+                  />
+                ) : (
+                  <Favicon domain="youtube.com" size={32} bare />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold">{p.name}</div>
                   {/* Not monospace. That was carried over from the Rank Tracker
