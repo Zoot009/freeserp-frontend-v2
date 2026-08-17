@@ -19,6 +19,8 @@ interface YtProjectSummary {
   targetLabel: string | null
   targetChannelId: string | null
   targetVideoId: string | null
+  /** Channel avatar, resolved once at creation. Null on older projects. */
+  targetAvatarUrl?: string | null
   targetMatchStrategy: string | null
   defaultDepth: number
   autoCheckEnabled: boolean
@@ -27,6 +29,45 @@ interface YtProjectSummary {
   nextScheduledCheck: string | null
   createdAt: string
   keywordCount: number
+}
+
+/**
+ * The picture for a project: the video's thumbnail, the channel's avatar, or
+ * the platform mark.
+ *
+ * A video thumbnail is derived from the id — nothing is stored for it, because
+ * the URL is rebuildable. A channel avatar has to be stored, because it is an
+ * opaque hash with no relationship to the channel id.
+ *
+ * Both fall back to the YouTube mark on error, not just when absent. A stored
+ * avatar URL rotates whenever the owner changes their picture, so an old row
+ * will eventually 404 — and a broken image icon on the card would be worse than
+ * the mark it replaced.
+ */
+function ProjectAvatar({
+  videoId,
+  avatarUrl,
+}: {
+  videoId: string | null
+  avatarUrl: string | null
+}) {
+  const [broken, setBroken] = useState(false)
+  const src = videoId ? `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg` : avatarUrl
+
+  if (!src || broken) return <Favicon domain="youtube.com" size={32} bare />
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- a 32px picture gains
+    // nothing from the optimizer, and next/image would need both i.ytimg.com and
+    // yt3.googleusercontent.com allow-listed in next.config.
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => setBroken(true)}
+      className="size-8 shrink-0 rounded-md border border-border/60 object-cover"
+    />
+  )
 }
 
 const DEPTHS = [20, 40, 60] as const
@@ -303,19 +344,10 @@ export default function YoutubeProjectsPage() {
                     A CHANNEL avatar is not derivable (it's an opaque
                     googleusercontent hash) and isn't stored, so those keep the
                     platform mark rather than a broken image. */}
-                {p.targetType === "VIDEO" && p.targetVideoId ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- a 32px
-                  // thumbnail gains nothing from the optimizer, and next/image
-                  // would need i.ytimg.com allow-listed in next.config.
-                  <img
-                    src={`https://i.ytimg.com/vi/${p.targetVideoId}/mqdefault.jpg`}
-                    alt=""
-                    loading="lazy"
-                    className="size-8 shrink-0 rounded-md border border-border/60 object-cover"
-                  />
-                ) : (
-                  <Favicon domain="youtube.com" size={32} bare />
-                )}
+                <ProjectAvatar
+                  videoId={p.targetType === "VIDEO" ? p.targetVideoId : null}
+                  avatarUrl={p.targetAvatarUrl ?? null}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold">{p.name}</div>
                   {/* Not monospace. That was carried over from the Rank Tracker
