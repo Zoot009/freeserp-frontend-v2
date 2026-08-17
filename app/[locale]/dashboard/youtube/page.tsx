@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { Plus } from "lucide-react"
+import { ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
@@ -248,6 +248,7 @@ export default function YoutubeProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [showAdd, setShowAdd] = useState(false)
+  const [view, setView] = useState<"grid" | "list">("grid")
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
@@ -295,12 +296,35 @@ export default function YoutubeProjectsPage() {
             )}
           </p>
         </div>
-        <Button
-          onClick={() => setShowAdd(true)}
-          className="ml-auto h-[38px] shrink-0 gap-1.5 rounded-[9px] text-sm font-semibold"
-        >
-          <Plus className="size-4" /> New project
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-2.5">
+          {/* The Rank Tracker's Grid/List switch, same segmented control. Only
+              shown with something to switch between — offering a list view of an
+              empty page is a control that does nothing. */}
+          {projects.length > 0 && (
+            <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
+              {(["grid", "list"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={
+                    "rounded-[7px] px-2.5 py-[5px] text-[13px] transition-colors " +
+                    (view === v
+                      ? "bg-primary font-semibold text-primary-foreground"
+                      : "font-medium text-muted-foreground hover:bg-border/60 hover:text-foreground")
+                  }
+                >
+                  {v === "grid" ? "Grid" : "List"}
+                </button>
+              ))}
+            </div>
+          )}
+          <Button
+            onClick={() => setShowAdd(true)}
+            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+          >
+            <Plus className="size-4" /> New project
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -325,7 +349,7 @@ export default function YoutubeProjectsPage() {
         </div>
       )}
 
-      {projects.length > 0 && (
+      {projects.length > 0 && view === "grid" && (
         /* A real responsive grid, so one project doesn't sit alone in a narrow
            column with the rest of the page empty beside it. */
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -416,6 +440,68 @@ export default function YoutubeProjectsPage() {
               <div className="mt-0.5 text-xs text-muted-foreground">Track a channel or video</div>
             </div>
           </button>
+        </div>
+      )}
+
+      {projects.length > 0 && view === "list" && (
+        /* The Rank Tracker's list view: one row per project, the same columns
+           it shows — identity, keywords, status, created — minus the trend,
+           which this endpoint carries no history for. */
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="grid grid-cols-[minmax(0,1fr)_80px_110px_88px_28px] items-center gap-3 border-b bg-muted/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>Project</span>
+            <span className="text-right">Keywords</span>
+            <span className="text-right">Status</span>
+            <span className="text-right">Added</span>
+            <span />
+          </div>
+
+          {projects.map((p) => (
+            <Link
+              key={p.id}
+              href={`/dashboard/youtube/${p.id}/keywords`}
+              className="grid grid-cols-[minmax(0,1fr)_80px_110px_88px_28px] items-center gap-3 border-b px-4 py-2.5 text-[13px] transition-colors last:border-0 hover:bg-muted"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <ProjectAvatar
+                  videoId={p.targetType === "VIDEO" ? p.targetVideoId : null}
+                  avatarUrl={p.targetAvatarUrl ?? null}
+                />
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{p.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {p.targetType === "CHANNEL" ? "Channel" : "Video"}
+                    {(p.targetLabel ?? p.targetRaw) && <> · {p.targetLabel ?? p.targetRaw}</>}
+                  </div>
+                </div>
+              </div>
+
+              <span className="text-right tabular-nums">{p.keywordCount}</span>
+
+              <span className="flex justify-end">
+                <span
+                  className={
+                    "rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                    (p.isPaused
+                      ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                      : p.autoCheckEnabled
+                        ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                        : "bg-muted text-muted-foreground")
+                  }
+                >
+                  {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
+                </span>
+              </span>
+
+              <span className="text-right text-xs tabular-nums text-muted-foreground">
+                {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+              </span>
+
+              <span className="flex justify-end">
+                <ChevronRight className="size-4 text-muted-foreground/50" />
+              </span>
+            </Link>
+          ))}
         </div>
       )}
 
