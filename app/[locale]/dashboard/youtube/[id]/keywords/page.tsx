@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api"
 import { Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dropdown } from "@/components/dashboard/dropdown"
 import { Icon } from "@/components/dashboard/icons"
 import { DeltaCell } from "@/components/dashboard/primitives"
 import { LocationPicker } from "@/components/location-picker"
@@ -487,21 +488,25 @@ export default function YoutubeKeywordsPage() {
             )}
           </div>
 
-          {/* Native select kept — this sets the check schedule, and a real select
-              gets the platform's own picker on mobile. Styled to match Input. */}
-          <select
-            aria-label="Check frequency"
-            value={project.autoCheckEnabled ? project.checkFrequency : "off"}
-            onChange={(e) => updateFrequency(e.target.value === "off" ? "off" : Number(e.target.value))}
-            className="h-9 rounded-lg border border-input bg-background px-2.5 text-[13px] shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            <option value="off">Manual checks only</option>
-            {FREQ_CHOICES.map((h) => (
-              <option key={h} value={h}>
-                {freqLabel(h)}
-              </option>
-            ))}
-          </select>
+          {/* The app's own Dropdown, not a native select and not shadcn's.
+              A native <select> can be styled down to the box but not the OPEN
+              MENU — that is drawn by the OS, so it arrived with system fonts,
+              square corners and the platform's blue highlight in the middle of an
+              otherwise styled page. A styled trigger over an unstyled menu is the
+              worst of the options, because it looks deliberate until you open it.
+
+              Dropdown is what the rest of the app uses for exactly this, the
+              Google project's own frequency picker included — so this control now
+              matches its sibling instead of introducing a third dropdown. */}
+          <Dropdown
+            ariaLabel="Check frequency"
+            value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
+            onChange={(v) => updateFrequency(v === "off" ? "off" : Number(v))}
+            options={[
+              { value: "off", label: "Manual checks only" },
+              ...FREQ_CHOICES.map((h) => ({ value: String(h), label: freqLabel(h) })),
+            ]}
+          />
 
           <span
             className="ml-auto rounded-md border border-border/60 bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
