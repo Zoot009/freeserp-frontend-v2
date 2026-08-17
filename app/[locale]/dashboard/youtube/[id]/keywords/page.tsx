@@ -5,6 +5,9 @@ import { useParams, useSearchParams } from "next/navigation"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
+import { Search, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Icon } from "@/components/dashboard/icons"
 import { DeltaCell } from "@/components/dashboard/primitives"
 import { LocationPicker } from "@/components/location-picker"
@@ -402,49 +405,95 @@ export default function YoutubeKeywordsPage() {
 
   return (
     <div className="page">
-      <div className="page-h">
-        <div>
-          <div className="t">{project.name}</div>
-          <div className="row tiny muted" style={{ gap: 8, alignItems: "center", marginTop: 2 }}>
-            <span className="chip outline">{project.targetType === "CHANNEL" ? "Channel" : "Video"}</span>
+      {/* Headed like the Google project page: 26px title, the target on one
+          muted line beneath it, actions right. It was a 14px .t with the target
+          scattered across chips and links, so the project name read smaller
+          than the table headings under it. */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.02em]">
+            {project.name}
+          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+            <span>{project.targetType === "CHANNEL" ? "Channel" : "Video"}</span>
+            <span aria-hidden>·</span>
             {targetHref ? (
-              <a href={targetHref} target="_blank" rel="noopener noreferrer">
-                {project.targetLabel ?? project.targetRaw} <Icon.external size={11} />
+              <a
+                href={targetHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+              >
+                {project.targetLabel ?? project.targetRaw}
+                <Icon.external size={11} />
               </a>
             ) : (
               <span>{project.targetLabel ?? project.targetRaw}</span>
             )}
+            {/* Kept prominent: a name-only match means the numbers may belong to
+                a different channel with a similar name, which matters more than
+                anything else on this page. */}
             {project.targetMatchStrategy === "channel_name" && (
-              <span className="chip warn" title="Matched by channel name until a check resolves the channel ID.">
+              <span
+                className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                title="Matched by channel name until a check resolves the channel ID."
+              >
                 Fuzzy match
               </span>
             )}
           </div>
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn" onClick={() => setShowAddKw(true)}>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowAddKw(true)}
+            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+          >
             <Icon.plus /> Add keywords
-          </button>
-          <button className="btn primary" disabled={busy || project.keywords.length === 0} onClick={() => runCheck(selected.size > 0 ? [...selected] : undefined)}>
+          </Button>
+          <Button
+            disabled={busy || project.keywords.length === 0}
+            onClick={() => runCheck(selected.size > 0 ? [...selected] : undefined)}
+            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+          >
             <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="card tight" style={{ marginBottom: 12 }}>
-        <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <input
-            className="input"
-            style={{ maxWidth: 260 }}
-            placeholder="Filter keywords…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
+      <div className="mb-3 rounded-xl border bg-card p-3.5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Filter keywords…"
+              aria-label="Filter keywords"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="h-9 w-52 rounded-lg pl-8 pr-8 text-[13px] sm:w-60"
+            />
+            {/* A filter you can't see the edge of is one people forget is on,
+                then read the shortened table as missing keywords. */}
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter("")}
+                aria-label="Clear filter"
+                className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Native select kept — this sets the check schedule, and a real select
+              gets the platform's own picker on mobile. Styled to match Input. */}
           <select
-            className="input"
-            style={{ maxWidth: 200 }}
+            aria-label="Check frequency"
             value={project.autoCheckEnabled ? project.checkFrequency : "off"}
             onChange={(e) => updateFrequency(e.target.value === "off" ? "off" : Number(e.target.value))}
+            className="h-9 rounded-lg border border-input bg-background px-2.5 text-[13px] shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             <option value="off">Manual checks only</option>
             {FREQ_CHOICES.map((h) => (
@@ -453,7 +502,11 @@ export default function YoutubeKeywordsPage() {
               </option>
             ))}
           </select>
-          <span className="tiny muted" style={{ marginLeft: "auto" }}>
+
+          <span
+            className="ml-auto rounded-md border border-border/60 bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
+            title={`New keywords check the top ${project.defaultDepth} results unless set otherwise`}
+          >
             Top {project.defaultDepth} by default
           </span>
         </div>
