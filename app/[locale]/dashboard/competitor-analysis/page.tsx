@@ -8,6 +8,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
 import { fetchBillingConfig } from "@/lib/billing-config"
 import axios from "@/lib/axios"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 const MAX_COMPETITORS = 10
 
@@ -409,6 +410,8 @@ function CompetitorAnalysisContent() {
           </button>
         </div>
       </div>
+
+      <ToolContext id="competitor-analysis" />
 
       {/* Input form */}
       <div className="card" style={{ padding: 18 }}>

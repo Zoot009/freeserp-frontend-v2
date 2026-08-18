@@ -16,6 +16,7 @@ import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { StatTile } from "@/components/dashboard/primitives"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 type MatchType = "broad" | "related"
 
@@ -224,6 +225,8 @@ export default function KeywordMagicPage() {
           </div>
         )}
       </div>
+
+      <ToolContext id="keyword-magic" />
 
       {/* Limit-reached banner — only when results are on screen (the empty state
           shows its own, fuller out-of-searches card, so we don't double up). */}

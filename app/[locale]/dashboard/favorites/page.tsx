@@ -7,6 +7,7 @@ import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { displayDomain } from "@/lib/utils"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 type KeywordEntity = {
   id: string
@@ -106,6 +107,8 @@ export default function FavoritesPage() {
           </div>
         </div>
       </div>
+
+      <ToolContext id="favorites" />
 
       <div className="tabs" style={{ marginBottom: 16 }}>
         {tabs.map((tb) => (

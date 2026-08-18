@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 // A saved single-site analysis as returned by GET /api/keyword-analysis (list
 // shape — no crawlData blob).
@@ -166,6 +167,8 @@ function KeywordAnalysisContent() {
           <div className="sub">Crawl and score one of your own pages for a target keyword — on-page &amp; off-page SEO, no competitors.</div>
         </div>
       </div>
+
+      <ToolContext id="keyword-score-checker" />
 
       {/* Context banner — shown when scoring a specific project keyword. */}
       {fromProject && (

@@ -877,6 +877,54 @@
 .fs-app .g-2 { grid-template-columns: repeat(2, 1fr); }
 .fs-app .g-21 { grid-template-columns: 2fr 1fr; }
 .fs-app .g-12 { grid-template-columns: 1fr 2fr; }
+/* === TOOL CONTEXT PANEL === */
+/* The "what is this tool for" block under a tool's title. Sits on the subtle
+   background rather than the page white so it reads as commentary about the
+   screen, not another data card on it. */
+.fs-app .tool-ctx {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-sub);
+}
+.fs-app .tool-ctx-top { display: flex; align-items: flex-start; gap: 10px; }
+.fs-app .tool-ctx-icon { display: inline-flex; flex-shrink: 0; margin-top: 2px; color: var(--brand); }
+.fs-app .tool-ctx-lede { flex: 1; margin: 0; font-size: 13px; line-height: 1.55; color: var(--text); }
+.fs-app .tool-ctx-hide {
+  flex-shrink: 0;
+  padding: 0 0 0 10px;
+  background: none; border: none;
+  color: var(--text-mute); font-size: 12px;
+  cursor: pointer;
+}
+.fs-app .tool-ctx-hide:hover { color: var(--text); }
+/* Indented to the lede's text column, so the three blocks read as one
+   paragraph set rather than a card with a heading and a table under it. */
+.fs-app .tool-ctx-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 12px 0 0 24px;
+}
+.fs-app .tool-ctx-h {
+  margin-bottom: 3px;
+  font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-mute);
+}
+.fs-app .tool-ctx-b { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-soft); }
+.fs-app .tool-ctx-show {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 14px;
+  padding: 0;
+  background: none; border: none;
+  color: var(--text-mute); font-size: 12px;
+  cursor: pointer;
+}
+.fs-app .tool-ctx-show:hover { color: var(--brand); }
+@media (max-width: 720px) {
+  .fs-app .tool-ctx-grid { grid-template-columns: 1fr; margin-left: 0; }
+}
+
 /* === TABLE === */
 .fs-app .tbl {
   width: 100%;

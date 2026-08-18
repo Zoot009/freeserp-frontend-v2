@@ -19,6 +19,7 @@ import {
   type SerpFeatures,
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 type ProjectSummary = {
   id: string
@@ -221,6 +222,8 @@ export default function KeywordsListPage() {
           </button>
         </div>
       </div>
+
+      <ToolContext id="keywords" />
 
       {/* Filter bar */}
       <div className="filter-row">

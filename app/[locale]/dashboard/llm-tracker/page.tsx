@@ -28,6 +28,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 // ───── Types (mirror /api/llm-tracker) ──────────────────────────────────────
 type Platform = "google" | "chat_gpt"
@@ -269,6 +270,8 @@ export default function LlmTrackerPage() {
              a report exists, so the search owns the screen until it has an answer. */}
       <Intro phase={phase}>
         <Header phase={phase} onReset={reset} />
+
+        <ToolContext id="llm-tracker" />
 
         {usage && !usage.enabled && <AddOnTeaser />}
 

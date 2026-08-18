@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import axios from "@/lib/axios"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 // Turns a 429's rate-limit headers into a human wait time. Same helper used by
 // the competitor-analysis start page.
@@ -148,6 +149,8 @@ export default function AiInternalLinkingPage() {
           </button>
         </div>
       </div>
+
+      <ToolContext id="ai-internal-linking" />
 
       {/* Input form */}
       <div className="card" style={{ padding: 18 }}>

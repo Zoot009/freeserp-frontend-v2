@@ -23,6 +23,7 @@ import { transformReport, type AuditReport } from "@/components/page-audit/audit
 import { AuditHistory } from "@/components/page-audit/audit-history"
 import { AuditProgressOverlay } from "@/components/page-audit/audit-progress"
 import { cn } from "@/lib/utils"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 type JobState = {
   jobId: string
@@ -182,6 +183,8 @@ export default function PageAuditPage() {
           structured data and security — with the exact fixes, in priority order.
         </p>
       </div>
+
+      <ToolContext id="website-audit" />
 
       <div className="rounded-lg border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">

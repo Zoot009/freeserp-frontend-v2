@@ -14,6 +14,7 @@ import { ScanHistoryTable, flattenHistoryRows } from "@/components/maps-tracker/
 import { Tooltip } from "@/components/maps-tracker/tooltip"
 import { totalPoints, RECOMMENDED_GRID_SIZE, type DistanceUnit } from "@/components/maps-tracker/grid"
 import type { MapLocation, Scan, ScanHistoryItem, CreateScanResponse } from "@/components/maps-tracker/types"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -316,6 +317,8 @@ export default function GoogleMapsTrackerPage() {
           <div className="sub">See where your business ranks on Google Maps, block by block.</div>
         </div>
       </div>
+
+      <ToolContext id="maps-tracker" />
 
       {/* Top bar — what to scan */}
       <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>

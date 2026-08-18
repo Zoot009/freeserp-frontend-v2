@@ -14,6 +14,7 @@ import {
   serpFeaturesToChips,
   type SerpFeatures,
 } from "@/components/dashboard/primitives"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 type SerpResultRow = {
   position: number
@@ -267,6 +268,8 @@ export default function SerpCheckerPage() {
           </div>
         )}
       </div>
+
+      <ToolContext id="quick-serp" />
 
       {/* Query form */}
       <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>

@@ -8,6 +8,7 @@ import { ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 // ───── Types (mirror /api/youtube/projects) ────────────────────────────────
 
@@ -326,6 +327,8 @@ export default function YoutubeProjectsPage() {
           </Button>
         </div>
       </div>
+
+      <ToolContext id="youtube-tracker" />
 
       {error && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-600 dark:text-red-400">
