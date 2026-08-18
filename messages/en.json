@@ -485,6 +485,7 @@
     "project": "Project",
     "keywords": "Keywords",
     "youtube": "YouTube",
+    "llmTracker": "LLM Tracker",
     "favorites": "Favorites",
     "quickSerp": "Quick Serp",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,7 +502,8 @@
     "keywordAnalysis": "Keyword Score Checker",
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
-    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial"
+    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
+    "llmPrompts": "My Prompts"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",
@@ -1193,7 +1195,9 @@
     "titleFreeDaily": "That's today's free checks",
     "bodyFreeDailyQuota": "You've used {used} of {limit} free checks today. They reset at midnight UTC — your trial keeps running.",
     "gotIt": "Got it",
-    "seePlans": "See plans"
+    "seePlans": "See plans",
+    "bodyLlmTrackerAddOn": "AI Visibility tracking is an add-on. It shows which sites ChatGPT and Google AI Overview recommend in your category, with 12 months of history.",
+    "bodyLlmTrackerLimit": "You have used your AI Visibility data allowance for now. Cached results stay free, and your allowance resets automatically."
   },
   "trialCountdown": {
     "cta": "See plans",

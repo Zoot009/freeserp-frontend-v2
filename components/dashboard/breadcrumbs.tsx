@@ -44,6 +44,12 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
     { key: "project" },
   ],
   "/dashboard/youtube": [WORKSPACE, { key: "youtube" }],
+  "/dashboard/llm-tracker": [WORKSPACE, { key: "llmTracker" }],
+  "/dashboard/llm-tracker/prompts": [
+    WORKSPACE,
+    { key: "llmTracker", href: "/dashboard/llm-tracker" },
+    { key: "llmPrompts" },
+  ],
   "/dashboard/keywords": [WORKSPACE, { key: "keywords" }],
   "/dashboard/favorites": [WORKSPACE, { key: "favorites" }],
   "/dashboard/serp-checker": [WORKSPACE, { key: "quickSerp" }],

@@ -485,6 +485,7 @@
     "project": "Proyecto",
     "keywords": "Palabras clave",
     "youtube": "YouTube",
+    "llmTracker": "Rastreador LLM",
     "favorites": "Favoritos",
     "quickSerp": "SERP rápido",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,7 +502,8 @@
     "keywordAnalysis": "Análisis de palabras clave",
     "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
-    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba"
+    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba",
+    "llmPrompts": "Mis prompts"
   },
   "dashFavorites": {
     "headerEyebrow": "Guardados",
@@ -1193,7 +1195,9 @@
     "titleFreeDaily": "Has usado tus comprobaciones de hoy",
     "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC — tu prueba sigue activa.",
     "gotIt": "Entendido",
-    "seePlans": "Ver planes"
+    "seePlans": "Ver planes",
+    "bodyLlmTrackerAddOn": "El seguimiento de visibilidad en IA es un complemento. Muestra qué sitios recomiendan ChatGPT y Google AI Overview en tu categoría, con 12 meses de historial.",
+    "bodyLlmTrackerLimit": "Has agotado tu cuota de datos de visibilidad en IA por ahora. Los resultados en caché siguen siendo gratuitos y tu cuota se restablece automáticamente."
   },
   "trialCountdown": {
     "cta": "Ver planes",

@@ -485,6 +485,7 @@
     "project": "Projekt",
     "keywords": "Keywords",
     "youtube": "YouTube",
+    "llmTracker": "LLM-Tracker",
     "favorites": "Favoriten",
     "quickSerp": "Schnelles SERP",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,7 +502,8 @@
     "keywordAnalysis": "Keyword-Analyse",
     "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
-    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test"
+    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test",
+    "llmPrompts": "Meine Prompts"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",
@@ -1193,7 +1195,9 @@
     "titleFreeDaily": "Das waren die heutigen Prüfungen",
     "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt — Ihre Testphase läuft weiter.",
     "gotIt": "Verstanden",
-    "seePlans": "Pläne ansehen"
+    "seePlans": "Pläne ansehen",
+    "bodyLlmTrackerAddOn": "AI-Visibility-Tracking ist ein Add-on. Es zeigt, welche Seiten ChatGPT und Google AI Overview in Ihrer Kategorie empfehlen – mit 12 Monaten Verlauf.",
+    "bodyLlmTrackerLimit": "Ihr AI-Visibility-Kontingent ist vorerst aufgebraucht. Zwischengespeicherte Ergebnisse bleiben kostenlos, und Ihr Kontingent wird automatisch zurückgesetzt."
   },
   "trialCountdown": {
     "cta": "Tarife ansehen",
