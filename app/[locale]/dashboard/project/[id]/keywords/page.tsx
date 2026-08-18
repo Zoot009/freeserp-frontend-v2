@@ -60,6 +60,19 @@ const FREQ_CHOICES = [24, 168, 360, 720]
 
 // ───── Types ───────────────────────────────────────────────────────────────
 
+/**
+ * Coarse elapsed-time label for a check that is taking longer than expected.
+ * Deliberately low-precision — the point is "this has been a while", not a
+ * stopwatch, and a ticking seconds counter on a stalled check reads as anxious.
+ */
+function formatCheckDuration(ms: number): string {
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 60) return `${Math.max(1, mins)}m`
+  const hours = Math.floor(mins / 60)
+  const rem = mins % 60
+  return rem === 0 ? `${hours}h` : `${hours}h ${rem}m`
+}
+
 interface Keyword {
   id: string
   keyword: string
@@ -80,6 +93,15 @@ interface Keyword {
   serpFeatures: SerpFeatures | null
   searchVolumeTrend: MonthlySearch[] | null
   status: string | null
+  // When the in-flight check started, and whether it has outlived its expected
+  // window. Both absent unless a check is actually running — they let the UI age
+  // its wording instead of promising every check lands within a minute.
+  //
+  // Optional because the frontend can run against a backend that predates them
+  // (local bundle + deployed API). Absent degrades to the old always-optimistic
+  // copy rather than throwing.
+  checkStartedAt?: string | null
+  checkOverdue?: boolean
   checkedAt: string | null
   latestAnalysisId: string | null
   // Keyword Score (0–100) of the ranking page for this keyword — the "Keyword
@@ -1484,6 +1506,40 @@ export default function ProjectKeywordsPage() {
 
   const pendingCount = (statusCounts["PENDING"] || 0) + (statusCounts["PROCESSING"] || 0)
 
+  // Ticking clock so the elapsed wording ages while the user watches, without
+  // waiting on the next data refresh. Only runs while something is in flight.
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  useEffect(() => {
+    if (pendingCount === 0) return
+    setNowTick(Date.now())
+    const id = setInterval(() => setNowTick(Date.now()), 15_000)
+    return () => clearInterval(id)
+  }, [pendingCount])
+
+  // Age of the longest-running in-flight check, and whether any has blown its
+  // expected window. A check normally lands in well under a minute, so once one
+  // has been running for several minutes the reassurance line stops being true —
+  // and a page that keeps promising "under a minute" over a check that has been
+  // going for hours reads as broken even when the backend is healthy.
+  const checkProgress = useMemo(() => {
+    if (!project) return { longestMs: 0, overdue: false }
+    let longestMs = 0
+    let overdue = false
+    for (const kw of project.keywords) {
+      if (kw.checkOverdue) overdue = true
+      if (!kw.checkStartedAt) continue
+      const started = new Date(kw.checkStartedAt).getTime()
+      if (!Number.isFinite(started)) continue
+      longestMs = Math.max(longestMs, nowTick - started)
+    }
+    return { longestMs, overdue }
+  }, [project, nowTick])
+
+  // Threshold for "this is taking longer than usual". Generous relative to the
+  // ~70-110s a live SERP fetch actually takes, so a normal check never trips it.
+  const SLOW_CHECK_MS = 5 * 60_000
+  const checkIsSlow = checkProgress.longestMs > SLOW_CHECK_MS
+
   // Keyword count per device — drives the labels on the Desktop/Mobile tabs.
   // Legacy rows with a null device are treated as desktop.
   const deviceCounts = useMemo(() => {
@@ -2005,29 +2061,46 @@ export default function ProjectKeywordsPage() {
 
       {/* Live check-in-progress strip. Brand-colored "working" state (not a
           warning), with a spinner + sliding bar so it reads as active, and a
-          reassurance line so users wait here instead of leaving. */}
+          reassurance line so users wait here instead of leaving. Once a check
+          outlives its expected window the tone drops to a warning — at that
+          point it is no longer "working", it is waiting to be marked failed. */}
       {pendingCount > 0 && (
-        <div className="card tight check-banner" style={{ marginBottom: 14 }}>
+        <div
+          className="card tight check-banner"
+          style={{
+            marginBottom: 14,
+            ...(checkProgress.overdue
+              ? { borderColor: "var(--neg)", background: "var(--neg-soft)" }
+              : {}),
+          }}
+        >
           <div className="row" style={{ gap: 12, alignItems: "center" }}>
             <span
               className="spin"
               aria-hidden
               style={{
                 width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-                border: "2.5px solid color-mix(in srgb, var(--brand) 25%, transparent)",
-                borderTopColor: "var(--brand)", boxSizing: "border-box",
+                border: `2.5px solid color-mix(in srgb, ${checkProgress.overdue ? "var(--neg)" : "var(--brand)"} 25%, transparent)`,
+                borderTopColor: checkProgress.overdue ? "var(--neg)" : "var(--brand)", boxSizing: "border-box",
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="b" style={{ fontSize: 13, color: "var(--brand)" }}>
+              <div className="b" style={{ fontSize: 13, color: checkProgress.overdue ? "var(--neg)" : "var(--brand)" }}>
                 {statusCounts["PROCESSING"] > 0
                   ? t("statusChecking", { count: pendingCount })
                   : t("statusQueued", { count: pendingCount })}
               </div>
-              <div className="tiny" style={{ color: "var(--brand)", opacity: 0.75, marginTop: 1 }}>
+              <div className="tiny" style={{ color: checkProgress.overdue ? "var(--neg)" : "var(--brand)", opacity: 0.75, marginTop: 1 }}>
                 {t("statusPendingProcessing", { pending: statusCounts["PENDING"] || 0, processing: statusCounts["PROCESSING"] || 0 })}
                 {" · "}
-                {t("checkStay")}
+                {/* The reassurance line ages with the check. Promising "under a
+                    minute" over one that has been running for hours is what made
+                    a healthy-but-slow check look like a broken page. */}
+                {checkProgress.overdue
+                  ? t("checkStayOverdue")
+                  : checkIsSlow
+                    ? `${t("checkStaySlow")} · ${t("checkRunningFor", { duration: formatCheckDuration(checkProgress.longestMs) })}`
+                    : t("checkStay")}
               </div>
             </div>
           </div>
