@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
+import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -401,6 +401,25 @@ function stageIndexFor(status: SiteAudit["status"], pagesFound: number, auditPct
   return 1
 }
 
+/**
+ * Remaining time, extrapolated from THIS run's own rate: if 40% took five
+ * minutes, the rest takes about seven and a half more.
+ *
+ * Held back until there is enough of a sample to be worth printing — an
+ * estimate off the first few percent swings between two minutes and forty and
+ * is worse than saying nothing. Above the upstream deadline the number stops
+ * meaning anything, so it degrades to a phrase instead.
+ */
+function etaLabel(elapsedMs: number, pct: number | null): string | null {
+  if (pct == null || pct < 5 || pct >= 100) return null
+  if (elapsedMs < 45_000) return null
+  const remainingMs = (elapsedMs / pct) * (100 - pct)
+  const mins = Math.round(remainingMs / 60_000)
+  if (mins > 20) return "several more minutes"
+  if (mins <= 1) return "under a minute left"
+  return `about ${mins} min left`
+}
+
 /** "2m 14s" — so a long wait is legibly a long wait, not a hung card. */
 function elapsedLabel(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))
@@ -409,7 +428,15 @@ function elapsedLabel(ms: number): string {
   return m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`
 }
 
-function CrawlStages({ current, startedAt }: { current: number; startedAt: string | null | undefined }) {
+function CrawlStages({
+  current,
+  startedAt,
+  pct,
+}: {
+  current: number
+  startedAt: string | null | undefined
+  pct: number | null
+}) {
   // Ticks once a second purely to move the elapsed figure. Cheap, and it is the
   // one thing on this card guaranteed to change while the crawl is slow.
   const [now, setNow] = useState(() => Date.now())
@@ -447,7 +474,13 @@ function CrawlStages({ current, startedAt }: { current: number; startedAt: strin
         )
       })}
       {elapsed != null && (
-        <span className="ml-auto text-xs tabular-nums text-muted-foreground">{elapsedLabel(elapsed)} elapsed</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          <span className="tabular-nums">{elapsedLabel(elapsed)}</span> elapsed
+          {(() => {
+            const eta = etaLabel(elapsed, pct)
+            return eta ? <> · {eta}</> : null
+          })()}
+        </span>
       )}
     </div>
   )
@@ -626,6 +659,7 @@ export function SiteCrawlCard({
           <CrawlStages
             current={stageIndexFor(audit.status, found, pct)}
             startedAt={audit.startedAt ?? firstSeenRunningRef.current}
+            pct={pct}
           />
 
           {/* Pages already reached, newest first — the crawl stops being a black
@@ -642,8 +676,12 @@ export function SiteCrawlCard({
           )}
 
           <p className="mt-3.5 text-[13px] leading-relaxed text-muted-foreground">
-            This usually takes a few minutes. You can leave this page — we&apos;ll keep auditing in the
-            background, and the full report will be here when you come back.
+            {/* "A few minutes" was set for a small site. A full audit of up to
+                100 pages runs 5–15 minutes on a large one, and a promise the
+                job routinely breaks is what makes a working crawl look broken. */}
+            Auditing up to {budget} pages takes 5–15 minutes, longer on a big site. You can leave this
+            page — we&apos;ll keep going in the background, and the full report will be here when you
+            get back.
           </p>
 
           {/* The same three rows the finished card shows, holding their places
@@ -675,9 +713,15 @@ export function SiteCrawlCard({
                 Site Health <InfoHint>Overall score for the crawled site, 0–100. Based on how many checks passed against how many ran.</InfoHint>
               </div>
               {degraded ? (
-                <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">
-                  We reached your site but couldn&apos;t score it — it may be blocking automated access.
-                </p>
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                  <div className="flex items-center gap-1.5 text-[13px] font-semibold text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.5} /> Finished without a score
+                  </div>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                    We reached your site and mapped {audit.pagesFound ?? 0} pages, but the checks couldn&apos;t run
+                    — it looks like automated access is being blocked. Allow our crawler, or re-crawl to try again.
+                  </p>
+                </div>
               ) : (
                 <HealthGauge value={health} grade={audit.grade} />
               )}
@@ -686,9 +730,28 @@ export function SiteCrawlCard({
             {/* Label left, count right — the same three rows the crawling state
                 holds open, so the card fills in rather than rearranging. */}
             <div className="flex flex-col gap-2.5 border-t pt-3.5">
-              <Metric label="Errors" hint="High-severity problems — fix these first." value={audit.issuesHigh ?? 0} tone={(audit.issuesHigh ?? 0) > 0 ? "text-red-600 dark:text-red-400" : undefined} />
-              <Metric label="Warnings" hint="Medium-severity issues worth addressing." value={audit.issuesMedium ?? 0} tone={(audit.issuesMedium ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : undefined} />
-              <Metric label="Notices" hint="Low-severity observations." value={audit.issuesLow ?? 0} />
+              {/* "0 errors, 0 warnings, 0 notices" is a statement that the site
+                  is clean. After a run that couldn't score anything it is the
+                  opposite of the truth — nothing was checked, so nothing was
+                  found. A dash says that; a zero lies about it. */}
+              <Metric
+                label="Errors"
+                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "High-severity problems — fix these first."}
+                value={degraded ? "—" : (audit.issuesHigh ?? 0)}
+                tone={!degraded && (audit.issuesHigh ?? 0) > 0 ? "text-red-600 dark:text-red-400" : degraded ? "text-muted-foreground" : undefined}
+              />
+              <Metric
+                label="Warnings"
+                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "Medium-severity issues worth addressing."}
+                value={degraded ? "—" : (audit.issuesMedium ?? 0)}
+                tone={!degraded && (audit.issuesMedium ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : degraded ? "text-muted-foreground" : undefined}
+              />
+              <Metric
+                label="Notices"
+                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "Low-severity observations."}
+                value={degraded ? "—" : (audit.issuesLow ?? 0)}
+                tone={degraded ? "text-muted-foreground" : undefined}
+              />
             </div>
 
             <div className="min-w-0 border-t pt-3.5">
@@ -708,7 +771,7 @@ export function SiteCrawlCard({
           <div className="mt-5 border-t pt-4">
             <div className="mb-2.5 flex items-baseline gap-2">
               <span className="flex items-center gap-1 text-[13px] text-foreground/70">
-                Crawled Pages <InfoHint>Pages reached in this crawl, split by the status their server returned.</InfoHint>
+                Crawled Pages <InfoHint>Pages reached in this crawl, split by the status their server returned. These come from our own crawler, so they are recorded even when the scored checks can&apos;t run.</InfoHint>
               </span>
               <span className="text-[22px] font-bold leading-none tabular-nums text-primary">{audit.pagesFound ?? 0}</span>
             </div>

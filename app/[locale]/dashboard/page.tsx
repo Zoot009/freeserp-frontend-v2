@@ -518,7 +518,10 @@ export default function SeoDashboardPage() {
             {/* Reports the REAL analysis run rather than asserting one exists —
                 the old banner promised "this page fills in on its own" while
                 nothing was actually running. */}
-            {noKeywords && <KeywordSetupCard projectId={projectId} domain={domain} autoStart />}
+            {/* No autoStart: the analysis costs an AI credit and now announces
+                itself in a dialog, so it asks before spending one rather than
+                firing on page load and reporting it afterwards. */}
+            {noKeywords && <KeywordSetupCard projectId={projectId} domain={domain} />}
 
             {/* ── The five headline figures ── */}
             <StatStrip

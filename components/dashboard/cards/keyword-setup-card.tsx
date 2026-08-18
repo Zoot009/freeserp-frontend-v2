@@ -36,6 +36,8 @@ const POLL_MS = 4_000
  *  alone, before admitting the run never appeared. */
 const AWAIT_RUN_TIMEOUT_MS = 30_000
 
+const dismissKey = (projectId: string) => `fs.kwai.${projectId}`
+
 /** Indeterminate progress — the job reports no percentage, so this reports none. */
 function Stripe() {
   return (
@@ -52,13 +54,119 @@ function Stripe() {
   )
 }
 
+/**
+ * The offer to find keywords for you, asked rather than assumed.
+ *
+ * This was a full-width card wedged above the stat strip, permanently occupying
+ * the best real estate on the dashboard to ask one question. It is a question,
+ * so it gets a dialog: answer it, dismiss it, and the dashboard is a dashboard
+ * again. Dismissal is remembered per project — an offer that returns on every
+ * visit after you have declined it is nagging, not helping.
+ *
+ * Only the IDLE state moved here. A crawl in flight and a finished shortlist
+ * both still render in place, because those are progress worth seeing on the
+ * page rather than a question waiting for an answer.
+ */
+function KeywordAiPrompt({
+  domain,
+  starting,
+  error,
+  projectId,
+  onStart,
+  onDismiss,
+}: {
+  domain: string
+  starting: boolean
+  error: string | null
+  projectId: string
+  onStart: () => void
+  onDismiss: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onDismiss()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onDismiss])
+
+  return (
+    <div className="fs-app">
+      <div className="modal-bg" onClick={onDismiss}>
+        <div
+          className="modal"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: 440 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Find keywords with AI"
+        >
+          <div className="modal-b" style={{ padding: "26px 24px 20px", textAlign: "center" }}>
+            <div
+              aria-hidden
+              style={{
+                width: 46,
+                height: 46,
+                margin: "0 auto 14px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 14,
+                background: "var(--brand-soft)",
+                color: "var(--brand)",
+              }}
+            >
+              <Sparkles className="size-5" />
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>
+              Want us to find your keywords?
+            </div>
+            {/* Built as one string rather than JSX text either side of {domain}:
+                as separate text nodes the space next to the domain kept being
+                eaten, and it shipped reading "bikewale.comand suggest". */}
+            <p
+              className="tiny muted"
+              style={{ margin: "8px auto 0", maxWidth: 340, fontSize: 13, lineHeight: 1.55 }}
+            >
+              {`We'll read ${domain}, work out what it should rank for, and check where it stands today. It takes a minute or two.`}
+            </p>
+            {error && (
+              <p className="tiny" style={{ marginTop: 10, color: "var(--neg)" }}>
+                {error}
+              </p>
+            )}
+          </div>
+          <div
+            className="modal-f"
+            style={{ justifyContent: "center", gap: 10, paddingTop: 16, paddingBottom: 16 }}
+          >
+            <Button size="sm" className="h-9 gap-1.5 text-[13px]" disabled={starting} onClick={onStart}>
+              <Sparkles className="size-3.5" />
+              {starting ? "Starting…" : error ? "Try again" : "Analyse with AI"}
+            </Button>
+            <Button asChild size="sm" variant="outline" className="h-9 text-[13px] hover:bg-muted hover:text-foreground">
+              <Link href={`/dashboard/project/${projectId}/keywords`}>Add them myself</Link>
+            </Button>
+          </div>
+          {/* A quiet third option. "Not now" belongs below the two real answers,
+              not beside them competing for the same weight. */}
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="mx-auto mb-4 block bg-transparent text-xs text-muted-foreground hover:text-foreground"
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function KeywordSetupCard({
-  projectId, domain, autoStart = false,
+  projectId, domain,
 }: {
   projectId: string
   domain: string
-  /** Kick the analysis off on mount when the project has never had one. */
-  autoStart?: boolean
 }) {
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,6 +177,9 @@ export function KeywordSetupCard({
   // row becoming visible — so a started analysis looked like a button that had
   // done nothing, which is what made people click it again and again.
   const [awaitingRun, setAwaitingRun] = useState(false)
+  // null until the stored preference is read, so a dismissed prompt never
+  // flashes on its way to being hidden.
+  const [askDismissed, setAskDismissed] = useState<boolean | null>(null)
   const statusRef = useRef<RunStatus | null>(null)
   const awaitingRef = useRef(false)
   const awaitingSinceRef = useRef(0)
@@ -118,15 +229,40 @@ export function KeywordSetupCard({
   }, [projectId, load, setAwaiting])
 
   useEffect(() => {
+    try {
+      setAskDismissed(window.localStorage.getItem(dismissKey(projectId)) === "0")
+    } catch {
+      setAskDismissed(false)
+    }
+  }, [projectId])
+
+  const dismissAsk = useCallback(() => {
+    setAskDismissed(true)
+    try {
+      window.localStorage.setItem(dismissKey(projectId), "0")
+    } catch {
+      /* preference simply doesn't persist */
+    }
+  }, [projectId])
+
+  useEffect(() => {
     let cancelled = false
     setLoading(true)
-    void load().then((r) => {
+    void load().then(() => {
       if (cancelled) return
       setLoading(false)
-      if (autoStart && !r) void start()
     })
     return () => { cancelled = true }
-  }, [load, start, autoStart])
+  }, [load])
+
+  // The start guard exists to stop a double-enqueue, so it may only outlive a
+  // start that is actually in flight. Any moment where nothing is starting,
+  // nothing is awaited and no run exists is a moment the button must be live —
+  // without this, a run that vanishes (a cleaned-up failure) drops the card back
+  // to the offer with a latched guard, and the click does nothing at all.
+  useEffect(() => {
+    if (!starting && !awaitingRun && !run) startedRef.current = false
+  }, [starting, awaitingRun, run])
 
   // Poll while there's something to wait for — including the window where we
   // believe a job was accepted but have not yet seen its row.
@@ -153,6 +289,22 @@ export function KeywordSetupCard({
   if (loading) return <Skeleton className="h-24 w-full rounded-lg" />
 
   const working = starting || awaitingRun || run?.status === "PENDING" || run?.status === "RUNNING"
+  const idle = !working && !run
+
+  // Nothing to report in place — the offer is a dialog now, not a card.
+  if (idle) {
+    if (askDismissed !== false) return null
+    return (
+      <KeywordAiPrompt
+        domain={domain}
+        projectId={projectId}
+        starting={starting}
+        error={startError}
+        onStart={() => void start()}
+        onDismiss={dismissAsk}
+      />
+    )
+  }
 
   return (
     <section className="rounded-lg border bg-card p-4 shadow-sm">
@@ -194,29 +346,7 @@ export function KeywordSetupCard({
             <Button asChild size="sm" className="h-8 text-xs"><Link href={`/dashboard/project/${projectId}/keywords`}>Add keywords</Link></Button>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold">No keywords yet</div>
-            <p className="mt-1 max-w-xl text-xs text-muted-foreground">
-              Let AI read {domain} and suggest the keywords it should rank for — or add your own and we&apos;ll start
-              tracking them right away.
-            </p>
-            {/* A failed start used to produce nothing at all on screen. */}
-            {startError && (
-              <p className="mt-1.5 max-w-xl text-xs font-medium text-amber-600 dark:text-amber-400">{startError}</p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={starting} onClick={() => void start()}>
-              <Sparkles className="size-3.5" /> {starting ? "Starting…" : startError ? "Try again" : "Analyse with AI"}
-            </Button>
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-              <Link href={`/dashboard/project/${projectId}/keywords`}>Add manually</Link>
-            </Button>
-          </div>
-        </div>
-      )}
+      ) : null}
     </section>
   )
 }
