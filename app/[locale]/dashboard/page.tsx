@@ -36,6 +36,7 @@ import { SetupCard, type GscState } from "@/components/dashboard/cards/setup-car
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
+import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ const BAND_DEFS = [
 // The catalogue the Hidden Widgets panel restores from — every widget id used
 // below has to appear here, or a hidden card would have no way back.
 const WIDGETS: WidgetDef[] = [
-  { id: "setup", label: "Finish setup" },
+  { id: "setup", label: "Next steps" },
   { id: "position-tracking", label: "Position Tracking" },
   { id: "site-crawl", label: "Site Audit" },
   { id: "traffic", label: "Traffic Analytics" },
@@ -205,6 +206,12 @@ export default function SeoDashboardPage() {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   const [rowsLoading, setRowsLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
+  // Creating a project no longer means leaving this page for the Rank Tracker.
+  // The modal opens here, and the new project becomes the one on screen.
+  const [showCreate, setShowCreate] = useState(false)
+  // ProjectSwitcher fetches its own list, so it needs telling that the list
+  // changed underneath it.
+  const [switcherKey, setSwitcherKey] = useState(0)
 
   // Project list — fetched once; the switcher only changes which id we scope to.
   useEffect(() => {
@@ -448,7 +455,12 @@ export default function SeoDashboardPage() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-bold leading-tight tracking-[-0.02em]">
             <span className="shrink-0">SEO Dashboard{domain ? ":" : ""}</span>
-            <ProjectSwitcher value={projectId} onSelect={setProjectId} />
+            <ProjectSwitcher
+              value={projectId}
+              onSelect={setProjectId}
+              onNewProject={() => setShowCreate(true)}
+              refreshKey={switcherKey}
+            />
           </h1>
 
           <div className="ml-auto flex shrink-0 items-center gap-2.5">
@@ -468,8 +480,11 @@ export default function SeoDashboardPage() {
                 </button>
               ))}
             </div>
-            <Button asChild className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold">
-              <Link href="/dashboard/projects"><Plus className="size-4" /> Create SEO Project</Link>
+            <Button
+              className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+              onClick={() => setShowCreate(true)}
+            >
+              <Plus className="size-4" /> Create SEO Project
             </Button>
           </div>
         </div>
@@ -487,7 +502,7 @@ export default function SeoDashboardPage() {
             <div className="max-w-sm">
               <h2 className="text-base font-bold">Add your first website</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">Create a project and FreeSERP starts tracking its keywords, crawling its pages and watching its AI-search visibility.</p>
-              <Button asChild size="sm" className="mt-4"><Link href="/dashboard/projects">Create SEO Project</Link></Button>
+              <Button size="sm" className="mt-4" onClick={() => setShowCreate(true)}>Create SEO Project</Button>
             </div>
           </div>
         ) : !projectId ? (
@@ -512,7 +527,13 @@ export default function SeoDashboardPage() {
               estTraffic={m.estTraffic}
             />
 
-            <SetupCard projectId={projectId} gsc={gscState} />
+            <SetupCard
+              projectId={projectId}
+              gsc={gscState}
+              keywords={
+                overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
+              }
+            />
 
             {/*
               ── The four main cards, in two independently-flowing columns ──
@@ -591,6 +612,22 @@ export default function SeoDashboardPage() {
 
             <DashboardFooter refreshed={refreshed} />
           </>
+        )}
+
+        {/* Created here, stays here: the new project is prepended to the list
+            and selected, so the dashboard behind the modal is already showing it
+            when the modal closes. It reaches the Rank Tracker by virtue of being
+            the same /api/projects list. */}
+        {showCreate && (
+          <CreateProjectModal<ProjectSummary>
+            onClose={() => setShowCreate(false)}
+            onCreated={(p) => {
+              setProjects((prev) => [p, ...prev])
+              setProjectId(p.id)
+              setSwitcherKey((k) => k + 1)
+              setShowCreate(false)
+            }}
+          />
         )}
       </div>
     </WidgetProvider>

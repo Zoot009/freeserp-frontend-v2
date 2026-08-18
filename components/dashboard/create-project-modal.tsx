@@ -1,0 +1,147 @@
+"use client"
+
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
+import { api } from "@/lib/api"
+import { Icon } from "./icons"
+import { normalizeDomain, projectNameFor } from "@/lib/pendingDomain"
+
+/**
+ * Create a project, from wherever you happen to be.
+ *
+ * This used to live inside the Rank Tracker page, which meant every other
+ * "Create SEO Project" button in the product was really a LINK to that page —
+ * you asked to make a project and got navigated somewhere else, then had to find
+ * the button again. Now the modal opens in place and the caller decides what to
+ * do with the result.
+ *
+ * Domain only. The name field asked people to invent a label for a thing that
+ * already has one, and in almost every project the two ended up as the same
+ * string — the switcher stopped showing the name for exactly that reason. It is
+ * derived here and editable later on the project's own page.
+ *
+ * Generic in the created project so each caller keeps its own row type; the API
+ * response is passed through untouched.
+ */
+export function CreateProjectModal<T>({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (project: T) => void
+}) {
+  // Reuses the strings the Rank Tracker's modal already had in all four
+  // locales — no new keys, so this ships translated rather than English-only.
+  const t = useTranslations("dashProjects")
+  const [raw, setRaw] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  // The same normalizer the landing page and the backend use, so "https://www.
+  // Example.com/pricing" and "example.com" create one project, not two.
+  const domain = useMemo(() => normalizeDomain(raw), [raw])
+  const name = domain ? projectNameFor(domain) : ""
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!domain) return
+    setError("")
+    setLoading(true)
+    try {
+      // New projects start with NO auto-check schedule — the owner sets a
+      // cadence afterward on the project page (paid-only).
+      const created = await api.post<T>("/api/projects", { name, domain })
+      onCreated(created)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t("createError"))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    // .fs-app because this renders from pages that are Tailwind-only (the
+    // Overview), where the dashboard's scoped tokens would not otherwise reach.
+    <div className="fs-app">
+      <div className="modal-bg" onClick={() => { if (!raw.trim()) onClose() }}>
+        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+          <div className="modal-h">
+            <div>
+              <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
+                <span className="spark">
+                  <Icon.spark />
+                </span>{" "}
+                {t("addModalEyebrow")}
+              </div>
+              <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
+                {t("addModalTitle")}
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className="icon-btn" aria-label={t("close")}>
+              <Icon.close />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="field">
+                <label htmlFor="cp-domain">{t("domainLabel")}</label>
+                <input
+                  id="cp-domain"
+                  ref={inputRef}
+                  className="input lg"
+                  type="text"
+                  required
+                  autoComplete="url"
+                  placeholder={t("domainPlaceholder")}
+                  value={raw}
+                  onChange={(e) => setRaw(e.target.value)}
+                />
+                {/* The derived name, shown rather than asked for: it confirms
+                    what was understood from a pasted URL before anything is
+                    created. Falls back to the format hint while the input is
+                    not yet a usable domain. */}
+                {name ? (
+                  <span className="tiny muted">
+                    {t("projectNameLabel")}:{" "}
+                    <span style={{ color: "var(--text)" }}>{name}</span>
+                  </span>
+                ) : (
+                  <span className="tiny muted">{t("domainHint")}</span>
+                )}
+              </div>
+              {error && (
+                <div
+                  className="card tight"
+                  style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}
+                >
+                  {error}
+                </div>
+              )}
+            </div>
+            <div className="modal-f">
+              <button type="button" className="btn" onClick={onClose}>
+                {t("cancel")}
+              </button>
+              <button type="submit" className="btn primary" disabled={loading || !domain}>
+                {loading ? t("creating") : t("createProject")}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}

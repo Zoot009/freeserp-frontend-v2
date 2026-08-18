@@ -16,6 +16,8 @@ import { displayDomain } from "@/lib/utils"
 import { trackEvent, trackMilestone } from "@/lib/track"
 import { track } from "@/lib/analytics"
 import { clearPendingDomain, projectNameFor, readPendingDomain } from "@/lib/pendingDomain"
+import { ToolContext } from "@/components/dashboard/tool-context"
+import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
 
 // Max projects a free user can own. Paid users are uncapped. Must stay in
 // sync with FREE_PROJECTS_LIMIT in freeserp-backend/src/routes/projects.js.
@@ -52,87 +54,6 @@ function projectColor(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   return palette[h % palette.length]
-}
-
-// ───── Add project modal ───────────────────────────────────────────────────
-
-function AddProjectModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void
-  onCreated: (p: ProjectSummary) => void
-}) {
-  const t = useTranslations("dashProjects")
-  const [name, setName] = useState("")
-  const [domain, setDomain] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const firstRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { firstRef.current?.focus() }, [])
-
-  // People paste a full URL into the NAME field too. Strip the https://www.
-  // prefix (and any trailing slash) so the label reads cleanly — e.g.
-  // "https://www.freeserp.com/serp-checker" → "freeserp.com/serp-checker".
-  // A plain human label ("My blog") isn't URL-ish, so it's left untouched.
-  const cleanName = (raw: string): string => {
-    const s = raw.trim()
-    if (!/^(https?:\/\/|www\.)/i.test(s)) return s
-    return s.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/+$/, "")
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(""); setLoading(true)
-    try {
-      // New projects start with NO auto-check schedule — the owner sets a
-      // cadence afterward on the project page (paid-only). Creation just needs
-      // name + domain.
-      const data = await api.post<ProjectSummary>("/api/projects", { name: cleanName(name), domain })
-      onCreated({ ...data, _count: { keywords: 0 } })
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t("createError"))
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <div className="fs-app">
-      <div className="modal-bg" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
-          <div className="modal-h">
-            <div>
-              <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> {t("addModalEyebrow")}</div>
-              <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("addModalTitle")}</div>
-            </div>
-            <button type="button" onClick={onClose} className="icon-btn" aria-label={t("close")}><Icon.close /></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div className="field">
-                <label>{t("projectNameLabel")}</label>
-                <input ref={firstRef} className="input" type="text" required placeholder={t("projectNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} onBlur={(e) => setName(cleanName(e.target.value))} />
-              </div>
-              <div className="field">
-                <label>{t("domainLabel")}</label>
-                <input className="input" type="text" required placeholder={t("domainPlaceholder")} value={domain} onChange={(e) => setDomain(e.target.value)} />
-                <span className="tiny muted">{t("domainHint")}</span>
-              </div>
-              {error && (
-                <div className="card tight" style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}>
-                  {error}
-                </div>
-              )}
-            </div>
-            <div className="modal-f">
-              <button type="button" className="btn" onClick={onClose}>{t("cancel")}</button>
-              <button type="submit" className="btn primary" disabled={loading}>
-                {loading ? t("creating") : t("createProject")}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // ───── Upgrade plan modal ──────────────────────────────────────────────────
@@ -274,6 +195,8 @@ function ProjectsList({
           </Button>
         </div>
       </div>
+
+      <ToolContext id="google-tracker" />
 
       {loading ? (
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
@@ -614,7 +537,7 @@ export default function ProjectsPage() {
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {showAddProject && (
-        <AddProjectModal
+        <CreateProjectModal<ProjectSummary>
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
             setProjects((prev) => [p, ...prev])

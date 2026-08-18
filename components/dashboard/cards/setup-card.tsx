@@ -1,13 +1,22 @@
 "use client"
 
 /**
- * Finish setup — the four integrations that each fill a panel further down the
- * dashboard with real data.
+ * Next steps — the things worth doing on a project, and the way into the tools
+ * that do them.
  *
- * The reference this follows carries a "two of six steps done · 33%" progress
- * bar. Only one of these four steps can actually be verified from here, so the
- * bar counts what it can prove and says so, rather than asserting progress
- * through steps we have no signal for.
+ * Not a progress meter. It carried a "1 of 2 steps done · 50%" bar, but only two
+ * of the five items can be verified at all, so the percentage measured the
+ * coverage of our own checks rather than anything the user had achieved — and a
+ * permanent 50% on a healthy project reads as a reproach. What is confirmed is
+ * shown per item, with a tick.
+ *
+ * Step one is the rank tracker itself. The card used to open on Search Console
+ * and never mention keywords at all, so a brand-new project's checklist skipped
+ * the thing the product is FOR and led with a third-party integration. Every
+ * panel below this card is computed from tracked keywords; with none added, the
+ * other steps are decoration.
+ *
+ * The rest promote the tools that do the work around the tracker.
  *
  * Search Console is verified in TWO parts, because the connection and the data
  * are different things:
@@ -80,7 +89,6 @@ function searchConsoleStep(projectId: string, gsc: GscState): Step {
   const base = {
     title: "Search Console",
     href,
-    primary: true,
   }
 
   // Unknown — the check hasn't come back. Neither claim is safe yet.
@@ -122,57 +130,100 @@ function searchConsoleStep(projectId: string, gsc: GscState): Step {
   }
 }
 
-export function SetupCard({ projectId, gsc }: { projectId: string; gsc: GscState }) {
+/** Keyword counts for THIS project. null while the overview is still loading —
+ *  the step then shows no verdict rather than claiming an empty project. */
+export type KeywordState = { total: number; ranked: number } | null
+
+function trackKeywordsStep(projectId: string, keywords: KeywordState): Step {
+  const href = `/dashboard/project/${projectId}/keywords`
+  const base = { title: "Track keywords", href, primary: true }
+
+  if (keywords === null) {
+    return {
+      ...base,
+      description: "Add the searches you want this site to rank for. Everything else on this page is measured against them.",
+      cta: "Add keywords",
+      done: null,
+    }
+  }
+
+  if (keywords.total === 0) {
+    return {
+      ...base,
+      description: "Add the searches you want this site to rank for. Everything else on this page is measured against them.",
+      cta: "Add keywords",
+      done: false,
+    }
+  }
+
+  // Tracked but nothing has placed yet. Not a failure — a new project has no
+  // history — so it stays "done" and the copy says what to expect instead.
+  if (keywords.ranked === 0) {
+    return {
+      ...base,
+      description: `Tracking ${keywords.total} keyword${keywords.total === 1 ? "" : "s"}. None are placing in the top 100 yet — positions appear as checks run.`,
+      cta: `${keywords.total} tracked`,
+      done: true,
+    }
+  }
+
+  return {
+    ...base,
+    description: `Tracking ${keywords.total} keyword${keywords.total === 1 ? "" : "s"}, ${keywords.ranked} of them ranking.`,
+    cta: `${keywords.total} tracked`,
+    done: true,
+  }
+}
+
+export function SetupCard({
+  projectId,
+  gsc,
+  keywords,
+}: {
+  projectId: string
+  gsc: GscState
+  keywords: KeywordState
+}) {
+  // Our own tools first, the third-party integration last. Search Console is
+  // the one step that depends on someone else's account and OAuth consent, so
+  // leading with it put the slowest, least certain thing in front of the tools
+  // that work immediately.
   const steps: Step[] = [
-    searchConsoleStep(projectId, gsc),
+    trackKeywordsStep(projectId, keywords),
     {
       title: "Website Audit",
-      description: "Check your site's technical health, content, speed and security — with the exact fixes.",
+      description: "Crawl the site with a real browser and get the technical faults that cap every page — with the exact fixes, in priority order.",
       href: "/dashboard/page-audit",
-      cta: "Set up",
+      cta: "Open",
       done: null,
     },
     {
       title: "Keyword Magic",
-      description: "Find new keywords with volume, difficulty and intent — then track the good ones.",
+      description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent — then track the good ones here.",
       href: "/dashboard/keyword-magic",
-      cta: "Set up",
+      cta: "Open",
       done: null,
     },
     {
       title: "Competitor Spy",
-      description: "Watch the domains that outrank you and see which keywords they own.",
+      description: "See the domains sitting above you on your own keywords, and which searches they own that you don't.",
       href: `/dashboard/project/${projectId}/competitor-spy`,
-      cta: "Set up",
+      cta: "Open",
       done: null,
     },
+    searchConsoleStep(projectId, gsc),
   ]
-
-  const checkable = steps.filter((s) => s.done !== null)
-  const confirmed = checkable.filter((s) => s.done).length
-  const pct = checkable.length ? Math.round((confirmed / checkable.length) * 100) : 0
 
   return (
     <Widget
       id="setup"
-      title="Finish setup"
-      hint="Each of these fills a panel below with data we can't model on our own."
-      meta={
-        checkable.length > 0 ? (
-          <span className="flex items-center gap-2.5">
-            <span className="hidden sm:inline">
-              {confirmed} of {checkable.length} connection{checkable.length === 1 ? "" : "s"} confirmed
-            </span>
-            <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-              <span className="block h-full rounded-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
-            </span>
-            <span className="font-semibold text-primary">{pct}%</span>
-          </span>
-        ) : null
-      }
+      title="Next steps"
+      hint="Start with keywords — every panel below this card is measured against them. The rest are the tools that act on what they show."
       bodyClassName="p-5"
     >
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Five now, not four. Below xl they stack two-up, which is why the
+          divider rule is tied to the breakpoint the single row appears at. */}
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
         {steps.map((s, i) => (
           <div
             key={s.title}
@@ -209,7 +260,17 @@ export function SetupCard({ projectId, gsc }: { projectId: string; gsc: GscState
               {s.done ? (
                 // A link, not a label: "Connected" with nowhere to go is a dead
                 // end — the report you just connected is the point of connecting.
-                <Button asChild size="sm" variant="ghost" className="-ml-2 h-8 gap-1.5 text-[13px] font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400">
+                // hover:bg-emerald-500/10 is not decoration: the ghost variant
+                // hovers to bg-accent, and this theme maps --accent to the BRAND
+                // blue (see globals.css), so the confirmed step turned into a
+                // solid blue pill with white text the moment you pointed at it —
+                // reading as the primary action rather than a done marker.
+                <Button
+                  asChild
+                  size="sm"
+                  variant="ghost"
+                  className="-ml-2 h-8 gap-1.5 text-[13px] font-semibold text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
+                >
                   <Link href={s.href}><Check className="size-3.5" strokeWidth={3} /> {s.cta}</Link>
                 </Button>
               ) : (

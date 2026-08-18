@@ -36,6 +36,8 @@ export function ProjectSwitcher({
   className,
   value,
   onSelect,
+  onNewProject,
+  refreshKey,
 }: {
   className?: string
   /**
@@ -45,6 +47,14 @@ export function ProjectSwitcher({
    */
   value?: string | null
   onSelect?: (projectId: string | null) => void
+  /**
+   * Handle "New project" in place. Without it the item navigates to the Rank
+   * Tracker, which is the old behaviour: asking to create a project moved you
+   * to another page instead of creating one.
+   */
+  onNewProject?: () => void
+  /** Bump to re-fetch the list — e.g. after the caller creates a project. */
+  refreshKey?: number
 }) {
   // "New project" already exists under dashProjects in all four locales — reuse
   // it rather than adding a duplicate key that could drift.
@@ -79,7 +89,7 @@ export function ProjectSwitcher({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [refreshKey])
 
   const active = projects.find((p) => p.id === activeId) ?? null
   // Render nothing until a real project resolves — covers both "no projects" and
@@ -167,7 +177,7 @@ export function ProjectSwitcher({
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() => router.push("/dashboard/projects")}
+          onSelect={() => (onNewProject ? onNewProject() : router.push("/dashboard/projects"))}
           className="justify-between gap-4 rounded-md px-2 py-2 text-brand focus:bg-muted focus:text-brand"
         >
           <span>{tProjects("newProject")}</span>

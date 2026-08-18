@@ -164,10 +164,10 @@ export function DashboardGridSkeleton({ withHeader = false }: { withHeader?: boo
           {/* The five headline figures. */}
           <StatStripSkeleton />
 
-          {/* Finish setup: header band + four numbered columns. */}
+          {/* Finish setup: header band + five numbered columns. */}
           <CardShell>
-            <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+            <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="space-y-2.5">
                   <Skeleton className="h-5 w-32" />
                   <Skeleton className="h-3 w-full" />
