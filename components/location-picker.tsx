@@ -18,6 +18,7 @@ import {
   POPULAR_LOCATIONS,
   ALL_LOCATIONS,
   LOCATION_NAMES,
+  type Location,
 } from "@/lib/locations"
 import { Flag } from "@/components/flag"
 
@@ -66,6 +67,16 @@ function TriggerContents({ value, showFlags }: { value: string; showFlags: boole
   )
 }
 
+// "All locations" used to repeat the seven markets from "Popular" verbatim, so
+// the same country appeared twice in one list and a selected one drew two check
+// marks. Popular stays a shortcut to the top of the list; everything else sorts
+// alphabetically, which is the only order a 60-item country list can be scanned in
+// (the source array is grouped by region, which reads as no order at all here).
+const POPULAR_CODES = new Set(POPULAR_LOCATIONS.map((l) => l.code))
+const OTHER_LOCATIONS: Location[] = ALL_LOCATIONS.filter((l) => !POPULAR_CODES.has(l.code)).sort((a, b) =>
+  a.name.localeCompare(b.name),
+)
+
 /**
  * Renders the searchable country list. Same markup in both variants.
  * `mobileTouchTargets` bumps row heights so options are easy to tap on a
@@ -82,56 +93,59 @@ function LocationCommand({
   showFlags: boolean
   mobileTouchTargets?: boolean
 }) {
+  // The query is lifted out of cmdk so the list can change shape while typing:
+  // a two-section list is a browsing aid, but once someone searches, "Popular"
+  // and "All locations" just split the matches across two headed groups.
+  const [query, setQuery] = useState("")
+  const searching = query.trim().length > 0
+
   const itemClass = cn(
     "font-mono text-sm",
     mobileTouchTargets && "py-3 text-[15px]"
   )
+  const renderItem = (l: Location) => (
+    <CommandItem
+      key={l.code}
+      value={`${l.name} ${l.code}`}
+      onSelect={() => onSelect(l.code)}
+      className={itemClass}
+    >
+      {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
+      <span className="flex-1">{l.name}</span>
+      <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
+    </CommandItem>
+  )
+
   return (
     <Command>
       <CommandInput
+        value={query}
+        onValueChange={setQuery}
         placeholder="Search country..."
         className={cn("font-mono text-sm", mobileTouchTargets && "h-12 text-[15px]")}
       />
+      {/* A fixed cap rather than 50vh: on a desktop this list opens inside a
+          modal, and half the viewport was tall enough that the popover flipped
+          above its trigger and covered the field it belongs to. */}
       <CommandList
         className={cn(
           "overscroll-contain",
-          mobileTouchTargets ? "max-h-[70vh]" : "max-h-[50vh]"
+          mobileTouchTargets ? "max-h-[70vh]" : "max-h-[264px]"
         )}
       >
         <CommandEmpty>No location found.</CommandEmpty>
-        <CommandGroup heading="Popular">
-          {POPULAR_LOCATIONS.map((l) => (
-            <CommandItem
-              key={l.code}
-              value={`${l.name} ${l.code}`}
-              onSelect={() => onSelect(l.code)}
-              className={itemClass}
-            >
-              {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
-              <span className="flex-1">{l.name}</span>
-              <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandGroup heading="All locations">
-          {ALL_LOCATIONS.map((l) => (
-            <CommandItem
-              key={l.code}
-              value={`${l.name} ${l.code}`}
-              onSelect={() => onSelect(l.code)}
-              className={itemClass}
-            >
-              {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
-              <span className="flex-1">{l.name}</span>
-              <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
-            </CommandItem>
-          ))}
-        </CommandGroup>
+        {searching ? (
+          <CommandGroup>{ALL_LOCATIONS.map(renderItem)}</CommandGroup>
+        ) : (
+          <>
+            <CommandGroup heading="Popular">{POPULAR_LOCATIONS.map(renderItem)}</CommandGroup>
+            <CommandGroup heading="All locations">{OTHER_LOCATIONS.map(renderItem)}</CommandGroup>
+          </>
+        )}
       </CommandList>
     </Command>
   )
 }
-
 /** Desktop / tablet (≥768px) — anchored popover under the trigger. */
 function LocationPickerPopover({ value, onChange, showFlags = false, variant = "mono", className }: LocationPickerProps) {
   const [open, setOpen] = useState(false)

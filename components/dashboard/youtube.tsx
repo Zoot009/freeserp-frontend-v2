@@ -183,28 +183,93 @@ export function OwnedCountBadge({ count }: { count: number }) {
 }
 
 /**
- * Views / age / duration next to the position. On YouTube these are what make a
- * ranking movement explainable at all — far more so than on Google, where a
- * position mostly stands on its own.
+ * Video thumbnail with its length burned into the corner — where YouTube itself
+ * puts it, and where it stops competing with the ranking data for space.
+ *
+ * Length used to be the third item in a run-on stats line ("88.5M views · 1y ago
+ * · 3:51"), which read as three equally weighted numbers when only one of them
+ * is a metric. It is a property of the video, so it belongs on the video.
+ */
+export function VideoThumb({
+  videoId,
+  durationSeconds,
+  durationLabel,
+  width = 64,
+}: {
+  videoId: string | null | undefined
+  durationSeconds?: number | null
+  /** Provider-formatted length, preferred over deriving it from seconds. */
+  durationLabel?: string | null
+  width?: number
+}) {
+  const src = thumbnailFor(videoId)
+  const duration = durationLabel ?? formatDuration(durationSeconds)
+  // 16:9, the aspect every YouTube thumbnail is served in. Deriving the height
+  // means one number at each call site instead of a pair that can disagree.
+  const height = Math.round((width * 9) / 16)
+  return (
+    <span className="yt-thumb" style={{ width, height }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- external CDN asset, next/image is overkill
+        <img src={src} alt="" loading="lazy" width={width} height={height} />
+      ) : (
+        // A placeholder rather than nothing: a missing thumbnail otherwise
+        // collapses the cell and knocks the rest of the row out of alignment.
+        <span className="yt-thumb-ph" aria-hidden>
+          <Icon.video size={14} />
+        </span>
+      )}
+      {duration && <span className="yt-thumb-dur">{duration}</span>}
+    </span>
+  )
+}
+
+/**
+ * Views and age next to the position. On YouTube these are what make a ranking
+ * movement explainable at all — far more so than on Google, where a position
+ * mostly stands on its own.
+ *
+ * The view count is the one figure worth reading at a glance, so it carries the
+ * weight; age is context and stays muted. Length is not here — it rides the
+ * thumbnail via VideoThumb.
  */
 export function VideoMetaCell({
   views,
   publishedAt,
-  durationSeconds,
 }: {
   views: number | null
   publishedAt: string | null
-  durationSeconds: number | null
 }) {
-  const parts = [
-    formatViews(views) != null ? `${formatViews(views)} views` : null,
-    formatAge(publishedAt),
-    formatDuration(durationSeconds),
-  ].filter(Boolean)
-  if (parts.length === 0) return <span className="tiny muted">—</span>
-  return <span className="tiny muted">{parts.join(" · ")}</span>
-}
+  const shortViews = formatViews(views)
+  const age = formatAge(publishedAt)
+  if (!shortViews && !age) return <span className="tiny muted">—</span>
 
+  // The rounded figure is what fits; the exact one is what people check against
+  // YouTube, so it goes on the tooltip along with the real publish date.
+  const title = [
+    views != null ? `${views.toLocaleString()} views` : null,
+    publishedAt ? `published ${new Date(publishedAt).toLocaleDateString()}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
+  return (
+    <span className="yt-meta" title={title || undefined}>
+      {shortViews && (
+        <>
+          <span className="yt-meta-n">{shortViews}</span>
+          <span className="yt-meta-u">views</span>
+        </>
+      )}
+      {shortViews && age && (
+        <span className="yt-meta-sep" aria-hidden>
+          ·
+        </span>
+      )}
+      {age && <span className="yt-meta-u">{age}</span>}
+    </span>
+  )
+}
 /**
  * Where the result came from. A Shorts-shelf placement is not the same
  * achievement as an organic video result, and the table says so rather than
@@ -364,7 +429,6 @@ export function SnapshotTable({
           <tbody>
             {visible.map((item) => {
               const isOwned = owned.has(item.rankAbsolute)
-              const thumb = thumbnailFor(item.videoId)
               return (
                 <tr
                   key={`${item.rankAbsolute}-${item.videoId ?? item.itemType}`}
@@ -373,19 +437,7 @@ export function SnapshotTable({
                   <td className="tabular">{item.rankAbsolute}</td>
                   <td className="tabular muted">{item.videoPosition ?? "—"}</td>
                   <td>
-                    {thumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={thumb}
-                        alt=""
-                        width={64}
-                        height={36}
-                        loading="lazy"
-                        style={{ borderRadius: 4, objectFit: "cover", display: "block" }}
-                      />
-                    ) : (
-                      <span className="tiny muted">—</span>
-                    )}
+                    <VideoThumb videoId={item.videoId} width={64} />
                   </td>
                   <td>
                     {item.url ? (

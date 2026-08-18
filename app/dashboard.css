@@ -955,6 +955,38 @@
 @keyframes aio-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .fs-app .tbl .url { color: var(--text-mute); font-size: 12px; font-family: var(--font-mono); }
 .fs-app .tbl .pos { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* === YOUTUBE VIDEO CELLS === */
+/* Thumbnail with the length badged into its corner, the way YouTube shows it.
+   The box is sized by the caller and always 16:9, so a missing image leaves a
+   placeholder of exactly the right size rather than a collapsed cell. */
+.fs-app .yt-thumb {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+.fs-app .yt-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs-app .yt-thumb-ph { display: grid; place-items: center; width: 100%; height: 100%; color: var(--text-mute); }
+/* Pinned to a literal dark, not a token: it sits on the thumbnail, not on the
+   page, so it must stay legible in both themes. */
+.fs-app .yt-thumb-dur {
+  position: absolute; right: 3px; bottom: 3px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(11, 13, 18, 0.82);
+  color: #FFFFFF;
+  font-size: 9.5px; line-height: 14px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Views carry the weight, age is context. One line, no wrap — the row height
+   is set by the thumbnail and nothing in this column should push past it. */
+.fs-app .yt-meta { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.fs-app .yt-meta-n { font-size: 12.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.fs-app .yt-meta-u { font-size: 11.5px; color: var(--text-mute); }
+.fs-app .yt-meta-sep { color: var(--border-strong); font-size: 11.5px; }
 .fs-app .mono { font-family: var(--font-mono); }
 .fs-app .tnum { font-variant-numeric: tabular-nums; }
 .fs-app .chip {
@@ -1088,6 +1120,43 @@
   text-transform: uppercase;
   color: var(--text-mute);
 }
+/* A Dropdown standing in for a native <select> inside a form field. Native
+   selects can't be styled once open — the menu is drawn by the OS — so forms use
+   Dropdown instead, and it has to line up with the .input controls beside it,
+   which carry 2px more vertical padding. */
+/* Settings rows for a modal step that CONFIRMS defaults rather than collects
+   input: label left, control right, hairline between. Three stacked .field
+   groups — uppercase label, control, paragraph of help under each — read as a
+   form to fill in, and made the step tall enough to scroll. Explanations move
+   to the ⓘ beside the label. */
+.fs-app .set-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.fs-app .set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+}
+.fs-app .set-row + .set-row { border-top: 1px solid var(--border); }
+.fs-app .set-lbl {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 500; color: var(--text);
+}
+/* Fixed, so the three controls line up as one column instead of each sizing
+   itself to its own label. */
+.fs-app .set-ctl { width: 252px; flex-shrink: 0; }
+@media (max-width: 520px) {
+  .fs-app .set-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .fs-app .set-ctl { width: auto; }
+}
+.fs-app .field .dd-trigger { padding: 9px 12px; }
+/* ...and its menu spans exactly the field, rather than shrinking to the widest
+   option. .dd-menu is built for a compact toolbar trigger (width: max-content,
+   anchored right), which under a full-width form field leaves a narrow menu
+   floating against one edge of the control it belongs to. */
+.fs-app .field .dd-menu { left: 0; right: 0; width: auto; }
 /* Donut */
 .fs-app .donut-wrap {
   display: flex; align-items: center; gap: 18px;

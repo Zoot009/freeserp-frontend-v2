@@ -11,10 +11,10 @@ import {
   BlockChip,
   SnapshotTable,
   VideoMetaCell,
+  VideoThumb,
   VolatilityNote,
   YtPosCell,
   formatViews,
-  thumbnailFor,
   type YtSnapshotItem,
 } from "@/components/dashboard/youtube"
 
@@ -312,25 +312,12 @@ export default function YoutubeKeywordDetailPage() {
                   {/* Every occurrence, not just the headline — a channel routinely
                       holds several results for one keyword. */}
                   {latest.results.map((r) => {
-                    const thumb = thumbnailFor(r.videoId)
                     return (
                       <tr key={r.id}>
                         <td className="tabular">{r.videoPosition ?? "—"}</td>
                         <td className="tabular muted tiny">{r.rankAbsolute}</td>
                         <td>
-                          {thumb ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={thumb}
-                              alt=""
-                              width={64}
-                              height={36}
-                              loading="lazy"
-                              style={{ borderRadius: 4, objectFit: "cover", display: "block" }}
-                            />
-                          ) : (
-                            <span className="tiny muted">—</span>
-                          )}
+                          <VideoThumb videoId={r.videoId} durationSeconds={r.durationSeconds} width={64} />
                         </td>
                         <td>
                           {r.url ? (
@@ -342,11 +329,7 @@ export default function YoutubeKeywordDetailPage() {
                           )}
                         </td>
                         <td>
-                          <VideoMetaCell
-                            views={r.views}
-                            publishedAt={r.publishedAt}
-                            durationSeconds={r.durationSeconds}
-                          />
+                          <VideoMetaCell views={r.views} publishedAt={r.publishedAt} />
                         </td>
                         <td>
                           <BlockChip blockName={r.blockName} itemType={r.itemType} />
