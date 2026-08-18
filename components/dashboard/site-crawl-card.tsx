@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, RefreshCw } from "lucide-react"
+import { Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -65,10 +65,15 @@ type SiteAudit = {
   categories?: AuditCategory[]
   pages?: AuditPage[]
   finishedAt?: string | null
+  /** When the current run began. Absent on backends that predate the field. */
+  startedAt?: string | null
   error?: string | null
 }
 
-const POLL_MS = 8_000
+// 4s, not 8: upstream reports progress in coarse jumps, and an 8s window on
+// top of that meant the figure could sit unchanged for a quarter of a minute
+// with no way to tell a slow crawl from a dead card.
+const POLL_MS = 4_000
 
 /** Health drives the colour: green is a pass, amber a warning, red a problem. */
 function healthColor(score: number): string {
@@ -118,7 +123,11 @@ function HealthGauge({ value, grade }: { value: number | null; grade?: string | 
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-      <div className="relative shrink-0" style={{ width: GAUGE, height: GAUGE }}>
+      <div
+        className="relative shrink-0"
+        style={{ width: GAUGE, height: GAUGE }}
+        title={value != null ? `Site health ${Math.round(v)} of 100` : undefined}
+      >
         {/* -rotate-90 starts the fill at 12 o'clock instead of 3. */}
         <svg width={GAUGE} height={GAUGE} viewBox={`0 0 ${GAUGE} ${GAUGE}`} className="block -rotate-90" aria-hidden>
           <circle cx={GAUGE / 2} cy={GAUGE / 2} r={RADIUS} fill="none" stroke="var(--muted)" strokeWidth={RING} />
@@ -142,13 +151,26 @@ function HealthGauge({ value, grade }: { value: number | null; grade?: string | 
 
         <div className="absolute inset-0 grid place-items-center">
           <div className="text-center leading-none">
-            <div className="text-[30px] font-bold tabular-nums tracking-[-0.02em]">
-              {value != null ? Math.round(v) : "—"}
-              {value != null && <span className="text-[15px] font-semibold text-muted-foreground">%</span>}
-            </div>
-            {value != null && grade && (
-              <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Grade {grade}
+            {/* The grade, not the percentage. Two readings of one number sat
+                stacked on each other — "66%" over "GRADE C+" — and the ring
+                already encodes the magnitude, so the digits were the third
+                telling of the same thing. The letter is what anyone actually
+                repeats out loud; the exact score lives on the tooltip for
+                whoever wants it. */}
+            {value != null && grade ? (
+              <>
+                <div className="text-[34px] font-bold uppercase leading-none tracking-[-0.02em]" style={{ color }}>
+                  {grade}
+                </div>
+                <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Grade
+                </div>
+              </>
+            ) : (
+              // No grade from the backend (older rows) — fall back to the score
+              // rather than leaving an empty ring.
+              <div className="text-[30px] font-bold tabular-nums tracking-[-0.02em]">
+                {value != null ? Math.round(v) : "—"}
               </div>
             )}
           </div>
@@ -358,7 +380,91 @@ function RecrawlAction({
   )
 }
 
-export function SiteCrawlCard({ projectId, className }: { projectId: string; className?: string }) {
+/**
+ * What the crawl is doing right now, from the signals the row actually carries.
+ *
+ * A single percentage was the whole story before, and upstream reports it in
+ * coarse jumps — it can read "5%" for minutes on a site that is being crawled
+ * perfectly well. One frozen number is indistinguishable from a broken job, so
+ * the stage it belongs to is named alongside it: the work visibly moves through
+ * Queued → Crawling → Auditing → Report even when the digits don't.
+ *
+ * Nothing here is invented. Each stage is inferred from a real field: the job
+ * status, our crawler's page count, and the upstream audit's own progress.
+ */
+const CRAWL_STAGES = ["Queued", "Crawling pages", "Running checks", "Building report"] as const
+
+function stageIndexFor(status: SiteAudit["status"], pagesFound: number, auditPct: number | null): number {
+  if (status === "QUEUED") return 0
+  if (auditPct != null) return auditPct >= 100 ? 3 : 2
+  if (pagesFound > 0) return 1
+  return 1
+}
+
+/** "2m 14s" — so a long wait is legibly a long wait, not a hung card. */
+function elapsedLabel(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return m > 0 ? `${m}m ${String(s).padStart(2, "0")}s` : `${s}s`
+}
+
+function CrawlStages({ current, startedAt }: { current: number; startedAt: string | null | undefined }) {
+  // Ticks once a second purely to move the elapsed figure. Cheap, and it is the
+  // one thing on this card guaranteed to change while the crawl is slow.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const started = startedAt ? new Date(startedAt).getTime() : null
+  const elapsed = started && Number.isFinite(started) ? now - started : null
+
+  return (
+    <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      {CRAWL_STAGES.map((label, i) => {
+        const done = i < current
+        const active = i === current
+        return (
+          <span key={label} className="inline-flex items-center gap-2">
+            {i > 0 && <span aria-hidden className="text-muted-foreground/40">→</span>}
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 text-xs",
+                active ? "font-semibold text-foreground" : done ? "text-muted-foreground" : "text-muted-foreground/50",
+              )}
+            >
+              {done ? (
+                <Check className="size-3 shrink-0" strokeWidth={3} />
+              ) : active ? (
+                <Loader2 className="size-3 shrink-0 animate-spin" />
+              ) : (
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current opacity-50" />
+              )}
+              {label}
+            </span>
+          </span>
+        )
+      })}
+      {elapsed != null && (
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground">{elapsedLabel(elapsed)} elapsed</span>
+      )}
+    </div>
+  )
+}
+
+export function SiteCrawlCard({
+  projectId,
+  className,
+  onStatus,
+}: {
+  projectId: string
+  className?: string
+  /** Reports each polled status to the page. This card already fetches the row
+   *  on a timer; a second component polling the same endpoint for the same
+   *  answer would be the wasteful way to share it. */
+  onStatus?: (status: SiteAudit["status"] | null) => void
+}) {
   const [audit, setAudit] = useState<SiteAudit | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPages, setShowPages] = useState(false)
@@ -369,6 +475,15 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
   // In a ref so the interval reads the latest status without being torn down
   // and recreated every tick.
   const statusRef = useRef<SiteAudit["status"] | null>(null)
+  // Fallback clock for backends that don't send startedAt: the moment this card
+  // first saw the crawl running. Understates a crawl that began before the page
+  // was opened, which is why the server's own timestamp wins when present.
+  const firstSeenRunningRef = useRef<string | null>(null)
+  // Upstream progress can be re-reported lower after a retry. A bar that walks
+  // backwards reads as a fault, so the figure only ever moves up within a run.
+  const peakPctRef = useRef(0)
+  const onStatusRef = useRef(onStatus)
+  onStatusRef.current = onStatus
 
   useEffect(() => {
     if (!projectId) return
@@ -382,8 +497,15 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
         if (cancelled) return
         setAudit(data)
         statusRef.current = data.status
+        onStatusRef.current?.(data.status)
+        if (data.status === "QUEUED" || data.status === "RUNNING") {
+          firstSeenRunningRef.current ??= new Date().toISOString()
+        } else {
+          firstSeenRunningRef.current = null
+          peakPctRef.current = 0
+        }
       } catch {
-        if (!cancelled) setAudit(null)
+        if (!cancelled) { setAudit(null); onStatusRef.current?.(null) }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -425,7 +547,9 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
   const found = audit.pagesFound ?? 0
   const budget = audit.maxPages ?? 100
   // Only meaningful while running and before any page count exists.
-  const pct = typeof audit.auditProgress === "number" ? Math.max(0, Math.min(100, audit.auditProgress)) : null
+  const rawPct = typeof audit.auditProgress === "number" ? Math.max(0, Math.min(100, audit.auditProgress)) : null
+  if (rawPct != null) peakPctRef.current = Math.max(peakPctRef.current, rawPct)
+  const pct = rawPct == null ? null : peakPctRef.current
   const health = audit.healthScore ?? null
   // Degraded: the audit couldn't score the site (blocked or timed out) and we
   // fell back to crawling for structure only.
@@ -495,6 +619,14 @@ export function SiteCrawlCard({ projectId, className }: { projectId: string; cla
               }}
             />
           )}
+
+          {/* Named stages under the bar. The percentage alone could sit on "5%"
+              for minutes; this says which of four things is happening, and how
+              long it has been happening for. */}
+          <CrawlStages
+            current={stageIndexFor(audit.status, found, pct)}
+            startedAt={audit.startedAt ?? firstSeenRunningRef.current}
+          />
 
           {/* Pages already reached, newest first — the crawl stops being a black
               box the moment it can name what it found. */}

@@ -28,7 +28,7 @@
  * pairing on link either, so the domain check happens here.
  */
 
-import { AlertTriangle, Check } from "lucide-react"
+import { AlertTriangle, Check, Loader2 } from "lucide-react"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
 import { Widget } from "@/components/dashboard/widget"
@@ -82,6 +82,9 @@ type Step = {
   /** Shown under the description when something needs attention. */
   warning?: string
   primary?: boolean
+  /** Work is already running for this step — the CTA reports it instead of
+   *  inviting a second start. */
+  busy?: boolean
 }
 
 function searchConsoleStep(projectId: string, gsc: GscState): Step {
@@ -179,10 +182,13 @@ export function SetupCard({
   projectId,
   gsc,
   keywords,
+  auditRunning = false,
 }: {
   projectId: string
   gsc: GscState
   keywords: KeywordState
+  /** A site crawl is queued or running for this project. */
+  auditRunning?: boolean
 }) {
   // Our own tools first, the third-party integration last. Search Console is
   // the one step that depends on someone else's account and OAuth consent, so
@@ -192,10 +198,13 @@ export function SetupCard({
     trackKeywordsStep(projectId, keywords),
     {
       title: "Website Audit",
-      description: "Crawl the site with a real browser and get the technical faults that cap every page — with the exact fixes, in priority order.",
+      description: auditRunning
+        ? "We're crawling the site now — status codes, titles, headings and internal links. The report lands on this page when it finishes."
+        : "Crawl the site with a real browser and get the technical faults that cap every page — with the exact fixes, in priority order.",
       href: "/dashboard/page-audit",
-      cta: "Open",
+      cta: auditRunning ? "Crawling…" : "Open",
       done: null,
+      busy: auditRunning,
     },
     {
       title: "Keyword Magic",
@@ -238,12 +247,14 @@ export function SetupCard({
                   "grid size-[22px] shrink-0 place-items-center rounded-full text-[11px] font-bold",
                   s.done ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                     : s.warning ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                    : s.busy ? "bg-primary/10 text-primary"
                     : s.primary ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground",
                 )}
               >
                 {s.done ? <Check className="size-3.5" strokeWidth={3} />
                   : s.warning ? <AlertTriangle className="size-3" strokeWidth={2.5} />
+                  : s.busy ? <Loader2 className="size-3 animate-spin" />
                   : i + 1}
               </span>
               <span className="truncate text-[15px] font-semibold">{s.title}</span>
@@ -274,8 +285,23 @@ export function SetupCard({
                   <Link href={s.href}><Check className="size-3.5" strokeWidth={3} /> {s.cta}</Link>
                 </Button>
               ) : (
-                <Button asChild size="sm" variant={s.primary ? "default" : "outline"} className="h-8 text-[13px] font-semibold">
-                  <Link href={s.href}>{s.cta}</Link>
+                <Button
+                  asChild
+                  size="sm"
+                  variant={s.primary ? "default" : "outline"}
+                  // hover:bg-muted on the outline variant: its default is
+                  // hover:bg-accent, and this theme maps --accent to the brand
+                  // blue (globals.css), so "Open" turned into a washed blue pill
+                  // with near-unreadable text on hover.
+                  className={cn(
+                    "h-8 text-[13px] font-semibold",
+                    !s.primary && "hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Link href={s.href}>
+                    {s.busy && <Loader2 className="size-3.5 animate-spin" />}
+                    {s.cta}
+                  </Link>
                 </Button>
               )}
             </div>

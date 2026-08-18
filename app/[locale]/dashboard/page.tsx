@@ -212,6 +212,9 @@ export default function SeoDashboardPage() {
   // ProjectSwitcher fetches its own list, so it needs telling that the list
   // changed underneath it.
   const [switcherKey, setSwitcherKey] = useState(0)
+  // Reported by the Site Audit card below, so the setup card can say "Crawling…"
+  // without a second poller on the same endpoint.
+  const [auditStatus, setAuditStatus] = useState<string | null>(null)
 
   // Project list — fetched once; the switcher only changes which id we scope to.
   useEffect(() => {
@@ -533,6 +536,7 @@ export default function SeoDashboardPage() {
               keywords={
                 overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
               }
+              auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
             />
 
             {/*
@@ -578,7 +582,7 @@ export default function SeoDashboardPage() {
               {/* Narrow column. Both cards render their own <Widget>, so hiding
                   one just drops it out of the stack and the other moves up. */}
               <div className="flex min-w-0 flex-col gap-4">
-                <SiteCrawlCard projectId={projectId} />
+                <SiteCrawlCard projectId={projectId} onStatus={setAuditStatus} />
                 <KeywordMovementCard
                   projectId={projectId}
                   loading={statsLoading || rowsLoading}

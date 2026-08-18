@@ -13,6 +13,12 @@
  *   • PENDING/RUNNING → collecting data, with the stripe
  *   • COMPLETED    → suggestions are ready to pick from
  *   • FAILED       → what went wrong, plus add-by-hand and retry
+ *
+ * Between the start POST returning and that run row becoming readable there is
+ * a gap, and the card used to fall back to "no run yet" inside it — offering the
+ * button again for a job that was already queued. Combined with a start guard
+ * that latched on failure as well as success, a first click that lost the race
+ * left every subsequent click a silent no-op. `awaitingRun` covers the gap.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -26,6 +32,9 @@ type RunStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
 type Run = { id: string; status: RunStatus; error: string | null; completedAt: string | null }
 
 const POLL_MS = 4_000
+/** How long to keep showing "collecting…" on the strength of an accepted POST
+ *  alone, before admitting the run never appeared. */
+const AWAIT_RUN_TIMEOUT_MS = 30_000
 
 /** Indeterminate progress — the job reports no percentage, so this reports none. */
 function Stripe() {
@@ -54,35 +63,59 @@ export function KeywordSetupCard({
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
+  // The job was accepted but no run row has come back yet. Without this the card
+  // fell back to its "No keywords yet" state between the POST returning and the
+  // row becoming visible — so a started analysis looked like a button that had
+  // done nothing, which is what made people click it again and again.
+  const [awaitingRun, setAwaitingRun] = useState(false)
   const statusRef = useRef<RunStatus | null>(null)
+  const awaitingRef = useRef(false)
+  const awaitingSinceRef = useRef(0)
   // Guards the POST across StrictMode's mount → unmount → remount in dev, so a
   // single project can't enqueue two analyses.
   const startedRef = useRef(false)
+
+  const setAwaiting = useCallback((on: boolean) => {
+    awaitingRef.current = on
+    awaitingSinceRef.current = on ? Date.now() : 0
+    setAwaitingRun(on)
+  }, [])
 
   const load = useCallback(async () => {
     try {
       const { run: r } = await api.get<{ run: Run | null }>(`/api/projects/${projectId}/keyword-suggestions`)
       setRun(r)
       statusRef.current = r?.status ?? null
+      // The row exists now — the optimistic wait can stop standing in for it.
+      if (r) setAwaiting(false)
       return r
     } catch {
       return null
     }
-  }, [projectId])
+  }, [projectId, setAwaiting])
 
   const start = useCallback(async () => {
     if (startedRef.current) return
     startedRef.current = true
     setStarting(true)
+    setStartError(null)
     try {
       await api.post(`/api/projects/${projectId}/keyword-suggestions`, {})
+      setAwaiting(true)
       await load()
-    } catch {
-      // Leave the run as-is; the poll below will pick it up if it did start.
+    } catch (err: unknown) {
+      // The guard must NOT latch on a failed start. It did, so one failed POST
+      // — a quota 402, a network blip — left the button permanently inert:
+      // every later click returned at the first line, silently, with the card
+      // still inviting the click.
+      startedRef.current = false
+      setAwaiting(false)
+      setStartError(err instanceof Error ? err.message : "Couldn't start the analysis.")
     } finally {
       setStarting(false)
     }
-  }, [projectId, load])
+  }, [projectId, load, setAwaiting])
 
   useEffect(() => {
     let cancelled = false
@@ -95,17 +128,31 @@ export function KeywordSetupCard({
     return () => { cancelled = true }
   }, [load, start, autoStart])
 
-  // Poll only while there's something to wait for.
+  // Poll while there's something to wait for — including the window where we
+  // believe a job was accepted but have not yet seen its row.
   useEffect(() => {
     const t = setInterval(() => {
+      if (awaitingRef.current) {
+        // Don't believe it forever. If nothing has materialised in this long,
+        // the enqueue silently didn't take, and the honest thing is to say so
+        // and let the button work again rather than spin indefinitely.
+        if (Date.now() - awaitingSinceRef.current > AWAIT_RUN_TIMEOUT_MS) {
+          setAwaiting(false)
+          startedRef.current = false
+          setStartError("The analysis didn't start. Please try again.")
+          return
+        }
+        void load()
+        return
+      }
       if (statusRef.current === "PENDING" || statusRef.current === "RUNNING") void load()
     }, POLL_MS)
     return () => clearInterval(t)
-  }, [load])
+  }, [load, setAwaiting])
 
   if (loading) return <Skeleton className="h-24 w-full rounded-lg" />
 
-  const working = starting || run?.status === "PENDING" || run?.status === "RUNNING"
+  const working = starting || awaitingRun || run?.status === "PENDING" || run?.status === "RUNNING"
 
   return (
     <section className="rounded-lg border bg-card p-4 shadow-sm">
@@ -155,10 +202,14 @@ export function KeywordSetupCard({
               Let AI read {domain} and suggest the keywords it should rank for — or add your own and we&apos;ll start
               tracking them right away.
             </p>
+            {/* A failed start used to produce nothing at all on screen. */}
+            {startError && (
+              <p className="mt-1.5 max-w-xl text-xs font-medium text-amber-600 dark:text-amber-400">{startError}</p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button size="sm" className="h-8 gap-1.5 text-xs" disabled={starting} onClick={() => void start()}>
-              <Sparkles className="size-3.5" /> Analyse with AI
+              <Sparkles className="size-3.5" /> {starting ? "Starting…" : startError ? "Try again" : "Analyse with AI"}
             </Button>
             <Button asChild size="sm" variant="outline" className="h-8 text-xs">
               <Link href={`/dashboard/project/${projectId}/keywords`}>Add manually</Link>
