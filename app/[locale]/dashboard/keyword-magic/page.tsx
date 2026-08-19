@@ -17,6 +17,8 @@ import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { StatTile } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
 type MatchType = "broad" | "related"
 
@@ -282,6 +284,16 @@ export default function KeywordMagicPage() {
           <button type="submit" className="btn primary" disabled={loading || !seed.trim() || outOfSearches} style={{ flex: "0 0 auto" }}>
             {loading ? <><Icon.refresh /> Searching…</> : <><Icon.search /> Search</>}
           </button>
+        </div>
+
+        {/* The price, before the search runs. The variant matters: a free
+            search pulls 100 rows, a paid one 1,000, and they cost 3 and 15
+            credits respectively. */}
+        <div style={{ marginTop: 8 }}>
+          <CreditCost
+            action={CREDIT_ACTION_KEYS.keywordMagicSearch}
+            variant={usage?.plan === "free" ? "free" : "paid"}
+          />
         </div>
 
         {/* Match-type tabs */}

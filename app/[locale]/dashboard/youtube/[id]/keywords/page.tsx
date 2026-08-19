@@ -24,6 +24,8 @@ import {
   YtPosCell,
   type YtKeywordRow,
 } from "@/components/dashboard/youtube"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
 interface YtProject {
   id: string
@@ -577,6 +579,12 @@ function AddKeywordsModal({
                       Nothing is checked until you run a check — that is when the allowance is spent.
                     </span>
                   </div>
+                )}
+
+                {/* What that later check will cost, so the size of the batch is
+                    a decision made here rather than a surprise afterwards. */}
+                {newCount > 0 && !nothingNew && (
+                  <CreditCost action={CREDIT_ACTION_KEYS.youtubeCheck} units={newCount} />
                 )}
               </>
             )}

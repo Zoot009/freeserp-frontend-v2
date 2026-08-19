@@ -5,6 +5,8 @@ import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Link, useRouter } from "@/i18n/navigation"
+import { CreditPricing } from "@/components/dashboard/credit-pricing"
+import { useCredits } from "@/lib/credits"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Icon } from "@/components/dashboard/icons"
 import { useAuth } from "@/lib/auth"
@@ -46,6 +48,12 @@ export default function PricingPage() {
   const paidFeatures = t.raw("paidFeatures") as string[]
   // Rows are either a section header ({ group }) or a feature row. The compare
   // table groups ~17 rows under three headings so it stays scannable.
+  // Which billing model this visitor is on. Null while loading and for signed
+  // -out visitors, both of which should see the credit plans — that is the
+  // product now; workers are a legacy path with an existing subscription.
+  const { credits: creditSummary } = useCredits()
+  const mode = creditSummary?.mode ?? "credits"
+
   const compareRows = t.raw("compareRows") as CompareRow[]
   const stats = [
     { label: t("statMarketsLabel"), value: t("statMarketsValue"), icon: <Icon.globe /> },
@@ -288,6 +296,14 @@ export default function PricingPage() {
         )}
 
         {/* Pricing cards */}
+        {/* The current model. Rendered from the credit rate card, so the prices
+            here are the rows that will actually be charged. */}
+        {mode !== "worker" && <CreditPricing className="mb-10" />}
+
+        {/* The worker plans, kept for subscribers who are grandfathered onto
+            them. New visitors never see this — showing both models at once
+            asks people to choose a billing system rather than a plan. */}
+        {mode === "worker" && (
         <div className="grid g-2" style={{ alignItems: "stretch" }}>
           {/* Free */}
           <div className="card price-card" style={{ padding: 28, display: "flex", flexDirection: "column" }}>
@@ -525,6 +541,7 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
+        )}
 
         <p className="tiny muted" style={{ marginTop: 24, textAlign: "center" }}>
           {t("limitsReset")}

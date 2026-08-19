@@ -15,6 +15,8 @@ import { Tooltip } from "@/components/maps-tracker/tooltip"
 import { totalPoints, RECOMMENDED_GRID_SIZE, type DistanceUnit } from "@/components/maps-tracker/grid"
 import type { MapLocation, Scan, ScanHistoryItem, CreateScanResponse } from "@/components/maps-tracker/types"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { CreditCost, CreditCostConfirm } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -82,6 +84,10 @@ export default function GoogleMapsTrackerPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const points = totalPoints(gridSize, keywords.length || 1)
+  // A grid scan is the most expensive thing in the product — 16 credits at the
+  // default 11×11, 56 at the maximum. That is worth confirming rather than
+  // spending on one click.
+  const [confirmScan, setConfirmScan] = useState(false)
   const running = scan != null && !isTerminal(scan.status)
 
   // Table rows = history, with the live/just-run `scan` spliced in over its
@@ -418,11 +424,28 @@ export default function GoogleMapsTrackerPage() {
             className="btn primary"
             style={{ width: "100%", justifyContent: "center", marginTop: 12 }}
             disabled={!canRun}
-            onClick={() => void runScan()}
+            onClick={() => setConfirmScan(true)}
           >
             {submitting ? <><Icon.refresh /> Starting…</> : <><Icon.zap /> Run scan</>}
           </button>
         )}
+
+        {/* The price, before the click. Rendered under the button rather than in
+            it, so the number is readable while the grid size is being chosen. */}
+        <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
+          <CreditCost action={CREDIT_ACTION_KEYS.mapsScanPoint} units={points} />
+        </div>
+
+        <CreditCostConfirm
+          action={CREDIT_ACTION_KEYS.mapsScanPoint}
+          units={points}
+          open={confirmScan}
+          onOpenChange={setConfirmScan}
+          onConfirm={() => void runScan()}
+          title="Run this grid scan?"
+          description={`${points} points across a ${gridSize}×${gridSize} grid${keywords.length > 1 ? ` for ${keywords.length} keywords` : ""}.`}
+          confirmLabel="Run scan"
+        />
 
         {error && (
           <div className="tiny" style={{ marginTop: 10, padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--neg-soft)", color: "var(--neg)", textAlign: "center" }}>
