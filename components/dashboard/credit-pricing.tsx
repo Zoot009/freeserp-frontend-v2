@@ -44,13 +44,72 @@ const PACK_COPY: Record<string, string> = {
  * price once you can see it is a keyword checked every day for two months.
  */
 function whatItBuys(credits: number): string[] {
-  const perDay = Math.floor(credits / 30)
   return [
     `${formatCredits(credits)} rank checks`,
-    perDay > 0 ? `or ${formatCredits(perDay)} keywords checked daily for a month` : `or ${credits} keyword checks`,
-    `or ${formatCredits(Math.floor(credits / 17))} local grid scans`,
-    `or ${formatCredits(Math.floor(credits / 5))} site audits`,
+    `${formatCredits(Math.floor(credits / 30))} keywords tracked daily`,
+    `${formatCredits(Math.floor(credits / 17))} local map grid scans`,
+    `${formatCredits(Math.floor(credits / 5))} full site audits`,
   ]
+}
+
+/** What the free tier offers. Mirrors FREE_FEATURES on the marketing site. */
+const FREE_FEATURES = [
+  "Every tool unlocked",
+  "190+ countries, all devices",
+  "No credit card required",
+]
+
+/**
+ * The card shell, shared by Free and the paid tiers.
+ *
+ * Ported from the marketing site's `.pr-card` so the two pricing pages read as
+ * one product. The recommended tier is RAISED rather than recoloured — a second
+ * blue card beside the blue CTA turns the row into noise.
+ */
+const CARD_BASE =
+  "relative flex flex-col rounded-2xl border bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-lg"
+const CARD_FEATURED = "border-brand shadow-brand/20 shadow-lg lg:-translate-y-2.5"
+
+function Tick() {
+  return (
+    <Check className="mt-[3px] size-3.5 shrink-0 text-brand" strokeWidth={2.6} />
+  )
+}
+
+/** The free tier, shaped like the paid ones so the row reads as one scale. */
+function FreeCard({ freeMonthly, current }: { freeMonthly: number; current: boolean }) {
+  return (
+    <div className={CARD_BASE}>
+      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">Free</span>
+      <div className="mt-2.5 flex items-baseline gap-1">
+        <b className="text-[38px] font-bold leading-none tracking-[-0.04em]">$0</b>
+        <span className="text-[13px] text-muted-foreground">/month</span>
+      </div>
+      <p className="mt-2.5 text-[13px] font-semibold">{formatCredits(freeMonthly)} credits a month</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">Refilled automatically. No card.</p>
+      <div className="my-5 h-px bg-border" />
+      <ul className="flex flex-1 flex-col gap-2.5 text-[13px] text-muted-foreground">
+        <li className="flex items-start gap-2">
+          <Tick />
+          <span>{formatCredits(freeMonthly)} credits every month</span>
+        </li>
+        {FREE_FEATURES.map((f) => (
+          <li key={f} className="flex items-start gap-2">
+            <Tick />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <div
+        className={cn(
+          "mt-6 inline-flex h-10 w-full items-center justify-center rounded-lg border text-[13px] font-semibold",
+          current ? "bg-muted text-muted-foreground" : "text-muted-foreground",
+        )}
+      >
+        {current ? "Your current plan" : "Included with every account"}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -101,35 +160,37 @@ function PlanCard({
     <div
       ref={ref}
       className={cn(
-        "relative flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow",
-        copy.popular && "border-brand ring-1 ring-brand/20",
+        CARD_BASE,
+        copy.popular && CARD_FEATURED,
         highlighted && "border-brand ring-2 ring-brand/40",
       )}
     >
       {copy.popular && (
-        <span className="absolute -top-2.5 left-5 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+        <span className="absolute -top-2.5 left-6 rounded-full bg-brand px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-white">
           Most popular
         </span>
       )}
-      <div className="text-[15px] font-semibold">{copy.name}</div>
-      <p className="mt-0.5 text-xs text-muted-foreground">{copy.who}</p>
+      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">{copy.name}</span>
 
-      <div className="mt-4 flex items-baseline gap-1.5">
-        <span className="text-[30px] font-bold leading-none tracking-[-0.02em] tabular-nums">
+      <div className="mt-2.5 flex items-baseline gap-1">
+        <b className="text-[38px] font-bold leading-none tracking-[-0.04em] tabular-nums">
           {formatPrice(plan.priceCents, plan.currency)}
-        </span>
+        </b>
         <span className="text-[13px] text-muted-foreground">/month</span>
       </div>
 
-      <div className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-brand">
-        <Coins className="size-3.5" />
+      <p className="mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold">
+        <Coins className="size-3.5 text-brand" />
         {formatCredits(plan.credits)} credits a month
-      </div>
+      </p>
+      <p className="mt-1 text-[13px] text-muted-foreground">{copy.who}</p>
 
-      <ul className="mt-4 flex flex-1 flex-col gap-1.5 border-t pt-4 text-xs text-muted-foreground">
+      <div className="my-5 h-px bg-border" />
+
+      <ul className="flex flex-1 flex-col gap-2.5 text-[13px] text-muted-foreground">
         {whatItBuys(plan.credits).map((line) => (
           <li key={line} className="flex items-start gap-2">
-            <Check className="mt-0.5 size-3 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+            <Tick />
             <span>{line}</span>
           </li>
         ))}
@@ -140,12 +201,12 @@ function PlanCard({
         disabled={current || busy}
         onClick={() => onChoose(slug)}
         className={cn(
-          "mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-70",
+          "mt-6 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-70",
           current
             ? "cursor-default border bg-muted text-muted-foreground"
             : copy.popular
               ? "bg-brand text-white hover:brightness-110"
-              : "border hover:bg-muted",
+              : "border hover:border-brand hover:bg-muted",
         )}
       >
         {busy && <Loader2 className="size-3.5 animate-spin" />}
@@ -255,7 +316,11 @@ export function CreditPricing({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Four across, Free included — the marketing site shows the free tier in
+          the same row so the range reads as one scale rather than three paid
+          options with the free plan mentioned somewhere else. */}
+      <div className="grid items-start gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:pt-3">
+        <FreeCard freeMonthly={rates.freeMonthly} current={credits?.planSlug === "free"} />
         {plans.map((p) => {
           const slug = p.key.replace(/^plan:/, "")
           return (
