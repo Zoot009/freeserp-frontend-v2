@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Check, Coins, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -26,16 +27,16 @@ import {
 } from "@/lib/credits"
 
 /** Display names and the case each tier is for. Keyed by the rate-card key. */
-const PLAN_COPY: Record<string, { name: string; who: string; popular?: boolean }> = {
-  "plan:credits-19": { name: "Starter", who: "One site, checked daily" },
-  "plan:credits-49": { name: "Pro", who: "Several sites, or one you work on hard", popular: true },
-  "plan:credits-99": { name: "Agency", who: "Client work and bigger keyword sets" },
+const PLAN_COPY: Record<string, { nameKey: string; whoKey: string; popular?: boolean }> = {
+  "plan:credits-19": { nameKey: "planStarter", whoKey: "whoStarter" },
+  "plan:credits-49": { nameKey: "planPro", whoKey: "whoPro", popular: true },
+  "plan:credits-99": { nameKey: "planAgency", whoKey: "whoAgency" },
 }
 
 const PACK_COPY: Record<string, string> = {
-  "topup-1000": "A busy week",
-  "topup-5000": "A month of extra headroom",
-  "topup-15000": "A large one-off audit or migration",
+  "topup-1000": "pack1000",
+  "topup-5000": "pack5000",
+  "topup-15000": "pack15000",
 }
 
 /**
@@ -43,21 +44,18 @@ const PACK_COPY: Record<string, string> = {
  * credit counts mean nothing on their own — "2,000 credits" only lands as a
  * price once you can see it is a keyword checked every day for two months.
  */
-function whatItBuys(credits: number): string[] {
+function whatItBuys(credits: number, t: (k: string, v?: Record<string, string>) => string): string[] {
+  const n = (d: number) => formatCredits(Math.floor(credits / d))
   return [
-    `${formatCredits(credits)} rank checks`,
-    `${formatCredits(Math.floor(credits / 30))} keywords tracked daily`,
-    `${formatCredits(Math.floor(credits / 17))} local map grid scans`,
-    `${formatCredits(Math.floor(credits / 5))} full site audits`,
+    t("buysChecks", { credits: formatCredits(credits) }),
+    t("buysDaily", { credits: n(30) }),
+    t("buysScans", { credits: n(17) }),
+    t("buysAudits", { credits: n(5) }),
   ]
 }
 
 /** What the free tier offers. Mirrors FREE_FEATURES on the marketing site. */
-const FREE_FEATURES = [
-  "Every tool unlocked",
-  "190+ countries, all devices",
-  "No credit card required",
-]
+const FREE_FEATURE_KEYS = ["freeEveryTool", "freeCountries", "freeNoCard"]
 
 /**
  * The card shell, shared by Free and the paid tiers.
@@ -78,25 +76,26 @@ function Tick() {
 
 /** The free tier, shaped like the paid ones so the row reads as one scale. */
 function FreeCard({ freeMonthly, current }: { freeMonthly: number; current: boolean }) {
+  const t = useTranslations("credits")
   return (
     <div className={CARD_BASE}>
-      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">Free</span>
+      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">{t("planFree")}</span>
       <div className="mt-2.5 flex items-baseline gap-1">
         <b className="text-[38px] font-bold leading-none tracking-[-0.04em]">$0</b>
-        <span className="text-[13px] text-muted-foreground">/month</span>
+        <span className="text-[13px] text-muted-foreground">{t("perMonth")}</span>
       </div>
-      <p className="mt-2.5 text-[13px] font-semibold">{formatCredits(freeMonthly)} credits a month</p>
-      <p className="mt-1 text-[13px] text-muted-foreground">Refilled automatically. No card.</p>
+      <p className="mt-2.5 text-[13px] font-semibold">{t("creditsAMonth", { credits: formatCredits(freeMonthly) })}</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">{t("freeRefilled")}</p>
       <div className="my-5 h-px bg-border" />
       <ul className="flex flex-1 flex-col gap-2.5 text-[13px] text-muted-foreground">
         <li className="flex items-start gap-2">
           <Tick />
-          <span>{formatCredits(freeMonthly)} credits every month</span>
+          <span>{t("freeCreditsEvery", { credits: formatCredits(freeMonthly) })}</span>
         </li>
-        {FREE_FEATURES.map((f) => (
-          <li key={f} className="flex items-start gap-2">
+        {FREE_FEATURE_KEYS.map((k) => (
+          <li key={k} className="flex items-start gap-2">
             <Tick />
-            <span>{f}</span>
+            <span>{t(k)}</span>
           </li>
         ))}
       </ul>
@@ -106,7 +105,7 @@ function FreeCard({ freeMonthly, current }: { freeMonthly: number; current: bool
           current ? "bg-muted text-muted-foreground" : "text-muted-foreground",
         )}
       >
-        {current ? "Your current plan" : "Included with every account"}
+        {current ? t("freeCurrent") : t("freeIncluded")}
       </div>
     </div>
   )
@@ -140,7 +139,10 @@ function PlanCard({
   highlighted: boolean
   onChoose: (slug: string) => void
 }) {
-  const copy = PLAN_COPY[plan.key] ?? { name: plan.key, who: "" }
+  const t = useTranslations("credits")
+  const copy = PLAN_COPY[plan.key]
+  const name = copy ? t(copy.nameKey) : plan.key
+  const who = copy ? t(copy.whoKey) : ""
   // The rate card keys plans as "plan:credits-49"; checkout wants the slug.
   const slug = plan.key.replace(/^plan:/, "")
   const ref = useRef<HTMLDivElement>(null)
@@ -161,34 +163,34 @@ function PlanCard({
       ref={ref}
       className={cn(
         CARD_BASE,
-        copy.popular && CARD_FEATURED,
+        copy?.popular && CARD_FEATURED,
         highlighted && "border-brand ring-2 ring-brand/40",
       )}
     >
-      {copy.popular && (
+      {copy?.popular && (
         <span className="absolute -top-2.5 left-6 rounded-full bg-brand px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-white">
-          Most popular
+          {t("mostPopular")}
         </span>
       )}
-      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">{copy.name}</span>
+      <span className="text-[13px] font-bold tracking-[0.02em] text-brand">{name}</span>
 
       <div className="mt-2.5 flex items-baseline gap-1">
         <b className="text-[38px] font-bold leading-none tracking-[-0.04em] tabular-nums">
           {formatPrice(plan.priceCents, plan.currency)}
         </b>
-        <span className="text-[13px] text-muted-foreground">/month</span>
+        <span className="text-[13px] text-muted-foreground">{t("perMonth")}</span>
       </div>
 
       <p className="mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold">
         <Coins className="size-3.5 text-brand" />
-        {formatCredits(plan.credits)} credits a month
+        {t("creditsAMonth", { credits: formatCredits(plan.credits) })}
       </p>
-      <p className="mt-1 text-[13px] text-muted-foreground">{copy.who}</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">{who}</p>
 
       <div className="my-5 h-px bg-border" />
 
       <ul className="flex flex-1 flex-col gap-2.5 text-[13px] text-muted-foreground">
-        {whatItBuys(plan.credits).map((line) => (
+        {whatItBuys(plan.credits, t).map((line) => (
           <li key={line} className="flex items-start gap-2">
             <Tick />
             <span>{line}</span>
@@ -204,37 +206,40 @@ function PlanCard({
           "mt-6 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-70",
           current
             ? "cursor-default border bg-muted text-muted-foreground"
-            : copy.popular
+            : copy?.popular
               ? "bg-brand text-white hover:brightness-110"
               : "border hover:border-brand hover:bg-muted",
         )}
       >
         {busy && <Loader2 className="size-3.5 animate-spin" />}
-        {current ? "Current plan" : busy ? "Opening checkout…" : `Choose ${copy.name}`}
+        {current ? t("currentPlan") : busy ? t("openingCheckout") : t("choosePlan", { plan: name })}
       </button>
     </div>
   )
 }
 
-const TOOLS: { name: string; what: string; cost: string }[] = [
-  { name: "Google Rank Tracker", what: "Daily positions in any country, with history", cost: "1 / keyword" },
-  { name: "YouTube Rank Tracker", what: "Video positions, with views and age", cost: "1 / keyword" },
-  { name: "Google Maps Tracker", what: "A geo-grid of local rankings, block by block", cost: "3–57 / scan" },
-  { name: "Keyword Magic Tool", what: "Hundreds of ideas with volume, difficulty and intent", cost: "3–15 / search" },
-  { name: "Website Audit", what: "A real browser crawl and 63 SEO rules", cost: "1 / 20 pages" },
-  { name: "Competitor Analysis", what: "Your page against the ones outranking it", cost: "5 / analysis" },
-  { name: "AI Internal Linking", what: "Your link graph, with orphans and hubs surfaced", cost: "2 / crawl" },
-  { name: "Keyword Score Checker", what: "One page scored against one keyword", cost: "3 / page" },
-  { name: "Quick Serp", what: "A live lookup without tracking anything", cost: "1 / lookup" },
-  { name: "Search Console & GA4", what: "Real clicks beside your tracked positions", cost: "Free" },
+// Tool NAMES stay in English: they are product names, and a translated row
+// that renames the tool no longer matches the sidebar the user clicks.
+const TOOLS: { name: string; whatKey: string; costKey: string }[] = [
+  { name: "Google Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword" },
+  { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword" },
+  { name: "Google Maps Tracker", whatKey: "toolMapsWhat", costKey: "costPerScan" },
+  { name: "Keyword Magic Tool", whatKey: "toolMagicWhat", costKey: "costPerSearch" },
+  { name: "Website Audit", whatKey: "toolAuditWhat", costKey: "costPerPages" },
+  { name: "Competitor Analysis", whatKey: "toolCompetitorWhat", costKey: "costPerAnalysis" },
+  { name: "AI Internal Linking", whatKey: "toolLinkingWhat", costKey: "costPerCrawl" },
+  { name: "Keyword Score Checker", whatKey: "toolScoreWhat", costKey: "costPerPage" },
+  { name: "Quick Serp", whatKey: "toolQuickWhat", costKey: "costPerLookup" },
+  { name: "Search Console & GA4", whatKey: "toolConsoleWhat", costKey: "costFree" },
 ]
 
 function EveryTool() {
+  const t = useTranslations("credits")
   return (
     <div>
-      <h3 className="text-[15px] font-semibold">Every tool, on every plan</h3>
+      <h3 className="text-[15px] font-semibold">{t("everyToolTitle")}</h3>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        Nothing is locked behind a higher tier — your credits work across all of it.
+        {t("everyToolIntro")}
       </p>
       <div className="mt-4 overflow-hidden rounded-xl border">
         {TOOLS.map((tool, i) => (
@@ -250,9 +255,9 @@ function EveryTool() {
                 <Check className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
                 {tool.name}
               </div>
-              <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{tool.what}</p>
+              <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{t(tool.whatKey)}</p>
             </div>
-            <span className="shrink-0 text-xs font-semibold tabular-nums text-brand">{tool.cost}</span>
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-brand">{t(tool.costKey)}</span>
           </div>
         ))}
       </div>
@@ -268,6 +273,7 @@ export function CreditPricing({
   className?: string
   highlight?: string | null
 }) {
+  const t = useTranslations("credits")
   const { rates, loading } = useCreditRates()
   const { credits } = useCredits()
   // Which button is mid-checkout, and whether the last attempt failed. A dead
@@ -299,7 +305,7 @@ export function CreditPricing({
   if (loading) {
     return (
       <div className={cn("flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground", className)}>
-        <Loader2 className="size-4 animate-spin" /> Loading plans…
+        <Loader2 className="size-4 animate-spin" /> {t("loadingPlans")}
       </div>
     )
   }
@@ -308,11 +314,9 @@ export function CreditPricing({
   return (
     <section className={cn("flex flex-col gap-8", className)}>
       <div>
-        <h2 className="text-[22px] font-bold tracking-[-0.02em]">Pay for what you run</h2>
+        <h2 className="text-[22px] font-bold tracking-[-0.02em]">{t("pricingTitle")}</h2>
         <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-          One credit covers one rank check. Everything else is priced from the same pool — a local grid
-          scan, a site audit, a keyword search — so you are never paying for a tool you do not use.
-          Free accounts get {formatCredits(rates.freeMonthly)} credits a month, no card.
+          {t("pricingIntro", { credits: formatCredits(rates.freeMonthly) })}
         </p>
       </div>
 
@@ -339,9 +343,9 @@ export function CreditPricing({
       {packs.length > 0 && (
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-[15px] font-semibold">Need more this month?</h3>
+            <h3 className="text-[15px] font-semibold">{t("packsTitle")}</h3>
             <p className="text-xs text-muted-foreground">
-              Top-ups never expire on the monthly cycle — they last a year from purchase.
+              {t("packsNote")}
             </p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -354,15 +358,17 @@ export function CreditPricing({
                 className="flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors hover:border-brand hover:bg-muted/50 disabled:opacity-70"
               >
                 <span className="text-[15px] font-bold tabular-nums">
-                  {formatCredits(pack.credits)} credits
+                  {t("packCredits", { credits: formatCredits(pack.credits) })}
                 </span>
                 <span className="text-[13px] font-semibold text-brand">
                   {formatPrice(pack.priceCents, pack.currency)}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
                   {pending === pack.key
-                    ? "Opening checkout…"
-                    : (PACK_COPY[pack.key] ?? perCreditLabel(pack.priceCents, pack.credits))}
+                    ? t("openingCheckout")
+                    : PACK_COPY[pack.key]
+                      ? t(PACK_COPY[pack.key]!)
+                      : perCreditLabel(pack.priceCents, pack.credits)}
                 </span>
               </button>
             ))}
@@ -374,8 +380,7 @@ export function CreditPricing({
 
       {failed && (
         <p className="text-xs font-medium text-red-600 dark:text-red-400">
-          We couldn&apos;t open checkout. That usually means the plan isn&apos;t connected to a payment
-          provider yet — try again, or contact us if it keeps happening.
+          {t("checkoutFailed")}
         </p>
       )}
 
@@ -383,8 +388,7 @@ export function CreditPricing({
           complained-about thing in prepaid pricing; saying the rule plainly
           costs nothing and pre-empts the support ticket. */}
       <p className="text-xs text-muted-foreground">
-        Monthly credits refill on your billing date and do not roll over. Purchased top-ups last 12 months.
-        Whatever expires soonest is always spent first.
+        {t("expiryNote")}
       </p>
     </section>
   )
