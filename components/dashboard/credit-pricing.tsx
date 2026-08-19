@@ -12,7 +12,7 @@
  * newer surfaces ship. The four-locale message files are a separate pass.
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Check, Coins, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -71,21 +71,39 @@ function PlanCard({
   plan,
   current,
   busy,
+  highlighted,
   onChoose,
 }: {
   plan: CreditPlan
   current: boolean
   busy: boolean
+  /** Arrived here from a "Get Pro" link on the marketing site. */
+  highlighted: boolean
   onChoose: (slug: string) => void
 }) {
   const copy = PLAN_COPY[plan.key] ?? { name: plan.key, who: "" }
   // The rate card keys plans as "plan:credits-49"; checkout wants the slug.
   const slug = plan.key.replace(/^plan:/, "")
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Someone who clicked "Get Pro" elsewhere has already chosen. Bring their
+  // choice into view rather than dropping them at the top of a page of three
+  // identical-looking cards. Not an auto-redirect to checkout: landing on a
+  // payment page you did not ask for, with a back button that bounces you
+  // straight back to it, is worse than one more click.
+  useEffect(() => {
+    if (!highlighted) return
+    const t = setTimeout(() => ref.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 120)
+    return () => clearTimeout(t)
+  }, [highlighted])
+
   return (
     <div
+      ref={ref}
       className={cn(
-        "relative flex flex-col rounded-xl border bg-card p-5 shadow-sm",
+        "relative flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-shadow",
         copy.popular && "border-brand ring-1 ring-brand/20",
+        highlighted && "border-brand ring-2 ring-brand/40",
       )}
     >
       {copy.popular && (
@@ -181,7 +199,14 @@ function EveryTool() {
   )
 }
 
-export function CreditPricing({ className }: { className?: string }) {
+export function CreditPricing({
+  className,
+  /** Plan slug or pack key to ring and scroll to, from ?plan= / ?topup=. */
+  highlight,
+}: {
+  className?: string
+  highlight?: string | null
+}) {
   const { rates, loading } = useCreditRates()
   const { credits } = useCredits()
   // Which button is mid-checkout, and whether the last attempt failed. A dead
@@ -239,6 +264,7 @@ export function CreditPricing({ className }: { className?: string }) {
               plan={p}
               current={credits?.planSlug === slug}
               busy={pending === p.key}
+              highlighted={highlight === slug}
               onChoose={() => void go(p.key, { planSlug: slug })}
             />
           )

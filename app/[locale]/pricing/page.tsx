@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react"
 import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
 import { Link, useRouter } from "@/i18n/navigation"
 import { CreditPricing } from "@/components/dashboard/credit-pricing"
 import { useCredits } from "@/lib/credits"
@@ -42,7 +43,18 @@ const Check = () => (
   </span>
 )
 
+// useSearchParams suspends while the client bundle hydrates, so Next requires
+// a boundary around anything that reads it — without one the whole route is
+// forced out of static rendering at build time.
 export default function PricingPage() {
+  return (
+    <Suspense fallback={null}>
+      <PricingPageInner />
+    </Suspense>
+  )
+}
+
+function PricingPageInner() {
   const t = useTranslations("pricing")
   const freeFeatures = t.raw("freeFeatures") as string[]
   const paidFeatures = t.raw("paidFeatures") as string[]
@@ -63,6 +75,13 @@ export default function PricingPage() {
   const faq = t.raw("faq") as { q: string; a: string }[]
   const { user, token, loading } = useAuth()
   const router = useRouter()
+  // Arriving from a "Get Pro" link on the marketing site, which appends
+  // ?plan=credits-49 or ?topup=5000. Without reading it the choice the visitor
+  // already made is silently thrown away at the door.
+  const searchParams = useSearchParams()
+  const highlight =
+    searchParams.get("plan") ??
+    (searchParams.get("topup") ? `topup-${searchParams.get("topup")}` : null)
   const [status, setStatus] = useState<Status | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -283,9 +302,9 @@ export default function PricingPage() {
       </div>
 
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "36px 24px 72px" }}>
-        {/* Free-trial callout — the offer is 3 checks within 7 days, not a
-            recurring allowance, so it's worth stating plainly. Paid users have
-            already consumed it, so it's hidden for them. */}
+        {/* Free-tier callout. It is a recurring monthly allowance now, not a
+            one-off trial, so it keeps arriving — but paid users already have a
+            larger one, and it would only confuse them. */}
         {!isPaid && (
           <p className="trial-banner">
             <Icon.zap />
@@ -298,7 +317,7 @@ export default function PricingPage() {
         {/* Pricing cards */}
         {/* The current model. Rendered from the credit rate card, so the prices
             here are the rows that will actually be charged. */}
-        {mode !== "worker" && <CreditPricing className="mb-10" />}
+        {mode !== "worker" && <CreditPricing className="mb-10" highlight={highlight} />}
 
         {/* The worker plans, kept for subscribers who are grandfathered onto
             them. New visitors never see this — showing both models at once
