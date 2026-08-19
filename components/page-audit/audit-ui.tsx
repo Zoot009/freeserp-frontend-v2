@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { useRouter } from "next/navigation"
 // This app authenticates with its own JWT context, not NextAuth. useAuth exposes
 // { user, loading }; the shim below maps that onto the "authenticated" |
@@ -606,6 +607,7 @@ export function WebsiteScreenshot({
   /** Screenshots persisted on the AuditReport — skip fetching when present. */
   initial?: { desktop?: string | null; mobile?: string | null } | null
 }) {
+  const t = useTranslations("pageAudit")
   // Seed the module-level cache from the persisted report data, so callers
   // of prefetchScreenshot() (e.g. the audit page's loading gate) also benefit.
   if (initial && (initial.desktop || initial.mobile) && !screenshotCache.has(url)) {
@@ -646,7 +648,7 @@ export function WebsiteScreenshot({
   if (!data || data.failed || (!data.desktop && !data.mobile)) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-border/40 bg-muted/30">
-        <p className="text-sm text-muted-foreground">Screenshot unavailable</p>
+        <p className="text-sm text-muted-foreground">{t("screenshotUnavailable")}</p>
       </div>
     )
   }
@@ -658,12 +660,12 @@ export function WebsiteScreenshot({
     <div className="relative h-72 w-full select-none">
       {desktopSrc && (
         <div className="absolute left-0 top-0 h-[95%] w-[90%] overflow-hidden rounded-lg border border-border/40 bg-card shadow-md">
-          <img src={desktopSrc} alt="Desktop preview" className="h-full w-full object-fill object-top" />
+          <img src={desktopSrc} alt={t("desktopPreview")} className="h-full w-full object-fill object-top" />
         </div>
       )}
       {mobileSrc && (
         <div className="absolute right-0 top-[12%] h-[90%] w-[30%] overflow-hidden rounded-lg border border-border/40 bg-card shadow-xl">
-          <img src={mobileSrc} alt="Mobile preview" className="h-full w-full object-fill object-top" />
+          <img src={mobileSrc} alt={t("mobilePreview")} className="h-full w-full object-fill object-top" />
         </div>
       )}
     </div>
@@ -685,6 +687,7 @@ export function SerpPreview({
   title: string | null
   description: string | null
 }) {
+  const t = useTranslations("pageAudit")
   if (!title && !description) return null
 
   let hostname = url
@@ -710,7 +713,7 @@ export function SerpPreview({
       <div className="mb-2 flex items-center gap-2">
         <Info className="h-4 w-4 shrink-0 text-blue-400" />
         <h4 className="text-[15px] font-semibold leading-snug text-foreground">
-          SERP Snippet Preview
+          {t("serpPreview")}
         </h4>
       </div>
       <p className="mb-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
@@ -787,6 +790,7 @@ export function HeadingsBreakdown({
   passed: boolean | null
   shortAnswer: string
 }) {
+  const t = useTranslations("pageAudit")
   const [showDetails, setShowDetails] = useState(false)
   const levels: Array<keyof HeadingCounts> = ["h2", "h3", "h4", "h5", "h6"]
   const max = Math.max(1, ...levels.map((k) => counts[k]))
@@ -804,7 +808,7 @@ export function HeadingsBreakdown({
           <Info className="h-4 w-4 shrink-0 text-blue-400" />
         )}
         <h4 className="text-[15px] font-semibold leading-snug text-foreground">
-          H2-H6 Header Tag Usage
+          {t("headerTagUsage")}
         </h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">{shortAnswer}</p>
@@ -812,8 +816,8 @@ export function HeadingsBreakdown({
       {/* Frequency table with proportional bars */}
       <div className="max-w-3xl rounded-lg border border-border/60 bg-card overflow-hidden">
         <div className="grid grid-cols-[88px_88px_1fr] items-center gap-3 border-b border-border/60 bg-muted/30 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          <span>Header Tag</span>
-          <span>Frequency</span>
+          <span>{t("headerTag")}</span>
+          <span>{t("frequency")}</span>
           <span />
         </div>
         <ul className="divide-y divide-border/60">
@@ -910,6 +914,7 @@ function KeywordConsistencyTable({
   termLabel: string
   rows: KeywordRow[]
 }) {
+  const t = useTranslations("pageAudit")
   if (rows.length === 0) return null
   const max = Math.max(1, ...rows.map((r) => r.count))
 
@@ -923,9 +928,9 @@ function KeywordConsistencyTable({
         <div className="grid grid-cols-[160px_88px_160px_140px_120px_1fr] items-center gap-3 border-b border-border/60 bg-muted/30 px-5 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           <span>{termLabel}</span>
           <span className="text-center">Title</span>
-          <span className="text-center">Meta Description Tag</span>
-          <span className="text-center">Headings Tags</span>
-          <span className="text-center">Page Frequency</span>
+          <span className="text-center">{t("metaDescriptionTag")}</span>
+          <span className="text-center">{t("headingTags")}</span>
+          <span className="text-center">{t("pageFrequency")}</span>
           <span />
         </div>
         {/* Rows */}
@@ -988,6 +993,7 @@ export function KeywordConsistencyBreakdown({
   passed: boolean | null
   shortAnswer: string
 }) {
+  const t = useTranslations("pageAudit")
   if (keywords.length === 0 && phrases.length === 0) return null
 
   return (
@@ -1002,7 +1008,7 @@ export function KeywordConsistencyBreakdown({
           <Info className="h-4 w-4 shrink-0 text-blue-400" />
         )}
         <h4 className="text-[15px] font-semibold leading-snug text-foreground">
-          Keyword Consistency
+          {t("keywordConsistency")}
         </h4>
       </div>
       <p className="mb-4 max-w-3xl text-sm text-muted-foreground">{shortAnswer}</p>
@@ -1061,6 +1067,7 @@ export function ImageAltTextBreakdown({
   shortAnswer: string
   pageUrl?: string
 }) {
+  const t = useTranslations("pageAudit")
   const [showOnlyMissing, setShowOnlyMissing] = useState(false)
   const visible = showOnlyMissing ? samples.filter((s) => !s.hasAlt) : samples
   const hasMore = samples.length < total
@@ -1087,7 +1094,7 @@ export function ImageAltTextBreakdown({
           <Info className="h-4 w-4 shrink-0 text-blue-400" />
         )}
         <h4 className="text-[15px] font-semibold leading-snug text-foreground">
-          Image Alt Text
+          {t("imageAltText")}
         </h4>
       </div>
       <p className="mb-4 max-w-3xl text-sm text-muted-foreground">{shortAnswer}</p>
@@ -1099,7 +1106,7 @@ export function ImageAltTextBreakdown({
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3" />
-          With alt <span className="tabular-nums">{withAlt}</span>
+          {t("withAlt")} <span className="tabular-nums">{withAlt}</span>
         </span>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
@@ -1109,7 +1116,7 @@ export function ImageAltTextBreakdown({
           }`}
         >
           <XCircle className="h-3 w-3" />
-          Missing alt <span className="tabular-nums">{missing}</span>
+          {t("missingAlt")} <span className="tabular-nums">{missing}</span>
         </span>
         {missing > 0 && (
           <button
@@ -1124,7 +1131,7 @@ export function ImageAltTextBreakdown({
 
       {/* Image grid — horizontal cards, multiple per row. Fills available width. */}
       {samples.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No image samples captured.</p>
+        <p className="text-sm text-muted-foreground">{t("noImageSamples")}</p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -1171,7 +1178,7 @@ export function ImageAltTextBreakdown({
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-400">
                         <XCircle className="h-3 w-3" />
-                        Missing alt
+                        {t("missingAlt")}
                       </span>
                     )}
                     <a
@@ -1217,6 +1224,7 @@ export function RobotsTxtView({
   robotsUrl?: string
   disallowCount?: number
 }) {
+  const t = useTranslations("pageAudit")
   return (
     <div className="py-5">
       <div className="mb-2 flex items-center gap-2">
@@ -1260,13 +1268,13 @@ export function RobotsTxtView({
               </pre>
               {truncated && (
                 <div className="border-t border-border/60 bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
-                  File truncated — only the first 16,000 characters are shown.
+                  {t("fileTruncated")}
                 </div>
               )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              File contents not captured.
+              {t("fileNotCaptured")}
             </p>
           )}
         </>
@@ -1292,6 +1300,7 @@ export function SitemapView({
   truncated: boolean
   sitemapUrl?: string
 }) {
+  const t = useTranslations("pageAudit")
   const [showDetails, setShowDetails] = useState(false)
   const [search, setSearch] = useState("")
 
@@ -1360,7 +1369,7 @@ export function SitemapView({
                       type="search"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Filter URLs…"
+                      placeholder={t("filterUrls")}
                       className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15"
                     />
                   </div>
@@ -1480,6 +1489,7 @@ export function AnalyticsDetectionView({
   shortAnswer: string
   tools: string[]
 }) {
+  const t = useTranslations("pageAudit")
   return (
     <div className="py-5">
       <div className="mb-2 flex items-center gap-2">
@@ -1497,7 +1507,7 @@ export function AnalyticsDetectionView({
       <p className="mb-4 max-w-3xl text-sm text-muted-foreground">{shortAnswer}</p>
 
       {tools.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No analytics tools detected.</p>
+        <p className="text-sm text-muted-foreground">{t("noAnalytics")}</p>
       ) : (
         <ul className="max-w-md flex flex-col gap-2">
           {tools.map((name, i) => {
@@ -1997,6 +2007,7 @@ export function CategoryGradeCard({
 // ─── Section Check Row ────────────────────────────────────────────────────────
 
 export function SectionCheckRow({ check }: { check: SEOAuditCheck }) {
+  const t = useTranslations("pageAudit")
   const [open, setOpen] = useState(false)
   return (
     <div className="border-b border-border/40 last:border-0">
@@ -2016,7 +2027,7 @@ export function SectionCheckRow({ check }: { check: SEOAuditCheck }) {
           <p className="text-foreground">{check.answer}</p>
           {check.recommendation && (
             <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Fix</p>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">{t("fix")}</p>
               <p className="text-sm">{check.recommendation}</p>
             </div>
           )}
@@ -2032,19 +2043,19 @@ export function SectionCheckRow({ check }: { check: SEOAuditCheck }) {
             <div className="space-y-2 pt-1 border-t border-border/60">
               {check.what && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">What</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">{t("what")}</p>
                   <p className="text-muted-foreground">{check.what}</p>
                 </div>
               )}
               {check.why && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Why it matters</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">{t("whyItMatters")}</p>
                   <p className="text-muted-foreground">{check.why}</p>
                 </div>
               )}
               {check.how && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">How to fix</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">{t("howToFix")}</p>
                   <p className="text-muted-foreground">{check.how}</p>
                 </div>
               )}
@@ -2108,6 +2119,7 @@ export function SectionAccordionCard({
 // ─── AI Insights Panel ────────────────────────────────────────────────────────
 
 export function AIInsightsPanel({ insights }: { insights?: ScoreSummary["insights"] }) {
+  const t = useTranslations("pageAudit")
   if (!insights) return null
   const hasContent = insights.overall || (insights.recommendations && insights.recommendations.length > 0)
   if (!hasContent) return null
@@ -2121,7 +2133,7 @@ export function AIInsightsPanel({ insights }: { insights?: ScoreSummary["insight
               <Info className="h-4 w-4 text-accent" />
             </div>
             <div className="flex-1">
-              <h3 className="mb-1 text-sm font-semibold">Overall Assessment</h3>
+              <h3 className="mb-1 text-sm font-semibold">{t("overallAssessment")}</h3>
               <p className="text-sm text-muted-foreground">{insights.overall}</p>
             </div>
           </div>
@@ -2131,7 +2143,7 @@ export function AIInsightsPanel({ insights }: { insights?: ScoreSummary["insight
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <BarChart2 className="h-4 w-4 text-accent" />
-            Top Recommendations
+            {t("topRecommendations")}
           </h3>
           <ol className="space-y-2">
             {insights.recommendations.map((rec, idx) => (
@@ -2244,6 +2256,7 @@ export function CategoryResultSection({
   /** Extra content rendered at the bottom of the section card (e.g. backlinks under Links). */
   footer?: React.ReactNode
 }) {
+  const t = useTranslations("pageAudit")
   if (!checks.length && !pageSpeedPending && !footer) return null
 
   return (
@@ -2264,7 +2277,7 @@ export function CategoryResultSection({
             )}
             {pageSpeedPending && (
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Running mobile + desktop Lighthouse audits via Google PageSpeed Insights. Score will appear once the analysis completes.
+                {t("pageSpeedRunning")}
               </p>
             )}
           </div>
@@ -2273,9 +2286,9 @@ export function CategoryResultSection({
           <div className="mt-5 flex items-center gap-2.5 rounded-lg border border-accent/25 bg-accent/5 px-3.5 py-2.5 text-xs">
             <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-accent" />
             <div className="min-w-0">
-              <span className="font-medium text-foreground">Loading PageSpeed metrics…</span>
+              <span className="font-medium text-foreground">{t("loadingPageSpeed")}</span>
               <span className="ml-1.5 text-muted-foreground">
-                Mobile + desktop Lighthouse data is still fetching. Score will update automatically.
+                {t("pageSpeedFetching")}
               </span>
             </div>
           </div>
@@ -2591,6 +2604,7 @@ export function CategoryResultSection({
 // ─── Paywall (anonymous gate over deeper sections) ───────────────────────────
 
 function PaywallSection({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("pageAudit")
   return (
     <div className="relative my-8 overflow-hidden rounded-2xl border border-border/60">
       {/* Capped teaser strip — blurred + faded out so the CTA reads cleanly */}
@@ -2617,7 +2631,7 @@ function PaywallSection({ children }: { children: React.ReactNode }) {
               <Lock className="h-5 w-5 text-accent" />
             </div>
             <h3 className="text-lg font-semibold tracking-tight">
-              Unlock the full report
+              {t("unlockFullReport")}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Sign in or create a free account to see every category, AI
@@ -2648,7 +2662,7 @@ function PaywallSection({ children }: { children: React.ReactNode }) {
                 </Link>
               </Button>
               <Button asChild size="sm" variant="outline">
-                <Link href="/auth/signin">Sign in</Link>
+                <Link href="/auth/signin">{t("signIn")}</Link>
               </Button>
             </div>
 
@@ -2694,6 +2708,7 @@ function InternalLinkGraph({
   orphanData: InternalLinkGraphData["orphanData"]
   metadata: InternalLinkGraphMeta
 }) {
+  const t = useTranslations("pageAudit")
   const [activeTab, setActiveTabState] = useState<"graph" | "nodes" | "orphans">("graph")
   const [searchQuery, setSearchQuery]  = useState("")
   const [visibleCls, setVisibleCls]    = useState<Set<NodeClass>>(
@@ -2982,7 +2997,7 @@ function InternalLinkGraph({
           </svg>
           <input
             type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search pages…"
+            placeholder={t("searchPages")}
             className="w-full h-7 pl-7 pr-3 rounded-md text-xs bg-muted/50 border border-border/40 text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-accent/60 transition-colors"
           />
         </div>
@@ -3012,24 +3027,24 @@ function InternalLinkGraph({
         {/* Actions */}
         {activeTab === "graph" && (
           <div className="flex items-center gap-1 ml-auto">
-            <button onClick={fitGraph} title="Fit to view" className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={fitGraph} title={t("fitToView")} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3"/>
               </svg>
               Fit
             </button>
-            <button onClick={reshuffle} title="Re-run layout" className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={reshuffle} title={t("reRunLayout")} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>
               </svg>
-              Reshuffle
+              {t("reshuffle")}
             </button>
             {selectedId && (
               <button onClick={() => setSelectedId(null)} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-accent/30 bg-accent/10 hover:bg-accent/20 text-accent transition-colors">
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18M6 6l12 12"/>
                 </svg>
-                Clear
+                {t("clear")}
               </button>
             )}
           </div>
@@ -3154,12 +3169,12 @@ function InternalLinkGraph({
             </div>
             <div className="grid grid-cols-2 divide-x divide-border/40 border-b border-border/40">
               <div className="px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Inbound</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">{t("inbound")}</p>
                 <p className="text-lg font-bold mt-0.5">{selectedNode.inboundCount}</p>
                 <p className="text-[11px] text-muted-foreground">pages link in</p>
               </div>
               <div className="px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Outbound</p>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">{t("outbound")}</p>
                 <p className="text-lg font-bold mt-0.5">{selectedNode.outboundCount}</p>
                 <p className="text-[11px] text-muted-foreground">links out</p>
               </div>
@@ -3205,7 +3220,7 @@ function InternalLinkGraph({
               </svg>
             </div>
             <p className="text-xs text-muted-foreground/50 max-w-[160px] leading-relaxed">
-              Click any node to inspect its inbound and outbound links.
+              {t("clickNode")}
             </p>
           </div>
         )}
@@ -3262,13 +3277,14 @@ function InternalLinkSection({
   /** Link graph persisted on the AuditReport by the audit worker. */
   initial?: InternalLinkGraphData | null
 }) {
+  const t = useTranslations("pageAudit")
   const linkGraph = initial ?? null
 
   if (!linkGraph) {
     return (
       <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
         <div className="border-b border-border/40 px-6 py-5">
-          <h2 className="text-lg font-bold">Internal Link Analysis</h2>
+          <h2 className="text-lg font-bold">{t("internalLinkAnalysis")}</h2>
         </div>
         <div className="px-6 py-5 flex items-start gap-3 text-sm text-muted-foreground">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
@@ -3295,7 +3311,7 @@ function InternalLinkSection({
   return (
     <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
       <div className="border-b border-border/40 px-6 py-5">
-        <h2 className="text-lg font-bold">Internal Link Analysis</h2>
+        <h2 className="text-lg font-bold">{t("internalLinkAnalysis")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Full-site crawl · {metadata.totalPages} pages · max depth {metadata.maxDepth}
         </p>
@@ -3321,13 +3337,13 @@ function InternalLinkSection({
 
       {/* Directed link graph */}
       <div className="border-b border-border/40 px-4 py-4">
-        <h3 className="mb-3 px-2 text-sm font-semibold text-foreground/90">Link Graph</h3>
+        <h3 className="mb-3 px-2 text-sm font-semibold text-foreground/90">{t("linkGraph")}</h3>
         <InternalLinkGraph nodes={linkGraph.nodes} edges={linkGraph.edges} orphanData={linkGraph.orphanData} metadata={linkGraph.metadata} />
       </div>
 
       {metadata.topLinkedPages.length > 0 && (
         <div className="border-b border-border/40 px-6 py-5">
-          <h3 className="mb-3 text-sm font-semibold text-foreground/90">Top Linked Pages</h3>
+          <h3 className="mb-3 text-sm font-semibold text-foreground/90">{t("topLinkedPages")}</h3>
           <div className="space-y-2.5">
             {metadata.topLinkedPages.slice(0, 5).map((page, i) => {
               let displayPath = page.url
@@ -3360,7 +3376,7 @@ function InternalLinkSection({
               {orphanData.graphOrphans.length} orphan {orphanData.graphOrphans.length === 1 ? "page" : "pages"} found
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              These pages have no inbound internal links and may be missed by search engine crawlers.
+              {t("orphanBlurb")}
             </p>
           </div>
         </div>
@@ -3423,6 +3439,7 @@ export function BacklinksView({
   /** When true, render as part of an existing section (no outer card/padding). */
   embedded?: boolean
 }) {
+  const t = useTranslations("pageAudit")
   const fmt = (n: number) => n.toLocaleString()
   const totalLinks = data.dofollow + data.nofollow
   const top = data.topBacklinks ?? []
@@ -3442,7 +3459,7 @@ export function BacklinksView({
   return (
     <div className={embedded ? "" : "rounded-2xl border border-border bg-card shadow-sm"}>
       <div className={embedded ? "mb-5" : "border-b border-border/40 px-6 pb-5 pt-6"}>
-        <h2 className="text-lg font-bold text-foreground">Backlink Profile</h2>
+        <h2 className="text-lg font-bold text-foreground">{t("backlinkProfile")}</h2>
         <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
           An overview of the external websites linking to{" "}
           <a
@@ -3512,22 +3529,22 @@ export function BacklinksView({
         {/* Top backlinks table */}
         {top.length > 0 && (
           <div className="mt-7">
-            <h4 className="text-sm font-semibold text-foreground">Top Backlinks</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("topBacklinks")}</h4>
             <p className="mb-3 text-xs text-muted-foreground">
-              The highest-value external pages we found linking to your site.
+              {t("topBacklinksBlurb")}
             </p>
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[640px] text-sm">
                 <thead className="bg-muted/40 text-left">
                   <tr>
                     <th className="w-24 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Domain Strength
+                      {t("domainStrength")}
                     </th>
                     <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Referring Page
+                      {t("referringPage")}
                     </th>
                     <th className="px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Anchor Text
+                      {t("anchorText")}
                     </th>
                   </tr>
                 </thead>
@@ -3676,6 +3693,7 @@ export function shareableSections(report: AuditReport): ShareSection[] {
  * "Recommendations". Rendered above the detailed per-category sections.
  */
 function RecommendationsSection({ report }: { report: AuditReport }) {
+  const t = useTranslations("pageAudit")
   const items = buildRecommendations(report)
 
   if (items.length === 0) return null
@@ -3683,7 +3701,7 @@ function RecommendationsSection({ report }: { report: AuditReport }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
       <div className="border-b border-border/40 px-6 pb-5 pt-6">
-        <h2 className="text-lg font-bold">Recommendations</h2>
+        <h2 className="text-lg font-bold">{t("recommendations")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {items.length} {items.length === 1 ? "issue" : "issues"} to fix, ordered by priority.
         </p>
@@ -3783,6 +3801,7 @@ function checksForCategory(report: AuditReport, key: string): SEOAuditCheck[] {
 type NavItem = { id: string; label: string; children?: { id: string; label: string }[] }
 
 function QuickLinks({ items }: { items: NavItem[] }) {
+  const t = useTranslations("pageAudit")
   const [active, setActive] = useState(items[0]?.id ?? "")
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const idsKey = items.map((i) => i.id).join("|")
@@ -3821,7 +3840,7 @@ function QuickLinks({ items }: { items: NavItem[] }) {
     <aside className="hidden lg:block">
       <div className="sticky top-24">
         <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-          Quick links
+          {t("quickLinks")}
         </p>
         <nav className="mt-3 border-l border-border">
           {items.map((it) => {
@@ -3904,6 +3923,7 @@ export function AuditReportResults({
    */
   recommendationsSlot?: React.ReactNode
 }) {
+  const t = useTranslations("pageAudit")
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(null)
@@ -4132,7 +4152,7 @@ export function AuditReportResults({
                 {hostname.replace(/^www\./, "").charAt(0).toUpperCase()}
               </div>
               <div className="flex items-center gap-1.5 text-sm min-w-0">
-                <span className="text-muted-foreground hidden sm:block">Audit results for</span>
+                <span className="text-muted-foreground hidden sm:block">{t("auditResultsFor")}</span>
                 <span className="font-semibold text-foreground truncate">{hostname}</span>
                 <a href={report.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground/40 hover:text-accent transition-colors">
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -4156,7 +4176,7 @@ export function AuditReportResults({
                   onClick={handleShare}
                 >
                   <Share2 className="h-3 w-3" />
-                  Share
+                  {t("share")}
                 </Button>
               )}
               <Button
@@ -4175,7 +4195,7 @@ export function AuditReportResults({
               </Button>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={onNewAudit}>
                 <RefreshCw className="h-3 w-3" />
-                New Audit
+                {t("newAudit")}
               </Button>
             </div>
           </div>
@@ -4245,7 +4265,7 @@ export function AuditReportResults({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Share2 className="h-4 w-4" />
-              Share this report
+              {t("shareTitle")}
             </DialogTitle>
             <DialogDescription>
               Anyone with this link can view the report — no account needed. You can turn it off
@@ -4256,13 +4276,13 @@ export function AuditReportResults({
           {shareLoading && !shareToken ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
               <RefreshCw className="h-4 w-4 animate-spin text-accent" />
-              Creating your share link…
+              {t("shareCreating")}
             </div>
           ) : shareError ? (
             <div className="space-y-3">
               <p className="text-sm text-destructive">{shareError}</p>
               <Button size="sm" variant="outline" onClick={createShareLink}>
-                Try again
+                {t("tryAgain")}
               </Button>
             </div>
           ) : shareToken ? (
@@ -4286,7 +4306,7 @@ export function AuditReportResults({
                   <span>
                     Your white-label branding is applied to this report.{" "}
                     <Link href="/dashboard/settings" className="font-medium text-accent hover:underline">
-                      Edit branding
+                      {t("editBranding")}
                     </Link>
                   </span>
                 </p>
@@ -4294,7 +4314,7 @@ export function AuditReportResults({
                 <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
                   Want your own logo and colors on shared reports?{" "}
                   <Link href="/dashboard/settings" className="font-medium text-accent hover:underline">
-                    Set up white-label branding
+                    {t("setUpBranding")}
                   </Link>{" "}
                   in Settings — it applies to every report you share.
                 </p>
@@ -4310,7 +4330,7 @@ export function AuditReportResults({
                   >
                     <span>
                       <span className="block text-sm font-medium text-foreground">
-                        Sections to include
+                        {t("sectionsToInclude")}
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {shownSecCount === sections.length
@@ -4380,7 +4400,7 @@ export function AuditReportResults({
               )}
 
               <div className="flex items-center justify-between border-t border-border/50 pt-3">
-                <p className="text-xs text-muted-foreground">Sharing is on for this report.</p>
+                <p className="text-xs text-muted-foreground">{t("shareOn")}</p>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -4389,7 +4409,7 @@ export function AuditReportResults({
                   disabled={shareLoading}
                 >
                   <XCircle className="h-3.5 w-3.5" />
-                  Stop sharing
+                  {t("stopSharing")}
                 </Button>
               </div>
             </div>
@@ -4483,19 +4503,19 @@ export function AuditReportResults({
               <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
                 <Lock className="h-5 w-5 text-accent" />
               </div>
-              <h3 className="mb-2 text-xl font-bold font-mono">Save & track your progress</h3>
+              <h3 className="mb-2 text-xl font-bold font-mono">{t("saveProgress")}</h3>
               <p className="mb-6 mx-auto max-w-sm text-sm text-muted-foreground leading-relaxed">
-                Create a free account to save this report, track improvements over time, and run unlimited audits.
+                {t("createAccountBlurb")}
               </p>
               <div className="flex flex-col gap-2.5 sm:flex-row sm:justify-center">
                 <Button asChild>
                   <Link href="/auth/signin" className="gap-2">
-                    Get Started Free
+                    {t("getStartedFree")}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href="/#pricing">View Plans</Link>
+                  <Link href="/#pricing">{t("viewPlans")}</Link>
                 </Button>
               </div>
             </div>
