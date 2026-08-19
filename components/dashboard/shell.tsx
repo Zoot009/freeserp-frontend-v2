@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumbs"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
+import { CreditBalance } from "@/components/dashboard/credit-balance"
 import { Separator } from "@/components/ui/separator"
 import { DashboardSkeleton } from "@/components/dashboard/shell-skeleton"
 import { UserMenu } from "@/components/dashboard/user-menu"
@@ -139,6 +140,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   used to hold a bare <Bell/> in a Button with no handler — the
                   working component existed but was only mounted by the old
                   topbar, which this shell replaced. */}
+              {/* Renders nothing for grandfathered worker subscribers, who still
+                  meter on daily checks rather than a balance. */}
+              <CreditBalance />
               <NotificationBell />
               {/* Upgrade and the locale switcher both moved inside this menu, so
                   the account surface is one dropdown instead of three controls.

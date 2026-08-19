@@ -48,6 +48,14 @@ interface WorkersPreview {
 const REOPEN_COOLDOWN_MS = 5_000
 
 const KNOWN_CODES = new Set([
+  // Prepaid balance is empty or too low. NOT a daily quota: nothing resets at
+  // midnight, so this must never fall through to that copy — the user has to
+  // buy credits or wait for their monthly refill.
+  "insufficient_credits",
+  // Keyword Magic sends this when a free user opens a paid-only tab. It was
+  // missing from the allowlist, so it silently rendered as "out of checks
+  // today", which is neither true nor actionable.
+  "plan_upgrade_required",
   "daily_quota_exhausted",
   "free_trial_exhausted",
   // Free user out of checks for TODAY only — the trial is still running and
