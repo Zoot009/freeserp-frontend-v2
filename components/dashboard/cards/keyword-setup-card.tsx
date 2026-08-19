@@ -10,7 +10,7 @@
  * It reads the REAL run (GET …/keyword-suggestions) rather than assuming one is
  * in flight, so each state says something true:
  *   • no run yet   → offer to start it (and say what it will do)
- *   • PENDING/RUNNING → collecting data, with the stripe
+ *   • PENDING/PROCESSING → collecting data, with the stripe
  *   • COMPLETED    → suggestions are ready to pick from
  *   • FAILED       → what went wrong, plus add-by-hand and retry
  *
@@ -28,15 +28,50 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-type RunStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
-type Run = { id: string; status: RunStatus; error: string | null; completedAt: string | null }
+// PROCESSING, not RUNNING. The backend's AnalysisStatus enum is
+// PENDING | PROCESSING | COMPLETED | FAILED (prisma/schema.prisma), and this
+// file checked for "RUNNING" — a value the API has never sent. So for the whole
+// length of the analysis every branch missed, and the card fell through to its
+// "No keywords yet — Analyse with AI" state while the run it was offering to
+// start was already underway. "RUNNING" stays in the union only so an older
+// deployment that does send it is still read as in-flight.
+type RunStatus = "PENDING" | "PROCESSING" | "RUNNING" | "COMPLETED" | "FAILED"
+type Run = {
+  id: string
+  status: RunStatus
+  error: string | null
+  /** When the run was created — the elapsed clock counts from here. */
+  createdAt?: string | null
+  completedAt: string | null
+}
+
+const IN_FLIGHT: ReadonlySet<string> = new Set(["PENDING", "PROCESSING", "RUNNING"])
 
 const POLL_MS = 4_000
 /** How long to keep showing "collecting…" on the strength of an accepted POST
  *  alone, before admitting the run never appeared. */
 const AWAIT_RUN_TIMEOUT_MS = 30_000
 
+/**
+ * Creating a project enqueues a keyword analysis server-side
+ * (projects.service.ts → ksService.enqueueForNewProject), and that call is
+ * fire-and-forget, so the HTTP response can beat the run row into existence.
+ * "No run" is therefore not proof that none is coming — for this long after
+ * mount it means "not yet", and the card waits rather than offering to start
+ * the analysis that is already starting.
+ */
+const RUN_APPEAR_GRACE_MS = 15_000
+
 const dismissKey = (projectId: string) => `fs.kwai.${projectId}`
+
+/** "1m 12s". The run reports no percentage, so elapsed time is the only honest
+ *  signal that something is still happening. */
+function elapsedLabel(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(total / 60)
+  const sec = total % 60
+  return m > 0 ? `${m}m ${String(sec).padStart(2, "0")}s` : `${sec}s`
+}
 
 /** Indeterminate progress — the job reports no percentage, so this reports none. */
 function Stripe() {
@@ -163,10 +198,13 @@ function KeywordAiPrompt({
 }
 
 export function KeywordSetupCard({
-  projectId, domain,
+  projectId, domain, onStatus,
 }: {
   projectId: string
   domain: string
+  /** Reports whether an analysis is in flight, so the Next steps card can show
+   *  the same spinner without a second poller on the same endpoint. */
+  onStatus?: (running: boolean) => void
 }) {
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
@@ -180,6 +218,10 @@ export function KeywordSetupCard({
   // null until the stored preference is read, so a dismissed prompt never
   // flashes on its way to being hidden.
   const [askDismissed, setAskDismissed] = useState<boolean | null>(null)
+  const [graceOver, setGraceOver] = useState(false)
+  const graceOverRef = useRef(false)
+  const onStatusRef = useRef(onStatus)
+  onStatusRef.current = onStatus
   const statusRef = useRef<RunStatus | null>(null)
   const awaitingRef = useRef(false)
   const awaitingSinceRef = useRef(0)
@@ -191,6 +233,22 @@ export function KeywordSetupCard({
     awaitingRef.current = on
     awaitingSinceRef.current = on ? Date.now() : 0
     setAwaitingRun(on)
+  }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      graceOverRef.current = true
+      setGraceOver(true)
+    }, RUN_APPEAR_GRACE_MS)
+    return () => clearTimeout(t)
+  }, [projectId])
+
+  // Ticks once a second while something is running, purely to move the elapsed
+  // figure — the one thing guaranteed to change on a job with no percentage.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
   }, [])
 
   const load = useCallback(async () => {
@@ -281,18 +339,40 @@ export function KeywordSetupCard({
         void load()
         return
       }
-      if (statusRef.current === "PENDING" || statusRef.current === "RUNNING") void load()
+      if (statusRef.current && IN_FLIGHT.has(statusRef.current)) return void load()
+      // Still waiting for the auto-started run to show up.
+      if (!statusRef.current && !graceOverRef.current) void load()
     }, POLL_MS)
     return () => clearInterval(t)
   }, [load, setAwaiting])
 
+  // Derived above the early return, because the effect that reports upward is
+  // a hook and hooks cannot follow a conditional return.
+  const working = starting || awaitingRun || (!!run && IN_FLIGHT.has(run.status))
+  const idle = !working && !run
+  // No run yet, and it is too early to conclude there won't be one.
+  const waitingForRun = idle && !graceOver
+  const runStartedAt = run?.createdAt ? new Date(run.createdAt).getTime() : null
+  const runElapsed = runStartedAt && Number.isFinite(runStartedAt) ? now - runStartedAt : null
+  const busy = working || waitingForRun
+
+  // One place tells the page whether work is in flight, so every path that
+  // changes the phase — a poll, a manual start, the grace window expiring — is
+  // covered without each one remembering to report.
+  useEffect(() => {
+    onStatusRef.current?.(busy)
+  }, [busy])
+
+  // The card unmounts the moment the analysis lands keywords on the project, so
+  // without this the page would hold "analysing" true forever after a success.
+  useEffect(() => () => onStatusRef.current?.(false), [])
+
   if (loading) return <Skeleton className="h-24 w-full rounded-lg" />
 
-  const working = starting || awaitingRun || run?.status === "PENDING" || run?.status === "RUNNING"
-  const idle = !working && !run
+
 
   // Nothing to report in place — the offer is a dialog now, not a card.
-  if (idle) {
+  if (idle && !waitingForRun) {
     if (askDismissed !== false) return null
     return (
       <KeywordAiPrompt
@@ -308,17 +388,24 @@ export function KeywordSetupCard({
 
   return (
     <section className="rounded-lg border bg-card p-4 shadow-sm">
-      {working ? (
+      {working || waitingForRun ? (
         <>
           <div className="mb-2.5 flex items-center gap-2 text-[13px] font-semibold">
-            <Sparkles className="size-4 text-primary" /> Collecting keyword data…
+            <Sparkles className="size-4 text-primary" />
+            {waitingForRun ? "Starting keyword analysis…" : "Finding your keywords…"}
           </div>
           <Stripe />
           <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-            We&apos;re reading <span className="font-medium text-foreground">{domain}</span>, picking the keywords it
-            should rank for, and checking where it stands today. This usually takes a minute or two — you can leave
+            {/* Written for what actually happens: adding a project starts this
+                by itself, so the copy reports work rather than describing an
+                option. */}
+            We&apos;re reading <span className="font-medium text-foreground">{domain}</span>, working out the keywords
+            it should rank for, and checking where it stands today. This usually takes a minute or two — you can leave
             this page, it keeps running in the background.
           </p>
+          {runElapsed != null && (
+            <p className="mt-2 text-xs tabular-nums text-muted-foreground">{elapsedLabel(runElapsed)} elapsed</p>
+          )}
         </>
       ) : run?.status === "COMPLETED" ? (
         <div className="flex flex-wrap items-center justify-between gap-3">

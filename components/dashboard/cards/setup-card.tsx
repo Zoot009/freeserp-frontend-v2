@@ -137,9 +137,22 @@ function searchConsoleStep(projectId: string, gsc: GscState): Step {
  *  the step then shows no verdict rather than claiming an empty project. */
 export type KeywordState = { total: number; ranked: number } | null
 
-function trackKeywordsStep(projectId: string, keywords: KeywordState): Step {
+function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing: boolean): Step {
   const href = `/dashboard/project/${projectId}/keywords`
   const base = { title: "Track keywords", href, primary: true }
+
+  // Adding a project starts a keyword analysis by itself, server-side. While it
+  // runs, "Add keywords" is the wrong thing to say — the work is already being
+  // done, and inviting the same work again is how people end up doing it twice.
+  if (analysing && (keywords?.total ?? 0) === 0) {
+    return {
+      ...base,
+      description: "We're reading the site and working out which keywords it should rank for. They'll appear here on their own.",
+      cta: "Finding keywords…",
+      done: null,
+      busy: true,
+    }
+  }
 
   if (keywords === null) {
     return {
@@ -183,19 +196,22 @@ export function SetupCard({
   gsc,
   keywords,
   auditRunning = false,
+  keywordsAnalysing = false,
 }: {
   projectId: string
   gsc: GscState
   keywords: KeywordState
   /** A site crawl is queued or running for this project. */
   auditRunning?: boolean
+  /** The automatic keyword analysis is in flight for this project. */
+  keywordsAnalysing?: boolean
 }) {
   // Our own tools first, the third-party integration last. Search Console is
   // the one step that depends on someone else's account and OAuth consent, so
   // leading with it put the slowest, least certain thing in front of the tools
   // that work immediately.
   const steps: Step[] = [
-    trackKeywordsStep(projectId, keywords),
+    trackKeywordsStep(projectId, keywords, keywordsAnalysing),
     {
       title: "Website Audit",
       description: auditRunning
@@ -268,7 +284,14 @@ export function SetupCard({
             </p>
 
             <div className="mt-3.5">
-              {s.done ? (
+              {s.busy && s.primary ? (
+                // The primary step's busy CTA is a report, not an invitation:
+                // rendering it as the page's main button would put the loudest
+                // control on screen next to work already in progress.
+                <span className="inline-flex h-8 items-center gap-1.5 text-[13px] font-semibold text-primary">
+                  <Loader2 className="size-3.5 animate-spin" /> {s.cta}
+                </span>
+              ) : s.done ? (
                 // A link, not a label: "Connected" with nowhere to go is a dead
                 // end — the report you just connected is the point of connecting.
                 // hover:bg-emerald-500/10 is not decoration: the ghost variant

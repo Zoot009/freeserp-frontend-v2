@@ -215,6 +215,10 @@ export default function SeoDashboardPage() {
   // Reported by the Site Audit card below, so the setup card can say "Crawling…"
   // without a second poller on the same endpoint.
   const [auditStatus, setAuditStatus] = useState<string | null>(null)
+  // Creating a project auto-starts a keyword analysis server-side, so the
+  // dashboard has to be able to say so rather than asking for keywords that are
+  // already being found.
+  const [keywordsAnalysing, setKeywordsAnalysing] = useState(false)
 
   // Project list — fetched once; the switcher only changes which id we scope to.
   useEffect(() => {
@@ -521,7 +525,9 @@ export default function SeoDashboardPage() {
             {/* No autoStart: the analysis costs an AI credit and now announces
                 itself in a dialog, so it asks before spending one rather than
                 firing on page load and reporting it afterwards. */}
-            {noKeywords && <KeywordSetupCard projectId={projectId} domain={domain} />}
+            {noKeywords && (
+              <KeywordSetupCard projectId={projectId} domain={domain} onStatus={setKeywordsAnalysing} />
+            )}
 
             {/* ── The five headline figures ── */}
             <StatStrip
@@ -540,6 +546,7 @@ export default function SeoDashboardPage() {
                 overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
               }
               auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
+              keywordsAnalysing={keywordsAnalysing}
             />
 
             {/*
