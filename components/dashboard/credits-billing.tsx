@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Coins, Loader2, TriangleAlert } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -29,12 +30,12 @@ import {
   type CreditSummary,
 } from "@/lib/credits"
 
-/** Plan slug to the name people see. Anything unknown falls back to the slug. */
-const PLAN_NAMES: Record<string, string> = {
-  free: "Free",
-  "credits-19": "Starter",
-  "credits-49": "Pro",
-  "credits-99": "Agency",
+/** Plan slug to the message key naming it. Unknown slugs fall back to the slug. */
+const PLAN_KEYS: Record<string, string> = {
+  free: "planFree",
+  "credits-19": "planStarter",
+  "credits-49": "planPro",
+  "credits-99": "planAgency",
 }
 
 /**
@@ -43,13 +44,13 @@ const PLAN_NAMES: Record<string, string> = {
  * side of it — nobody thinks of themselves as having settled a hold, they got
  * unused credits back.
  */
-const ENTRY_LABELS: Record<CreditLedgerEntry["entryType"], string> = {
-  grant: "Credits added",
-  hold: "Used",
-  settle: "Returned unused",
-  refund: "Refunded",
-  expire: "Expired",
-  adjust: "Adjustment",
+const ENTRY_KEYS: Record<CreditLedgerEntry["entryType"], string> = {
+  grant: "entryGrant",
+  hold: "entryHold",
+  settle: "entrySettle",
+  refund: "entryRefund",
+  expire: "entryExpire",
+  adjust: "entryAdjust",
 }
 
 /** Action keys are machine-shaped (serp.check.standard); this is the human name. */
@@ -71,10 +72,15 @@ const ACTION_NAMES: Record<string, string> = {
   "ks.run": "Starter keyword suggestions",
 }
 
-function describe(entry: CreditLedgerEntry): string {
+/**
+ * What a statement row was for. Tool names are product names and are left in
+ * English on purpose — the same reason Starter, Pro and Agency are — so a
+ * translated statement still says the name the user sees in the sidebar.
+ */
+function describe(entry: CreditLedgerEntry, t: (k: string) => string): string {
   if (entry.action && ACTION_NAMES[entry.action]) return ACTION_NAMES[entry.action]!
   if (entry.action) return entry.action
-  return ENTRY_LABELS[entry.entryType]
+  return t(ENTRY_KEYS[entry.entryType])
 }
 
 function formatDay(iso: string): string {
@@ -104,6 +110,7 @@ function formatFullDate(iso: string | null): string | null {
  * separately.
  */
 function BalanceCard({ credits }: { credits: CreditSummary }) {
+  const t = useTranslations("credits")
   const allowance = credits.monthlyAllowance
   const balance = credits.balance
   const pct = allowance > 0 ? Math.min(100, Math.round((balance / allowance) * 100)) : 0
@@ -121,7 +128,7 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-            <Coins className="size-3.5" /> Credit balance
+            <Coins className="size-3.5" /> {t("balanceLabel")}
           </div>
           <div className={cn("mt-1.5 text-[38px] font-bold leading-none tracking-[-0.04em] tabular-nums", tone)}>
             {formatCredits(balance)}
@@ -129,12 +136,12 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
         </div>
         <div className="text-right text-[13px] text-muted-foreground">
           <div>
-            Plan{" "}
+            {t("planLabel")}{" "}
             <span className="font-semibold text-foreground">
-              {PLAN_NAMES[credits.planSlug] ?? credits.planSlug}
+              {PLAN_KEYS[credits.planSlug] ? t(PLAN_KEYS[credits.planSlug]!) : credits.planSlug}
             </span>
           </div>
-          {allowance > 0 && <div className="mt-0.5">{formatCredits(allowance)} credits a month</div>}
+          {allowance > 0 && <div className="mt-0.5">{t("creditsAMonth", { credits: formatCredits(allowance) })}</div>}
         </div>
       </div>
 
@@ -150,22 +157,20 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
             />
           </div>
           <p className="mt-2 text-[13px] text-muted-foreground">
-            {formatCredits(balance)} of {formatCredits(allowance)} monthly credits left
-            {extra > 0 ? ` · ${formatCredits(extra)} from top-ups` : ""}
+            {t("monthlyLeft", { balance: formatCredits(balance), allowance: formatCredits(allowance) })}
+            {extra > 0 ? ` · ${t("fromTopups", { credits: formatCredits(extra) })}` : ""}
           </p>
         </div>
       )}
 
       <div className="mt-5 flex flex-wrap gap-x-6 gap-y-1.5 border-t pt-4 text-[13px] text-muted-foreground">
         {refill && (
-          <span>
-            Refills <span className="font-medium text-foreground">{refill}</span>
-          </span>
+          <span>{t("refills", { date: refill })}</span>
         )}
         {credits.expiringSoon > 0 && expiry && (
           <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
             <TriangleAlert className="size-3.5" />
-            {formatCredits(credits.expiringSoon)} expiring {expiry}
+            {t("expiring", { credits: formatCredits(credits.expiringSoon), date: expiry })}
           </span>
         )}
       </div>
@@ -175,6 +180,7 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
 
 /** The statement. Append-only on the server, so this is only ever a read. */
 function Statement() {
+  const t = useTranslations("credits")
   const [entries, setEntries] = useState<CreditLedgerEntry[] | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -198,19 +204,19 @@ function Statement() {
 
   return (
     <div>
-      <h3 className="text-[15px] font-semibold">Statement</h3>
+      <h3 className="text-[15px] font-semibold">{t("statementTitle")}</h3>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        Every credit granted, spent, returned and expired — newest first.
+        {t("statementIntro")}
       </p>
 
       <div className="mt-4 overflow-hidden rounded-xl border">
         {loading ? (
           <div className="flex items-center justify-center gap-2 bg-card py-12 text-[13px] text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Loading statement…
+            <Loader2 className="size-4 animate-spin" /> {t("statementLoading")}
           </div>
         ) : !entries || entries.length === 0 ? (
           <div className="bg-card px-4 py-12 text-center text-[13px] text-muted-foreground">
-            Nothing yet. Spending appears here as you use the tools.
+            {t("statementEmpty")}
           </div>
         ) : (
           entries.map((e, i) => (
@@ -222,9 +228,9 @@ function Statement() {
               )}
             >
               <div className="min-w-0">
-                <div className="text-[13px] font-medium">{describe(e)}</div>
+                <div className="text-[13px] font-medium">{describe(e, t)}</div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {formatDay(e.createdAt)} · {ENTRY_LABELS[e.entryType]}
+                  {formatDay(e.createdAt)} · {t(ENTRY_KEYS[e.entryType])}
                 </p>
               </div>
               <div className="flex shrink-0 items-baseline gap-4 tabular-nums">
@@ -250,12 +256,13 @@ function Statement() {
 }
 
 export function CreditsBilling({ highlight }: { highlight?: string | null }) {
+  const t = useTranslations("credits")
   const { credits, loading } = useCredits()
 
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" /> Loading billing…
+        <Loader2 className="size-4 animate-spin" /> {t("loadingBilling")}
       </div>
     )
   }
@@ -264,9 +271,9 @@ export function CreditsBilling({ highlight }: { highlight?: string | null }) {
   return (
     <div className="flex flex-col gap-10 px-6 pb-16 pt-5">
       <div>
-        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">Billing</h1>
+        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">{t("billingTitle")}</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          One balance pays for every tool. Spend it at whatever pace you like — there are no daily limits.
+          {t("billingIntro")}
         </p>
       </div>
 
