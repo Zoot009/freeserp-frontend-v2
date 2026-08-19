@@ -1304,5 +1304,15 @@
     "costPerPage": "3 / página",
     "costPerLookup": "1 / consulta",
     "costFree": "Gratis"
+  },
+  "widgets": {
+    "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",
+    "undo": "Deshacer",
+    "closeNotice": "Cerrar este aviso",
+    "fallbackLabel": "Este",
+    "hiddenTitle": "Widgets ocultos",
+    "hiddenHint": "Widgets que quitaste con la ✕ de su cabecera. Vuelve a añadir uno y regresará a su sitio en el panel.",
+    "showAll": "Mostrar todos",
+    "allShown": "Todos los widgets se muestran en tu panel"
   }
 }

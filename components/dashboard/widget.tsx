@@ -1,5 +1,7 @@
 "use client"
 
+import { useTranslations } from "next-intl"
+
 /**
  * Dashboard widget frame.
  *
@@ -103,16 +105,22 @@ export function useWidgetHidden(id: string): boolean {
  * grid slot as the card did, so nothing reflows until the notice is dismissed.
  */
 function HiddenNotice({ id, label, className }: { id: string; label: string; className?: string }) {
+  const t = useTranslations("widgets")
   const { show, dismissNotice } = useWidgets()
   return (
     <section className={cn("flex min-w-0 flex-col items-center justify-center rounded-lg border bg-card px-5 py-10 text-center shadow-sm", className)}>
       <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
-        <span className="font-semibold text-foreground">{label}</span> widget is hidden now. You can always
-        restore it from Hidden Widgets at the bottom of Dashboard.
+        {/* The widget's name is embedded in the sentence rather than prefixed to
+            it: languages put the subject in different places, and a hardcoded
+            "<name> widget is hidden" only reads correctly in English. */}
+        {t.rich("hiddenNotice", {
+          label,
+          b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+        })}
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-        <Button size="sm" className="h-8 text-xs" onClick={() => show(id)}>Undo</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => dismissNotice(id)}>Close this notice</Button>
+        <Button size="sm" className="h-8 text-xs" onClick={() => show(id)}>{t("undo")}</Button>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => dismissNotice(id)}>{t("closeNotice")}</Button>
       </div>
     </section>
   )
@@ -164,13 +172,14 @@ export type WidgetProps = {
 }
 
 export function Widget({ id, title, pill, hint, actions, meta, subheader, className, bodyClassName, children }: WidgetProps) {
+  const t = useTranslations("widgets")
   const { hide, noticed, defs } = useWidgets()
   const isHidden = useWidgetHidden(id)
   if (isHidden) {
     // Still explaining itself → keep the slot and show why. Notice dismissed →
     // the widget finally leaves the layout.
     if (!noticed.includes(id)) return null
-    const label = defs.find((d) => d.id === id)?.label ?? pill?.label ?? title ?? "This"
+    const label = defs.find((d) => d.id === id)?.label ?? pill?.label ?? title ?? t("fallbackLabel")
     // Same className, so the notice holds the widget's grid slot rather than
     // reflowing into column 1.
     return <HiddenNotice id={id} label={label} className={className} />
@@ -212,16 +221,17 @@ export function Widget({ id, title, pill, hint, actions, meta, subheader, classN
 // ── The panel every hidden widget comes back from ────────────────────────────
 
 export function HiddenWidgets() {
+  const t = useTranslations("widgets")
   const { defs, hidden, ready, show, showAll } = useWidgets()
   const list = ready ? defs.filter((d) => hidden.includes(d.id)) : []
 
   return (
     <section className="rounded-lg border bg-card shadow-sm">
       <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
-        <h2 className="text-[15px] font-bold leading-tight">Hidden Widgets</h2>
-        <InfoHint>Widgets you removed with the ✕ on their header. Add one back and it returns to its place on the dashboard.</InfoHint>
+        <h2 className="text-[15px] font-bold leading-tight">{t("hiddenTitle")}</h2>
+        <InfoHint>{t("hiddenHint")}</InfoHint>
         {list.length > 0 && (
-          <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={showAll}>Show all</Button>
+          <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={showAll}>{t("showAll")}</Button>
         )}
       </div>
 
@@ -230,7 +240,7 @@ export function HiddenWidgets() {
           <div className="grid size-14 place-items-center rounded-full border-2 text-muted-foreground/50">
             <LayoutGrid className="size-6" />
           </div>
-          <p className="max-w-56 text-center text-[13px] font-semibold leading-snug">All widgets are shown on your Dashboard</p>
+          <p className="max-w-56 text-center text-[13px] font-semibold leading-snug">{t("allShown")}</p>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2 p-3.5">

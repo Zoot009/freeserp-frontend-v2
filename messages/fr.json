@@ -1304,5 +1304,15 @@
     "costPerPage": "3 / page",
     "costPerLookup": "1 / recherche",
     "costFree": "Gratuit"
+  },
+  "widgets": {
+    "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",
+    "undo": "Annuler",
+    "closeNotice": "Fermer cet avis",
+    "fallbackLabel": "Ce",
+    "hiddenTitle": "Widgets masqués",
+    "hiddenHint": "Les widgets que vous avez retirés avec la ✕ de leur en-tête. Rajoutez-en un et il retrouve sa place sur le tableau de bord.",
+    "showAll": "Tout afficher",
+    "allShown": "Tous les widgets sont affichés sur votre tableau de bord"
   }
 }
