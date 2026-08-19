@@ -48,7 +48,7 @@ function whatItBuys(credits: number): string[] {
   return [
     `${formatCredits(credits)} rank checks`,
     perDay > 0 ? `or ${formatCredits(perDay)} keywords checked daily for a month` : `or ${credits} keyword checks`,
-    `or ${formatCredits(Math.floor(credits / 16))} local grid scans`,
+    `or ${formatCredits(Math.floor(credits / 17))} local grid scans`,
     `or ${formatCredits(Math.floor(credits / 5))} site audits`,
   ]
 }
@@ -140,7 +140,7 @@ function PlanCard({
 const TOOLS: { name: string; what: string; cost: string }[] = [
   { name: "Google Rank Tracker", what: "Daily positions in any country, with history", cost: "1 / keyword" },
   { name: "YouTube Rank Tracker", what: "Video positions, with views and age", cost: "1 / keyword" },
-  { name: "Google Maps Tracker", what: "A geo-grid of local rankings, block by block", cost: "1 / 8 points" },
+  { name: "Google Maps Tracker", what: "A geo-grid of local rankings, block by block", cost: "3–57 / scan" },
   { name: "Keyword Magic Tool", what: "Hundreds of ideas with volume, difficulty and intent", cost: "3–15 / search" },
   { name: "Website Audit", what: "A real browser crawl and 63 SEO rules", cost: "1 / 20 pages" },
   { name: "Competitor Analysis", what: "Your page against the ones outranking it", cost: "5 / analysis" },
