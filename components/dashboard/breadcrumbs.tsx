@@ -36,7 +36,6 @@ const WORKSPACE: CrumbDef = { key: "workspace", href: "/dashboard" }
 
 const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   "/dashboard": [WORKSPACE, { key: "overview" }],
-  "/dashboard/home": [WORKSPACE, { key: "homeDash" }],
   "/dashboard/projects": [WORKSPACE, { key: "projects" }],
   "/dashboard/project": [
     WORKSPACE,
