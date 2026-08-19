@@ -1304,5 +1304,15 @@
     "costPerPage": "3 / Seite",
     "costPerLookup": "1 / Abfrage",
     "costFree": "Kostenlos"
+  },
+  "widgets": {
+    "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",
+    "undo": "Rückgängig",
+    "closeNotice": "Hinweis schließen",
+    "fallbackLabel": "Dieses",
+    "hiddenTitle": "Ausgeblendete Widgets",
+    "hiddenHint": "Widgets, die Sie über das ✕ in der Kopfzeile entfernt haben. Fügen Sie eines wieder hinzu, kehrt es an seinen Platz zurück.",
+    "showAll": "Alle anzeigen",
+    "allShown": "Alle Widgets werden auf Ihrem Dashboard angezeigt"
   }
 }

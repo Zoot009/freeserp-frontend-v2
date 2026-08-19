@@ -1304,5 +1304,15 @@
     "costPerPage": "3 / page",
     "costPerLookup": "1 / lookup",
     "costFree": "Free"
+  },
+  "widgets": {
+    "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",
+    "undo": "Undo",
+    "closeNotice": "Close this notice",
+    "fallbackLabel": "This",
+    "hiddenTitle": "Hidden Widgets",
+    "hiddenHint": "Widgets you removed with the ✕ on their header. Add one back and it returns to its place on the dashboard.",
+    "showAll": "Show all",
+    "allShown": "All widgets are shown on your Dashboard"
   }
 }
