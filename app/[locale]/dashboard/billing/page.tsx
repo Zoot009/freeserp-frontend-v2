@@ -10,6 +10,9 @@ import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
 import { TIERS, SEARCHES_PER_WORKER, tierPriceUsd, type BillingInterval } from "@/lib/pricing"
+import { Loader2 } from "lucide-react"
+import { useCredits } from "@/lib/credits"
+import { CreditsBilling } from "@/components/dashboard/credits-billing"
 
 interface Usage {
   plan: "free" | "paid" | string
@@ -91,7 +94,14 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
 }
 
-export default function BillingPage() {
+/**
+ * The worker billing page, unchanged.
+ *
+ * Only reachable now by a grandfathered subscriber (or as the fallback when
+ * the balance endpoint is unreachable). Left exactly as it was: every limit it
+ * renders is still the one those accounts are metered on.
+ */
+function WorkerBillingPage() {
   const t = useTranslations("dashBilling")
   const searchParams = useSearchParams()
   const trialExpiredRedirect = searchParams.get("trial") === "expired"
@@ -761,4 +771,37 @@ export default function BillingPage() {
       />
     </div>
   )
+}
+
+/**
+ * Which billing page you get depends on which currency you spend.
+ *
+ * A grandfathered worker subscriber keeps `WorkerBillingPage` verbatim — the
+ * tier grid, the proration preview, all of it. Everyone else, including every
+ * free account, is on credits and gets the balance, statement and packs
+ * instead. Branching here rather than threading `mode` through seven hundred
+ * lines is what stops the grandfathered path drifting.
+ *
+ * A failed balance read falls through to the worker page rather than rendering
+ * nothing: that page fetches its own data and will show something, and a blank
+ * billing page is the worst of the three outcomes.
+ */
+export default function BillingPage() {
+  const { credits, loading } = useCredits()
+  const searchParams = useSearchParams()
+
+  if (loading) {
+    // Render a spinner rather than a default page — the two views look nothing
+    // alike, and swapping one for the other after a beat is very visible.
+    return (
+      <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading billing…
+      </div>
+    )
+  }
+
+  if (credits?.mode === "credits") {
+    return <CreditsBilling highlight={searchParams.get("plan") ?? searchParams.get("topup")} />
+  }
+  return <WorkerBillingPage />
 }
