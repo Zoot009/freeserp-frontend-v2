@@ -855,7 +855,7 @@ export function HeadingsBreakdown({
             onClick={() => setShowDetails((v) => !v)}
             className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/40"
           >
-            {showDetails ? "Hide Details" : "Show Details"}
+            {showDetails ? t("hideDetails") : t("showDetails")}
             {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
           {showDetails && (
@@ -1124,7 +1124,7 @@ export function ImageAltTextBreakdown({
             onClick={() => setShowOnlyMissing((v) => !v)}
             className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 font-medium text-foreground/80 hover:bg-muted/40"
           >
-            {showOnlyMissing ? "Show all" : "Show only missing"}
+            {showOnlyMissing ? t("showAll") : t("showOnlyMissing")}
           </button>
         )}
       </div>
@@ -1357,7 +1357,7 @@ export function SitemapView({
                 onClick={() => setShowDetails((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/40"
               >
-                {showDetails ? "Hide Details" : "Show Details"}
+                {showDetails ? t("hideDetails") : t("showDetails")}
                 {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
 
@@ -2634,8 +2634,7 @@ function PaywallSection({ children }: { children: React.ReactNode }) {
               {t("unlockFullReport")}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Sign in or create a free account to see every category, AI
-              insights, and the full prioritized fix list.
+              {t("unlockBlurb")}
             </p>
 
             <ul className="mt-5 space-y-1.5 text-left">
@@ -2657,7 +2656,7 @@ function PaywallSection({ children }: { children: React.ReactNode }) {
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button asChild size="sm" className="gap-2">
                 <Link href="/auth/signup">
-                  Sign up — it’s free
+                  {t("signUpFree")}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -2667,7 +2666,7 @@ function PaywallSection({ children }: { children: React.ReactNode }) {
             </div>
 
             <p className="mt-4 text-[10px] text-muted-foreground/70">
-              No credit card required · Takes &lt; 30 seconds
+              {t("noCardRequired")}
             </p>
           </div>
         </div>
@@ -2962,7 +2961,7 @@ function InternalLinkGraph({
   const LEGEND_ITEMS: { cls: NodeClass; label: string }[] = [
     { cls: "orphan",    label: "Orphan"    },
     { cls: "hub",       label: "Hub"       },
-    { cls: "authority", label: "Authority" },
+    { cls: "authority", label: t("authority") },
     { cls: "normal",    label: "Normal"    },
   ]
 
@@ -3090,7 +3089,7 @@ function InternalLinkGraph({
             <div className="h-full overflow-auto">
               {filteredNodes.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground/50">
-                  {activeTab === "orphans" ? "No orphan pages — every crawled page has at least one inbound link." : "No pages match your search."}
+                  {activeTab === "orphans" ? "No orphan pages — every crawled page has at least one inbound link." : t("noPagesMatch")}
                 </div>
               ) : (
                 <table className="w-full text-sm border-collapse">
@@ -3181,8 +3180,8 @@ function InternalLinkGraph({
             </div>
             <div className="px-4 py-3 flex flex-col gap-4">
               {[
-                { label: "Linked from", count: inboundEdges.length, color: NODE_COLORS.authority, items: inboundEdges, idKey: "source" as const },
-                { label: "Links to",    count: outboundEdges.length, color: NODE_COLORS.hub,       items: outboundEdges, idKey: "target" as const },
+                { label: t("linkedFrom"), count: inboundEdges.length, color: NODE_COLORS.authority, items: inboundEdges, idKey: "source" as const },
+                { label: t("linksTo"),    count: outboundEdges.length, color: NODE_COLORS.hub,       items: outboundEdges, idKey: "target" as const },
               ].map(({ label, count, color, items, idKey }) => (
                 <div key={label}>
                   <h5 className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold mb-1.5 flex items-center gap-1.5">
@@ -3289,8 +3288,7 @@ function InternalLinkSection({
         <div className="px-6 py-5 flex items-start gap-3 text-sm text-muted-foreground">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <span>
-            No internal link data was collected for this report. Re-run the audit to
-            generate it.
+            {t("noLinkData")}
           </span>
         </div>
       </div>
@@ -3300,12 +3298,12 @@ function InternalLinkSection({
   const { metadata, orphanData } = linkGraph
 
   const statItems = [
-    { label: "Pages Crawled", value: metadata.totalPages.toLocaleString() },
-    { label: "Total Links", value: metadata.totalLinks.toLocaleString() },
-    { label: "Orphan Pages", value: metadata.orphanPages.toLocaleString() },
-    { label: "Hub Pages", value: metadata.hubPages.toLocaleString() },
-    { label: "Authority Pages", value: metadata.authorityPages.toLocaleString() },
-    { label: "Avg Links / Page", value: metadata.averageLinksPerPage.toFixed(1) },
+    { label: t("pagesCrawled"), value: metadata.totalPages.toLocaleString() },
+    { label: t("totalLinks"), value: metadata.totalLinks.toLocaleString() },
+    { label: t("orphanPages"), value: metadata.orphanPages.toLocaleString() },
+    { label: t("hubPages"), value: metadata.hubPages.toLocaleString() },
+    { label: t("authorityPages"), value: metadata.authorityPages.toLocaleString() },
+    { label: t("avgLinksPerPage"), value: metadata.averageLinksPerPage.toFixed(1) },
   ]
 
   return (
@@ -3445,12 +3443,12 @@ export function BacklinksView({
   const top = data.topBacklinks ?? []
 
   const tiles: Array<{ label: string; value: string; tone?: "good" | "warn" | "bad"; hint?: string }> = [
-    { label: "Domain Rank", value: `${data.rank}`, hint: "0–1000 authority" },
-    { label: "Total backlinks", value: fmt(data.backlinks) },
-    { label: "Referring domains", value: fmt(data.referringDomains) },
-    { label: "Referring IPs", value: fmt(data.referringIps) },
+    { label: t("domainRank"), value: `${data.rank}`, hint: "0–1000 authority" },
+    { label: t("totalBacklinks"), value: fmt(data.backlinks) },
+    { label: t("referringDomains"), value: fmt(data.referringDomains) },
+    { label: t("referringIps"), value: fmt(data.referringIps) },
     {
-      label: "Broken backlinks",
+      label: t("brokenBacklinks"),
       value: fmt(data.brokenBacklinks),
       tone: data.brokenBacklinks > 0 ? "warn" : "good",
     },
@@ -3605,10 +3603,12 @@ function sevToPriority(sev: Issue["severity"]): 1 | 2 | 3 {
   return 3
 }
 
-const PRIORITY_META: Record<1 | 2 | 3, { label: string; chip: string }> = {
-  1: { label: "High Priority", chip: "bg-rose-500/10 text-rose-600" },
-  2: { label: "Medium Priority", chip: "bg-amber-500/10 text-amber-600" },
-  3: { label: "Low Priority", chip: "bg-emerald-500/10 text-emerald-600" },
+// Module scope, so it cannot call a hook: it holds the message KEY and the
+// component that renders it resolves the label.
+const PRIORITY_META: Record<1 | 2 | 3, { labelKey: string; chip: string }> = {
+  1: { labelKey: "highPriority", chip: "bg-rose-500/10 text-rose-600" },
+  2: { labelKey: "mediumPriority", chip: "bg-amber-500/10 text-amber-600" },
+  3: { labelKey: "lowPriority", chip: "bg-emerald-500/10 text-emerald-600" },
 }
 
 export type Recommendation = {
@@ -3722,7 +3722,7 @@ function RecommendationsSection({ report }: { report: AuditReport }) {
                   </td>
                   <td className="whitespace-nowrap px-6 py-3.5 text-right align-middle">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pm.chip}`}>
-                      {pm.label}
+                      {t(pm.labelKey)}
                     </span>
                   </td>
                 </tr>
@@ -4056,10 +4056,10 @@ export function AuditReportResults({
         {},
       )
       if (data.shareToken) setShareToken(data.shareToken)
-      else setShareError("Couldn't create a share link.")
+      else setShareError(t("shareFailed"))
     } catch (err) {
       // ApiError already carries a human-readable message off our error envelope.
-      setShareError(err instanceof ApiError ? err.message : "Network error. Please try again.")
+      setShareError(err instanceof ApiError ? err.message : t("networkError"))
     } finally {
       setShareLoading(false)
     }
@@ -4268,8 +4268,7 @@ export function AuditReportResults({
               {t("shareTitle")}
             </DialogTitle>
             <DialogDescription>
-              Anyone with this link can view the report — no account needed. You can turn it off
-              anytime.
+              {t("shareNote")}
             </DialogDescription>
           </DialogHeader>
 
@@ -4350,7 +4349,7 @@ export function AuditReportResults({
                     <div className="border-t border-border/50">
                       <div className="flex items-center justify-between gap-2 px-3 py-2">
                         <p className="text-xs text-muted-foreground">
-                          Uncheck any section you don&rsquo;t want this client to see.
+                          {t("uncheckSections")}
                         </p>
                         <div className="flex shrink-0 gap-1.5">
                           <button

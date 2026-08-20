@@ -1327,9 +1327,7 @@
     "fix": "Beheben",
     "what": "Was",
     "showDetails": "Details anzeigen",
-    "expand": "Ausklappen",
     "newAudit": "Neues Audit",
-    "download": "Herunterladen",
     "share": "Teilen",
     "tryAgain": "Erneut versuchen",
     "clear": "Zurücksetzen",
@@ -1409,6 +1407,8 @@
     "noAnalytics": "Keine Analytics-Tools erkannt.",
     "highPriority": "Hohe Priorität",
     "mediumPriority": "Mittlere Priorität",
-    "lowPriority": "Niedrige Priorität"
+    "lowPriority": "Niedrige Priorität",
+    "hideDetails": "Details ausblenden",
+    "showAll": "Alle anzeigen"
   }
 }

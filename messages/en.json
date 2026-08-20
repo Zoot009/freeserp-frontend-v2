@@ -1327,9 +1327,7 @@
     "fix": "Fix",
     "what": "What",
     "showDetails": "Show Details",
-    "expand": "Expand",
     "newAudit": "New Audit",
-    "download": "Download",
     "share": "Share",
     "tryAgain": "Try again",
     "clear": "Clear",
@@ -1409,6 +1407,8 @@
     "noAnalytics": "No analytics tools detected.",
     "highPriority": "High Priority",
     "mediumPriority": "Medium Priority",
-    "lowPriority": "Low Priority"
+    "lowPriority": "Low Priority",
+    "hideDetails": "Hide Details",
+    "showAll": "Show all"
   }
 }
