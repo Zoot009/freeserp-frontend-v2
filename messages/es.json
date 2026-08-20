@@ -1327,9 +1327,7 @@
     "fix": "Solucionar",
     "what": "Qué",
     "showDetails": "Ver detalles",
-    "expand": "Ampliar",
     "newAudit": "Nueva auditoría",
-    "download": "Descargar",
     "share": "Compartir",
     "tryAgain": "Inténtalo de nuevo",
     "clear": "Limpiar",
@@ -1409,6 +1407,8 @@
     "noAnalytics": "No se han detectado herramientas de analítica.",
     "highPriority": "Prioridad alta",
     "mediumPriority": "Prioridad media",
-    "lowPriority": "Prioridad baja"
+    "lowPriority": "Prioridad baja",
+    "hideDetails": "Ocultar detalles",
+    "showAll": "Mostrar todo"
   }
 }

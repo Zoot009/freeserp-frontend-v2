@@ -1327,9 +1327,7 @@
     "fix": "Corriger",
     "what": "Quoi",
     "showDetails": "Afficher les détails",
-    "expand": "Développer",
     "newAudit": "Nouvel audit",
-    "download": "Télécharger",
     "share": "Partager",
     "tryAgain": "Réessayer",
     "clear": "Effacer",
@@ -1409,6 +1407,8 @@
     "noAnalytics": "Aucun outil d'analytique détecté.",
     "highPriority": "Priorité haute",
     "mediumPriority": "Priorité moyenne",
-    "lowPriority": "Priorité basse"
+    "lowPriority": "Priorité basse",
+    "hideDetails": "Masquer les détails",
+    "showAll": "Tout afficher"
   }
 }
