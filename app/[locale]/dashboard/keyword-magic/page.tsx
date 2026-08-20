@@ -10,6 +10,7 @@
 // message namespace across en/de/es/fr.
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
@@ -55,9 +56,11 @@ type MagicResponse = {
   usage: Usage
 }
 
-const MATCH_TABS: { key: MatchType; label: string }[] = [
-  { key: "broad", label: "Broad Match" },
-  { key: "related", label: "Related" },
+// Module scope, so no hook can run here: the tabs carry their message KEY and
+// the component resolves the label at render.
+const MATCH_TABS: { key: MatchType; labelKey: string }[] = [
+  { key: "broad", labelKey: "kmBroadMatch" },
+  { key: "related", labelKey: "kmRelated" },
 ]
 
 // intent → compact badge, mirroring how Semrush shows a single letter per row.
@@ -110,6 +113,7 @@ function serpTag(t: string): string {
 }
 
 export default function KeywordMagicPage() {
+  const t = useTranslations("tools")
   const [seed, setSeed] = useState("")
   const [country, setCountry] = useState("us")
   const [matchType, setMatchType] = useState<MatchType>("broad")
@@ -200,11 +204,11 @@ export default function KeywordMagicPage() {
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow">
-            <span className="spark"><Icon.key /></span> SEO · Keyword Research
+            <span className="spark"><Icon.key /></span> {t("kmEyebrow")}
           </div>
-          <h1>Keyword Magic Tool</h1>
+          <h1>{t("kmTitle")}</h1>
           <div className="sub">
-            One seed keyword → hundreds of real keyword ideas with search volume, difficulty, CPC and intent.
+            {t("kmIntro")}
           </div>
         </div>
 
@@ -242,7 +246,7 @@ export default function KeywordMagicPage() {
           </span>
           {usage.plan === "free" && (
             <a className="btn primary sm" href="/dashboard/billing" style={{ flexShrink: 0 }}>
-              <Icon.zap /> Upgrade for more
+              <Icon.zap /> {t("kmUpgradeForMore")}
             </a>
           )}
         </div>
@@ -260,7 +264,7 @@ export default function KeywordMagicPage() {
             <input
               className="input"
               style={{ paddingLeft: 36, width: "100%" }}
-              placeholder="Enter a seed keyword, e.g. free serp checker"
+              placeholder={t("kmSeedPlaceholder")}
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
               autoFocus
@@ -282,7 +286,7 @@ export default function KeywordMagicPage() {
             style={{ flex: "0 0 200px" }}
           />
           <button type="submit" className="btn primary" disabled={loading || !seed.trim() || outOfSearches} style={{ flex: "0 0 auto" }}>
-            {loading ? <><Icon.refresh /> Searching…</> : <><Icon.search /> Search</>}
+            {loading ? <><Icon.refresh /> {t("kmSearching")}</> : <><Icon.search /> {t("kmSearch")}</>}
           </button>
         </div>
 
@@ -311,7 +315,7 @@ export default function KeywordMagicPage() {
                   if (locked) {
                     // Fire the global upsell modal; leave the current results intact.
                     window.dispatchEvent(new CustomEvent("billing:quota", {
-                      detail: { code: "plan_upgrade_required", message: "The Related keywords view is available on paid plans. Upgrade to unlock it." },
+                      detail: { code: "plan_upgrade_required", message: t("kmRelatedPaidOnly") },
                     }))
                     return
                   }
@@ -319,14 +323,14 @@ export default function KeywordMagicPage() {
                 }}
                 style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
               >
-                {locked && <Icon.lock />}{tab.label}
+                {locked && <Icon.lock />}{t(tab.labelKey)}
                 {locked && (
                   // Hover reveal: a small "Pro — Upgrade" popover. The whole tab is
                   // the click target (fires the upsell), so these are spans, not a
                   // nested button/link (invalid inside a <button>).
                   <span className="km-lock-pop">
-                    <span>Pro feature</span>
-                    <span className="km-lock-up">Upgrade</span>
+                    <span>{t("kmProFeature")}</span>
+                    <span className="km-lock-up">{t("kmUpgrade")}</span>
                   </span>
                 )}
               </button>
@@ -340,12 +344,12 @@ export default function KeywordMagicPage() {
       {paywalled && (
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
           <div className="spark" style={{ margin: "0 auto 12px", width: 40, height: 40 }}><Icon.lock /></div>
-          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Upgrade to unlock this</h2>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>{t("kmUpgradeToUnlock")}</h2>
           <div className="sub" style={{ marginBottom: 16 }}>
             {error ?? "This is available on paid plans — upgrade for more keywords per search, more searches per day, and the Related view."}
           </div>
           <a className="btn primary" href="/dashboard/billing" style={{ display: "inline-flex" }}>
-            <Icon.zap /> See plans
+            <Icon.zap /> {t("kmSeePlans")}
           </a>
         </div>
       )}
@@ -386,13 +390,13 @@ export default function KeywordMagicPage() {
           <div className="km-layout">
             {/* Word-group sidebar */}
             <div className="card" style={{ padding: 12 }}>
-              <div className="tiny muted" style={{ padding: "4px 8px 8px", fontWeight: 600 }}>By keyword</div>
+              <div className="tiny muted" style={{ padding: "4px 8px 8px", fontWeight: 600 }}>{t("kmByKeyword")}</div>
               <button
                 className="km-group"
                 data-active={activeGroup == null}
                 onClick={() => setActiveGroup(null)}
               >
-                <span>All keywords</span>
+                <span>{t("kmAllKeywords")}</span>
                 <span className="tabular">{result.fetchedCount}</span>
               </button>
               {result.groups.map((g) => (
@@ -418,13 +422,13 @@ export default function KeywordMagicPage() {
                   <input
                     className="input"
                     style={{ paddingLeft: 32, width: "100%" }}
-                    placeholder="Filter these keywords…"
+                    placeholder={t("kmFilterPlaceholder")}
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   />
                 </div>
                 {activeGroup && (
-                  <button className="chip" onClick={() => setActiveGroup(null)} title="Clear group filter">
+                  <button className="chip" onClick={() => setActiveGroup(null)} title={t("kmClearGroupFilter")}>
                     {activeGroup} <Icon.close />
                   </button>
                 )}
@@ -435,12 +439,12 @@ export default function KeywordMagicPage() {
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Keyword</th>
-                      <th style={{ width: 60, textAlign: "center" }}>Intent</th>
-                      <th style={{ width: 110, textAlign: "right" }}>Volume</th>
+                      <th>{t("kmKeyword")}</th>
+                      <th style={{ width: 60, textAlign: "center" }}>{t("kmIntent")}</th>
+                      <th style={{ width: 110, textAlign: "right" }}>{t("kmVolume")}</th>
                       <th style={{ width: 80, textAlign: "right" }}>KD %</th>
                       <th style={{ width: 90, textAlign: "right" }}>CPC</th>
-                      <th style={{ width: 220 }}>SERP Features</th>
+                      <th style={{ width: 220 }}>{t("kmSerpFeatures")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -488,7 +492,7 @@ export default function KeywordMagicPage() {
                               {feats.map((f) => (
                                 <span key={f} className="tag" title={f.replace(/_/g, " ")}>{serpTag(f)}</span>
                               ))}
-                              {extra > 0 && <span className="tag" title="More features">+{extra}</span>}
+                              {extra > 0 && <span className="tag" title={t("kmMoreFeatures")}>+{extra}</span>}
                             </span>
                           </td>
                         </tr>
@@ -497,7 +501,7 @@ export default function KeywordMagicPage() {
                     {rows.length === 0 && (
                       <tr>
                         <td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-mute)" }}>
-                          No keywords match your filter.
+                          {t("kmNoMatch")}
                         </td>
                       </tr>
                     )}
@@ -517,20 +521,20 @@ export default function KeywordMagicPage() {
             <div className="spark" style={{ margin: "0 auto 14px", width: 48, height: 48, background: "var(--neg-soft)", color: "var(--neg)" }}>
               <Icon.lock />
             </div>
-            <h2 style={{ margin: "0 0 6px", fontSize: 19 }}>You're out of searches for today</h2>
+            <h2 style={{ margin: "0 0 6px", fontSize: 19 }}>{t("kmOutOfSearches")}</h2>
             <div className="sub" style={{ marginBottom: 18, maxWidth: 440, marginInline: "auto" }}>
               Your {usage.plan === "paid" ? "" : "free "}plan includes {usage.limit} Keyword Magic {usage.limit === 1 ? "search" : "searches"} per day, each returning up to {usage.keywordLimit.toLocaleString()} keywords. They reset daily.
             </div>
             {usage.plan === "free" && (
               <a className="btn primary" href="/dashboard/billing" style={{ display: "inline-flex" }}>
-                <Icon.zap /> Upgrade for more searches
+                <Icon.zap /> {t("kmUpgradeForMoreSearches")}
               </a>
             )}
           </div>
         ) : (
           <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
             <div className="spark" style={{ margin: "0 auto 12px", width: 40, height: 40 }}><Icon.key /></div>
-            Enter a seed keyword above to discover hundreds of related keywords with real metrics.
+            {t("kmEmptyState")}
           </div>
         )
       )}

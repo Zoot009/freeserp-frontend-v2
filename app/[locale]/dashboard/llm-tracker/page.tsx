@@ -24,6 +24,7 @@
 // NOTE: strings are inline English, matching the rest of this dashboard section.
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -133,6 +134,7 @@ const KEYFRAMES = `
 `
 
 export default function LlmTrackerPage() {
+  const t = useTranslations("tools")
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
 
@@ -233,7 +235,7 @@ export default function LlmTrackerPage() {
   }, [])
 
   if (authLoading || !user) {
-    return <Centered>Loading…</Centered>
+    return <Centered>{t("loading")}</Centered>
   }
 
   if (unavailable) {
@@ -247,12 +249,12 @@ export default function LlmTrackerPage() {
           {unavailable === "no-access" ? (
             <>
               <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-                AI Visibility is in early access
+                {t("llmEarlyAccess")}
               </div>
-              Your account isn&apos;t on the list yet. Contact us and we&apos;ll add you.
+              {t("llmNotOnList")}
             </>
           ) : (
-            <>AI Visibility tracking isn&apos;t available on this API version yet.</>
+            <>{t("llmNotAvailable")}</>
           )}
         </Card>
       </Page>
@@ -509,6 +511,7 @@ function Header({
   phase: "idle" | "loading" | "report"
   onReset: () => void
 }) {
+  const t = useTranslations("tools")
   const idle = phase === "idle"
   return (
     <div
@@ -531,9 +534,9 @@ function Header({
             color: C.faint,
           }}
         >
-          AI visibility
+          {t("llmEyebrow")}
         </div>
-        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em" }}>LLM Tracker</h1>
+        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em" }}>{t("llmTitle")}</h1>
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 18, maxWidth: "100%", flexWrap: "wrap" }}>
         <p
@@ -546,7 +549,7 @@ function Header({
             textWrap: "pretty",
           }}
         >
-          See which sites AI recommends in your category — and whether you&apos;re one of them.
+          {t("llmIntro")}
         </p>
         {phase === "report" && (
           <button
@@ -568,7 +571,7 @@ function Header({
               marginBottom: 4,
             }}
           >
-            New search
+            {t("llmNewSearch")}
           </button>
         )}
         {idle && (
@@ -588,7 +591,7 @@ function Header({
               whiteSpace: "nowrap",
             }}
           >
-            My prompts →
+            {t("llmMyPrompts")}
           </Link>
         )}
       </div>
@@ -679,14 +682,15 @@ function Dot() {
 }
 
 function AddOnTeaser() {
+  const t = useTranslations("tools")
   return (
     <Card style={{ padding: "18px 26px", borderColor: "#cfd6f6", background: C.accentWash }}>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>AI Visibility is an add-on</div>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{t("llmAddOn")}</div>
       <div style={{ fontSize: 13.5, color: C.muted }}>
         Track which sites ChatGPT and Google AI Overview recommend in your category, with 12 months of
         history.{" "}
         <a href="/pricing?clicked-buy-button" style={{ color: C.accent }}>
-          See plans
+          {t("kmSeePlans")}
         </a>
       </div>
     </Card>
@@ -741,6 +745,7 @@ function LoadingSkeleton({ step, platform }: { step: number; platform: Platform 
 // ───── Results ──────────────────────────────────────────────────────────────
 
 function Results({ data }: { data: Overview }) {
+  const t = useTranslations("tools")
   const { category, coverage, prompts } = data
   const own = data.domain
   const leader = category.domains[0] ?? null
@@ -801,7 +806,7 @@ function Results({ data }: { data: Overview }) {
                     color: C.faint,
                   }}
                 >
-                  Category leader
+                  {t("llmCategoryLeader")}
                 </div>
                 <div style={{ fontSize: 14.5, fontWeight: 600 }}>{leader.domain}</div>
               </div>
@@ -851,14 +856,14 @@ function Results({ data }: { data: Overview }) {
           }
         />
         {category.domains.length === 0 ? (
-          <Empty>No archived AI answers found for this keyword. Try a broader term.</Empty>
+          <Empty>{t("llmNoAnswers")}</Empty>
         ) : (
           <>
             <Row header>
               <div>#</div>
-              <div>Domain</div>
-              <div>Mentions</div>
-              <div style={{ textAlign: "right" }}>AI search volume</div>
+              <div>{t("llmDomain")}</div>
+              <div>{t("llmMentions")}</div>
+              <div style={{ textAlign: "right" }}>{t("llmAiVolume")}</div>
             </Row>
             {category.domains.map((d, i) => {
               const isOwn = sameHost(d.domain, own)
@@ -906,7 +911,7 @@ function Results({ data }: { data: Overview }) {
                           padding: "2px 6px",
                         }}
                       >
-                        You
+                        {t("llmYou")}
                       </span>
                     )}
                   </div>
@@ -1004,13 +1009,13 @@ function Results({ data }: { data: Overview }) {
           aside={`${fmt(prompts.totalCount)} archived questions · showing ${prompts.rows.length}`}
         />
         {prompts.rows.length === 0 ? (
-          <Empty>No archived questions for this keyword yet.</Empty>
+          <Empty>{t("llmNoQuestions")}</Empty>
         ) : (
           <>
             <QRow header>
-              <div>Question</div>
-              <div style={{ textAlign: "right" }}>AI search volume</div>
-              <div>Cited sources</div>
+              <div>{t("llmQuestion")}</div>
+              <div style={{ textAlign: "right" }}>{t("llmAiVolume")}</div>
+              <div>{t("llmCitedSources")}</div>
             </QRow>
             {prompts.rows.map((q, i) => {
               const shown = q.sources.slice(0, 5)
@@ -1072,7 +1077,7 @@ function Results({ data }: { data: Overview }) {
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, letterSpacing: "-0.015em" }}>
               Cited alongside {own}
             </h2>
-            <div style={{ fontSize: 12, color: C.faint }}>Domains AI cites in the same answers as you</div>
+            <div style={{ fontSize: 12, color: C.faint }}>{t("llmCoCited")}</div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 20 }}>
             {coverage.citedAlongside.map((a) => {

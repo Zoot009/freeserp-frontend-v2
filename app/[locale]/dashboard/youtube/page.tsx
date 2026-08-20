@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
@@ -108,6 +109,7 @@ function AddYoutubeProjectModal({
   onClose: () => void
   onCreated: (p: YtProjectSummary) => void
 }) {
+  const t = useTranslations("tools")
   const [name, setName] = useState("")
   const [targetType, setTargetType] = useState<"channel" | "video">("channel")
   const [target, setTarget] = useState("")
@@ -140,28 +142,28 @@ function AddYoutubeProjectModal({
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-h">
-          <div className="t">New YouTube project</div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
+          <div className="t">{t("ytNewProjectTitle")}</div>
+          <button className="icon-btn" onClick={onClose} aria-label={t("close")}>
             <Icon.close />
           </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-b">
             <div className="field">
-              <label htmlFor="yt-name">Project name</label>
+              <label htmlFor="yt-name">{t("ytProjectName")}</label>
               <input
                 id="yt-name"
                 className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My channel"
+                placeholder={t("ytMyChannel")}
                 required
                 maxLength={120}
               />
             </div>
 
             <div className="field">
-              <label>What are you tracking?</label>
+              <label>{t("ytWhatTracking")}</label>
               <div className="pill-toggle" style={{ width: "fit-content" }}>
                 {(["channel", "video"] as const).map((k) => (
                   <button
@@ -200,7 +202,7 @@ function AddYoutubeProjectModal({
             </div>
 
             <div className="field">
-              <label htmlFor="yt-depth">Results to check per keyword</label>
+              <label htmlFor="yt-depth">{t("ytResultsPerKeyword")}</label>
               <select
                 id="yt-depth"
                 className="input"
@@ -228,7 +230,7 @@ function AddYoutubeProjectModal({
           </div>
           <div className="modal-f">
             <button type="button" className="btn" onClick={onClose}>
-              Cancel
+              {t("cancel")}
             </button>
             <button type="submit" className="btn primary" disabled={loading || !name.trim() || !target.trim()}>
               {loading ? "Creating…" : "Create project"}
@@ -243,6 +245,7 @@ function AddYoutubeProjectModal({
 // ───── Page ────────────────────────────────────────────────────────────────
 
 export default function YoutubeProjectsPage() {
+  const t = useTranslations("tools")
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const [projects, setProjects] = useState<YtProjectSummary[]>([])
@@ -276,7 +279,7 @@ export default function YoutubeProjectsPage() {
   if (authLoading || loading) {
     return (
       <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
-        Loading…
+        {t("loading")}
       </div>
     )
   }
@@ -289,7 +292,7 @@ export default function YoutubeProjectsPage() {
           the card titles underneath it. */}
       <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">YouTube</h1>
+          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">{t("ytTitle")}</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Track where your videos rank in YouTube search.
             {projects.length > 0 && (
@@ -323,7 +326,7 @@ export default function YoutubeProjectsPage() {
             onClick={() => setShowAdd(true)}
             className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
           >
-            <Plus className="size-4" /> New project
+            <Plus className="size-4" /> {t("ytNewProject")}
           </Button>
         </div>
       </div>
@@ -338,7 +341,7 @@ export default function YoutubeProjectsPage() {
 
       {!error && projects.length === 0 && (
         <div className="rounded-xl border border-dashed px-6 py-14 text-center">
-          <p className="text-[15px] font-semibold">Nothing tracked yet</p>
+          <p className="text-[15px] font-semibold">{t("ytNothingTracked")}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
             Track a channel or a single video, add the keywords you want to rank for, and
             see where you land in YouTube search.
@@ -347,7 +350,7 @@ export default function YoutubeProjectsPage() {
             onClick={() => setShowAdd(true)}
             className="mt-5 h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
           >
-            <Plus className="size-4" /> New YouTube project
+            <Plus className="size-4" /> {t("ytNewProjectTitle")}
           </Button>
         </div>
       )}
@@ -406,11 +409,11 @@ export default function YoutubeProjectsPage() {
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <div className="text-xs text-muted-foreground">Keywords</div>
+                  <div className="text-xs text-muted-foreground">{t("ytKeywords")}</div>
                   <div className="text-[18px] font-bold tabular-nums">{p.keywordCount}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Added</div>
+                  <div className="text-xs text-muted-foreground">{t("ytAdded")}</div>
                   <div className="text-[13px] font-bold tabular-nums">
                     {new Date(p.createdAt).toLocaleDateString("en-IN", {
                       day: "2-digit",
@@ -439,8 +442,8 @@ export default function YoutubeProjectsPage() {
           >
             <div>
               <Plus className="mx-auto size-5 text-muted-foreground" />
-              <div className="mt-2 text-sm font-semibold">New project</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Track a channel or video</div>
+              <div className="mt-2 text-sm font-semibold">{t("ytNewProject")}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{t("ytTrackChannelOrVideo")}</div>
             </div>
           </button>
         </div>
@@ -452,10 +455,10 @@ export default function YoutubeProjectsPage() {
            which this endpoint carries no history for. */
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="grid grid-cols-[minmax(0,1fr)_80px_110px_88px_28px] items-center gap-3 border-b bg-muted/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Project</span>
-            <span className="text-right">Keywords</span>
-            <span className="text-right">Status</span>
-            <span className="text-right">Added</span>
+            <span>{t("ytProject")}</span>
+            <span className="text-right">{t("ytKeywords")}</span>
+            <span className="text-right">{t("ytStatus")}</span>
+            <span className="text-right">{t("ytAdded")}</span>
             <span />
           </div>
 
