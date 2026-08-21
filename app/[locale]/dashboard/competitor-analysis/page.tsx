@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
@@ -381,9 +383,6 @@ function CompetitorAnalysisContent() {
       {/* Header */}
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">
-            <span className="spark"><Icon.spark /></span> COMPETITOR ANALYSIS
-          </div>
           <h1>Compare against competitors</h1>
           <div className="sub">
             Enter your site, a target keyword, and up to {MAX_COMPETITORS} competitor domains to crawl and compare.
@@ -408,6 +407,7 @@ function CompetitorAnalysisContent() {
               </>
             )}
           </button>
+          <CreditCost action={CREDIT_ACTION_KEYS.competitorAnalysis} className="mt-2" />
         </div>
       </div>
 

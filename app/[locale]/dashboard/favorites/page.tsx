@@ -100,7 +100,6 @@ export default function FavoritesPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow"><span className="spark"><Icon.starFilled size={12} /></span> {t("headerEyebrow")}</div>
           <h1>{t("headerTitle")}</h1>
           <div className="sub">
             {error ? <span style={{ color: "var(--neg)" }}>{error}</span> : t("subtitle")}

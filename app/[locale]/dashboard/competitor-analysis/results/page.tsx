@@ -321,7 +321,6 @@ function CompetitorAnalysisResultsContent() {
           <Link href="/dashboard/competitor-analysis" className="kd-back" style={{ display: "flex", width: "fit-content", marginBottom: 10 }}>
             ← Back to Competitor Analysis
           </Link>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> COMPETITOR ANALYSIS</div>
           <h1>Analysis results</h1>
           <div className="sub">
             Keyword: <span className="b" style={{ color: "var(--text)" }}>{keyword || analysis?.keyword || "—"}</span>
