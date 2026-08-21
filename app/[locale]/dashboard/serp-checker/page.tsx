@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { Favicon } from "@/components/favicon"
 import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
@@ -384,7 +385,20 @@ export default function SerpCheckerPage() {
             />
             <StatTile
               lbl={t("stats.topCompetitor")}
-              val={result.topCompetitor ? result.topCompetitor.domain : "—"}
+              val={
+                result.topCompetitor ? (
+                  // The mark makes the competitor recognisable at a glance; the
+                  // domain alone reads as text and is easy to skim past.
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <Favicon domain={result.topCompetitor.domain} size={20} bare />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {result.topCompetitor.domain}
+                    </span>
+                  </span>
+                ) : (
+                  "—"
+                )
+              }
               tip={result.topCompetitor ? t("stats.competitorResult", { position: result.topCompetitor.position }) : undefined}
             />
             <StatTile
@@ -466,6 +480,7 @@ export default function SerpCheckerPage() {
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                            <Favicon domain={r.domain} size={16} bare />
                             <span className="b" style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {r.title || r.domain}
                             </span>
