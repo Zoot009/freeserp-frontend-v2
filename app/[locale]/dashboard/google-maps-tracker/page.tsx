@@ -318,7 +318,6 @@ export default function GoogleMapsTrackerPage() {
     <div className="page">
       <div className="page-h" style={{ marginBottom: 12 }}>
         <div>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> GOOGLE MAPS TRACKER</div>
           <h1>Quick Scan</h1>
           <div className="sub">See where your business ranks on Google Maps, block by block.</div>
         </div>

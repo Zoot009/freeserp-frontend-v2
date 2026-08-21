@@ -307,7 +307,6 @@ function WorkerBillingPage() {
   const Header = (
     <div className="page-h">
       <div>
-        <div className="eyebrow"><span className="spark"><Icon.spark /></span> {t("eyebrow")}</div>
         <h1>{t("title")}</h1>
         <div className="sub">{t("subtitle")}</div>
       </div>

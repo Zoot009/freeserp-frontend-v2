@@ -260,7 +260,6 @@ export default function SerpCheckerPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow"><span className="spark"><Icon.zap /></span> {t("eyebrow")}</div>
           <h1>{t("title")}</h1>
           <div className="sub">{t("subtitle")}</div>
         </div>

@@ -206,9 +206,6 @@ export default function KeywordMagicPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">
-            <span className="spark"><Icon.key /></span> {t("kmEyebrow")}
-          </div>
           <h1>{t("kmTitle")}</h1>
           <div className="sub">
             {t("kmIntro")}

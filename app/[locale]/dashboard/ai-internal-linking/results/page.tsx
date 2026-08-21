@@ -107,9 +107,6 @@ function AiInternalLinkingResultsContent() {
           <Link href="/dashboard/ai-internal-linking" className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
             <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span> Back
           </Link>
-          <div className="eyebrow">
-            <span className="spark"><Icon.spark /></span> AI INTERNAL LINKING
-          </div>
           <h1>{analysis?.domain || "Analysis results"}</h1>
         </div>
       </div>
