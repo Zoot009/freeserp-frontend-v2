@@ -77,30 +77,46 @@ const PLATFORMS: { key: Platform; label: string; note: string }[] = [
   { key: "chat_gpt", label: "ChatGPT", note: "US · English only" },
 ]
 
-// ───── Design tokens, lifted from the mock ──────────────────────────────────
+/**
+ * Design tokens.
+ *
+ * These were lifted from a light-mode mock as raw hex, which meant the whole
+ * page stayed white when the rest of the app went dark — a white sheet inside a
+ * dark shell. Every other dashboard surface reads CSS variables, which the
+ * theme swaps; this now does the same, so the names below keep their meaning
+ * while the values follow the theme.
+ *
+ * The greys collapse from eight shades to two levels plus blends. The original
+ * eight only differ by a few percent lightness, and there is no honest dark
+ * equivalent of "#a8acb4 but slightly lighter than #a0a4ad" — color-mix keeps
+ * the ordering that mattered (label darker than muted darker than ghost)
+ * without inventing a second palette that would drift from the first.
+ */
+const mix = (pct: number) => `color-mix(in srgb, var(--muted-foreground) ${pct}%, var(--foreground))`
+
 const C = {
-  ink: "#16181d",
-  body: "#3d424b",
-  label: "#5c616b",
-  muted: "#71757e",
-  soft: "#8b8f98",
-  faint: "#a0a4ad",
-  fainter: "#a8acb4",
-  ghost: "#b6bac1",
-  line: "#ebebee",
-  hair: "#f4f5f7",
-  hairline: "#f1f2f4",
-  field: "#e2e4e8",
-  chip: "#f7f8fa",
-  wash: "#fbfbfc",
-  page: "#f6f6f7",
-  accent: "#2f5bea",
-  accentDeep: "#2449c4",
-  accentMuted: "#7f9bf2",
-  accentSoft: "#c3cdf7",
-  accentWash: "#eef2ff",
-  warn: "#dc6803",
-  pos: "#2fa85d",
+  ink: "var(--foreground)",
+  body: mix(45),
+  label: mix(70),
+  muted: "var(--muted-foreground)",
+  soft: mix(80),
+  faint: mix(90),
+  fainter: mix(95),
+  ghost: "var(--muted-foreground)",
+  line: "var(--border)",
+  hair: "var(--inset)",
+  hairline: "var(--border)",
+  field: "var(--border)",
+  chip: "var(--muted)",
+  wash: "var(--card)",
+  page: "var(--background)",
+  accent: "var(--brand)",
+  accentDeep: "var(--brand-deep)",
+  accentMuted: "color-mix(in srgb, var(--brand) 60%, var(--background))",
+  accentSoft: "color-mix(in srgb, var(--brand) 35%, var(--background))",
+  accentWash: "var(--brand-soft)",
+  warn: "var(--warn)",
+  pos: "var(--pos)",
 }
 const MONO = "var(--font-llm-mono), 'IBM Plex Mono', ui-monospace, monospace"
 const SANS = "var(--font-llm-sans), 'Instrument Sans', Helvetica, Arial, sans-serif"
@@ -332,7 +348,7 @@ export default function LlmTrackerPage() {
             style={{
               display: "flex",
               alignItems: "stretch",
-              background: "#fff",
+              background: "var(--card)",
               border: `1px solid ${C.field}`,
               borderRadius: 14,
               boxShadow: "0 1px 2px rgba(20,22,26,0.04), 0 8px 24px -18px rgba(20,22,26,0.22)",
@@ -348,7 +364,7 @@ export default function LlmTrackerPage() {
               placeholder="free serp checker"
               style={{ flex: "1.35 1 200px" }}
             />
-            <div style={{ width: 1, background: "#eceef1", margin: "10px 0" }} />
+            <div style={{ width: 1, background: "var(--border)", margin: "10px 0" }} />
             <BarField
               label="Your domain"
               value={domain}
@@ -433,7 +449,7 @@ export default function LlmTrackerPage() {
       </Intro>
 
       {error && (
-        <Card style={{ padding: "18px 26px", color: "#c0392b", fontSize: 13.5 }}>{error}</Card>
+        <Card style={{ padding: "18px 26px", color: "var(--neg)", fontSize: 13.5 }}>{error}</Card>
       )}
 
       {phase === "loading" && <LoadingSkeleton step={step} platform={platform} />}
@@ -565,7 +581,7 @@ function Header({
               fontSize: 13,
               fontFamily: "inherit",
               color: C.body,
-              background: "#fff",
+              background: "var(--card)",
               cursor: "pointer",
               whiteSpace: "nowrap",
               marginBottom: 4,
@@ -587,7 +603,7 @@ function Header({
               borderRadius: 9,
               fontSize: 13,
               color: C.body,
-              background: "#fff",
+              background: "var(--card)",
               whiteSpace: "nowrap",
             }}
           >
@@ -671,7 +687,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <section style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, ...style }}>
+    <section style={{ background: "var(--card)", border: `1px solid ${C.line}`, borderRadius: 16, ...style }}>
       {children}
     </section>
   )
@@ -810,7 +826,7 @@ function Results({ data }: { data: Overview }) {
                 </div>
                 <div style={{ fontSize: 14.5, fontWeight: 600 }}>{leader.domain}</div>
               </div>
-              <div style={{ flex: 1, height: 1, background: "#eceef1", minWidth: 20 }} />
+              <div style={{ flex: 1, height: 1, background: "var(--border)", minWidth: 20 }} />
               <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                 <div
                   style={{
@@ -1089,8 +1105,8 @@ function Results({ data }: { data: Overview }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    border: `1px solid ${isOwn ? "#cfd6f6" : C.field}`,
-                    background: isOwn ? C.accentWash : "#fff",
+                    border: `1px solid ${isOwn ? C.accentSoft : C.field}`,
+                    background: isOwn ? C.accentWash : "var(--card)",
                     borderRadius: 8,
                     padding: "7px 11px",
                     fontSize: 12.5,
