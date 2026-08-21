@@ -1020,7 +1020,8 @@
       "mobile": "Mobil",
       "checking": "Wird geprüft…",
       "checkRankings": "Rankings prüfen",
-      "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden"
+      "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden",
+      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden"
     },
     "processing": {
       "withKeyword": "Google wird für „{keyword}“ abgefragt… du kannst diese Seite verlassen und später zurückkommen.",
@@ -1069,7 +1070,8 @@
       "close": "Schließen",
       "body": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count, plural, one {# deiner täglichen Checks} other {# deiner täglichen Checks}}</strong>. Das kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
-      "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden"
+      "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden",
+      "titleCredits": "Das verbraucht {count, plural, one {# Credit} other {# Credits}}"
     },
     "errors": {
       "checkFailed": "Die Prüfung ist fehlgeschlagen. Bitte versuche es erneut.",

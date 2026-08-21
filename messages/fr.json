@@ -1020,7 +1020,8 @@
       "mobile": "Mobile",
       "checking": "Vérification…",
       "checkRankings": "Vérifier le classement",
-      "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes"
+      "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes",
+      "costNoteCredits": "Requête Google en direct · utilise {count, plural, one {# crédit} other {# crédits}} · ~10 secondes"
     },
     "processing": {
       "withKeyword": "Interrogation de Google pour « {keyword} »… vous pouvez quitter cette page et revenir.",
@@ -1069,7 +1070,8 @@
       "close": "Fermer",
       "body": "Une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et consommera <strong>{count, plural, one {# de vos vérifications quotidiennes} other {# de vos vérifications quotidiennes}}</strong>. Cette action est irréversible.",
       "cancel": "Annuler",
-      "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}"
+      "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}",
+      "titleCredits": "Ceci utilise {count, plural, one {# crédit} other {# crédits}}"
     },
     "errors": {
       "checkFailed": "La vérification a échoué. Veuillez réessayer.",

@@ -10,6 +10,7 @@
 // message namespace across en/de/es/fr.
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS } from "@/lib/locations"
@@ -113,6 +114,8 @@ function serpTag(t: string): string {
 }
 
 export default function KeywordMagicPage() {
+  const { credits: creditSummary } = useCredits()
+  const creditsMode = creditSummary?.mode
   const t = useTranslations("tools")
   const [seed, setSeed] = useState("")
   const [country, setCountry] = useState("us")
@@ -213,7 +216,11 @@ export default function KeywordMagicPage() {
         </div>
 
         {/* Daily allowance pill */}
-        {usage && (
+        {/* The daily-search pill is WORKER-model accounting. A credits account
+            has no daily searches — it has a balance, already shown by the
+            CreditCost label under the search box — and rendering both put two
+            different currencies on one screen. */}
+        {usage && creditsMode !== "credits" && (
           <div
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,

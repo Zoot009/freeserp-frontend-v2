@@ -1020,7 +1020,8 @@
       "mobile": "Móvil",
       "checking": "Comprobando…",
       "checkRankings": "Comprobar posiciones",
-      "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos"
+      "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos",
+      "costNoteCredits": "Consulta en vivo de Google · usa {count, plural, one {# crédito} other {# créditos}} · ~10 segundos"
     },
     "processing": {
       "withKeyword": "Consultando Google para «{keyword}»… puedes salir de esta página y volver.",
@@ -1069,7 +1070,8 @@
       "close": "Cerrar",
       "body": "Una búsqueda SERP en vivo para <strong>«{keyword}»</strong> consulta Google en tiempo real y consumirá <strong>{count, plural, one {# de tus comprobaciones diarias} other {# de tus comprobaciones diarias}}</strong>. No se puede deshacer.",
       "cancel": "Cancelar",
-      "confirm": "Usar {count, plural, one {# comprobación} other {# comprobaciones}}"
+      "confirm": "Usar {count, plural, one {# comprobación} other {# comprobaciones}}",
+      "titleCredits": "Esto usa {count, plural, one {# crédito} other {# créditos}}"
     },
     "errors": {
       "checkFailed": "La comprobación falló. Inténtalo de nuevo.",
