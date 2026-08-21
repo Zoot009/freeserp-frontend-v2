@@ -502,7 +502,15 @@
     "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
     "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test",
-    "llmPrompts": "Meine Prompts"
+    "llmPrompts": "Meine Prompts",
+    "googleTracker": "Google-Tracker",
+    "youtubeTracker": "YouTube-Tracker",
+    "bingTracker": "Bing-Tracker",
+    "yahooTracker": "Yahoo-Tracker",
+    "mapsTracker": "Google-Maps-Tracker",
+    "websiteAudit": "Website-Audit",
+    "aiInternalLinking": "KI-Interne-Verlinkung",
+    "soon": "Demnächst"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",

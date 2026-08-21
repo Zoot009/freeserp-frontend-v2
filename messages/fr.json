@@ -502,7 +502,15 @@
     "competitorAnalysis": "Analyse de la concurrence",
     "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
     "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai",
-    "llmPrompts": "Mes prompts"
+    "llmPrompts": "Mes prompts",
+    "googleTracker": "Suivi Google",
+    "youtubeTracker": "Suivi YouTube",
+    "bingTracker": "Suivi Bing",
+    "yahooTracker": "Suivi Yahoo",
+    "mapsTracker": "Suivi Google Maps",
+    "websiteAudit": "Audit du site",
+    "aiInternalLinking": "Maillage interne par IA",
+    "soon": "Bientôt"
   },
   "dashFavorites": {
     "headerEyebrow": "Enregistrés",

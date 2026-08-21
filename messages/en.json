@@ -502,7 +502,15 @@
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
     "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
-    "llmPrompts": "My Prompts"
+    "llmPrompts": "My Prompts",
+    "googleTracker": "Google Tracker",
+    "youtubeTracker": "YouTube Tracker",
+    "bingTracker": "Bing Tracker",
+    "yahooTracker": "Yahoo Tracker",
+    "mapsTracker": "Google Maps Tracker",
+    "websiteAudit": "Website Audit",
+    "aiInternalLinking": "AI Internal Linking",
+    "soon": "Soon"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",

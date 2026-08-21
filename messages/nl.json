@@ -161,7 +161,15 @@
     "competitorAnalysis": "Concurrentieanalyse",
     "trialDaysLeft": "nog {days, plural, one {# dag} other {# dagen}} in de proefperiode",
     "trialHoursLeft": "nog {hours, plural, one {# uur} other {# uur}} in de proefperiode",
-    "llmPrompts": "Mijn prompts"
+    "llmPrompts": "Mijn prompts",
+    "googleTracker": "Google Tracker",
+    "youtubeTracker": "YouTube Tracker",
+    "bingTracker": "Bing Tracker",
+    "yahooTracker": "Yahoo Tracker",
+    "mapsTracker": "Google Maps Tracker",
+    "websiteAudit": "Website-audit",
+    "aiInternalLinking": "AI interne links",
+    "soon": "Binnenkort"
   },
   "credits": {
     "billingTitle": "Facturatie",
