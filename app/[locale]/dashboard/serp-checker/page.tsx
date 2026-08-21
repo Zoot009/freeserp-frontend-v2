@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
@@ -90,6 +91,9 @@ function fmtVolume(v: number | null): string {
 }
 
 export default function SerpCheckerPage() {
+  // Worker subscribers still meter in daily checks; everyone else in credits.
+  const { credits: creditSummary } = useCredits()
+  const onCredits = creditSummary?.mode === "credits"
   const t = useTranslations("dashSerpChecker")
   // Live quota cost per lookup from the backend's pricing config.
   const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
@@ -330,7 +334,7 @@ export default function SerpCheckerPage() {
           {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
         </button>
         <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
-          {t("form.costNote", { count: liveCheckCost })}
+          {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: liveCheckCost })}
         </div>
 
         {error && (
@@ -599,7 +603,7 @@ export default function SerpCheckerPage() {
                 <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
                   <span className="spark"><Icon.zap /></span> {t("confirm.eyebrow")}
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("confirm.title", { count: liveCheckCost })}</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t(onCredits ? "confirm.titleCredits" : "confirm.title", { count: liveCheckCost })}</div>
               </div>
               <button onClick={() => setShowConfirm(false)} className="icon-btn" aria-label={t("confirm.close")}><Icon.close /></button>
             </div>

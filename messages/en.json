@@ -1020,7 +1020,8 @@
       "mobile": "Mobile",
       "checking": "Checking…",
       "checkRankings": "Check Rankings",
-      "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds"
+      "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds",
+      "costNoteCredits": "Live Google query · uses {count, plural, one {# credit} other {# credits}} · ~10 seconds"
     },
     "processing": {
       "withKeyword": "Querying Google for “{keyword}”… you can leave this page and come back.",
@@ -1069,7 +1070,8 @@
       "close": "Close",
       "body": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and will consume <strong>{count, plural, one {# of your daily checks} other {# of your daily checks}}</strong>. This can’t be undone.",
       "cancel": "Cancel",
-      "confirm": "Use {count, plural, one {# check} other {# checks}}"
+      "confirm": "Use {count, plural, one {# check} other {# checks}}",
+      "titleCredits": "This uses {count, plural, one {# credit} other {# credits}}"
     },
     "errors": {
       "checkFailed": "The check failed. Please try again.",
