@@ -828,7 +828,11 @@
     "colScoreShort": "Puntuación",
     "checkStaySlow": "sigue en curso: esta comprobación está tardando más de lo habitual",
     "checkStayOverdue": "esta comprobación ha superado su plazo previsto; se marcará como fallida en breve y podrás reintentarla",
-    "checkRunningFor": "en curso desde hace {duration}"
+    "checkRunningFor": "en curso desde hace {duration}",
+    "engineLabel": "Motor de búsqueda",
+    "engineAlwaysTracked": "{engine} siempre se rastrea",
+    "engineMultiplier": "{keywords} palabras clave × {engines} motores = {total} palabras clave rastreadas",
+    "noEngineKeywords": "Aún no hay palabras clave de {engine} en {device}."
   },
   "dashKeywords": {
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",

@@ -828,7 +828,11 @@
     "colScoreShort": "Score",
     "checkStaySlow": "toujours en cours — cette vérification prend plus de temps que d'habitude",
     "checkStayOverdue": "cette vérification a dépassé le délai prévu ; elle sera bientôt marquée comme échouée et vous pourrez la relancer",
-    "checkRunningFor": "en cours depuis {duration}"
+    "checkRunningFor": "en cours depuis {duration}",
+    "engineLabel": "Moteur de recherche",
+    "engineAlwaysTracked": "{engine} est toujours suivi",
+    "engineMultiplier": "{keywords} mots-clés × {engines} moteurs = {total} mots-clés suivis",
+    "noEngineKeywords": "Aucun mot-clé {engine} sur {device} pour le moment."
   },
   "dashKeywords": {
     "headerEyebrow": "SUIVI DE POSITION",

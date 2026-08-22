@@ -828,7 +828,11 @@
     "colScoreShort": "Score",
     "checkStaySlow": "läuft noch — diese Prüfung dauert länger als gewöhnlich",
     "checkStayOverdue": "diese Prüfung hat ihr erwartetes Zeitfenster überschritten; sie wird in Kürze als fehlgeschlagen markiert und kann erneut gestartet werden",
-    "checkRunningFor": "läuft seit {duration}"
+    "checkRunningFor": "läuft seit {duration}",
+    "engineLabel": "Suchmaschine",
+    "engineAlwaysTracked": "{engine} wird immer verfolgt",
+    "engineMultiplier": "{keywords} Keywords × {engines} Suchmaschinen = {total} verfolgte Keywords",
+    "noEngineKeywords": "Noch keine {engine}-Keywords auf {device}."
   },
   "dashKeywords": {
     "headerEyebrow": "RANKING-TRACKING",

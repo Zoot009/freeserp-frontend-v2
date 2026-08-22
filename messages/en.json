@@ -828,7 +828,11 @@
     "tipKeywordScore": "How well the ranking page is optimised for this keyword, out of 100. Click a score to open its report",
     "tipLastChecked": "When this keyword’s ranking was last refreshed",
     "tipActions": "Favourite, re-check, or open more options for this keyword",
-    "colScoreShort": "Score"
+    "colScoreShort": "Score",
+    "engineLabel": "Search engine",
+    "engineAlwaysTracked": "{engine} is always tracked",
+    "engineMultiplier": "{keywords} keywords × {engines} engines = {total} tracked keywords",
+    "noEngineKeywords": "No {engine} keywords on {device} yet."
   },
   "dashKeywords": {
     "headerEyebrow": "RANK TRACKING",
