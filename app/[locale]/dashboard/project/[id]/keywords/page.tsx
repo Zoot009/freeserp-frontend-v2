@@ -1619,6 +1619,37 @@ export default function ProjectKeywordsPage() {
     return rows
   }, [project, scoped, filter, sort])
 
+  /**
+   * Keywords today's allowance will not reach.
+   *
+   * The scheduler orders by search volume descending and stops when the day's
+   * checks run out, so the ones it will never reach are simply everything past
+   * the allowance in that same order. Mirroring that ordering is what makes the
+   * lock honest: it marks the keywords that genuinely will not be checked,
+   * rather than an arbitrary tail of the list.
+   *
+   * Derived rather than waited for. `lockedKwIds` only arrives in the response
+   * to a manual Check now, so before pressing it a free account tracking twenty
+   * keywords saw twenty unlocked rows.
+   *
+   * Free only. A paid credits account has no daily ceiling; its balance is the
+   * budget, and locking rows there would be inventing a limit.
+   *
+   * MUST stay above the loading/not-found early returns below. Placed after
+   * them, this hook ran on some renders and not others — React counts hooks per
+   * render, so the first successful load threw #310, "rendered more hooks than
+   * during the previous render", and took every project page down with it.
+   */
+  const overAllowanceIds = useMemo(() => {
+    const limit = usage?.dailyLimit
+    if (usage?.plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
+    const byValue = [...filtered].sort((a, b) => (b.searchVolume ?? -1) - (a.searchVolume ?? -1))
+    return new Set(byValue.slice(limit).map((k) => k.id))
+  }, [filtered, usage?.dailyLimit, usage?.plan])
+
+  const isLocked = (id: string) => lockedKwIds.has(id) || overAllowanceIds.has(id)
+
+
   const clickSort = (k: SortKey) =>
     setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === "asc" ? "desc" : "asc") : k === "kw" ? "asc" : "desc" }))
 
@@ -1643,31 +1674,6 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
-  /**
-   * Keywords today's allowance will not reach.
-   *
-   * The scheduler orders by search volume descending and stops when the day's
-   * checks run out, so the ones it will never reach are simply everything past
-   * the allowance in that same order. Mirroring that ordering here is what makes
-   * the lock honest: it marks the keywords that genuinely will not be checked,
-   * not an arbitrary tail of the list.
-   *
-   * Derived rather than waited for. `lockedKwIds` only arrives in the response
-   * to a manual Check now, so before that a free account tracking twenty
-   * keywords saw twenty unlocked rows — and found out which seventeen were not
-   * covered only after pressing the button.
-   *
-   * Free only. A paid credits account has no daily ceiling; its balance is the
-   * budget, and locking rows there would be inventing a limit.
-   */
-  const overAllowanceIds = useMemo(() => {
-    const limit = usage?.dailyLimit
-    if (plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
-    const byValue = [...filtered].sort((a, b) => (b.searchVolume ?? -1) - (a.searchVolume ?? -1))
-    return new Set(byValue.slice(limit).map((k) => k.id))
-  }, [filtered, usage?.dailyLimit, plan])
-
-  const isLocked = (id: string) => lockedKwIds.has(id) || overAllowanceIds.has(id)
 
   // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
   // adding is limited by the keyword cap — so we show a small non-blocking
