@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
@@ -1867,6 +1869,7 @@ export default function ProjectKeywordsPage() {
                 "+ Keywords". Stays visible during the onboarding tutorial's
                 "run-check" step since that step spotlights this exact button. */}
             {(checking || pendingCount > 0 || selectedKeywords.size > 0 || (tutorialActive && tutorialStep.id === "run-check")) && (
+              <>
               <Hint text={pendingCount > 0 ? t("checkRunningTitle") : undefined}>
               <button
                 data-tutorial="run-check-btn"
@@ -1886,6 +1889,15 @@ export default function ProjectKeywordsPage() {
                       : t("runCheck")}
               </button>
               </Hint>
+              {/* A check is a credit per keyword, and this button runs either
+                  the selection or the whole list — so the quote has to follow
+                  whichever it is about to do, not a fixed number. */}
+              <CreditCost
+                action={CREDIT_ACTION_KEYS.rankCheck}
+                units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
+                showBalance={false}
+              />
+              </>
             )}
             {selectedKeywords.size > 0 && (
               // No Hint here: the button's own label already says exactly what

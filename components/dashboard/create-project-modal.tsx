@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
 import { Icon } from "./icons"
@@ -179,6 +181,13 @@ export function CreateProjectModal<T>({
                         <span style={{ minWidth: 0 }}>
                           <span className="b" style={{ fontSize: 13, display: "block" }}>{opt.title}</span>
                           <span className="tiny muted" style={{ display: "block", marginTop: 2 }}>{opt.desc}</span>
+                          {opt.on && (
+                            <CreditCost
+                              action={CREDIT_ACTION_KEYS.keywordSuggestions}
+                              showBalance={false}
+                              className="mt-1"
+                            />
+                          )}
                         </span>
                       </button>
                     )
