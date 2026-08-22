@@ -39,8 +39,8 @@ import { Sparkle, Sparkles, Pencil, Check, X } from "lucide-react"
 const SCHEDULED_CHECKS_ENABLED = true
 
 // Per-project keyword cap for free users. Paid users have no cap. Must stay
-// in sync with FREE_KEYWORDS_PER_PROJECT_LIMIT in the backend.
-const FREE_KEYWORDS_PER_PROJECT_LIMIT = 3
+// in sync with the free plan's dailyChecks in the backend.
+const FREE_DAILY_CHECKS = 3
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
 // 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
@@ -451,10 +451,10 @@ function AddKeywordsModal({
   // Only treat the user as free when /api/usage has explicitly told us so;
   // undefined (still loading) shouldn't surface paywall copy.
   const isFree = plan === "free"
-  const remaining = isFree ? Math.max(0, FREE_KEYWORDS_PER_PROJECT_LIMIT - currentCount) : Infinity
+  // No per-project keyword cap on any plan. Storing a keyword costs nothing —
+  // only checking it does — so the list is unlimited, and the daily check
+  // allowance is what rations the expensive part.
   const pendingLines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
-  const wouldOverflow = isFree && pendingLines.length > remaining
-  const atKeywordCap = isFree && pendingLines.length >= remaining
 
   // Anchor the related-keyword suggestions to the FIRST keyword entered (not the
   // last word being typed), so they stay stable as the user clicks to add more
@@ -550,7 +550,6 @@ function AddKeywordsModal({
   // user can keep adding related ones (each added chip is filtered out below).
   // Routing through `raw` keeps the free keyword cap enforced automatically.
   const addSuggestion = (kw: string) => {
-    if (atKeywordCap) return
     setRaw((prev) => {
       const base = prev.replace(/[\s,]+$/, "")
       return (base ? base + "\n" : "") + kw + "\n"
@@ -569,9 +568,7 @@ function AddKeywordsModal({
   // Routed through `raw` so the free-plan cap applies exactly as it does to
   // manual typing.
   const addTopAiSuggestions = () => {
-    if (atKeywordCap) return
-    const budget = remaining === Infinity ? AI_BULK_ADD_COUNT : Math.min(AI_BULK_ADD_COUNT, remaining - pendingLines.length)
-    const picks = visibleAiSuggestions.slice(0, Math.max(0, budget)).map((s) => s.keyword)
+    const picks = visibleAiSuggestions.slice(0, AI_BULK_ADD_COUNT).map((s) => s.keyword)
     if (!picks.length) return
     setRaw((prev) => {
       const base = prev.replace(/[\s,]+$/, "")
@@ -584,14 +581,6 @@ function AddKeywordsModal({
     e.preventDefault()
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
-    if (isFree && lines.length > remaining) {
-      setError(
-        remaining === 0
-          ? `Free plan: this project already has ${currentCount} keywords (limit ${FREE_KEYWORDS_PER_PROJECT_LIMIT}). Delete some, or upgrade for unlimited keywords per project.`
-          : `Free plan: you can add at most ${remaining} more keyword${remaining === 1 ? "" : "s"} to this project (limit ${FREE_KEYWORDS_PER_PROJECT_LIMIT}). Upgrade for unlimited.`
-      )
-      return
-    }
     setError(""); setLoading(true)
     try {
       await api.post(`/api/projects/${projectId}/keywords`, { keywords: lines.map((k) => ({ keyword: k, location, device })) })
@@ -626,11 +615,9 @@ function AddKeywordsModal({
                   </label>
                   <span
                     className="tiny"
-                    style={{ color: wouldOverflow ? "var(--neg)" : "var(--text-mute)", fontFamily: "var(--font-mono)" }}
+                    style={{ color: "var(--text-mute)", fontFamily: "var(--font-mono)" }}
                   >
-                    {isFree
-                      ? `${pendingLines.length}/${remaining} slot${remaining === 1 ? "" : "s"} left`
-                      : `${pendingLines.length} pending · unlimited`}
+                    {`${pendingLines.length} pending · unlimited`}
                   </span>
                 </div>
                 <textarea
@@ -650,11 +637,9 @@ function AddKeywordsModal({
                   }}
                 />
                 <span className="tiny muted">
-                  {!isFree
-                    ? `Paid plan — unlimited keywords per project (${currentCount} used).`
-                    : remaining === 0
-                      ? `Free plan: project is full — ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keyword limit reached. Upgrade for unlimited.`
-                      : `Free plan: up to ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keywords per project (${currentCount} used). Upgrade for unlimited.`}
+                  {isFree
+                    ? `Add as many keywords as you like (${currentCount} tracked). On the free plan ${FREE_DAILY_CHECKS} are checked each day — upgrade to check them all.`
+                    : `Unlimited keywords per project (${currentCount} tracked).`}
                 </span>
 
                 {/* AI suggestions for the whole site, from a crawl of the
@@ -670,14 +655,14 @@ function AddKeywordsModal({
                       <span className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                         <span className="spark"><Icon.spark /></span> {t("aiChipsLabel")}
                       </span>
-                      {visibleAiSuggestions.length > 1 && !atKeywordCap && (
+                      {visibleAiSuggestions.length > 1 && (
                         <button
                           type="button"
                           className="tiny"
                           onClick={addTopAiSuggestions}
                           style={{ background: "none", border: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 500 }}
                         >
-                          {t("aiAddTopN", { n: Math.min(AI_BULK_ADD_COUNT, visibleAiSuggestions.length, remaining === Infinity ? AI_BULK_ADD_COUNT : remaining) })}
+                          {t("aiAddTopN", { n: Math.min(AI_BULK_ADD_COUNT, visibleAiSuggestions.length) })}
                         </button>
                       )}
                     </div>
@@ -687,12 +672,9 @@ function AddKeywordsModal({
                           key={s.keyword}
                           type="button"
                           className="chip brand"
-                          disabled={atKeywordCap}
                           onClick={() => addSuggestion(s.keyword)}
-                          title={atKeywordCap
-                            ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})`
-                            : s.rationale ?? `Add "${s.keyword}"`}
-                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                          title={s.rationale ?? `Add "${s.keyword}"`}
+                          style={{ border: "none", cursor: "pointer" }}
                         >
                           + {s.keyword}
                           {s.volume != null && (
@@ -724,10 +706,9 @@ function AddKeywordsModal({
                           key={kw}
                           type="button"
                           className="chip brand"
-                          disabled={atKeywordCap}
                           onClick={() => addSuggestion(kw)}
-                          title={atKeywordCap ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})` : `Add "${kw}"`}
-                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                          title={`Add "${kw}"`}
+                          style={{ border: "none", cursor: "pointer" }}
                         >
                           + {kw}
                         </button>
@@ -758,7 +739,7 @@ function AddKeywordsModal({
             </div>
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={loading || remaining === 0 || wouldOverflow}>
+              <button type="submit" className="btn primary" disabled={loading}>
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
