@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { Flag } from "@/components/flag"
@@ -9,11 +10,17 @@ import { PosCell, DeltaCell, type SerpFeatures } from "@/components/dashboard/pr
 // Read-only keyword shape served by the public share endpoint
 // (GET /api/projects/share/k/:token) — a subset of the dashboard's Keyword,
 // minus owner-only/interaction fields.
+// The public view has no registry to read labels from, so it title-cases the id
+// and special-cases the ones we ship. An unknown engine still renders sensibly.
+const ENGINE_LABELS: Record<string, string> = { google: "Google", bing: "Bing", yahoo: "Yahoo" }
+
 interface ShareKeyword {
   id: string
   keyword: string
   location: string
   device: string | null
+  /** Absent on older payloads; treated as Google. */
+  engine?: string | null
   position: number | null
   firstPosition: number | null
   d1: number | null
@@ -100,18 +107,48 @@ function ScoreBadge({ score, grade, label }: { score: number | null; grade: stri
 export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
   const [filter, setFilter] = useState("")
   const [deviceTab, setDeviceTab] = useState<"desktop" | "mobile">("desktop")
+  const [engineTab, setEngineTab] = useState<string>(DEFAULT_ENGINE)
   const color = domainColor(data.domain)
+
+  // Engines are derived from the payload rather than /api/engines: this view is
+  // public and unauthenticated, so it cannot call that endpoint — and what a
+  // shared report should show is exactly the engines it contains, nothing more.
+  const shareEngines = useMemo(() => {
+    const ids = [...new Set(data.keywords.map((k) => engineOf(k)))]
+    return ids.sort((a, b) => (a === DEFAULT_ENGINE ? -1 : b === DEFAULT_ENGINE ? 1 : a.localeCompare(b)))
+  }, [data.keywords])
+  const multiEngine = shareEngines.length > 1
 
   const deviceCounts = useMemo(() => {
     const c = { desktop: 0, mobile: 0 }
-    data.keywords.forEach((k) => (k.device === "mobile" ? c.mobile++ : c.desktop++))
+    data.keywords.forEach((k) => {
+      if (multiEngine && engineOf(k) !== engineTab) return
+      k.device === "mobile" ? c.mobile++ : c.desktop++
+    })
     return c
-  }, [data.keywords])
+  }, [data.keywords, engineTab, multiEngine])
 
-  // Keywords for the active device tab — stats + table both scope to this.
+  const engineCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    data.keywords.forEach((k) => {
+      if ((k.device === "mobile" ? "mobile" : "desktop") !== deviceTab) return
+      const id = engineOf(k)
+      c[id] = (c[id] ?? 0) + 1
+    })
+    return c
+  }, [data.keywords, deviceTab])
+
+  // Scoped to device AND engine. Without the engine half, a shared report would
+  // average a Google rank with a Bing one and present the result as a single
+  // number — the recipient has no way to tell that happened.
   const scoped = useMemo(
-    () => data.keywords.filter((k) => (k.device === "mobile" ? "mobile" : "desktop") === deviceTab),
-    [data.keywords, deviceTab],
+    () =>
+      data.keywords.filter(
+        (k) =>
+          (k.device === "mobile" ? "mobile" : "desktop") === deviceTab &&
+          (!multiEngine || engineOf(k) === engineTab),
+      ),
+    [data.keywords, deviceTab, engineTab, multiEngine],
   )
 
   const statusCounts = useMemo(
@@ -207,7 +244,19 @@ export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
               Showing {filtered.length} of {scoped.length}
             </div>
             <div className="pill-toggle" style={{ width: "fit-content" }}>
-              {(["desktop", "mobile"] as const).map((d) => (
+              {multiEngine &&
+        shareEngines.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={engineTab === id ? "active" : ""}
+            onClick={() => setEngineTab(id)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            {ENGINE_LABELS[id] ?? id} ({engineCounts[id] ?? 0})
+          </button>
+        ))}
+      {(["desktop", "mobile"] as const).map((d) => (
                 <button
                   key={d}
                   type="button"

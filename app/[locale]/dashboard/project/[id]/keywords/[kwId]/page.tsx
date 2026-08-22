@@ -298,7 +298,14 @@ export default function KeywordDetailPage() {
   const chartConfig = Object.fromEntries(
     chartEngines.map((id, i) => [
       id,
-      { label: engineLabels[id] ?? id, color: ENGINE_COLORS[i % ENGINE_COLORS.length] },
+      {
+        // With one engine the tooltip keeps saying "Position", exactly as it did
+        // before this feature existed. Naming the engine is only informative
+        // once there is another engine to tell it apart from — otherwise every
+        // Google-only user sees a gratuitous change.
+        label: chartEngines.length > 1 ? (engineLabels[id] ?? id) : "Position",
+        color: ENGINE_COLORS[i % ENGINE_COLORS.length],
+      },
     ]),
   )
 
