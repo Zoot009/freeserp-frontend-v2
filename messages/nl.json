@@ -588,5 +588,12 @@
     "confirm": {
       "titleCredits": "Dit gebruikt {count, plural, one {# credit} other {# credits}}"
     }
+  },
+  "dashProjects": {
+    "startLabel": "Start-zoekwoorden",
+    "autoTitle": "Zoek ze voor mij",
+    "autoDesc": "We lezen je site en stellen zoekwoorden voor waarop hij zou moeten ranken.",
+    "manualTitle": "Ik voeg ze zelf toe",
+    "manualDesc": "Begin met een lege lijst en typ de zoekwoorden die je wilt."
   }
 }

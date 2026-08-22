@@ -794,8 +794,8 @@
     "statusQueued": "{count, plural, one {# mot-clé en file d'attente} other {# mots-clés en file d'attente}}",
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
-    "locked": "Verrouillé",
-    "lockedTip": "Suivi, mais pas vérifié aujourd'hui — votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés. Passez à un forfait supérieur ou rechargez pour tous les vérifier.",
+    "locked": "Améliorer",
+    "lockedTip": "Prêt à suivre. Votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés — passez à un forfait supérieur ou rechargez pour inclure celui-ci.",
     "checksResetIn": "Vérifications dans",
     "outOfChecksTip": "Vous avez utilisé vos vérifications du jour ; elles se réinitialisent à 00:00 UTC. Vous pouvez toujours ajouter des mots-clés ; passez à un forfait supérieur pour des limites plus élevées.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
@@ -1002,7 +1002,12 @@
     "colCreated": "Créé",
     "colTrend": "Tendance",
     "loading": "Chargement…",
-    "admin": "Administration"
+    "admin": "Administration",
+    "startLabel": "Mots-clés de départ",
+    "autoTitle": "Trouvez-les pour moi",
+    "autoDesc": "Nous lisons votre site et suggérons les mots-clés sur lesquels il devrait se positionner.",
+    "manualTitle": "Je saisis les miens",
+    "manualDesc": "Commencez avec une liste vide et saisissez les mots-clés que vous voulez."
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RAPIDE",

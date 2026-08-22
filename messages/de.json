@@ -794,8 +794,8 @@
     "statusQueued": "{count, plural, one {# Keyword in Warteschlange} other {# Keywords in Warteschlange}}",
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
     "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
-    "locked": "Gesperrt",
-    "lockedTip": "Wird verfolgt, heute aber nicht geprüft — Ihr Tarif prüft {limit} Keywords pro Tag, die mit dem höchsten Suchvolumen zuerst. Upgraden oder aufladen, um alle zu prüfen.",
+    "locked": "Upgraden",
+    "lockedTip": "Bereit zum Verfolgen. Ihr Tarif prüft {limit} Keywords pro Tag, beginnend mit dem höchsten Suchvolumen — upgraden oder aufladen, um dieses einzuschließen.",
     "checksResetIn": "Checks zurückgesetzt in",
     "outOfChecksTip": "Du hast die heutigen Rang-Checks aufgebraucht – sie werden um 00:00 UTC zurückgesetzt. Keywords kannst du weiterhin hinzufügen; upgrade für höhere Tageslimits.",
     "aiSkip": "Überspringen und Keywords manuell hinzufügen",
@@ -1002,7 +1002,12 @@
     "colCreated": "Erstellt",
     "colTrend": "Trend",
     "loading": "Wird geladen…",
-    "admin": "Administration"
+    "admin": "Administration",
+    "startLabel": "Start-Keywords",
+    "autoTitle": "Für mich finden",
+    "autoDesc": "Wir lesen Ihre Website und schlagen Keywords vor, für die sie ranken sollte.",
+    "manualTitle": "Ich trage eigene ein",
+    "manualDesc": "Mit einer leeren Liste starten und die gewünschten Keywords eintippen."
   },
   "dashSerpChecker": {
     "eyebrow": "SCHNELLE SERP",
