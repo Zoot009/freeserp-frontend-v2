@@ -795,7 +795,7 @@
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
     "locked": "Verrouillé",
-    "lockedTip": "Vous avez utilisé vos {limit} vérifications du jour. Passez à Premium pour suivre plus de {limit} mots-clés par jour.",
+    "lockedTip": "Suivi, mais pas vérifié aujourd'hui — votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés. Passez à un forfait supérieur ou rechargez pour tous les vérifier.",
     "checksResetIn": "Vérifications dans",
     "outOfChecksTip": "Vous avez utilisé vos vérifications du jour ; elles se réinitialisent à 00:00 UTC. Vous pouvez toujours ajouter des mots-clés ; passez à un forfait supérieur pour des limites plus élevées.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
