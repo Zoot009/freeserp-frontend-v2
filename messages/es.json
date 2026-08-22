@@ -794,8 +794,8 @@
     "statusQueued": "{count, plural, one {# palabra clave en cola} other {# palabras clave en cola}}",
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
     "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
-    "locked": "Bloqueada",
-    "lockedTip": "Seguida, pero hoy no se comprueba: tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen. Mejora tu plan o recarga para comprobarlas todas.",
+    "locked": "Mejorar",
+    "lockedTip": "Lista para seguir. Tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen de búsqueda: mejora tu plan o recarga para incluir esta.",
     "checksResetIn": "Comprobaciones en",
     "outOfChecksTip": "Has usado las comprobaciones de hoy; se restablecen a las 00:00 UTC. Aún puedes añadir palabras clave; mejora tu plan para límites diarios más altos.",
     "aiSkip": "Omitir y añadir palabras clave manualmente",
@@ -1002,7 +1002,12 @@
     "colCreated": "Creado",
     "colTrend": "Tendencia",
     "loading": "Cargando…",
-    "admin": "Administración"
+    "admin": "Administración",
+    "startLabel": "Palabras clave iniciales",
+    "autoTitle": "Búscalas por mí",
+    "autoDesc": "Leemos tu sitio y sugerimos palabras clave para las que debería posicionar.",
+    "manualTitle": "Las añado yo",
+    "manualDesc": "Empieza con una lista vacía y escribe las palabras clave que quieras."
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RÁPIDA",

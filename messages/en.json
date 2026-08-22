@@ -797,8 +797,8 @@
     "checkStaySlow": "still working — this one is taking longer than usual",
     "checkStayOverdue": "this check has run past its expected window; it will be marked failed shortly and you can retry it",
     "checkRunningFor": "running for {duration}",
-    "locked": "Locked",
-    "lockedTip": "Tracked, but not checked today — your plan checks {limit} keywords a day, highest search volume first. Upgrade or top up to check them all.",
+    "locked": "Upgrade",
+    "lockedTip": "Ready to track. Your plan checks {limit} keywords a day, starting with the highest search volume — upgrade or top up to include this one.",
     "checksResetIn": "Checks reset in",
     "outOfChecksTip": "You've used today's rank checks — they reset at 00:00 UTC. You can still add keywords; upgrade for higher daily limits.",
     "aiSkip": "Skip and add keywords manually",
@@ -1002,7 +1002,12 @@
     "colCreated": "Created",
     "colTrend": "Trend",
     "loading": "Loading…",
-    "admin": "Admin"
+    "admin": "Admin",
+    "startLabel": "Starter keywords",
+    "autoTitle": "Find them for me",
+    "autoDesc": "We read your site and suggest keywords it should rank for.",
+    "manualTitle": "I'll add my own",
+    "manualDesc": "Start with an empty list and type the keywords you want."
   },
   "dashSerpChecker": {
     "eyebrow": "QUICK SERP",

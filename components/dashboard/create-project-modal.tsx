@@ -34,6 +34,16 @@ export function CreateProjectModal<T>({
   // locales — no new keys, so this ships translated rather than English-only.
   const t = useTranslations("dashProjects")
   const [raw, setRaw] = useState("")
+  /**
+   * Whether to read the site and suggest starter keywords.
+   *
+   * This used to happen unconditionally, which spends credits on someone's
+   * behalf and picks a keyword set for a user who may have arrived with their
+   * own list already written. Defaulted ON because it is the right answer for
+   * most people and it is what the product did before — but it is now a
+   * question with a visible answer rather than something that just happens.
+   */
+  const [autoKeywords, setAutoKeywords] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -63,7 +73,7 @@ export function CreateProjectModal<T>({
     try {
       // New projects start with NO auto-check schedule — the owner sets a
       // cadence afterward on the project page (paid-only).
-      const created = await api.post<T>("/api/projects", { name, domain })
+      const created = await api.post<T>("/api/projects", { name, domain, autoKeywords })
       onCreated(created)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("createError"))
@@ -121,6 +131,59 @@ export function CreateProjectModal<T>({
                 ) : (
                   <span className="tiny muted">{t("domainHint")}</span>
                 )}
+              </div>
+              {/* Two plain options rather than a checkbox: "find them for me"
+                  and "I'll add my own" are different starting points, and a
+                  ticked box hides the second one behind the absence of the
+                  first. */}
+              <div className="field">
+                <label>{t("startLabel")}</label>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {[
+                    { on: true, title: t("autoTitle"), desc: t("autoDesc") },
+                    { on: false, title: t("manualTitle"), desc: t("manualDesc") },
+                  ].map((opt) => {
+                    const selected = autoKeywords === opt.on
+                    return (
+                      <button
+                        key={String(opt.on)}
+                        type="button"
+                        onClick={() => setAutoKeywords(opt.on)}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "flex-start",
+                          textAlign: "left",
+                          padding: "11px 13px",
+                          borderRadius: "var(--r-md)",
+                          border: "1px solid " + (selected ? "var(--brand)" : "var(--border)"),
+                          background: selected ? "var(--brand-soft)" : "transparent",
+                          cursor: "pointer",
+                          font: "inherit",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            marginTop: 2,
+                            width: 14,
+                            height: 14,
+                            borderRadius: "50%",
+                            flexShrink: 0,
+                            border: "2px solid " + (selected ? "var(--brand)" : "var(--border)"),
+                            background: selected
+                              ? "radial-gradient(circle, var(--brand) 0 3px, transparent 4px)"
+                              : "transparent",
+                          }}
+                        />
+                        <span style={{ minWidth: 0 }}>
+                          <span className="b" style={{ fontSize: 13, display: "block" }}>{opt.title}</span>
+                          <span className="tiny muted" style={{ display: "block", marginTop: 2 }}>{opt.desc}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               {error && (
                 <div
