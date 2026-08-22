@@ -1641,6 +1641,32 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
+  /**
+   * Keywords today's allowance will not reach.
+   *
+   * The scheduler orders by search volume descending and stops when the day's
+   * checks run out, so the ones it will never reach are simply everything past
+   * the allowance in that same order. Mirroring that ordering here is what makes
+   * the lock honest: it marks the keywords that genuinely will not be checked,
+   * not an arbitrary tail of the list.
+   *
+   * Derived rather than waited for. `lockedKwIds` only arrives in the response
+   * to a manual Check now, so before that a free account tracking twenty
+   * keywords saw twenty unlocked rows — and found out which seventeen were not
+   * covered only after pressing the button.
+   *
+   * Free only. A paid credits account has no daily ceiling; its balance is the
+   * budget, and locking rows there would be inventing a limit.
+   */
+  const overAllowanceIds = useMemo(() => {
+    const limit = usage?.dailyLimit
+    if (plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
+    const byValue = [...filtered].sort((a, b) => (b.searchVolume ?? -1) - (a.searchVolume ?? -1))
+    return new Set(byValue.slice(limit).map((k) => k.id))
+  }, [filtered, usage?.dailyLimit, plan])
+
+  const isLocked = (id: string) => lockedKwIds.has(id) || overAllowanceIds.has(id)
+
   // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
   // adding is limited by the keyword cap — so we show a small non-blocking
   // "checks reset in …" notice rather than locking the add button. The daily
@@ -2343,9 +2369,12 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          {lockedKwIds.has(kw.id) ? (
-                            // Today's plan budget didn't stretch to this keyword.
-                            <Link href="/pricing?clicked-buy-button" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
+                          {isLocked(kw.id) ? (
+                            // Beyond today's allowance — tracked, but not checked.
+                            // Points at billing rather than pricing: a credits
+                            // account can fix this with a top-up as well as a
+                            // plan change, and billing offers both.
+                            <Link href="/dashboard/billing" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
                               <Icon.lock size={11} /> {t("locked")}
                             </Link>
                           ) : (
