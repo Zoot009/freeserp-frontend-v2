@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import {
   ArrowRight,
   History,
@@ -455,7 +457,14 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
                 )}
               </button>
             </form>
-            <p className="mt-[6px] text-center text-[10.5px] text-[#cbd5e1]">
+            {/* Each question costs a credit. Sitting it under the box means the
+                price is visible while typing, not discovered afterwards. */}
+            <CreditCost
+              className="mt-[6px] justify-center text-[10.5px]"
+              action={CREDIT_ACTION_KEYS.pageAuditAsk}
+              showBalance={false}
+            />
+            <p className="mt-[4px] text-center text-[10.5px] text-[#cbd5e1]">
               Powered by <b className="font-semibold">FreeSERP</b>
             </p>
           </div>

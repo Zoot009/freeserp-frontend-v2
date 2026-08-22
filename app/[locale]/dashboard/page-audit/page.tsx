@@ -14,6 +14,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -243,6 +245,14 @@ export default function PageAuditPage() {
             {running ? "Auditing…" : starting ? "Starting…" : "Run audit"}
           </Button>
         </form>
+        {/* Priced per 20 pages, so a whole-site crawl is not a single-page
+            price. Units are the plan's clamped page budget — the same number
+            the server charges against, not the number typed into the box. */}
+        <CreditCost
+          className="mt-2"
+          action={CREDIT_ACTION_KEYS.pageAudit}
+          units={mode === "site" ? (limits?.maxPages ?? 1) : 1}
+        />
 
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
