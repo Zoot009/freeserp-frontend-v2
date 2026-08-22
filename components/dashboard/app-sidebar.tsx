@@ -23,7 +23,6 @@ import {
   Users,
   Link2,
 } from "lucide-react"
-import { api } from "@/lib/api"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -85,28 +84,10 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const pathname = usePathname()
 
   // Google Maps Tracker is in early access — every scan point is real
-  // DataForSEO spend and there's no credit system in front of it yet, so
-  // access is allowlisted server-side (MAPS_TRACKER_ACCESS_EMAILS). Defaults
-  // to "soon" (locked) until the check resolves — fail closed, not open.
-  const [mapsTrackerAllowed, setMapsTrackerAllowed] = React.useState(false)
-  React.useEffect(() => {
-    let cancelled = false
-    api
-      .get<{ allowed: boolean }>("/api/maps-tracker/access")
-      .then(({ allowed }) => {
-        if (!cancelled) setMapsTrackerAllowed(allowed)
-      })
-      .catch(() => {
-        /* stays locked on any error — fail closed */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const workspace = WORKSPACE.map((it) =>
-    it.key === "mapsTracker" ? { ...it, soon: !mapsTrackerAllowed } : it,
-  )
+  // Google Maps Tracker is released. The allowlist existed because scans spend
+  // DataForSEO money per grid point with no billing in front of them; credits
+  // are that billing now, so the link is simply a link.
+  const workspace = WORKSPACE
 
   const Group = ({ labelKey, items }: { labelKey: string; items: Item[] }) => (
     <SidebarGroup>
