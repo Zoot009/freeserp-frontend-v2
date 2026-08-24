@@ -69,7 +69,15 @@ export function CreateProjectModal<T>({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!domain) return
+    if (!domain) {
+      // The button used to just be `disabled` here, so clicking it with an
+      // empty/invalid field did nothing at all — no message, no shake,
+      // nothing to explain why "Create project" wasn't working. Surface the
+      // same error box the API-failure path already uses instead.
+      setError(t("domainRequiredError"))
+      inputRef.current?.focus()
+      return
+    }
     setError("")
     setLoading(true)
     try {
@@ -101,6 +109,11 @@ export function CreateProjectModal<T>({
               <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
                 {t("addModalTitle")}
               </div>
+              {/* States what a "project" actually is before asking for a domain —
+                  the label alone didn't say this tracks Google rankings over time. */}
+              <div className="tiny muted" style={{ marginTop: 4, maxWidth: 360 }}>
+                {t("addModalSubtitle")}
+              </div>
             </div>
             <button type="button" onClick={onClose} className="icon-btn" aria-label={t("close")}>
               <Icon.close />
@@ -115,7 +128,6 @@ export function CreateProjectModal<T>({
                   ref={inputRef}
                   className="input lg"
                   type="text"
-                  required
                   autoComplete="url"
                   placeholder={t("domainPlaceholder")}
                   value={raw}
@@ -207,7 +219,7 @@ export function CreateProjectModal<T>({
               <button type="button" className="btn" onClick={onClose}>
                 {t("cancel")}
               </button>
-              <button type="submit" className="btn primary" disabled={loading || !domain}>
+              <button type="submit" className="btn primary" disabled={loading}>
                 {loading ? t("creating") : t("createProject")}
               </button>
             </div>

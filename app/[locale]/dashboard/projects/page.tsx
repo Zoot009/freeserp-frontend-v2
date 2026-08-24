@@ -540,7 +540,12 @@ export default function ProjectsPage() {
         <CreateProjectModal<ProjectSummary>
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
-            setProjects((prev) => [p, ...prev])
+            // The create endpoint's response has no `_count` (only the list
+            // endpoint includes it) — inserting it as-is made the grid/list
+            // render crash on `p._count.keywords` before the redirect below
+            // could take over, tripping the dashboard error boundary. Same
+            // fallback the pending-domain flow already uses further down.
+            setProjects((prev) => [{ ...p, _count: { keywords: 0 } }, ...prev])
             setShowAddProject(false)
             // First-ever project for this account → GTM conversion. Deduped
             // server-side, so it fires once per account and never again if the

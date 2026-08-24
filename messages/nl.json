@@ -590,10 +590,10 @@
     }
   },
   "dashProjects": {
-    "startLabel": "Start-zoekwoorden",
+    "startLabel": "Hoe wil je beginnen met het volgen van zoekwoorden?",
     "autoTitle": "Zoek ze voor mij",
-    "autoDesc": "We lezen je site en stellen zoekwoorden voor waarop hij zou moeten ranken.",
+    "autoDesc": "We scannen je startpagina met AI en stellen zoekwoorden voor waarop hij al zou moeten ranken — jij kiest welke je volgt.",
     "manualTitle": "Ik voeg ze zelf toe",
-    "manualDesc": "Begin met een lege lijst en typ de zoekwoorden die je wilt."
+    "manualDesc": "Zonder analyse. Begin met een lege lijst en typ zelf de zoekwoorden die je wilt volgen — geen credits gebruikt."
   }
 }

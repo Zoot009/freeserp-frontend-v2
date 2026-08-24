@@ -429,7 +429,7 @@ function AddKeywordsModal({
   // homepage. Distinct from the Google-autocomplete chips below, which are
   // related-to-what-you-just-typed. Empty unless the run completed.
   aiSuggestions?: AiSuggestion[]
-  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed"
+  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed" | "skipped"
   onClose: () => void
   onAdded: (device: "desktop" | "mobile") => void
 }) {
@@ -462,6 +462,19 @@ function AddKeywordsModal({
   // last word being typed), so they stay stable as the user clicks to add more
   // related keywords instead of vanishing/changing on every keystroke.
   const seed = pendingLines[0] ?? ""
+
+  // Debounced copy of `seed`, used to drive the suggestion pool below. Typing
+  // the first keyword changes `seed` on every keystroke; without this, each
+  // keystroke fired its own reset-and-refetch cycle (a state update plus a
+  // network call to /api/keyword-suggest), and that churn was heavy enough to
+  // make the textarea feel like it was dropping keystrokes while typing fast.
+  // Settling on the value for 300ms before acting on it keeps typing itself
+  // free of any of that work.
+  const [debouncedSeed, setDebouncedSeed] = useState(seed)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSeed(seed), 600)
+    return () => clearTimeout(t)
+  }, [seed])
 
   // Niche context to bias suggestions toward the site's topic (so "serp" on an
   // SEO site suggests "serp checker", not "serpent"). Tokenize the domain (minus
@@ -515,13 +528,13 @@ function AddKeywordsModal({
     }
   }, [nicheTokens, location])
 
-  // Reset the pool whenever the first keyword (or location) changes.
+  // Reset the pool whenever the (debounced) first keyword or location changes.
   useEffect(() => {
-    seedRef.current = seed
+    seedRef.current = debouncedSeed
     setSuggestions([])
     fetchedSeedsRef.current = new Set()
     expandIdxRef.current = 0
-  }, [seed, location])
+  }, [debouncedSeed, location])
 
   // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
@@ -529,22 +542,20 @@ function AddKeywordsModal({
 
   // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
   // sub-seeds ("seo a", "seo b" …) whenever the visible strip runs low — so the
-  // user always has fresh related keywords to add and never runs out.
+  // user always has fresh related keywords to add and never runs out. Driven by
+  // the already-debounced seed, so this never fires mid-keystroke.
   useEffect(() => {
-    if (seed.length < 2) { setSuggLoading(false); return }
-    const t = setTimeout(() => {
-      if (!fetchedSeedsRef.current.has(seed)) { void fetchSuggestionBatch(seed); return }
-      if (visibleSuggestions.length < 6) {
-        const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
-        while (expandIdxRef.current < letters.length) {
-          const sub = `${seed} ${letters[expandIdxRef.current]}`
-          expandIdxRef.current++
-          if (!fetchedSeedsRef.current.has(sub)) { void fetchSuggestionBatch(sub); break }
-        }
+    if (debouncedSeed.length < 2) { setSuggLoading(false); return }
+    if (!fetchedSeedsRef.current.has(debouncedSeed)) { void fetchSuggestionBatch(debouncedSeed); return }
+    if (visibleSuggestions.length < 6) {
+      const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+      while (expandIdxRef.current < letters.length) {
+        const sub = `${debouncedSeed} ${letters[expandIdxRef.current]}`
+        expandIdxRef.current++
+        if (!fetchedSeedsRef.current.has(sub)) { void fetchSuggestionBatch(sub); break }
       }
-    }, 300)
-    return () => clearTimeout(t)
-  }, [seed, visibleSuggestions.length, fetchSuggestionBatch])
+    }
+  }, [debouncedSeed, visibleSuggestions.length, fetchSuggestionBatch])
 
   // Clicking a chip APPENDS the related keyword as a new line (keeping everything
   // already entered, including the first/seed keyword) and refocuses. It does NOT
@@ -692,6 +703,9 @@ function AddKeywordsModal({
 
                 {aiStatus === "failed" && (
                   <span className="tiny muted" style={{ marginTop: 8 }}>{t("aiFailedHint")}</span>
+                )}
+                {aiStatus === "skipped" && (
+                  <span className="tiny muted" style={{ marginTop: 8 }}>{t("aiSkippedHint")}</span>
                 )}
 
                 {/* Live related-keyword suggestions (free Google autocomplete). */}
@@ -929,7 +943,7 @@ export default function ProjectKeywordsPage() {
   // "choosing" → the new-project screen now ASKS whether to run the AI analysis
   // (crawl + OpenAI + volume, which costs money) or add keywords manually, instead
   // of auto-running it. The run only starts when the user picks "Analyze".
-  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed">(
+  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed" | "skipped">(
     isNewProject ? "choosing" : "idle",
   )
   // Guards the START call only — polling must be free to re-arm on remount.
@@ -1027,20 +1041,40 @@ export default function ProjectKeywordsPage() {
   const load = useCallback(async (silent = false): Promise<ProjectDetail | null> => {
     if (!silent) setLoading(true)
     try {
-      const data = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
-      setProject(data)
-      return data
-    } catch (err: unknown) {
-      // 404 = project doesn't exist (deleted, or wrong id); bounce to list.
-      if (err instanceof ApiError && err.status === 404) {
-        router.replace("/dashboard/projects")
+      // Landing here right after "Create project" navigates straight from a
+      // POST /api/projects response into this GET — occasionally the read
+      // lands a beat ahead of the write being visible and 404s once even
+      // though the project was just created successfully. A couple of quick
+      // retries absorb that without bouncing the user straight back to the
+      // project list for something that isn't actually gone.
+      const maxAttempts = silent ? 1 : 3
+      let lastErr: unknown = null
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const data = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
+          setProject(data)
+          return data
+        } catch (err: unknown) {
+          lastErr = err
+          const is404 = err instanceof ApiError && err.status === 404
+          if (is404 && attempt < maxAttempts - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            continue
+          }
+          break
+        }
+      }
+      // 404 = project doesn't exist (deleted, or wrong id) even after
+      // retrying; bounce to list.
+      if (lastErr instanceof ApiError && lastErr.status === 404) {
+        if (!silent) router.replace("/dashboard/projects")
         return null
       }
       // Background polls (silent) must not surface an error banner: the page
       // already shows data, so a transient network blip during polling would
       // otherwise flash a scary "Network Error". Fail quietly and let the next
       // poll retry. Only the initial (non-silent) load reports a load failure.
-      if (!silent) setError(err instanceof Error ? err.message : "Failed to load project")
+      if (!silent) setError(lastErr instanceof Error ? lastErr.message : "Failed to load project")
       return null
     } finally {
       if (!silent) setLoading(false)
@@ -1152,7 +1186,7 @@ export default function ProjectKeywordsPage() {
     let timer: ReturnType<typeof setInterval> | undefined
     const stop = () => { if (timer) clearInterval(timer); timer = undefined }
 
-    const finish = (phase: "done" | "failed") => {
+    const finish = (phase: "done" | "failed" | "skipped") => {
       if (cancelled) return
       stop()
       setAiPhase(phase)
@@ -1166,7 +1200,17 @@ export default function ProjectKeywordsPage() {
         )
         if (cancelled || !run) return
         setAiRun(run)
-        if (run.status === "COMPLETED") finish("done")
+        if (run.status === "COMPLETED") {
+          // The backend completes a run empty (no crawl ever happened) rather
+          // than failing it when the account has no credits/budget left for
+          // the analysis — otherwise a Redis blip couldn't be told apart from
+          // "the account just can't afford this". Without singling that out
+          // here, "Analyze with AI" silently landed on the same blank Add
+          // Keywords box as the plain "add manually" choice, with nothing
+          // explaining why no suggestions showed up.
+          const skippedForCredits = !run.crawlMethod && (run.suggestions?.suggestions?.length ?? 0) === 0
+          finish(skippedForCredits ? "skipped" : "done")
+        }
         else if (run.status === "FAILED") finish("failed")
       } catch (err) {
         // 404 (project deleted, so its run cascaded away) and 401/403 are
