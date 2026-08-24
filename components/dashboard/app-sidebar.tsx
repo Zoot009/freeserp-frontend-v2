@@ -49,7 +49,12 @@ const WORKSPACE: Item[] = [
   { title: "Bing Tracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
   { title: "Yahoo Tracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
   { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
-  { title: "LLM Tracker", url: "/dashboard/llm-tracker", icon: BrainCircuit },
+]
+// Its own group, above the rank trackers. It is not a rank tracker — it tracks
+// whether the models name your brand in a prose answer — so filing it under
+// "Rank Tracker Workspace" would misdescribe it, and it is the tool we lead with.
+const AI_SEARCH: Item[] = [
+  { title: "AI Prompt Tracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit },
 ]
 const TOOLS: Item[] = [
   { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
@@ -102,9 +107,30 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
     }
   }, [])
 
+  // Same story for the AI Prompt Tracker: every run is real DataForSEO spend and
+  // access is allowlisted server-side (TEST_FEATURE_ACCESS_EMAILS). Now that it is
+  // the headline item every user sees it, so an ungated row would send most of
+  // them into a 403. Fails closed, exactly like Maps above.
+  const [promptTrackerAllowed, setPromptTrackerAllowed] = React.useState(false)
+  React.useEffect(() => {
+    let cancelled = false
+    api
+      .get<{ allowed: boolean }>("/api/llm-tracker/access")
+      .then(({ allowed }) => {
+        if (!cancelled) setPromptTrackerAllowed(allowed)
+      })
+      .catch(() => {
+        /* stays locked on any error — fail closed */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const workspace = WORKSPACE.map((it) =>
     it.title === "Google Maps Tracker" ? { ...it, soon: !mapsTrackerAllowed } : it,
   )
+  const aiSearch = AI_SEARCH.map((it) => ({ ...it, soon: !promptTrackerAllowed }))
 
   const Group = ({ label, items }: { label: string; items: Item[] }) => (
     <SidebarGroup>
@@ -163,6 +189,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
+        <Group label="AI Search" items={aiSearch} />
         <Group label="Rank Tracker Workspace" items={workspace} />
         <Group label="Other Tools" items={TOOLS} />
       </SidebarContent>

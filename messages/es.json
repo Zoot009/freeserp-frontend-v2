@@ -484,7 +484,7 @@
     "project": "Proyecto",
     "keywords": "Palabras clave",
     "youtube": "YouTube",
-    "llmTracker": "Rastreador LLM",
+    "aiPromptTracker": "Rastreador de prompts de IA",
     "favorites": "Favoritos",
     "quickSerp": "SERP rápido",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,8 +501,7 @@
     "keywordAnalysis": "Análisis de palabras clave",
     "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
-    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba",
-    "llmPrompts": "Mis prompts"
+    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba"
   },
   "dashFavorites": {
     "headerEyebrow": "Guardados",
@@ -1201,9 +1200,7 @@
     "titleFreeDaily": "Has usado tus comprobaciones de hoy",
     "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC — tu prueba sigue activa.",
     "gotIt": "Entendido",
-    "seePlans": "Ver planes",
-    "bodyLlmTrackerAddOn": "El seguimiento de visibilidad en IA es un complemento. Muestra qué sitios recomiendan ChatGPT y Google AI Overview en tu categoría, con 12 meses de historial.",
-    "bodyLlmTrackerLimit": "Has agotado tu cuota de datos de visibilidad en IA por ahora. Los resultados en caché siguen siendo gratuitos y tu cuota se restablece automáticamente."
+    "seePlans": "Ver planes"
   },
   "trialCountdown": {
     "cta": "Ver planes",
@@ -1456,25 +1453,6 @@
     "kmFilterPlaceholder": "Filtrar estas palabras clave…",
     "kmClearGroupFilter": "Quitar el filtro de grupo",
     "kmRelatedPaidOnly": "La vista de palabras clave relacionadas está disponible en los planes de pago. Mejora tu plan para desbloquearla.",
-    "llmEyebrow": "Visibilidad en IA",
-    "llmTitle": "LLM Tracker",
-    "llmIntro": "Descubre qué sitios recomienda la IA en tu categoría, y si tú eres uno de ellos.",
-    "llmNewSearch": "Nueva búsqueda",
-    "llmMyPrompts": "Mis prompts →",
-    "llmEarlyAccess": "La visibilidad en IA está en acceso anticipado",
-    "llmNotOnList": "Tu cuenta aún no está en la lista. Escríbenos y te añadimos.",
-    "llmNotAvailable": "El seguimiento de visibilidad en IA aún no está disponible en esta versión de la API.",
-    "llmAddOn": "La visibilidad en IA es un complemento",
-    "llmCategoryLeader": "Líder de la categoría",
-    "llmNoAnswers": "No se han encontrado respuestas de IA archivadas para esta palabra clave. Prueba con un término más amplio.",
-    "llmNoQuestions": "Todavía no hay preguntas archivadas para esta palabra clave.",
-    "llmDomain": "Dominio",
-    "llmMentions": "Menciones",
-    "llmAiVolume": "Volumen de búsqueda en IA",
-    "llmYou": "Tú",
-    "llmQuestion": "Pregunta",
-    "llmCitedSources": "Fuentes citadas",
-    "llmCoCited": "Dominios que la IA cita en las mismas respuestas que a ti",
     "loading": "Cargando…",
     "cancel": "Cancelar",
     "close": "Cerrar"

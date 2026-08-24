@@ -484,7 +484,7 @@
     "project": "Project",
     "keywords": "Keywords",
     "youtube": "YouTube",
-    "llmTracker": "LLM Tracker",
+    "aiPromptTracker": "AI Prompt Tracker",
     "favorites": "Favorites",
     "quickSerp": "Quick Serp",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,8 +501,7 @@
     "keywordAnalysis": "Keyword Score Checker",
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
-    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
-    "llmPrompts": "My Prompts"
+    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",
@@ -1201,9 +1200,7 @@
     "titleFreeDaily": "That's today's free checks",
     "bodyFreeDailyQuota": "You've used {used} of {limit} free checks today. They reset at midnight UTC — your trial keeps running.",
     "gotIt": "Got it",
-    "seePlans": "See plans",
-    "bodyLlmTrackerAddOn": "AI Visibility tracking is an add-on. It shows which sites ChatGPT and Google AI Overview recommend in your category, with 12 months of history.",
-    "bodyLlmTrackerLimit": "You have used your AI Visibility data allowance for now. Cached results stay free, and your allowance resets automatically."
+    "seePlans": "See plans"
   },
   "trialCountdown": {
     "cta": "See plans",
@@ -1456,25 +1453,6 @@
     "kmFilterPlaceholder": "Filter these keywords…",
     "kmClearGroupFilter": "Clear group filter",
     "kmRelatedPaidOnly": "The Related keywords view is available on paid plans. Upgrade to unlock it.",
-    "llmEyebrow": "AI visibility",
-    "llmTitle": "LLM Tracker",
-    "llmIntro": "See which sites AI recommends in your category — and whether you're one of them.",
-    "llmNewSearch": "New search",
-    "llmMyPrompts": "My prompts →",
-    "llmEarlyAccess": "AI Visibility is in early access",
-    "llmNotOnList": "Your account isn't on the list yet. Contact us and we'll add you.",
-    "llmNotAvailable": "AI Visibility tracking isn't available on this API version yet.",
-    "llmAddOn": "AI Visibility is an add-on",
-    "llmCategoryLeader": "Category leader",
-    "llmNoAnswers": "No archived AI answers found for this keyword. Try a broader term.",
-    "llmNoQuestions": "No archived questions for this keyword yet.",
-    "llmDomain": "Domain",
-    "llmMentions": "Mentions",
-    "llmAiVolume": "AI search volume",
-    "llmYou": "You",
-    "llmQuestion": "Question",
-    "llmCitedSources": "Cited sources",
-    "llmCoCited": "Domains AI cites in the same answers as you",
     "loading": "Loading…",
     "cancel": "Cancel",
     "close": "Close"

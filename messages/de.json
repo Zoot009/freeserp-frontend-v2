@@ -484,7 +484,7 @@
     "project": "Projekt",
     "keywords": "Keywords",
     "youtube": "YouTube",
-    "llmTracker": "LLM-Tracker",
+    "aiPromptTracker": "KI-Prompt-Tracker",
     "favorites": "Favoriten",
     "quickSerp": "Schnelles SERP",
     "keywordMagic": "Keyword Magic Tool",
@@ -501,8 +501,7 @@
     "keywordAnalysis": "Keyword-Analyse",
     "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
-    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test",
-    "llmPrompts": "Meine Prompts"
+    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",
@@ -1201,9 +1200,7 @@
     "titleFreeDaily": "Das waren die heutigen Prüfungen",
     "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt — Ihre Testphase läuft weiter.",
     "gotIt": "Verstanden",
-    "seePlans": "Pläne ansehen",
-    "bodyLlmTrackerAddOn": "AI-Visibility-Tracking ist ein Add-on. Es zeigt, welche Seiten ChatGPT und Google AI Overview in Ihrer Kategorie empfehlen – mit 12 Monaten Verlauf.",
-    "bodyLlmTrackerLimit": "Ihr AI-Visibility-Kontingent ist vorerst aufgebraucht. Zwischengespeicherte Ergebnisse bleiben kostenlos, und Ihr Kontingent wird automatisch zurückgesetzt."
+    "seePlans": "Pläne ansehen"
   },
   "trialCountdown": {
     "cta": "Tarife ansehen",
@@ -1456,25 +1453,6 @@
     "kmFilterPlaceholder": "Diese Keywords filtern…",
     "kmClearGroupFilter": "Gruppenfilter zurücksetzen",
     "kmRelatedPaidOnly": "Die Ansicht verwandter Keywords ist in den kostenpflichtigen Tarifen verfügbar. Upgraden Sie, um sie freizuschalten.",
-    "llmEyebrow": "KI-Sichtbarkeit",
-    "llmTitle": "LLM Tracker",
-    "llmIntro": "Sehen Sie, welche Websites die KI in Ihrer Kategorie empfiehlt — und ob Sie dazugehören.",
-    "llmNewSearch": "Neue Suche",
-    "llmMyPrompts": "Meine Prompts →",
-    "llmEarlyAccess": "KI-Sichtbarkeit ist im Early Access",
-    "llmNotOnList": "Ihr Konto steht noch nicht auf der Liste. Schreiben Sie uns, wir nehmen Sie auf.",
-    "llmNotAvailable": "Das Tracking der KI-Sichtbarkeit ist in dieser API-Version noch nicht verfügbar.",
-    "llmAddOn": "KI-Sichtbarkeit ist ein Add-on",
-    "llmCategoryLeader": "Kategorieführer",
-    "llmNoAnswers": "Für dieses Keyword wurden keine archivierten KI-Antworten gefunden. Versuchen Sie einen breiteren Begriff.",
-    "llmNoQuestions": "Für dieses Keyword gibt es noch keine archivierten Fragen.",
-    "llmDomain": "Domain",
-    "llmMentions": "Erwähnungen",
-    "llmAiVolume": "KI-Suchvolumen",
-    "llmYou": "Sie",
-    "llmQuestion": "Frage",
-    "llmCitedSources": "Zitierte Quellen",
-    "llmCoCited": "Domains, die die KI in denselben Antworten zitiert wie Sie",
     "loading": "Wird geladen…",
     "cancel": "Abbrechen",
     "close": "Schließen"

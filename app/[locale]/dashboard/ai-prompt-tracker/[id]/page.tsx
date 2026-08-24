@@ -87,7 +87,7 @@ export default function LlmPromptListPage() {
         setPrompts(data.prompts)
       } catch (err: unknown) {
         if (err instanceof ApiError && err.status === 404) {
-          router.replace("/dashboard/llm-tracker/prompts")
+          router.replace("/dashboard/ai-prompt-tracker")
           return
         }
         // Background polls must never surface an error banner over good data.
@@ -171,7 +171,7 @@ export default function LlmPromptListPage() {
       <div className="page-h">
         <div>
           <div className="tiny muted">
-            <Link href="/dashboard/llm-tracker/prompts">AI Prompt Tracker</Link> · {project.brandName}
+            <Link href="/dashboard/ai-prompt-tracker">AI Prompt Tracker</Link> · {project.brandName}
           </div>
           <h1>{project.name}</h1>
         </div>
@@ -269,7 +269,7 @@ export default function LlmPromptListPage() {
                         ) : null}
                         {idx === 0 ? (
                           <td rowSpan={p.platforms.length || 1} className="kw">
-                            <Link href={`/dashboard/llm-tracker/prompts/${projectId}/${p.id}`}>{p.prompt}</Link>
+                            <Link href={`/dashboard/ai-prompt-tracker/${projectId}/${p.id}`}>{p.prompt}</Link>
                           </td>
                         ) : null}
                         <td>

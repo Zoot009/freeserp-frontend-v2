@@ -272,7 +272,7 @@ function ProjectsList({
                 <div className="grid g-2" style={{ marginBottom: 14, gap: 10 }}>
                   <div>
                     <div className="tiny muted">{t("keywords")}</div>
-                    <div className="b tabular" style={{ fontSize: 18 }}>{p._count.keywords}</div>
+                    <div className="b tabular" style={{ fontSize: 18 }}>{p._count?.keywords ?? 0}</div>
                   </div>
                   <div>
                     <div className="tiny muted">{t("added")}</div>
@@ -334,7 +334,7 @@ function ProjectsList({
                         </div>
                       </div>
                     </td>
-                    <td className="tabular">{p._count.keywords}</td>
+                    <td className="tabular">{p._count?.keywords ?? 0}</td>
                     <td>
                       <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
                     </td>
@@ -540,7 +540,10 @@ export default function ProjectsPage() {
         <CreateProjectModal<ProjectSummary>
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
-            setProjects((prev) => [p, ...prev])
+            // POST /api/projects returns the bare project row — no `_count`,
+            // which only the list query includes. Normalise it here (a brand-new
+            // project tracks nothing yet) so the cards/table can read it.
+            setProjects((prev) => [{ ...p, _count: p._count ?? { keywords: 0 } }, ...prev])
             setShowAddProject(false)
             // First-ever project for this account → GTM conversion. Deduped
             // server-side, so it fires once per account and never again if the
