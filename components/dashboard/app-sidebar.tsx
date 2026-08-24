@@ -5,7 +5,6 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
-import { api } from "@/lib/api"
 import {
   LayoutDashboard,
   LineChart,
@@ -89,32 +88,11 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const t = useTranslations("dashboardNav")
   const pathname = usePathname()
 
-  // Google Maps Tracker is released. The allowlist existed because scans spend
-  // DataForSEO money per grid point with no billing in front of them; credits
-  // are that billing now, so the link is simply a link.
+  // Google Maps Tracker and the AI Prompt Tracker are both released. Each had an
+  // allowlist because it spends DataForSEO money per action with no billing in
+  // front of it; credits are that billing now, so the links are simply links.
   const workspace = WORKSPACE
-
-  // The AI Prompt Tracker is still gated: every run is real DataForSEO spend and
-  // access is allowlisted server-side (TEST_FEATURE_ACCESS_EMAILS). Now that it is
-  // the headline item every user sees it, so an ungated row would send most of
-  // them into a 403. Fails closed, exactly like Maps used to.
-  const [promptTrackerAllowed, setPromptTrackerAllowed] = React.useState(false)
-  React.useEffect(() => {
-    let cancelled = false
-    api
-      .get<{ allowed: boolean }>("/api/llm-tracker/access")
-      .then(({ allowed }) => {
-        if (!cancelled) setPromptTrackerAllowed(allowed)
-      })
-      .catch(() => {
-        /* stays locked on any error — fail closed */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const aiSearch = AI_SEARCH.map((it) => ({ ...it, soon: !promptTrackerAllowed }))
+  const aiSearch = AI_SEARCH
 
   const Group = ({ labelKey, items }: { labelKey: string; items: Item[] }) => (
     <SidebarGroup>

@@ -75,6 +75,7 @@ export const CREDIT_ACTION_KEYS = {
   pageAuditAsk: "page_audit.ask_ai",
   backlinksRefresh: "backlinks.refresh",
   keywordSuggestions: "ks.run",
+  llmPromptSample: "llm.prompt.sample",
 } as const
 
 export type CreditActionKey = (typeof CREDIT_ACTION_KEYS)[keyof typeof CREDIT_ACTION_KEYS]
