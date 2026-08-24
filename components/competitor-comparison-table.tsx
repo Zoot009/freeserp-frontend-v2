@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
-import type { AnalysisData } from "@/types/competitor-analysis"
+import type { AnalysisData, OffPageMetrics } from "@/types/competitor-analysis"
 import { computeSeoScore, scoreColor, type SeoScoreBreakdown } from "@/lib/seoScorer"
 import { crawlErrorCopy } from "@/lib/crawl-error"
 
@@ -77,6 +77,13 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
         : null
     ),
     [analysis.competitors, analysis.keyword]
+  )
+
+  // Off-page metrics per column, your site first — same order as the score
+  // arrays above so the two can be read side by side by index.
+  const offPages: (OffPageMetrics | null)[] = React.useMemo(
+    () => [analysis.yourOffPage ?? null, ...analysis.competitors.map(c => c.offPage ?? null)],
+    [analysis.yourOffPage, analysis.competitors]
   )
 
   return (
@@ -437,20 +444,53 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
 
                       // Off-page metric row (DA/PA as /100 scores, or raw backlink counts),
                       // with best/worst highlighting (higher is better).
-                      const OffPageRow = ({ label, sub, pick, kind }: { label: string; sub?: string; pick: (s: SeoScoreBreakdown) => number | null; kind: 'score' | 'count' }) => {
-                        const nums = [yourScore, ...compScores].map(s => (s ? pick(s) : null))
+                      //
+                      // Values come from `offPage` (served from the dedicated DB
+                      // columns) in preference to the score breakdown, which is
+                      // derived from the crawl blob: a competitor whose page
+                      // blocked our crawler has no blob but does have valid
+                      // authority, and used to show an empty column for it. The
+                      // breakdown stays as the fallback for reports served
+                      // before the API carried this field.
+                      const OffPageRow = ({ label, sub, pick, pickOff, kind }: {
+                        label: string; sub?: string
+                        pick: (s: SeoScoreBreakdown) => number | null
+                        pickOff: (o: OffPageMetrics) => number | null
+                        kind: 'score' | 'count'
+                      }) => {
+                        const nums = offPages.map((o, i) => {
+                          const fromApi = o ? pickOff(o) : null
+                          if (fromApi != null) return fromApi
+                          const s = i === 0 ? yourScore : compScores[i - 1]
+                          return s ? pick(s) : null
+                        })
                         const { highlight } = rankNums(nums[0], nums.slice(1))
-                        const render = (v: number | null) =>
-                          v == null
-                            ? <span className="text-[13px] text-[color:var(--text-mute)]">—</span>
-                            : kind === 'score'
-                              ? <span className={`font-sans font-semibold tabular-nums text-[15px] ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
-                              : <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{v.toLocaleString()}</span>
+                        // An empty cell is ambiguous on its own, so say which
+                        // kind of empty it is: the provider had nothing, or we
+                        // could not reach it and the number is pending a retry.
+                        const render = (v: number | null, off: OffPageMetrics | null) => {
+                          if (v == null) {
+                            const unavailable = off?.status === 'unavailable'
+                            return (
+                              <span
+                                className="text-[13px] text-[color:var(--text-mute)]"
+                                title={unavailable
+                                  ? 'Authority provider unreachable for this URL — the report refreshes automatically when it recovers.'
+                                  : undefined}
+                              >
+                                {unavailable ? <span className="underline decoration-dotted underline-offset-2">n/a</span> : '—'}
+                              </span>
+                            )
+                          }
+                          return kind === 'score'
+                            ? <span className={`font-sans font-semibold tabular-nums text-[15px] ${scoreColor(v)}`}>{v}<span className="text-[10px] text-[color:var(--text-mute)] font-normal"> /100</span></span>
+                            : <span className="font-sans font-semibold tabular-nums text-[15px] text-[color:var(--text)]">{v.toLocaleString()}</span>
+                        }
                         return (
                           <tr>
                             <Label label={label} sub={sub} />
-                            <Cell highlight={highlight(nums[0])}>{render(nums[0])}</Cell>
-                            {compScores.map((_, i) => <Cell key={i} highlight={highlight(nums[i + 1])}>{render(nums[i + 1])}</Cell>)}
+                            <Cell highlight={highlight(nums[0])}>{render(nums[0], offPages[0])}</Cell>
+                            {compScores.map((_, i) => <Cell key={i} highlight={highlight(nums[i + 1])}>{render(nums[i + 1], offPages[i + 1])}</Cell>)}
                           </tr>
                         )
                       }
@@ -503,10 +543,10 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
 
                           {/* ── OFF-PAGE SEO (authority + backlinks) ── */}
                           <SectionRow title="Off-Page SEO" colSpan={totalCols} />
-                          <OffPageRow label="Domain Authority" sub="DA · 0–100" pick={s => s.da} kind="score" />
-                          <OffPageRow label="Page Authority" sub="PA · 0–100" pick={s => s.pa} kind="score" />
-                          <OffPageRow label="Backlinks — Domain" sub="total to domain" pick={s => s.domainBacklinks} kind="count" />
-                          <OffPageRow label="Backlinks — Page" sub="total to ranking page" pick={s => s.pageBacklinks} kind="count" />
+                          <OffPageRow label="Domain Authority" sub="DA · 0–100" pick={s => s.da} pickOff={o => o.da} kind="score" />
+                          <OffPageRow label="Page Authority" sub="PA · 0–100" pick={s => s.pa} pickOff={o => o.pa} kind="score" />
+                          <OffPageRow label="Backlinks — Domain" sub="total to domain" pick={s => s.domainBacklinks} pickOff={o => o.domainBacklinks} kind="count" />
+                          <OffPageRow label="Backlinks — Page" sub="total to ranking page" pick={s => s.pageBacklinks} pickOff={o => o.pageBacklinks} kind="count" />
 
                           {/* ── ON-PAGE SEO (everything below) ── */}
                           <SectionRow title="On-Page SEO" colSpan={totalCols} />

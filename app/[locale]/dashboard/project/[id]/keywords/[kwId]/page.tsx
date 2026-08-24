@@ -14,6 +14,7 @@ import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
 import { Favicon } from "@/components/favicon"
+import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 
 interface Competitor {
   position: number
@@ -49,12 +50,21 @@ interface KeywordDetail {
   keyword: string
   location: string
   device?: string
+  /** Engine of THIS row. Absent on older responses; treated as Google. */
+  engine?: string | null
   addedAt: string
   project: { id: string; name: string; domain: string }
   searchVolume?: number | null
   searchVolumeTrend?: MonthlySearch[] | null
   latestCheck: LatestCheck | null
   history: HistoryEntry[]
+  /**
+   * Every engine tracking this same keyword/market/device, keyed by engine id —
+   * each engine is its own row with its own history, so this is what lets the
+   * chart draw one line per engine instead of interleaving them into one.
+   * Always contains at least this row's own engine.
+   */
+  historyByEngine?: Record<string, HistoryEntry[]>
   // Effective status including an in-flight SerpTask: PENDING/PROCESSING while
   // a check is running, COMPLETED/FAILED/null otherwise.
   inFlightStatus?: string | null
@@ -132,6 +142,7 @@ export default function KeywordDetailPage() {
   const [error, setError] = useState("")
   const [tab, setTab] = useState<Tab>(() => tabFromParam(searchParams.get("tab")))
   const [historyPage, setHistoryPage] = useState(1)
+  const { engines: availableEngines } = useEngines()
   const [serpPage, setSerpPage] = useState(1)
   const ITEMS_PER_PAGE = 10
 
@@ -238,16 +249,65 @@ export default function KeywordDetailPage() {
 
   // Build chart data from history. Sort oldest-first so the line reads
   // left-to-right and reuse the dashboard's LineChart helper.
-  const chartData = history.length > 0
-    ? [...history]
-        .filter((h) => h.position != null)
-        .slice(0, 60)
-        .reverse()
-        // checkedAt rides along so the axis and tooltip can say WHEN, rather
-        // than numbering the checks "1, 2, 3" and leaving the reader to guess
-        // whether that was yesterday or last month.
-        .map((h, i) => ({ day: i, pos: h.position as number, ts: new Date(h.checkedAt).getTime() }))
-    : []
+  const thisEngine = engineOf(data)
+  // Labels come from the registry so the legend says "Google"/"Bing" rather than
+  // the raw ids, and a future engine needs no change here.
+  const engineLabels: Record<string, string> = Object.fromEntries(
+    availableEngines.map((e) => [e.id, e.label]),
+  )
+
+  // One series per engine, pivoted onto a shared timeline.
+  //
+  // Engines must never share a line. Google rank 4 and Bing rank 19 plotted as
+  // one series reads as a catastrophic drop, and it is a plausible-looking lie
+  // rather than an obvious glitch — so each engine gets its own dataKey and any
+  // timestamp an engine has no check for stays UNDEFINED. Undefined leaves a gap;
+  // 0 would draw a line plunging to the top of a reversed axis, which is the very
+  // false-crash reading this exists to prevent.
+  const byEngine: Record<string, HistoryEntry[]> =
+    data.historyByEngine && Object.keys(data.historyByEngine).length > 0
+      ? data.historyByEngine
+      : { [thisEngine]: history }
+
+  // Google first so it keeps the primary colour and the legend order is stable.
+  const chartEngines = Object.keys(byEngine).sort((a, b) =>
+    a === DEFAULT_ENGINE ? -1 : b === DEFAULT_ENGINE ? 1 : a.localeCompare(b),
+  )
+
+  const chartData = (() => {
+    const rows = new Map<number, Record<string, number>>()
+    for (const engineId of chartEngines) {
+      for (const h of (byEngine[engineId] ?? []).filter((x) => x.position != null).slice(0, 60)) {
+        const ts = new Date(h.checkedAt).getTime()
+        const row = rows.get(ts) ?? {}
+        row[engineId] = h.position as number
+        rows.set(ts, row)
+      }
+    }
+    return [...rows.entries()]
+      .sort(([a], [b]) => a - b)
+      // checkedAt rides along so the axis and tooltip can say WHEN, rather than
+      // numbering the checks "1, 2, 3" and leaving the reader to guess whether
+      // that was yesterday or last month.
+      .map(([ts, positions], i) => ({ day: i, ts, ...positions }))
+  })()
+
+  // Distinct, colour-blind-safe hues. Google keeps var(--primary) so nothing
+  // changes visually for the overwhelming majority of users, who track it alone.
+  const ENGINE_COLORS = ["var(--primary)", "#d97706", "#7c3aed", "#0891b2"]
+  const chartConfig = Object.fromEntries(
+    chartEngines.map((id, i) => [
+      id,
+      {
+        // With one engine the tooltip keeps saying "Position", exactly as it did
+        // before this feature existed. Naming the engine is only informative
+        // once there is another engine to tell it apart from — otherwise every
+        // Google-only user sees a gratuitous change.
+        label: chartEngines.length > 1 ? (engineLabels[id] ?? id) : "Position",
+        color: ENGINE_COLORS[i % ENGINE_COLORS.length],
+      },
+    ]),
+  )
 
   const inFlight = data.inFlightStatus === "PENDING" || data.inFlightStatus === "PROCESSING"
 
@@ -261,7 +321,12 @@ export default function KeywordDetailPage() {
         <div style={{ minWidth: 0 }}>
           <h1 style={{ wordBreak: "break-word" }}>{keyword}</h1>
           <div className="sub">
-            {location.toUpperCase()} · {(device ?? "desktop").toUpperCase()} · Added{" "}
+            {location.toUpperCase()} · {(device ?? "desktop").toUpperCase()}
+            {/* Only when more than one engine is offered — otherwise every page
+                would gain a redundant "GOOGLE" for a distinction that does not
+                exist yet. */}
+            {availableEngines.length > 1 && ` · ${(engineLabels[thisEngine] ?? thisEngine).toUpperCase()}`}
+            {" · "}Added{" "}
             {new Date(addedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             {inFlight && (
               <>
@@ -387,10 +452,7 @@ export default function KeywordDetailPage() {
                   parked at #1 is a flat line at the top of its domain, so a
                   heavy gradient under it filled the whole card with a blue
                   block and buried the one thing worth reading. */}
-              <ChartContainer
-                config={{ pos: { label: "Position", color: "var(--primary)" } }}
-                className="!aspect-auto h-[200px] w-full"
-              >
+              <ChartContainer config={chartConfig} className="!aspect-auto h-[200px] w-full">
                 {/* A LINE, not an area.
                     On a reversed axis an <Area> fills toward the axis baseline,
                     which is now ABOVE the data — so the gradient hung over the
@@ -451,14 +513,30 @@ export default function KeywordDetailPage() {
                     }
                   />
                   <Line
-                    dataKey="pos"
+                    dataKey={chartEngines[0]}
                     type="monotone"
-                    stroke="var(--color-pos)"
+                    stroke={`var(--color-${chartEngines[0]})`}
                     strokeWidth={2}
-                    dot={{ r: 3, strokeWidth: 2, fill: "var(--bg)", stroke: "var(--color-pos)" }}
+                    dot={{ r: 3, strokeWidth: 2, fill: "var(--bg)", stroke: `var(--color-${chartEngines[0]})` }}
                     activeDot={{ r: 5 }}
                     isAnimationActive={false}
+                    // A missing check must break the line, not bridge it: joining
+                    // across a gap invents a trend that was never measured.
+                    connectNulls={false}
                   />
+                  {chartEngines.slice(1).map((id) => (
+                    <Line
+                      key={id}
+                      dataKey={id}
+                      type="monotone"
+                      stroke={`var(--color-${id})`}
+                      strokeWidth={2}
+                      dot={{ r: 3, strokeWidth: 2, fill: "var(--bg)", stroke: `var(--color-${id})` }}
+                      activeDot={{ r: 5 }}
+                      isAnimationActive={false}
+                      connectNulls={false}
+                    />
+                  ))}
                 </LineChart>
               </ChartContainer>
             </div>

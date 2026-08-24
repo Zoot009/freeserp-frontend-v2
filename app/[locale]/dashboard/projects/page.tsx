@@ -272,7 +272,7 @@ function ProjectsList({
                 <div className="grid g-2" style={{ marginBottom: 14, gap: 10 }}>
                   <div>
                     <div className="tiny muted">{t("keywords")}</div>
-                    <div className="b tabular" style={{ fontSize: 18 }}>{p._count.keywords}</div>
+                    <div className="b tabular" style={{ fontSize: 18 }}>{p._count?.keywords ?? 0}</div>
                   </div>
                   <div>
                     <div className="tiny muted">{t("added")}</div>
@@ -334,7 +334,7 @@ function ProjectsList({
                         </div>
                       </div>
                     </td>
-                    <td className="tabular">{p._count.keywords}</td>
+                    <td className="tabular">{p._count?.keywords ?? 0}</td>
                     <td>
                       <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
                     </td>
@@ -540,12 +540,13 @@ export default function ProjectsPage() {
         <CreateProjectModal<ProjectSummary>
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
-            // The create endpoint's response has no `_count` (only the list
-            // endpoint includes it) — inserting it as-is made the grid/list
-            // render crash on `p._count.keywords` before the redirect below
-            // could take over, tripping the dashboard error boundary. Same
-            // fallback the pending-domain flow already uses further down.
-            setProjects((prev) => [{ ...p, _count: { keywords: 0 } }, ...prev])
+            // POST /api/projects returns the bare project row — no `_count`,
+            // which only the list query includes. Inserting it as-is made the
+            // grid/list crash on `p._count.keywords` before the redirect below
+            // could take over, tripping the dashboard error boundary. Normalise
+            // it here (a brand-new project tracks nothing yet) so the cards and
+            // table can read it — same fallback the pending-domain flow uses.
+            setProjects((prev) => [{ ...p, _count: p._count ?? { keywords: 0 } }, ...prev])
             setShowAddProject(false)
             // First-ever project for this account → GTM conversion. Deduped
             // server-side, so it fires once per account and never again if the

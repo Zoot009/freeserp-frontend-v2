@@ -5,6 +5,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
+import { api } from "@/lib/api"
 import {
   LayoutDashboard,
   LineChart,
@@ -49,7 +50,12 @@ const WORKSPACE: Item[] = [
   { key: "bingTracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
   { key: "yahooTracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
   { key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
-  { key: "llmTracker", url: "/dashboard/llm-tracker", icon: BrainCircuit },
+]
+// Its own group, above the rank trackers. It is not a rank tracker — it tracks
+// whether the models name your brand in a prose answer — so filing it under
+// "Rank Tracker Workspace" would misdescribe it, and it is the tool we lead with.
+const AI_SEARCH: Item[] = [
+  { key: "aiPromptTracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit },
 ]
 const TOOLS: Item[] = [
   { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },
@@ -83,11 +89,32 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const t = useTranslations("dashboardNav")
   const pathname = usePathname()
 
-  // Google Maps Tracker is in early access — every scan point is real
   // Google Maps Tracker is released. The allowlist existed because scans spend
   // DataForSEO money per grid point with no billing in front of them; credits
   // are that billing now, so the link is simply a link.
   const workspace = WORKSPACE
+
+  // The AI Prompt Tracker is still gated: every run is real DataForSEO spend and
+  // access is allowlisted server-side (TEST_FEATURE_ACCESS_EMAILS). Now that it is
+  // the headline item every user sees it, so an ungated row would send most of
+  // them into a 403. Fails closed, exactly like Maps used to.
+  const [promptTrackerAllowed, setPromptTrackerAllowed] = React.useState(false)
+  React.useEffect(() => {
+    let cancelled = false
+    api
+      .get<{ allowed: boolean }>("/api/llm-tracker/access")
+      .then(({ allowed }) => {
+        if (!cancelled) setPromptTrackerAllowed(allowed)
+      })
+      .catch(() => {
+        /* stays locked on any error — fail closed */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const aiSearch = AI_SEARCH.map((it) => ({ ...it, soon: !promptTrackerAllowed }))
 
   const Group = ({ labelKey, items }: { labelKey: string; items: Item[] }) => (
     <SidebarGroup>
@@ -146,6 +173,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
+        <Group labelKey="aiSearch" items={aiSearch} />
         <Group labelKey="workspace" items={workspace} />
         <Group labelKey="tools" items={TOOLS} />
       </SidebarContent>

@@ -20,6 +20,7 @@ import {
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { useEngines, engineOf } from "@/hooks/use-engines"
 
 type ProjectSummary = {
   id: string
@@ -35,6 +36,8 @@ type Keyword = {
   keyword: string
   location: string | null
   device: string | null
+  /** Absent on older responses; treated as Google. */
+  engine?: string | null
   position: number | null
   d1: number | null
   d7: number | null
@@ -60,6 +63,7 @@ type EnrichedRow = KeywordRow & {
   projectDomain: string
   location: string | null
   device: string | null
+  engine?: string | null
   traffic: number | null
   status: string | null
   checkedAt: string | null
@@ -77,7 +81,11 @@ export default function KeywordsListPage() {
 
   const [filter, setFilter] = useState("")
   const [projectFilter, setProjectFilter] = useState<string>("all")
+  const { engines: availableEngines, multiEngine } = useEngines()
   const [deviceFilter, setDeviceFilter] = useState<"all" | "desktop" | "mobile">("all")
+  // Defaults to "all": this table spans every project, so hiding rows by engine
+  // before the user asks would silently shrink the list they came here to see.
+  const [engineFilter, setEngineFilter] = useState<string>("all")
   const [trendFilter, setTrendFilter] = useState<"all" | "winning" | "losing">("all")
   const [sort, setSort] = useState<{ key: "kw" | "pos" | "vol" | "traffic" | "delta"; dir: "asc" | "desc" }>({
     key: "vol",
@@ -123,6 +131,7 @@ export default function KeywordsListPage() {
               projectDomain: detail.domain,
               location: k.location,
               device: k.device,
+              engine: k.engine,
               traffic: k.monthlyTraffic,
               status: k.status,
               checkedAt: k.checkedAt,
@@ -148,6 +157,7 @@ export default function KeywordsListPage() {
     let out = rows
     if (projectFilter !== "all") out = out.filter((r) => r.projectId === projectFilter)
     if (deviceFilter !== "all") out = out.filter((r) => (r.device ?? "desktop") === deviceFilter)
+    if (engineFilter !== "all") out = out.filter((r) => engineOf(r) === engineFilter)
     if (trendFilter !== "all") out = out.filter((r) => r.trend5 === trendFilter)
     if (filter.trim()) {
       const needle = filter.toLowerCase()
@@ -175,7 +185,7 @@ export default function KeywordsListPage() {
       return sort.dir === "asc" ? av - bv : bv - av
     })
     return out
-  }, [rows, filter, projectFilter, deviceFilter, trendFilter, sort])
+  }, [rows, filter, projectFilter, deviceFilter, engineFilter, trendFilter, sort])
 
   const positions = filtered.map((r) => r.pos).filter((p): p is number => p != null && Number.isFinite(p))
   const avgPos = positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 0
@@ -253,6 +263,16 @@ export default function KeywordsListPage() {
             </button>
           ))}
         </div>
+        {/* Engine filter, only once a second engine is actually enabled. */}
+        {multiEngine && (
+          <div className="pill-toggle">
+            {(["all", ...availableEngines.map((e) => e.id)] as const).map((id) => (
+              <button key={id} className={engineFilter === id ? "active" : ""} onClick={() => setEngineFilter(id)}>
+                {id === "all" ? t("deviceAll") : (availableEngines.find((e) => e.id === id)?.label ?? id)}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Trend filter pushed to the far right of the bar. */}
         <div className="pill-toggle" style={{ marginLeft: "auto" }}>
           {(["all", "winning", "losing"] as const).map((tr) => (
@@ -371,6 +391,13 @@ export default function KeywordsListPage() {
                           <span className="row" style={{ gap: 3, alignItems: "center" }}>
                             {(r.device === "mobile" ? <Icon.smartphone /> : <Icon.monitor />)}
                             {r.device === "mobile" ? t("deviceMobile") : t("deviceDesktop")}
+                          </span>
+                        )}
+                        {/* Rows from different engines sit side by side in this
+                            table, so each one has to say which it is. */}
+                        {multiEngine && (
+                          <span className="row" style={{ gap: 3, alignItems: "center" }}>
+                            {availableEngines.find((e) => e.id === engineOf(r))?.label ?? engineOf(r)}
                           </span>
                         )}
                       </div>
