@@ -541,8 +541,11 @@ export default function ProjectsPage() {
           onClose={() => setShowAddProject(false)}
           onCreated={(p) => {
             // POST /api/projects returns the bare project row — no `_count`,
-            // which only the list query includes. Normalise it here (a brand-new
-            // project tracks nothing yet) so the cards/table can read it.
+            // which only the list query includes. Inserting it as-is made the
+            // grid/list crash on `p._count.keywords` before the redirect below
+            // could take over, tripping the dashboard error boundary. Normalise
+            // it here (a brand-new project tracks nothing yet) so the cards and
+            // table can read it — same fallback the pending-domain flow uses.
             setProjects((prev) => [{ ...p, _count: p._count ?? { keywords: 0 } }, ...prev])
             setShowAddProject(false)
             // First-ever project for this account → GTM conversion. Deduped

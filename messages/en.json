@@ -501,7 +501,16 @@
     "keywordAnalysis": "Keyword Score Checker",
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
-    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial"
+    "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
+    "googleTracker": "Google Tracker",
+    "youtubeTracker": "YouTube Tracker",
+    "bingTracker": "Bing Tracker",
+    "yahooTracker": "Yahoo Tracker",
+    "mapsTracker": "Google Maps Tracker",
+    "websiteAudit": "Website Audit",
+    "aiInternalLinking": "AI Internal Linking",
+    "aiSearch": "AI Search",
+    "soon": "Soon"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",
@@ -788,14 +797,15 @@
     "checkStaySlow": "still working — this one is taking longer than usual",
     "checkStayOverdue": "this check has run past its expected window; it will be marked failed shortly and you can retry it",
     "checkRunningFor": "running for {duration}",
-    "locked": "Locked",
-    "lockedTip": "You've used today's {limit} checks. Upgrade to Premium to track more than {limit} keywords per day.",
+    "locked": "Upgrade",
+    "lockedTip": "Ready to track. Your plan checks {limit} keywords a day, starting with the highest search volume — upgrade or top up to include this one.",
     "checksResetIn": "Checks reset in",
     "outOfChecksTip": "You've used today's rank checks — they reset at 00:00 UTC. You can still add keywords; upgrade for higher daily limits.",
     "aiSkip": "Skip and add keywords manually",
     "aiChipsLabel": "AI suggestions for your site — click to add",
     "aiAddTopN": "Add top {n}",
     "aiFailedHint": "We couldn't analyze your site automatically. Add your keywords below.",
+    "aiSkippedHint": "Not enough credits to run the AI analysis right now. Add your keywords below, or top up credits and try again.",
     "aiChoiceEyebrow": "AI KEYWORD IDEAS",
     "aiChoiceTitle": "Analyze your site for keyword ideas?",
     "aiChoiceDesc": "We'll read your homepage and suggest keywords with real search volume. Prefer to choose your own? Add them manually — no analysis, nothing spent.",
@@ -941,12 +951,14 @@
     "createError": "Failed to create project",
     "addModalEyebrow": "NEW PROJECT",
     "addModalTitle": "Add a project",
+    "addModalSubtitle": "We'll track how this domain ranks on Google over time, for whichever keywords you choose below.",
     "close": "Close",
     "projectNameLabel": "Project name",
     "projectNamePlaceholder": "My website",
     "domainLabel": "Domain",
     "domainPlaceholder": "example.com",
     "domainHint": "With or without https:// — e.g. example.com",
+    "domainRequiredError": "Enter a domain to continue.",
     "checkFrequencyLabel": "Check frequency",
     "freqEvery1Hour": "Every 1 hour",
     "freqEvery6Hours": "Every 6 hours",
@@ -997,7 +1009,12 @@
     "colCreated": "Created",
     "colTrend": "Trend",
     "loading": "Loading…",
-    "admin": "Admin"
+    "admin": "Admin",
+    "startLabel": "How should we start tracking keywords?",
+    "autoTitle": "Find them for me",
+    "autoDesc": "We'll scan your homepage with AI and suggest keywords it should already rank for — you just pick the ones worth tracking.",
+    "manualTitle": "I'll add my own",
+    "manualDesc": "Skip the analysis. Start with an empty list and type in the exact keywords you want to track — nothing spent."
   },
   "dashSerpChecker": {
     "eyebrow": "QUICK SERP",
@@ -1015,7 +1032,8 @@
       "mobile": "Mobile",
       "checking": "Checking…",
       "checkRankings": "Check Rankings",
-      "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds"
+      "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds",
+      "costNoteCredits": "Live Google query · uses {count, plural, one {# credit} other {# credits}} · ~10 seconds"
     },
     "processing": {
       "withKeyword": "Querying Google for “{keyword}”… you can leave this page and come back.",
@@ -1064,7 +1082,8 @@
       "close": "Close",
       "body": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and will consume <strong>{count, plural, one {# of your daily checks} other {# of your daily checks}}</strong>. This can’t be undone.",
       "cancel": "Cancel",
-      "confirm": "Use {count, plural, one {# check} other {# checks}}"
+      "confirm": "Use {count, plural, one {# check} other {# checks}}",
+      "titleCredits": "This uses {count, plural, one {# credit} other {# credits}}"
     },
     "errors": {
       "checkFailed": "The check failed. Please try again.",

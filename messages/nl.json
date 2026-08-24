@@ -161,7 +161,15 @@
     "competitorAnalysis": "Concurrentieanalyse",
     "trialDaysLeft": "nog {days, plural, one {# dag} other {# dagen}} in de proefperiode",
     "trialHoursLeft": "nog {hours, plural, one {# uur} other {# uur}} in de proefperiode",
-    "llmPrompts": "Mijn prompts"
+    "llmPrompts": "Mijn prompts",
+    "googleTracker": "Google Tracker",
+    "youtubeTracker": "YouTube Tracker",
+    "bingTracker": "Bing Tracker",
+    "yahooTracker": "Yahoo Tracker",
+    "mapsTracker": "Google Maps Tracker",
+    "websiteAudit": "Website-audit",
+    "aiInternalLinking": "AI interne links",
+    "soon": "Binnenkort"
   },
   "credits": {
     "billingTitle": "Facturatie",
@@ -572,5 +580,20 @@
     "statFreeLabel": "Altijd gratis",
     "statRealtimeValue": "Realtime",
     "statRealtimeLabel": "SERP-gegevens"
+  },
+  "dashSerpChecker": {
+    "form": {
+      "costNoteCredits": "Live Google-zoekopdracht · gebruikt {count, plural, one {# credit} other {# credits}} · ~10 seconden"
+    },
+    "confirm": {
+      "titleCredits": "Dit gebruikt {count, plural, one {# credit} other {# credits}}"
+    }
+  },
+  "dashProjects": {
+    "startLabel": "Hoe wil je beginnen met het volgen van zoekwoorden?",
+    "autoTitle": "Zoek ze voor mij",
+    "autoDesc": "We scannen je startpagina met AI en stellen zoekwoorden voor waarop hij al zou moeten ranken — jij kiest welke je volgt.",
+    "manualTitle": "Ik voeg ze zelf toe",
+    "manualDesc": "Zonder analyse. Begin met een lege lijst en typ zelf de zoekwoorden die je wilt volgen — geen credits gebruikt."
   }
 }

@@ -501,7 +501,16 @@
     "keywordAnalysis": "Análisis de palabras clave",
     "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
-    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba"
+    "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba",
+    "googleTracker": "Rastreador de Google",
+    "youtubeTracker": "Rastreador de YouTube",
+    "bingTracker": "Rastreador de Bing",
+    "yahooTracker": "Rastreador de Yahoo",
+    "mapsTracker": "Rastreador de Google Maps",
+    "websiteAudit": "Auditoría del sitio",
+    "aiInternalLinking": "Enlazado interno con IA",
+    "aiSearch": "Búsqueda con IA",
+    "soon": "Próximamente"
   },
   "dashFavorites": {
     "headerEyebrow": "Guardados",
@@ -785,14 +794,15 @@
     "statusQueued": "{count, plural, one {# palabra clave en cola} other {# palabras clave en cola}}",
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
     "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
-    "locked": "Bloqueada",
-    "lockedTip": "Has usado tus {limit} comprobaciones de hoy. Mejora a Premium para monitorear más de {limit} palabras clave al día.",
+    "locked": "Mejorar",
+    "lockedTip": "Lista para seguir. Tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen de búsqueda: mejora tu plan o recarga para incluir esta.",
     "checksResetIn": "Comprobaciones en",
     "outOfChecksTip": "Has usado las comprobaciones de hoy; se restablecen a las 00:00 UTC. Aún puedes añadir palabras clave; mejora tu plan para límites diarios más altos.",
     "aiSkip": "Omitir y añadir palabras clave manualmente",
     "aiChipsLabel": "Sugerencias de IA para tu sitio: haz clic para añadir",
     "aiAddTopN": "Añadir las {n} mejores",
     "aiFailedHint": "No hemos podido analizar tu sitio automáticamente. Añade tus palabras clave abajo.",
+    "aiSkippedHint": "No tienes créditos suficientes para ejecutar el análisis de IA ahora mismo. Añade tus palabras clave abajo, o recarga créditos e inténtalo de nuevo.",
     "aiChoiceEyebrow": "IDEAS DE PALABRAS CLAVE CON IA",
     "aiChoiceTitle": "¿Analizar tu sitio para obtener ideas de palabras clave?",
     "aiChoiceDesc": "Leeremos tu página de inicio y sugeriremos palabras clave con volumen de búsqueda real. ¿Prefieres elegir las tuyas? Añádelas manualmente: sin análisis, sin gastar nada.",
@@ -941,12 +951,14 @@
     "createError": "No se pudo crear el proyecto",
     "addModalEyebrow": "NUEVO PROYECTO",
     "addModalTitle": "Añadir un proyecto",
+    "addModalSubtitle": "Haremos seguimiento de la posición de este dominio en Google a lo largo del tiempo, para las palabras clave que elijas a continuación.",
     "close": "Cerrar",
     "projectNameLabel": "Nombre del proyecto",
     "projectNamePlaceholder": "Mi sitio web",
     "domainLabel": "Dominio",
     "domainPlaceholder": "ejemplo.com",
     "domainHint": "Con o sin https:// — p. ej. ejemplo.com",
+    "domainRequiredError": "Introduce un dominio para continuar.",
     "checkFrequencyLabel": "Frecuencia de comprobación",
     "freqEvery1Hour": "Cada 1 hora",
     "freqEvery6Hours": "Cada 6 horas",
@@ -997,7 +1009,12 @@
     "colCreated": "Creado",
     "colTrend": "Tendencia",
     "loading": "Cargando…",
-    "admin": "Administración"
+    "admin": "Administración",
+    "startLabel": "¿Cómo quieres empezar a rastrear palabras clave?",
+    "autoTitle": "Búscalas por mí",
+    "autoDesc": "Analizaremos tu página de inicio con IA y sugeriremos palabras clave para las que ya debería posicionar — tú eliges cuáles rastrear.",
+    "manualTitle": "Las añado yo",
+    "manualDesc": "Sin análisis. Empieza con una lista vacía y escribe tú mismo las palabras clave que quieras rastrear — no consume créditos."
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RÁPIDA",
@@ -1015,7 +1032,8 @@
       "mobile": "Móvil",
       "checking": "Comprobando…",
       "checkRankings": "Comprobar posiciones",
-      "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos"
+      "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos",
+      "costNoteCredits": "Consulta en vivo de Google · usa {count, plural, one {# crédito} other {# créditos}} · ~10 segundos"
     },
     "processing": {
       "withKeyword": "Consultando Google para «{keyword}»… puedes salir de esta página y volver.",
@@ -1064,7 +1082,8 @@
       "close": "Cerrar",
       "body": "Una búsqueda SERP en vivo para <strong>«{keyword}»</strong> consulta Google en tiempo real y consumirá <strong>{count, plural, one {# de tus comprobaciones diarias} other {# de tus comprobaciones diarias}}</strong>. No se puede deshacer.",
       "cancel": "Cancelar",
-      "confirm": "Usar {count, plural, one {# comprobación} other {# comprobaciones}}"
+      "confirm": "Usar {count, plural, one {# comprobación} other {# comprobaciones}}",
+      "titleCredits": "Esto usa {count, plural, one {# crédito} other {# créditos}}"
     },
     "errors": {
       "checkFailed": "La comprobación falló. Inténtalo de nuevo.",

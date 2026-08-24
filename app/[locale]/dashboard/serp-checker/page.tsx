@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { Favicon } from "@/components/favicon"
+import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
@@ -90,6 +92,9 @@ function fmtVolume(v: number | null): string {
 }
 
 export default function SerpCheckerPage() {
+  // Worker subscribers still meter in daily checks; everyone else in credits.
+  const { credits: creditSummary } = useCredits()
+  const onCredits = creditSummary?.mode === "credits"
   const t = useTranslations("dashSerpChecker")
   // Live quota cost per lookup from the backend's pricing config.
   const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
@@ -255,7 +260,6 @@ export default function SerpCheckerPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow"><span className="spark"><Icon.zap /></span> {t("eyebrow")}</div>
           <h1>{t("title")}</h1>
           <div className="sub">{t("subtitle")}</div>
         </div>
@@ -330,7 +334,7 @@ export default function SerpCheckerPage() {
           {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
         </button>
         <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
-          {t("form.costNote", { count: liveCheckCost })}
+          {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: liveCheckCost })}
         </div>
 
         {error && (
@@ -380,7 +384,20 @@ export default function SerpCheckerPage() {
             />
             <StatTile
               lbl={t("stats.topCompetitor")}
-              val={result.topCompetitor ? result.topCompetitor.domain : "—"}
+              val={
+                result.topCompetitor ? (
+                  // The mark makes the competitor recognisable at a glance; the
+                  // domain alone reads as text and is easy to skim past.
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                    <Favicon domain={result.topCompetitor.domain} size={20} bare />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {result.topCompetitor.domain}
+                    </span>
+                  </span>
+                ) : (
+                  "—"
+                )
+              }
               tip={result.topCompetitor ? t("stats.competitorResult", { position: result.topCompetitor.position }) : undefined}
             />
             <StatTile
@@ -462,6 +479,7 @@ export default function SerpCheckerPage() {
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                            <Favicon domain={r.domain} size={16} bare />
                             <span className="b" style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {r.title || r.domain}
                             </span>
@@ -599,7 +617,7 @@ export default function SerpCheckerPage() {
                 <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
                   <span className="spark"><Icon.zap /></span> {t("confirm.eyebrow")}
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("confirm.title", { count: liveCheckCost })}</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t(onCredits ? "confirm.titleCredits" : "confirm.title", { count: liveCheckCost })}</div>
               </div>
               <button onClick={() => setShowConfirm(false)} className="icon-btn" aria-label={t("confirm.close")}><Icon.close /></button>
             </div>

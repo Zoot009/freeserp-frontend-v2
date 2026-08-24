@@ -501,7 +501,16 @@
     "keywordAnalysis": "Analyse de mots-clés",
     "competitorAnalysis": "Analyse de la concurrence",
     "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
-    "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai"
+    "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai",
+    "googleTracker": "Suivi Google",
+    "youtubeTracker": "Suivi YouTube",
+    "bingTracker": "Suivi Bing",
+    "yahooTracker": "Suivi Yahoo",
+    "mapsTracker": "Suivi Google Maps",
+    "websiteAudit": "Audit du site",
+    "aiInternalLinking": "Maillage interne par IA",
+    "aiSearch": "Recherche IA",
+    "soon": "Bientôt"
   },
   "dashFavorites": {
     "headerEyebrow": "Enregistrés",
@@ -785,14 +794,15 @@
     "statusQueued": "{count, plural, one {# mot-clé en file d'attente} other {# mots-clés en file d'attente}}",
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
-    "locked": "Verrouillé",
-    "lockedTip": "Vous avez utilisé vos {limit} vérifications du jour. Passez à Premium pour suivre plus de {limit} mots-clés par jour.",
+    "locked": "Améliorer",
+    "lockedTip": "Prêt à suivre. Votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés — passez à un forfait supérieur ou rechargez pour inclure celui-ci.",
     "checksResetIn": "Vérifications dans",
     "outOfChecksTip": "Vous avez utilisé vos vérifications du jour ; elles se réinitialisent à 00:00 UTC. Vous pouvez toujours ajouter des mots-clés ; passez à un forfait supérieur pour des limites plus élevées.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
     "aiChipsLabel": "Suggestions IA pour votre site — cliquez pour ajouter",
     "aiAddTopN": "Ajouter les {n} meilleurs",
     "aiFailedHint": "Nous n'avons pas pu analyser votre site automatiquement. Ajoutez vos mots-clés ci-dessous.",
+    "aiSkippedHint": "Pas assez de crédits pour lancer l'analyse IA pour le moment. Ajoutez vos mots-clés ci-dessous, ou rechargez des crédits et réessayez.",
     "aiChoiceEyebrow": "IDÉES DE MOTS-CLÉS IA",
     "aiChoiceTitle": "Analyser votre site pour des idées de mots-clés ?",
     "aiChoiceDesc": "Nous lirons votre page d'accueil et suggérerons des mots-clés avec un volume de recherche réel. Vous préférez choisir les vôtres ? Ajoutez-les manuellement — aucune analyse, aucune dépense.",
@@ -941,12 +951,14 @@
     "createError": "Échec de la création du projet",
     "addModalEyebrow": "NOUVEAU PROJET",
     "addModalTitle": "Ajouter un projet",
+    "addModalSubtitle": "Nous suivrons le classement de ce domaine sur Google dans le temps, pour les mots-clés que vous choisissez ci-dessous.",
     "close": "Fermer",
     "projectNameLabel": "Nom du projet",
     "projectNamePlaceholder": "Mon site web",
     "domainLabel": "Domaine",
     "domainPlaceholder": "exemple.com",
     "domainHint": "Avec ou sans https:// — p. ex. exemple.com",
+    "domainRequiredError": "Saisissez un domaine pour continuer.",
     "checkFrequencyLabel": "Fréquence de vérification",
     "freqEvery1Hour": "Toutes les heures",
     "freqEvery6Hours": "Toutes les 6 heures",
@@ -997,7 +1009,12 @@
     "colCreated": "Créé",
     "colTrend": "Tendance",
     "loading": "Chargement…",
-    "admin": "Administration"
+    "admin": "Administration",
+    "startLabel": "Comment voulez-vous commencer à suivre des mots-clés ?",
+    "autoTitle": "Trouvez-les pour moi",
+    "autoDesc": "Nous analysons votre page d'accueil avec l'IA et suggérons des mots-clés sur lesquels elle devrait déjà se positionner — vous choisissez ceux à suivre.",
+    "manualTitle": "Je saisis les miens",
+    "manualDesc": "Sans analyse. Commencez avec une liste vide et saisissez vous-même les mots-clés à suivre — aucun crédit utilisé."
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RAPIDE",
@@ -1015,7 +1032,8 @@
       "mobile": "Mobile",
       "checking": "Vérification…",
       "checkRankings": "Vérifier le classement",
-      "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes"
+      "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes",
+      "costNoteCredits": "Requête Google en direct · utilise {count, plural, one {# crédit} other {# crédits}} · ~10 secondes"
     },
     "processing": {
       "withKeyword": "Interrogation de Google pour « {keyword} »… vous pouvez quitter cette page et revenir.",
@@ -1064,7 +1082,8 @@
       "close": "Fermer",
       "body": "Une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et consommera <strong>{count, plural, one {# de vos vérifications quotidiennes} other {# de vos vérifications quotidiennes}}</strong>. Cette action est irréversible.",
       "cancel": "Annuler",
-      "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}"
+      "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}",
+      "titleCredits": "Ceci utilise {count, plural, one {# crédit} other {# crédits}}"
     },
     "errors": {
       "checkFailed": "La vérification a échoué. Veuillez réessayer.",

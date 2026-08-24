@@ -156,7 +156,25 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
     if (newToken) {
       res = await doRequest(newToken)
     } else {
+      /**
+       * Refresh failed too, so the session is genuinely over.
+       *
+       * This used to clear the token and throw, and nothing was listening. The
+       * throw travelled up through whatever component was fetching, hit React's
+       * error boundary, and rendered "This page couldn't load" — which reads as
+       * the product being broken rather than as a login having expired. Every
+       * page did it, because every page fetches something, so an expired
+       * session looked like a total outage.
+       *
+       * Sending to login is the honest end of a session. The current path goes
+       * along so the user returns to where they were, and the redirect happens
+       * once even if a dozen parallel requests all 401 together.
+       */
       setAccessToken(null)
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        const from = window.location.pathname + window.location.search
+        window.location.href = `/login?next=${encodeURIComponent(from)}`
+      }
       throw readError(res)
     }
   }

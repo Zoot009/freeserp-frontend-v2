@@ -32,30 +32,6 @@ function isTerminal(status: string): boolean {
 }
 
 export default function GoogleMapsTrackerPage() {
-  // Early access gate — the sidebar already hides this link for unlisted
-  // accounts, but the route itself must also refuse to render the tool for
-  // anyone who navigates straight to the URL. Fails closed: stays "checking"
-  // (not "allowed") until the server confirms.
-  const [accessChecked, setAccessChecked] = useState(false)
-  const [accessAllowed, setAccessAllowed] = useState(false)
-  useEffect(() => {
-    let cancelled = false
-    api
-      .get<{ allowed: boolean }>("/api/maps-tracker/access")
-      .then(({ allowed }) => {
-        if (!cancelled) {
-          setAccessAllowed(allowed)
-          setAccessChecked(true)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setAccessChecked(true) // accessAllowed stays false
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const [locations, setLocations] = useState<MapLocation[]>([])
   const [currentLocation, setCurrentLocation] = useState<MapLocation | null>(null)
   // Lets the user drag the red center pin to preview ranking from a spot
@@ -279,24 +255,6 @@ export default function GoogleMapsTrackerPage() {
 
   const canRun = currentLocation != null && keywords.length > 0 && !running && !submitting
 
-  if (!accessChecked) {
-    return (
-      <div className="page">
-        <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">Checking access…</div>
-      </div>
-    )
-  }
-
-  if (!accessAllowed) {
-    return (
-      <div className="page">
-        <div className="card" style={{ padding: 40, textAlign: "center" }}>
-          <div className="b" style={{ marginBottom: 6 }}>Google Maps Tracker is in early access</div>
-        </div>
-      </div>
-    )
-  }
-
   if (!GOOGLE_MAPS_API_KEY) {
     return (
       <div className="page">
@@ -318,7 +276,6 @@ export default function GoogleMapsTrackerPage() {
     <div className="page">
       <div className="page-h" style={{ marginBottom: 12 }}>
         <div>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> GOOGLE MAPS TRACKER</div>
           <h1>Quick Scan</h1>
           <div className="sub">See where your business ranks on Google Maps, block by block.</div>
         </div>

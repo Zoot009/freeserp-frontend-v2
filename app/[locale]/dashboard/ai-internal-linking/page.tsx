@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
@@ -121,9 +123,6 @@ export default function AiInternalLinkingPage() {
       {/* Header */}
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">
-            <span className="spark"><Icon.spark /></span> AI INTERNAL LINKING
-          </div>
           <h1>Map a site&apos;s internal links</h1>
           <div className="sub">
             Enter a domain to crawl its internal link structure and surface orphan pages, hubs, and authority pages.
@@ -147,6 +146,7 @@ export default function AiInternalLinkingPage() {
               </>
             )}
           </button>
+          <CreditCost action={CREDIT_ACTION_KEYS.internalLinking} className="mt-2" />
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
@@ -40,8 +42,8 @@ import { Sparkle, Sparkles, Pencil, Check, X } from "lucide-react"
 const SCHEDULED_CHECKS_ENABLED = true
 
 // Per-project keyword cap for free users. Paid users have no cap. Must stay
-// in sync with FREE_KEYWORDS_PER_PROJECT_LIMIT in the backend.
-const FREE_KEYWORDS_PER_PROJECT_LIMIT = 3
+// in sync with the free plan's dailyChecks in the backend.
+const FREE_DAILY_CHECKS = 3
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
 // 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
@@ -430,7 +432,7 @@ function AddKeywordsModal({
   // homepage. Distinct from the Google-autocomplete chips below, which are
   // related-to-what-you-just-typed. Empty unless the run completed.
   aiSuggestions?: AiSuggestion[]
-  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed"
+  aiStatus?: "idle" | "choosing" | "running" | "done" | "failed" | "skipped"
   onClose: () => void
   onAdded: (device: "desktop" | "mobile", engines: string[]) => void
 }) {
@@ -458,15 +460,28 @@ function AddKeywordsModal({
   // Only treat the user as free when /api/usage has explicitly told us so;
   // undefined (still loading) shouldn't surface paywall copy.
   const isFree = plan === "free"
-  const remaining = isFree ? Math.max(0, FREE_KEYWORDS_PER_PROJECT_LIMIT - currentCount) : Infinity
+  // No per-project keyword cap on any plan. Storing a keyword costs nothing —
+  // only checking it does — so the list is unlimited, and the daily check
+  // allowance is what rations the expensive part.
   const pendingLines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
-  const wouldOverflow = isFree && pendingLines.length > remaining
-  const atKeywordCap = isFree && pendingLines.length >= remaining
 
   // Anchor the related-keyword suggestions to the FIRST keyword entered (not the
   // last word being typed), so they stay stable as the user clicks to add more
   // related keywords instead of vanishing/changing on every keystroke.
   const seed = pendingLines[0] ?? ""
+
+  // Debounced copy of `seed`, used to drive the suggestion pool below. Typing
+  // the first keyword changes `seed` on every keystroke; without this, each
+  // keystroke fired its own reset-and-refetch cycle (a state update plus a
+  // network call to /api/keyword-suggest), and that churn was heavy enough to
+  // make the textarea feel like it was dropping keystrokes while typing fast.
+  // Settling on the value for 300ms before acting on it keeps typing itself
+  // free of any of that work.
+  const [debouncedSeed, setDebouncedSeed] = useState(seed)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSeed(seed), 600)
+    return () => clearTimeout(t)
+  }, [seed])
 
   // Niche context to bias suggestions toward the site's topic (so "serp" on an
   // SEO site suggests "serp checker", not "serpent"). Tokenize the domain (minus
@@ -520,13 +535,13 @@ function AddKeywordsModal({
     }
   }, [nicheTokens, location])
 
-  // Reset the pool whenever the first keyword (or location) changes.
+  // Reset the pool whenever the (debounced) first keyword or location changes.
   useEffect(() => {
-    seedRef.current = seed
+    seedRef.current = debouncedSeed
     setSuggestions([])
     fetchedSeedsRef.current = new Set()
     expandIdxRef.current = 0
-  }, [seed, location])
+  }, [debouncedSeed, location])
 
   // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
@@ -534,22 +549,20 @@ function AddKeywordsModal({
 
   // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
   // sub-seeds ("seo a", "seo b" …) whenever the visible strip runs low — so the
-  // user always has fresh related keywords to add and never runs out.
+  // user always has fresh related keywords to add and never runs out. Driven by
+  // the already-debounced seed, so this never fires mid-keystroke.
   useEffect(() => {
-    if (seed.length < 2) { setSuggLoading(false); return }
-    const t = setTimeout(() => {
-      if (!fetchedSeedsRef.current.has(seed)) { void fetchSuggestionBatch(seed); return }
-      if (visibleSuggestions.length < 6) {
-        const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
-        while (expandIdxRef.current < letters.length) {
-          const sub = `${seed} ${letters[expandIdxRef.current]}`
-          expandIdxRef.current++
-          if (!fetchedSeedsRef.current.has(sub)) { void fetchSuggestionBatch(sub); break }
-        }
+    if (debouncedSeed.length < 2) { setSuggLoading(false); return }
+    if (!fetchedSeedsRef.current.has(debouncedSeed)) { void fetchSuggestionBatch(debouncedSeed); return }
+    if (visibleSuggestions.length < 6) {
+      const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+      while (expandIdxRef.current < letters.length) {
+        const sub = `${debouncedSeed} ${letters[expandIdxRef.current]}`
+        expandIdxRef.current++
+        if (!fetchedSeedsRef.current.has(sub)) { void fetchSuggestionBatch(sub); break }
       }
-    }, 300)
-    return () => clearTimeout(t)
-  }, [seed, visibleSuggestions.length, fetchSuggestionBatch])
+    }
+  }, [debouncedSeed, visibleSuggestions.length, fetchSuggestionBatch])
 
   // Clicking a chip APPENDS the related keyword as a new line (keeping everything
   // already entered, including the first/seed keyword) and refocuses. It does NOT
@@ -557,7 +570,6 @@ function AddKeywordsModal({
   // user can keep adding related ones (each added chip is filtered out below).
   // Routing through `raw` keeps the free keyword cap enforced automatically.
   const addSuggestion = (kw: string) => {
-    if (atKeywordCap) return
     setRaw((prev) => {
       const base = prev.replace(/[\s,]+$/, "")
       return (base ? base + "\n" : "") + kw + "\n"
@@ -576,9 +588,7 @@ function AddKeywordsModal({
   // Routed through `raw` so the free-plan cap applies exactly as it does to
   // manual typing.
   const addTopAiSuggestions = () => {
-    if (atKeywordCap) return
-    const budget = remaining === Infinity ? AI_BULK_ADD_COUNT : Math.min(AI_BULK_ADD_COUNT, remaining - pendingLines.length)
-    const picks = visibleAiSuggestions.slice(0, Math.max(0, budget)).map((s) => s.keyword)
+    const picks = visibleAiSuggestions.slice(0, AI_BULK_ADD_COUNT).map((s) => s.keyword)
     if (!picks.length) return
     setRaw((prev) => {
       const base = prev.replace(/[\s,]+$/, "")
@@ -591,14 +601,6 @@ function AddKeywordsModal({
     e.preventDefault()
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
-    if (isFree && lines.length > remaining) {
-      setError(
-        remaining === 0
-          ? `Free plan: this project already has ${currentCount} keywords (limit ${FREE_KEYWORDS_PER_PROJECT_LIMIT}). Delete some, or upgrade for unlimited keywords per project.`
-          : `Free plan: you can add at most ${remaining} more keyword${remaining === 1 ? "" : "s"} to this project (limit ${FREE_KEYWORDS_PER_PROJECT_LIMIT}). Upgrade for unlimited.`
-      )
-      return
-    }
     setError(""); setLoading(true)
     try {
       // `engines` is sent per keyword. The backend expands it to one row per
@@ -638,11 +640,9 @@ function AddKeywordsModal({
                   </label>
                   <span
                     className="tiny"
-                    style={{ color: wouldOverflow ? "var(--neg)" : "var(--text-mute)", fontFamily: "var(--font-mono)" }}
+                    style={{ color: "var(--text-mute)", fontFamily: "var(--font-mono)" }}
                   >
-                    {isFree
-                      ? `${pendingLines.length}/${remaining} slot${remaining === 1 ? "" : "s"} left`
-                      : `${pendingLines.length} pending · unlimited`}
+                    {`${pendingLines.length} pending · unlimited`}
                   </span>
                 </div>
                 <textarea
@@ -662,11 +662,9 @@ function AddKeywordsModal({
                   }}
                 />
                 <span className="tiny muted">
-                  {!isFree
-                    ? `Paid plan — unlimited keywords per project (${currentCount} used).`
-                    : remaining === 0
-                      ? `Free plan: project is full — ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keyword limit reached. Upgrade for unlimited.`
-                      : `Free plan: up to ${FREE_KEYWORDS_PER_PROJECT_LIMIT} keywords per project (${currentCount} used). Upgrade for unlimited.`}
+                  {isFree
+                    ? `Add as many keywords as you like (${currentCount} tracked). On the free plan ${FREE_DAILY_CHECKS} are checked each day — upgrade to check them all.`
+                    : `Unlimited keywords per project (${currentCount} tracked).`}
                 </span>
 
                 {/* AI suggestions for the whole site, from a crawl of the
@@ -682,14 +680,14 @@ function AddKeywordsModal({
                       <span className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                         <span className="spark"><Icon.spark /></span> {t("aiChipsLabel")}
                       </span>
-                      {visibleAiSuggestions.length > 1 && !atKeywordCap && (
+                      {visibleAiSuggestions.length > 1 && (
                         <button
                           type="button"
                           className="tiny"
                           onClick={addTopAiSuggestions}
                           style={{ background: "none", border: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 500 }}
                         >
-                          {t("aiAddTopN", { n: Math.min(AI_BULK_ADD_COUNT, visibleAiSuggestions.length, remaining === Infinity ? AI_BULK_ADD_COUNT : remaining) })}
+                          {t("aiAddTopN", { n: Math.min(AI_BULK_ADD_COUNT, visibleAiSuggestions.length) })}
                         </button>
                       )}
                     </div>
@@ -699,12 +697,9 @@ function AddKeywordsModal({
                           key={s.keyword}
                           type="button"
                           className="chip brand"
-                          disabled={atKeywordCap}
                           onClick={() => addSuggestion(s.keyword)}
-                          title={atKeywordCap
-                            ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})`
-                            : s.rationale ?? `Add "${s.keyword}"`}
-                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                          title={s.rationale ?? `Add "${s.keyword}"`}
+                          style={{ border: "none", cursor: "pointer" }}
                         >
                           + {s.keyword}
                           {s.volume != null && (
@@ -721,6 +716,9 @@ function AddKeywordsModal({
                 {aiStatus === "failed" && (
                   <span className="tiny muted" style={{ marginTop: 8 }}>{t("aiFailedHint")}</span>
                 )}
+                {aiStatus === "skipped" && (
+                  <span className="tiny muted" style={{ marginTop: 8 }}>{t("aiSkippedHint")}</span>
+                )}
 
                 {/* Live related-keyword suggestions (free Google autocomplete). */}
                 {seed.length >= 2 && (suggLoading || visibleSuggestions.length > 0) && (
@@ -736,10 +734,9 @@ function AddKeywordsModal({
                           key={kw}
                           type="button"
                           className="chip brand"
-                          disabled={atKeywordCap}
                           onClick={() => addSuggestion(kw)}
-                          title={atKeywordCap ? `Free plan keyword limit reached (${FREE_KEYWORDS_PER_PROJECT_LIMIT})` : `Add "${kw}"`}
-                          style={{ border: "none", cursor: atKeywordCap ? "not-allowed" : "pointer", opacity: atKeywordCap ? 0.5 : 1 }}
+                          title={`Add "${kw}"`}
+                          style={{ border: "none", cursor: "pointer" }}
                         >
                           + {kw}
                         </button>
@@ -815,7 +812,7 @@ function AddKeywordsModal({
             </div>
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={loading || remaining === 0 || wouldOverflow}>
+              <button type="submit" className="btn primary" disabled={loading}>
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
@@ -1003,7 +1000,7 @@ export default function ProjectKeywordsPage() {
   // "choosing" → the new-project screen now ASKS whether to run the AI analysis
   // (crawl + OpenAI + volume, which costs money) or add keywords manually, instead
   // of auto-running it. The run only starts when the user picks "Analyze".
-  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed">(
+  const [aiPhase, setAiPhase] = useState<"idle" | "choosing" | "running" | "done" | "failed" | "skipped">(
     isNewProject ? "choosing" : "idle",
   )
   // Guards the START call only — polling must be free to re-arm on remount.
@@ -1106,20 +1103,40 @@ export default function ProjectKeywordsPage() {
   const load = useCallback(async (silent = false): Promise<ProjectDetail | null> => {
     if (!silent) setLoading(true)
     try {
-      const data = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
-      setProject(data)
-      return data
-    } catch (err: unknown) {
-      // 404 = project doesn't exist (deleted, or wrong id); bounce to list.
-      if (err instanceof ApiError && err.status === 404) {
-        router.replace("/dashboard/projects")
+      // Landing here right after "Create project" navigates straight from a
+      // POST /api/projects response into this GET — occasionally the read
+      // lands a beat ahead of the write being visible and 404s once even
+      // though the project was just created successfully. A couple of quick
+      // retries absorb that without bouncing the user straight back to the
+      // project list for something that isn't actually gone.
+      const maxAttempts = silent ? 1 : 3
+      let lastErr: unknown = null
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const data = await api.get<ProjectDetail>(`/api/projects/${projectId}`)
+          setProject(data)
+          return data
+        } catch (err: unknown) {
+          lastErr = err
+          const is404 = err instanceof ApiError && err.status === 404
+          if (is404 && attempt < maxAttempts - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            continue
+          }
+          break
+        }
+      }
+      // 404 = project doesn't exist (deleted, or wrong id) even after
+      // retrying; bounce to list.
+      if (lastErr instanceof ApiError && lastErr.status === 404) {
+        if (!silent) router.replace("/dashboard/projects")
         return null
       }
       // Background polls (silent) must not surface an error banner: the page
       // already shows data, so a transient network blip during polling would
       // otherwise flash a scary "Network Error". Fail quietly and let the next
       // poll retry. Only the initial (non-silent) load reports a load failure.
-      if (!silent) setError(err instanceof Error ? err.message : "Failed to load project")
+      if (!silent) setError(lastErr instanceof Error ? lastErr.message : "Failed to load project")
       return null
     } finally {
       if (!silent) setLoading(false)
@@ -1231,7 +1248,7 @@ export default function ProjectKeywordsPage() {
     let timer: ReturnType<typeof setInterval> | undefined
     const stop = () => { if (timer) clearInterval(timer); timer = undefined }
 
-    const finish = (phase: "done" | "failed") => {
+    const finish = (phase: "done" | "failed" | "skipped") => {
       if (cancelled) return
       stop()
       setAiPhase(phase)
@@ -1245,7 +1262,17 @@ export default function ProjectKeywordsPage() {
         )
         if (cancelled || !run) return
         setAiRun(run)
-        if (run.status === "COMPLETED") finish("done")
+        if (run.status === "COMPLETED") {
+          // The backend completes a run empty (no crawl ever happened) rather
+          // than failing it when the account has no credits/budget left for
+          // the analysis — otherwise a Redis blip couldn't be told apart from
+          // "the account just can't afford this". Without singling that out
+          // here, "Analyze with AI" silently landed on the same blank Add
+          // Keywords box as the plain "add manually" choice, with nothing
+          // explaining why no suggestions showed up.
+          const skippedForCredits = !run.crawlMethod && (run.suggestions?.suggestions?.length ?? 0) === 0
+          finish(skippedForCredits ? "skipped" : "done")
+        }
         else if (run.status === "FAILED") finish("failed")
       } catch (err) {
         // 404 (project deleted, so its run cascaded away) and 401/403 are
@@ -1718,6 +1745,37 @@ export default function ProjectKeywordsPage() {
     return rows
   }, [project, scoped, filter, sort])
 
+  /**
+   * Keywords today's allowance will not reach.
+   *
+   * The scheduler orders by search volume descending and stops when the day's
+   * checks run out, so the ones it will never reach are simply everything past
+   * the allowance in that same order. Mirroring that ordering is what makes the
+   * lock honest: it marks the keywords that genuinely will not be checked,
+   * rather than an arbitrary tail of the list.
+   *
+   * Derived rather than waited for. `lockedKwIds` only arrives in the response
+   * to a manual Check now, so before pressing it a free account tracking twenty
+   * keywords saw twenty unlocked rows.
+   *
+   * Free only. A paid credits account has no daily ceiling; its balance is the
+   * budget, and locking rows there would be inventing a limit.
+   *
+   * MUST stay above the loading/not-found early returns below. Placed after
+   * them, this hook ran on some renders and not others — React counts hooks per
+   * render, so the first successful load threw #310, "rendered more hooks than
+   * during the previous render", and took every project page down with it.
+   */
+  const overAllowanceIds = useMemo(() => {
+    const limit = usage?.dailyLimit
+    if (usage?.plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
+    const byValue = [...filtered].sort((a, b) => (b.searchVolume ?? -1) - (a.searchVolume ?? -1))
+    return new Set(byValue.slice(limit).map((k) => k.id))
+  }, [filtered, usage?.dailyLimit, usage?.plan])
+
+  const isLocked = (id: string) => lockedKwIds.has(id) || overAllowanceIds.has(id)
+
+
   const clickSort = (k: SortKey) =>
     setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === "asc" ? "desc" : "asc") : k === "kw" ? "asc" : "desc" }))
 
@@ -1741,6 +1799,7 @@ export default function ProjectKeywordsPage() {
 
   const plan = usage?.plan
   const color = projectColor(project.id)
+
 
   // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
   // adding is limited by the keyword cap — so we show a small non-blocking
@@ -1942,6 +2001,7 @@ export default function ProjectKeywordsPage() {
                 "+ Keywords". Stays visible during the onboarding tutorial's
                 "run-check" step since that step spotlights this exact button. */}
             {(checking || pendingCount > 0 || selectedKeywords.size > 0 || (tutorialActive && tutorialStep.id === "run-check")) && (
+              <>
               <Hint text={pendingCount > 0 ? t("checkRunningTitle") : undefined}>
               <button
                 data-tutorial="run-check-btn"
@@ -1961,6 +2021,15 @@ export default function ProjectKeywordsPage() {
                       : t("runCheck")}
               </button>
               </Hint>
+              {/* A check is a credit per keyword, and this button runs either
+                  the selection or the whole list — so the quote has to follow
+                  whichever it is about to do, not a fixed number. */}
+              <CreditCost
+                action={CREDIT_ACTION_KEYS.rankCheck}
+                units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
+                showBalance={false}
+              />
+              </>
             )}
             {selectedKeywords.size > 0 && (
               // No Hint here: the button's own label already says exactly what
@@ -2473,9 +2542,12 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          {lockedKwIds.has(kw.id) ? (
-                            // Today's plan budget didn't stretch to this keyword.
-                            <Link href="/pricing?clicked-buy-button" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
+                          {isLocked(kw.id) ? (
+                            // Beyond today's allowance — tracked, but not checked.
+                            // Points at billing rather than pricing: a credits
+                            // account can fix this with a top-up as well as a
+                            // plan change, and billing offers both.
+                            <Link href="/dashboard/billing" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
                               <Icon.lock size={11} /> {t("locked")}
                             </Link>
                           ) : (

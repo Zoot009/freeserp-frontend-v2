@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { usePathname, useRouter } from "next/navigation"
 import { Globe, Moon, Search, Sun } from "lucide-react"
 import { useAuth } from "@/lib/auth"
@@ -29,6 +30,7 @@ const normalizeDomain = (v: string) =>
   v.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const tNav = useTranslations("dashboardNav")
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -111,7 +113,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar
         name={name}
-        plan={isPaid ? "Pro plan" : "Free plan"}
+        plan={isPaid ? tNav("proPlan") : tNav("freePlan")}
         initial={initial}
       />
       {/* bg-card, not the default bg-background: --background IS the page canvas

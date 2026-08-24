@@ -1,6 +1,8 @@
 "use client"
 
 import { Suspense, useEffect, useState } from "react"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useSearchParams } from "next/navigation"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -162,7 +164,6 @@ function KeywordAnalysisContent() {
               Back to project
             </button>
           )}
-          <div className="eyebrow"><span className="spark"><Icon.search /></span> Keyword Analysis</div>
           <h1>Analyze your page</h1>
           <div className="sub">Crawl and score one of your own pages for a target keyword — on-page &amp; off-page SEO, no competitors.</div>
         </div>
@@ -246,6 +247,9 @@ function KeywordAnalysisContent() {
           {submitting ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Starting…</> : <><Icon.search /> Analyze Page</>}
         </button>
         <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
+          <CreditCost action={CREDIT_ACTION_KEYS.keywordScore} />
+        </div>
+        <div className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>
           We crawl the page, check technical &amp; on-page SEO, and fetch domain authority.
         </div>
 

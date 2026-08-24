@@ -501,7 +501,16 @@
     "keywordAnalysis": "Keyword-Analyse",
     "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
-    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test"
+    "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test",
+    "googleTracker": "Google-Tracker",
+    "youtubeTracker": "YouTube-Tracker",
+    "bingTracker": "Bing-Tracker",
+    "yahooTracker": "Yahoo-Tracker",
+    "mapsTracker": "Google-Maps-Tracker",
+    "websiteAudit": "Website-Audit",
+    "aiInternalLinking": "KI-Interne-Verlinkung",
+    "aiSearch": "KI-Suche",
+    "soon": "Demnächst"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",
@@ -785,14 +794,15 @@
     "statusQueued": "{count, plural, one {# Keyword in Warteschlange} other {# Keywords in Warteschlange}}",
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
     "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
-    "locked": "Gesperrt",
-    "lockedTip": "Du hast deine {limit} Prüfungen für heute verbraucht. Upgrade auf Premium, um mehr als {limit} Keywords pro Tag zu verfolgen.",
+    "locked": "Upgraden",
+    "lockedTip": "Bereit zum Verfolgen. Ihr Tarif prüft {limit} Keywords pro Tag, beginnend mit dem höchsten Suchvolumen — upgraden oder aufladen, um dieses einzuschließen.",
     "checksResetIn": "Checks zurückgesetzt in",
     "outOfChecksTip": "Du hast die heutigen Rang-Checks aufgebraucht – sie werden um 00:00 UTC zurückgesetzt. Keywords kannst du weiterhin hinzufügen; upgrade für höhere Tageslimits.",
     "aiSkip": "Überspringen und Keywords manuell hinzufügen",
     "aiChipsLabel": "KI-Vorschläge für deine Website — zum Hinzufügen klicken",
     "aiAddTopN": "Top {n} hinzufügen",
     "aiFailedHint": "Wir konnten deine Website nicht automatisch analysieren. Füge deine Keywords unten hinzu.",
+    "aiSkippedHint": "Gerade nicht genug Guthaben für die KI-Analyse. Füge deine Keywords unten hinzu oder lade Guthaben auf und versuche es erneut.",
     "aiChoiceEyebrow": "KI-KEYWORD-IDEEN",
     "aiChoiceTitle": "Deine Website auf Keyword-Ideen analysieren?",
     "aiChoiceDesc": "Wir lesen deine Startseite und schlagen Keywords mit echtem Suchvolumen vor. Lieber selbst wählen? Füge sie manuell hinzu – keine Analyse, keine Kosten.",
@@ -941,12 +951,14 @@
     "createError": "Projekt konnte nicht erstellt werden",
     "addModalEyebrow": "NEUES PROJEKT",
     "addModalTitle": "Projekt hinzufügen",
+    "addModalSubtitle": "Wir verfolgen das Google-Ranking dieser Domain über die Zeit, für die Keywords, die du unten auswählst.",
     "close": "Schließen",
     "projectNameLabel": "Projektname",
     "projectNamePlaceholder": "Meine Website",
     "domainLabel": "Domain",
     "domainPlaceholder": "beispiel.de",
     "domainHint": "Mit oder ohne https:// — z. B. beispiel.de",
+    "domainRequiredError": "Gib eine Domain ein, um fortzufahren.",
     "checkFrequencyLabel": "Prüfintervall",
     "freqEvery1Hour": "Stündlich",
     "freqEvery6Hours": "Alle 6 Stunden",
@@ -997,7 +1009,12 @@
     "colCreated": "Erstellt",
     "colTrend": "Trend",
     "loading": "Wird geladen…",
-    "admin": "Administration"
+    "admin": "Administration",
+    "startLabel": "Wie sollen wir mit dem Keyword-Tracking starten?",
+    "autoTitle": "Für mich finden",
+    "autoDesc": "Wir scannen deine Startseite mit KI und schlagen Keywords vor, für die sie schon ranken sollte — du wählst aus, welche getrackt werden.",
+    "manualTitle": "Ich trage eigene ein",
+    "manualDesc": "Ohne Analyse. Starte mit einer leeren Liste und tippe die gewünschten Keywords selbst ein — kein Guthaben wird verbraucht."
   },
   "dashSerpChecker": {
     "eyebrow": "SCHNELLE SERP",
@@ -1015,7 +1032,8 @@
       "mobile": "Mobil",
       "checking": "Wird geprüft…",
       "checkRankings": "Rankings prüfen",
-      "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden"
+      "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden",
+      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden"
     },
     "processing": {
       "withKeyword": "Google wird für „{keyword}“ abgefragt… du kannst diese Seite verlassen und später zurückkommen.",
@@ -1064,7 +1082,8 @@
       "close": "Schließen",
       "body": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count, plural, one {# deiner täglichen Checks} other {# deiner täglichen Checks}}</strong>. Das kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
-      "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden"
+      "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden",
+      "titleCredits": "Das verbraucht {count, plural, one {# Credit} other {# Credits}}"
     },
     "errors": {
       "checkFailed": "Die Prüfung ist fehlgeschlagen. Bitte versuche es erneut.",

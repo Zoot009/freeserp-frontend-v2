@@ -206,7 +206,6 @@ export default function KeywordsListPage() {
     <div className="page">
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> {t("headerEyebrow")}</div>
           <h1>
             {loaded ? (
               t("trackedCount", { count: filtered.length })

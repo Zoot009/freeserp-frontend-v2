@@ -146,13 +146,13 @@ export default function FlowPage() {
     }
   }
 
-  if (!ready) return <main className="grid min-h-screen place-items-center bg-white text-sm text-muted-foreground">Loading…</main>
+  if (!ready) return <main className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Loading…</main>
 
   const showProgress = step <= 3
   const progressPct = (step / TOTAL_STEPS) * 100
 
   return (
-    <main className="min-h-screen bg-white text-foreground">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="px-8 py-7">
         <Image src="/logo.png" alt="FreeSERP" width={36} height={36} priority />
       </div>

@@ -3,7 +3,9 @@
 import * as React from "react"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
+import { api } from "@/lib/api"
 import {
   LayoutDashboard,
   LineChart,
@@ -22,7 +24,6 @@ import {
   Users,
   Link2,
 } from "lucide-react"
-import { api } from "@/lib/api"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -37,38 +38,38 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-type Item = { title: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
+type Item = { key: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
 
 const WORKSPACE: Item[] = [
-  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Google Tracker", url: "/dashboard/projects", icon: LineChart },
+  { key: "overview", url: "/dashboard", icon: LayoutDashboard },
+  { key: "googleTracker", url: "/dashboard/projects", icon: LineChart },
   // Its own project list, separate from the web projects above — which is also
   // why it isn't a card on the SEO Dashboard: that page is scoped to one web
   // project at a time and a YouTube panel would have nothing to scope to.
-  { title: "YouTube Tracker", url: "/dashboard/youtube", icon: Youtube },
-  { title: "Bing Tracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
-  { title: "Yahoo Tracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
-  { title: "Google Maps Tracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
+  { key: "youtubeTracker", url: "/dashboard/youtube", icon: Youtube },
+  { key: "bingTracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
+  { key: "yahooTracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
+  { key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
 ]
 // Its own group, above the rank trackers. It is not a rank tracker — it tracks
 // whether the models name your brand in a prose answer — so filing it under
 // "Rank Tracker Workspace" would misdescribe it, and it is the tool we lead with.
 const AI_SEARCH: Item[] = [
-  { title: "AI Prompt Tracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit },
+  { key: "aiPromptTracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit },
 ]
 const TOOLS: Item[] = [
-  { title: "Keywords", url: "/dashboard/keywords", icon: KeyRound },
-  { title: "Favorites", url: "/dashboard/favorites", icon: Star },
-  { title: "Quick Serp", url: "/dashboard/serp-checker", icon: Zap },
-  { title: "Keyword Magic Tool", url: "/dashboard/keyword-magic", icon: Sparkles },
-  { title: "Keyword Score Checker", url: "/dashboard/keyword-analysis", icon: Search },
+  { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },
+  { key: "favorites", url: "/dashboard/favorites", icon: Star },
+  { key: "quickSerp", url: "/dashboard/serp-checker", icon: Zap },
+  { key: "keywordMagic", url: "/dashboard/keyword-magic", icon: Sparkles },
+  { key: "keywordAnalysis", url: "/dashboard/keyword-analysis", icon: Search },
   // Page Score Checker was removed: it scored a single URL from a plain fetch,
   // which Website Audit below does properly — real browser, 63 rules, and it
   // can crawl the whole site. Two tools measuring the same thing to different
   // depths only raised the question of which number to believe.
-  { title: "Website Audit", url: "/dashboard/page-audit", icon: ScanSearch },
-  { title: "Competitor Analysis", url: "/dashboard/competitor-analysis", icon: Users },
-  { title: "AI Internal Linking", url: "/dashboard/ai-internal-linking", icon: Link2 },
+  { key: "websiteAudit", url: "/dashboard/page-audit", icon: ScanSearch },
+  { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
+  { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
 ]
 
 function isActive(url: string, pathname: string | null): boolean {
@@ -85,32 +86,18 @@ type Props = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({ name, plan, initial, ...props }: Props) {
+  const t = useTranslations("dashboardNav")
   const pathname = usePathname()
 
-  // Google Maps Tracker is in early access — every scan point is real
-  // DataForSEO spend and there's no credit system in front of it yet, so
-  // access is allowlisted server-side (MAPS_TRACKER_ACCESS_EMAILS). Defaults
-  // to "soon" (locked) until the check resolves — fail closed, not open.
-  const [mapsTrackerAllowed, setMapsTrackerAllowed] = React.useState(false)
-  React.useEffect(() => {
-    let cancelled = false
-    api
-      .get<{ allowed: boolean }>("/api/maps-tracker/access")
-      .then(({ allowed }) => {
-        if (!cancelled) setMapsTrackerAllowed(allowed)
-      })
-      .catch(() => {
-        /* stays locked on any error — fail closed */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  // Google Maps Tracker is released. The allowlist existed because scans spend
+  // DataForSEO money per grid point with no billing in front of them; credits
+  // are that billing now, so the link is simply a link.
+  const workspace = WORKSPACE
 
-  // Same story for the AI Prompt Tracker: every run is real DataForSEO spend and
+  // The AI Prompt Tracker is still gated: every run is real DataForSEO spend and
   // access is allowlisted server-side (TEST_FEATURE_ACCESS_EMAILS). Now that it is
   // the headline item every user sees it, so an ungated row would send most of
-  // them into a 403. Fails closed, exactly like Maps above.
+  // them into a 403. Fails closed, exactly like Maps used to.
   const [promptTrackerAllowed, setPromptTrackerAllowed] = React.useState(false)
   React.useEffect(() => {
     let cancelled = false
@@ -127,14 +114,11 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
     }
   }, [])
 
-  const workspace = WORKSPACE.map((it) =>
-    it.title === "Google Maps Tracker" ? { ...it, soon: !mapsTrackerAllowed } : it,
-  )
   const aiSearch = AI_SEARCH.map((it) => ({ ...it, soon: !promptTrackerAllowed }))
 
-  const Group = ({ label, items }: { label: string; items: Item[] }) => (
+  const Group = ({ labelKey, items }: { labelKey: string; items: Item[] }) => (
     <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupLabel>{t(labelKey)}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((it) => {
           const Icon = it.icon
@@ -143,13 +127,13 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
               <SidebarMenuItem key={it.url}>
                 <SidebarMenuButton
                   disabled
-                  tooltip={`${it.title} (Coming soon)`}
+                  tooltip={`${t(it.key)} (${t("soon")})`}
                   className="cursor-not-allowed opacity-60"
                 >
                   <Icon />
-                  <span>{it.title}</span>
+                  <span>{t(it.key)}</span>
                   <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                    Soon
+                    {t("soon")}
                   </Badge>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -157,10 +141,10 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
           }
           return (
             <SidebarMenuItem key={it.url}>
-              <SidebarMenuButton asChild isActive={isActive(it.url, pathname)} tooltip={it.title}>
+              <SidebarMenuButton asChild isActive={isActive(it.url, pathname)} tooltip={t(it.key)}>
                 <Link href={it.url}>
                   <Icon />
-                  <span>{it.title}</span>
+                  <span>{t(it.key)}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -189,9 +173,9 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
-        <Group label="AI Search" items={aiSearch} />
-        <Group label="Rank Tracker Workspace" items={workspace} />
-        <Group label="Other Tools" items={TOOLS} />
+        <Group labelKey="aiSearch" items={aiSearch} />
+        <Group labelKey="workspace" items={workspace} />
+        <Group labelKey="tools" items={TOOLS} />
       </SidebarContent>
 
       <SidebarFooter>

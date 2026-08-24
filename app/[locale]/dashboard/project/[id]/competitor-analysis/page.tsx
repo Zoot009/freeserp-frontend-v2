@@ -269,7 +269,6 @@ function CompetitorAnalysisContent() {
           <Link href={`/dashboard/project/${projectId}/keywords`} className="kd-back" style={{ display: "flex", width: "fit-content", marginBottom: 10 }}>
             ← Back to keywords
           </Link>
-          <div className="eyebrow"><span className="spark"><Icon.spark /></span> COMPETITOR ANALYSIS</div>
           <h1>Select competitors</h1>
           <div className="sub">
             Pick 3 SERP results for{" "}
