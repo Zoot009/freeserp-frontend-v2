@@ -63,7 +63,12 @@ export function CreditBalance({ className }: { className?: string }) {
             ? "You are out of credits"
             : `${formatCredits(credits.balance)} credit${credits.balance === 1 ? "" : "s"} left`}
         </div>
-        <div className="mt-1 text-muted-foreground">
+        {/* TooltipContent is inverted (bg-foreground / text-background), so the
+            secondary line has to dim its OWN text colour. text-muted-foreground
+            is computed against the page, not this surface — in dark mode that
+            put light grey on the tooltip's light background and the line all
+            but disappeared. */}
+        <div className="mt-1 text-background/70">
           {allowance > 0 && refill
             ? `${formatCredits(allowance)} more on ${refill}.`
             : "Top up to keep tracking."}
