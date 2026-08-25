@@ -2521,15 +2521,32 @@ export default function ProjectKeywordsPage() {
                 {filtered.map((kw, i) => {
                   const isActive = kw.status === "PENDING" || kw.status === "PROCESSING"
                   const isSelected = selectedKeywords.has(kw.id)
+                  const locked = isLocked(kw.id)
                   const rowStyle: React.CSSProperties = {}
                   if (isActive) rowStyle.background = "var(--warn-soft)"
                   else if (isSelected) rowStyle.background = "var(--brand-soft)"
                   return (
                     <tr
                       key={kw.id}
+                      className={locked ? "kw-row-locked" : undefined}
                       style={{ ...rowStyle, cursor: "pointer" }}
-                      onClick={() => router.push(`/dashboard/project/${project.id}/keywords/${kw.id}`)}
-                      title="View keyword details"
+                      onClick={() => {
+                        // A locked keyword has never been checked, so its detail
+                        // page has nothing on it. Offer the thing that would
+                        // change that instead — the same 402 upsell every other
+                        // limit in the app raises, so there is one paywall
+                        // rather than a second one that drifts from it.
+                        if (locked) {
+                          window.dispatchEvent(
+                            new CustomEvent("billing:quota", {
+                              detail: { code: "free_daily_quota_exhausted" },
+                            }),
+                          )
+                          return
+                        }
+                        router.push(`/dashboard/project/${project.id}/keywords/${kw.id}`)
+                      }}
+                      title={locked ? t("lockedTip", { limit: usage?.dailyLimit ?? 3 }) : "View keyword details"}
                     >
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
@@ -2549,14 +2566,13 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                          {isLocked(kw.id) ? (
-                            // Beyond today's allowance — tracked, but not checked.
-                            // Points at billing rather than pricing: a credits
-                            // account can fix this with a top-up as well as a
-                            // plan change, and billing offers both.
-                            <Link href="/dashboard/billing" className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
-                              <Icon.lock size={11} /> {t("locked")}
-                            </Link>
+                          {locked ? (
+                            // A lock, not the word "Upgrade". The row is already
+                            // blurred and clickable; repeating the pitch in a
+                            // data column made a table of numbers read as an ad.
+                            <span className="kw-locked" aria-label={t("locked")}>
+                              <Icon.lock size={12} />
+                            </span>
                           ) : (
                             <>
                               <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
