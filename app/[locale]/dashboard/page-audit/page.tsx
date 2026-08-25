@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -57,9 +58,17 @@ const MODES = [
 
 export default function PageAuditPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [historyKey, setHistoryKey] = useState(0)
   const [url, setUrl] = useState("")
-  const [mode, setMode] = useState<"single" | "site">("single")
+  // The sidebar lists the two modes as separate entries — "Full Website Audit"
+  // and "Page Audit" — because that is how people think of them, even though
+  // they are one page. `?mode=` is how those entries land on the right tab.
+  // Read once as the initial state, not synced: a URL should choose where you
+  // start, then get out of the way of the toggle you clicked afterwards.
+  const [mode, setMode] = useState<"single" | "site">(
+    searchParams.get("mode") === "site" ? "site" : "single",
+  )
   const [job, setJob] = useState<JobState | null>(null)
   const [report, setReport] = useState<AuditReport | null>(null)
   const [error, setError] = useState<string | null>(null)
