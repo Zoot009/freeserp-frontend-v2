@@ -22,6 +22,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { hasDeclinedKeywordAi, declineKeywordAi } from "@/lib/keywordAiChoice"
 import { Link } from "@/i18n/navigation"
 import { Sparkles } from "lucide-react"
 import { api } from "@/lib/api"
@@ -61,8 +62,6 @@ const AWAIT_RUN_TIMEOUT_MS = 30_000
  * the analysis that is already starting.
  */
 const RUN_APPEAR_GRACE_MS = 15_000
-
-const dismissKey = (projectId: string) => `fs.kwai.${projectId}`
 
 /** "1m 12s". The run reports no percentage, so elapsed time is the only honest
  *  signal that something is still happening. */
@@ -288,7 +287,7 @@ export function KeywordSetupCard({
 
   useEffect(() => {
     try {
-      setAskDismissed(window.localStorage.getItem(dismissKey(projectId)) === "0")
+      setAskDismissed(hasDeclinedKeywordAi(projectId))
     } catch {
       setAskDismissed(false)
     }
@@ -297,7 +296,7 @@ export function KeywordSetupCard({
   const dismissAsk = useCallback(() => {
     setAskDismissed(true)
     try {
-      window.localStorage.setItem(dismissKey(projectId), "0")
+      declineKeywordAi(projectId)
     } catch {
       /* preference simply doesn't persist */
     }

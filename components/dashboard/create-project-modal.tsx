@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { declineKeywordAi } from "@/lib/keywordAiChoice"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useTranslations } from "next-intl"
@@ -84,6 +85,14 @@ export function CreateProjectModal<T>({
       // New projects start with NO auto-check schedule — the owner sets a
       // cadence afterward on the project page (paid-only).
       const created = await api.post<T>("/api/projects", { name, domain, autoKeywords })
+      // Remember "I'll add my own". The server skips the run, but the dashboard
+      // and the keywords page each ask again on their own unless they can see
+      // that the question was already answered — which is how choosing manual
+      // still ended in a prompt on the very next screen.
+      if (!autoKeywords) {
+        const id = (created as { id?: string } | null)?.id
+        if (id) declineKeywordAi(id)
+      }
       onCreated(created)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("createError"))
