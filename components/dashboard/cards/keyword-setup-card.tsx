@@ -339,18 +339,33 @@ export function KeywordSetupCard({
         return
       }
       if (statusRef.current && IN_FLIGHT.has(statusRef.current)) return void load()
-      // Still waiting for the auto-started run to show up.
-      if (!statusRef.current && !graceOverRef.current) void load()
+      // Still waiting for the auto-started run to show up. Not worth polling
+      // for at all when the owner declined one — there is nothing to find.
+      if (!statusRef.current && !graceOverRef.current && !hasDeclinedKeywordAi(projectId)) void load()
     }, POLL_MS)
     return () => clearInterval(t)
-  }, [load, setAwaiting])
+  }, [load, setAwaiting, projectId])
 
   // Derived above the early return, because the effect that reports upward is
   // a hook and hooks cannot follow a conditional return.
   const working = starting || awaitingRun || (!!run && IN_FLIGHT.has(run.status))
   const idle = !working && !run
-  // No run yet, and it is too early to conclude there won't be one.
-  const waitingForRun = idle && !graceOver
+  /**
+   * No run yet, and it is too early to conclude there won't be one.
+   *
+   * The grace period exists because project-create used to start a run
+   * server-side: "no run" meant "the row has not appeared yet", and saying so
+   * beat an empty card that flickered into a spinner a second later.
+   *
+   * That stopped being true when suggestions became opt-in. For someone who
+   * chose "I'll add my own" no run is ever coming, so the grace period had
+   * nothing to wait for and the card announced "Starting keyword analysis…"
+   * for a run the server had correctly declined to start. Worse, the timer
+   * restarts on mount — so it came back every time they returned to Overview.
+   *
+   * askDismissed === true means they declined. Nothing is pending; say nothing.
+   */
+  const waitingForRun = idle && !graceOver && askDismissed !== true
   const runStartedAt = run?.createdAt ? new Date(run.createdAt).getTime() : null
   const runElapsed = runStartedAt && Number.isFinite(runStartedAt) ? now - runStartedAt : null
   const busy = working || waitingForRun
