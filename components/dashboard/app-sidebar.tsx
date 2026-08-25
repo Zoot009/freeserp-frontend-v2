@@ -49,7 +49,12 @@ const WORKSPACE: Item[] = [
   { key: "bingTracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
   { key: "yahooTracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
   { key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
-  { key: "llmTracker", url: "/dashboard/llm-tracker", icon: BrainCircuit },
+]
+// Its own group, above the rank trackers. It is not a rank tracker — it tracks
+// whether the models name your brand in a prose answer — so filing it under
+// "Rank Tracker Workspace" would misdescribe it, and it is the tool we lead with.
+const AI_SEARCH: Item[] = [
+  { key: "aiPromptTracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit },
 ]
 const TOOLS: Item[] = [
   { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },
@@ -83,11 +88,11 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const t = useTranslations("dashboardNav")
   const pathname = usePathname()
 
-  // Google Maps Tracker is in early access — every scan point is real
-  // Google Maps Tracker is released. The allowlist existed because scans spend
-  // DataForSEO money per grid point with no billing in front of them; credits
-  // are that billing now, so the link is simply a link.
+  // Google Maps Tracker and the AI Prompt Tracker are both released. Each had an
+  // allowlist because it spends DataForSEO money per action with no billing in
+  // front of it; credits are that billing now, so the links are simply links.
   const workspace = WORKSPACE
+  const aiSearch = AI_SEARCH
 
   const Group = ({ labelKey, items }: { labelKey: string; items: Item[] }) => (
     <SidebarGroup>
@@ -146,6 +151,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
+        <Group labelKey="aiSearch" items={aiSearch} />
         <Group labelKey="workspace" items={workspace} />
         <Group labelKey="tools" items={TOOLS} />
       </SidebarContent>

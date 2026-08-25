@@ -69,12 +69,6 @@ const KNOWN_CODES = new Set([
   // Free daily keyword-add cap (delete→re-add can't farm past it).
   "keyword_add_limit_reached",
   "ai_analysis_limit_reached",
-  // LLM Tracker (AI visibility) — an ADD-ON, so "not enabled" is a real upsell
-  // rather than an exhausted allowance. The other two are its daily lookup cap
-  // and its monthly USD data budget; both reset on their own and are FYI states.
-  "llm_tracker_not_enabled",
-  "llm_tracker_quota_exhausted",
-  "llm_tracker_budget_exhausted",
 ])
 
 function formatMoney(cents: number, currency: string): string {
@@ -206,11 +200,7 @@ export function QuotaUpsellModal() {
             ? "bodyKeywordLimit"
             : code === "ai_analysis_limit_reached"
               ? "bodyAiLimit"
-              : code === "llm_tracker_not_enabled"
-                ? "bodyLlmTrackerAddOn"
-                : code === "llm_tracker_quota_exhausted" || code === "llm_tracker_budget_exhausted"
-                  ? "bodyLlmTrackerLimit"
-                  : "bodyDailyQuota"
+              : "bodyDailyQuota"
 
   return (
     <div className="fs-app">

@@ -10,6 +10,7 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
+import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
 import { Favicon } from "@/components/favicon"
@@ -81,6 +82,8 @@ interface Keyword {
   keyword: string
   location: string
   device: string | null
+  /** Absent on older API responses; engineOf() treats that as Google. */
+  engine?: string | null
   addedAt: string
   position: number | null
   // First (oldest) rank ever recorded for this keyword — drives the "First check" column.
@@ -432,12 +435,16 @@ function AddKeywordsModal({
   aiSuggestions?: AiSuggestion[]
   aiStatus?: "idle" | "choosing" | "running" | "done" | "failed" | "skipped"
   onClose: () => void
-  onAdded: (device: "desktop" | "mobile") => void
+  onAdded: (device: "desktop" | "mobile", engines: string[]) => void
 }) {
   const t = useTranslations("projKeywords")
+  const { engines: availableEngines, multiEngine } = useEngines()
   const [raw, setRaw] = useState("")
   const [location, setLocation] = useState("in")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
+  // Google is always tracked and cannot be turned off — every project has it,
+  // and an "add keywords" that tracks nothing is not a state worth allowing.
+  const [selectedEngines, setSelectedEngines] = useState<string[]>([DEFAULT_ENGINE])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -597,13 +604,18 @@ function AddKeywordsModal({
     if (!lines.length) { setError("Enter at least one keyword"); return }
     setError(""); setLoading(true)
     try {
-      await api.post(`/api/projects/${projectId}/keywords`, { keywords: lines.map((k) => ({ keyword: k, location, device })) })
+      // `engines` is sent per keyword. The backend expands it to one row per
+      // keyword per engine — which is what "engine is part of a keyword's
+      // identity" means — so N keywords x M engines creates N*M rows.
+      await api.post(`/api/projects/${projectId}/keywords`, {
+        keywords: lines.map((k) => ({ keyword: k, location, device, engines: selectedEngines })),
+      })
       // Adding to a still-empty project might be this account's first-ever set of
       // keywords — let the backend decide (deduped per account, so it won't
       // re-fire on a later new project the way the old per-browser guard could).
       if (currentCount === 0) void trackMilestone("first-set-keywords-added")
       track("keywords_added", { projectId, count: lines.length })
-      onAdded(device)
+      onAdded(device, selectedEngines)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
     } finally { setLoading(false) }
@@ -748,6 +760,51 @@ function AddKeywordsModal({
                   ))}
                 </div>
               </div>
+              {/* Only rendered when the backend actually offers a second engine.
+                  With Google alone the concept is noise, and the modal looks
+                  exactly as it did before multi-engine existed. */}
+              {multiEngine && (
+                <div className="field">
+                  <label>{t("engineLabel")}</label>
+                  {/* Multi-select, so these are toggles (aria-pressed), not the
+                      radio semantics the Device row above uses. */}
+                  <div className="pill-toggle" style={{ width: "fit-content" }}>
+                    {availableEngines.map((e) => {
+                      const on = selectedEngines.includes(e.id)
+                      return (
+                        <button
+                          key={e.id}
+                          type="button"
+                          aria-pressed={on}
+                          disabled={e.isDefault}
+                          title={e.isDefault ? t("engineAlwaysTracked", { engine: e.label }) : undefined}
+                          className={on ? "active" : ""}
+                          onClick={() => {
+                            if (e.isDefault) return
+                            setSelectedEngines((prev) =>
+                              prev.includes(e.id) ? prev.filter((x) => x !== e.id) : [...prev, e.id],
+                            )
+                          }}
+                          style={e.isDefault ? { cursor: "default", opacity: 0.9 } : undefined}
+                        >
+                          {e.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {/* The plan cap counts ROWS, so a multiplier the user cannot
+                      see reads as a bug when they hit the limit. Show the sum. */}
+                  {selectedEngines.length > 1 && pendingLines.length > 0 && (
+                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                      {t("engineMultiplier", {
+                        keywords: pendingLines.length,
+                        engines: selectedEngines.length,
+                        total: pendingLines.length * selectedEngines.length,
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {error && (
                 <div className="card tight" style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}>
                   {error}
@@ -1027,7 +1084,12 @@ export default function ProjectKeywordsPage() {
   // Device view — keywords are tracked separately per device, so the table
   // shows one device at a time. Defaults to desktop; auto-flips to mobile once
   // (on first load) if the project only has mobile keywords.
+  const { engines: availableEngines, multiEngine } = useEngines()
   const [deviceTab, setDeviceTab] = useState<"desktop" | "mobile">("desktop")
+  // Second scoping dimension, alongside device. Defaults to Google and is NEVER
+  // auto-switched: flipping the device tab when one is empty is helpful, but
+  // silently changing which search engine someone is looking at is not.
+  const [engineTab, setEngineTab] = useState<string>(DEFAULT_ENGINE)
   // Time window for the "Rankings improved" card (1/7/15/30-day deltas).
   const [rankPeriod, setRankPeriod] = useState<"d1" | "d7" | "d15" | "d30">("d1")
   const deviceTabInit = useRef(false)
@@ -1576,17 +1638,37 @@ export default function ProjectKeywordsPage() {
 
   // Keyword count per device — drives the labels on the Desktop/Mobile tabs.
   // Legacy rows with a null device are treated as desktop.
+  // Device counts are per ENGINE tab, so the numbers on the device pills always
+  // describe what selecting them would actually show.
   const deviceCounts = useMemo(() => {
     const c = { desktop: 0, mobile: 0 }
-    project?.keywords.forEach((k) => { k.device === "mobile" ? c.mobile++ : c.desktop++ })
+    project?.keywords.forEach((k) => {
+      if (engineOf(k) !== engineTab) return
+      k.device === "mobile" ? c.mobile++ : c.desktop++
+    })
     return c
-  }, [project])
+  }, [project, engineTab])
 
-  // Keywords for the active device tab. Stats + table both scope to this so the
-  // whole view reflects the selected device.
+  // …and engine counts are per DEVICE tab, symmetrically.
+  const engineCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    project?.keywords.forEach((k) => {
+      if ((k.device === "mobile" ? "mobile" : "desktop") !== deviceTab) return
+      const id = engineOf(k)
+      c[id] = (c[id] ?? 0) + 1
+    })
+    return c
+  }, [project, deviceTab])
+
+  // Keywords for the active device AND engine tab. Stats + table both scope to
+  // this, so every number in the view describes one engine on one device — never
+  // a Google rank averaged with a Bing one.
   const scoped = useMemo(
-    () => (project?.keywords ?? []).filter((k) => (k.device === "mobile" ? "mobile" : "desktop") === deviceTab),
-    [project, deviceTab],
+    () =>
+      (project?.keywords ?? []).filter(
+        (k) => (k.device === "mobile" ? "mobile" : "desktop") === deviceTab && engineOf(k) === engineTab,
+      ),
+    [project, deviceTab, engineTab],
   )
 
   // Project stats — drives the stat tiles in the header (scoped to the device tab).
@@ -2323,7 +2405,29 @@ export default function ProjectKeywordsPage() {
               <div className="tiny muted">
                 {t("showingOf", { n: filtered.length, total: scoped.length })}
               </div>
-              <div className="pill-toggle" style={{ width: "fit-content", marginLeft: "auto" }}>
+              {/* Engine scope. Rendered only when the backend offers more than
+                  one — with Google alone the toolbar is unchanged. Sits before
+                  the device pills, so the row reads engine-then-device, matching
+                  the order the scope line uses on the detail page. */}
+              {multiEngine && (
+                <div className="pill-toggle" style={{ width: "fit-content", marginLeft: "auto" }}>
+                  {availableEngines.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      className={engineTab === e.id ? "active" : ""}
+                      onClick={() => setEngineTab(e.id)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                    >
+                      {e.label} ({engineCounts[e.id] ?? 0})
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div
+                className="pill-toggle"
+                style={{ width: "fit-content", marginLeft: multiEngine ? undefined : "auto" }}
+              >
                 {(["desktop", "mobile"] as const).map((d) => (
                   <button
                     key={d}
@@ -2342,10 +2446,17 @@ export default function ProjectKeywordsPage() {
               <div style={{ padding: "40px 32px", textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
                 {filter.trim()
                   ? t("noMatch", { filter })
-                  : t("noDeviceKeywords", {
-                      device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile"),
-                      other: deviceTab === "desktop" ? t("deviceMobile") : t("deviceDesktop"),
-                    })}
+                  : multiEngine
+                    ? // Name the engine too: with two tabs in play, "no desktop
+                      // keywords yet" is ambiguous about which engine is empty.
+                      t("noEngineKeywords", {
+                        engine: availableEngines.find((e) => e.id === engineTab)?.label ?? engineTab,
+                        device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile"),
+                      })
+                    : t("noDeviceKeywords", {
+                        device: deviceTab === "desktop" ? t("deviceDesktop") : t("deviceMobile"),
+                        other: deviceTab === "desktop" ? t("deviceMobile") : t("deviceDesktop"),
+                      })}
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
@@ -2776,10 +2887,14 @@ export default function ProjectKeywordsPage() {
           aiSuggestions={aiSuggestions}
           aiStatus={aiPhase}
           onClose={() => { setShowAddKw(false); exitNewProjectFlow() }}
-          onAdded={(device) => {
+          onAdded={(device, engines) => {
             setShowAddKw(false)
             exitNewProjectFlow()
             setDeviceTab(device)
+            // Land on an engine that actually received rows. Google unless it
+            // was the only thing NOT selected, so the user sees what they just
+            // added rather than an empty tab.
+            if (engines.length > 0 && !engines.includes(engineTab)) setEngineTab(engines[0]!)
             void load()
             advanceFromStep(2)
           }}

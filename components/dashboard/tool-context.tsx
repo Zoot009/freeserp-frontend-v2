@@ -70,7 +70,7 @@ export const TOOL_CONTEXT: Record<string, ToolContextContent> = {
       },
     ],
   },
-  "llm-tracker": {
+  "ai-prompt-tracker": {
     lede: "Tracks whether AI assistants name your brand when someone asks them the questions your customers ask.",
     points: [
       {

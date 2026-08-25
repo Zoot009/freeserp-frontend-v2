@@ -13,6 +13,7 @@ import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { StatTile } from "@/components/dashboard/primitives"
+import { CREDIT_ACTION_KEYS, useCreditQuote, formatCredits } from "@/lib/credits"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
 type Platform = "chat_gpt" | "gemini" | "perplexity" | "claude"
@@ -87,7 +88,7 @@ export default function LlmPromptListPage() {
         setPrompts(data.prompts)
       } catch (err: unknown) {
         if (err instanceof ApiError && err.status === 404) {
-          router.replace("/dashboard/llm-tracker/prompts")
+          router.replace("/dashboard/ai-prompt-tracker")
           return
         }
         // Background polls must never surface an error banner over good data.
@@ -122,6 +123,24 @@ export default function LlmPromptListPage() {
       if (prompts.length === 0) setShowAdd(true)
     }
   }, [searchParams, project, prompts.length])
+
+  // What "Run all" will cost, as two rates summed. A Claude answer is 3 credits
+  // where the others are 1, so a project spanning both cannot be quoted with one
+  // rate — and quoting them as two separate labels would leave the addition to
+  // the reader, right at the moment they are deciding whether to click.
+  const runAnswers = useMemo(() => {
+    const chosen = selected.size > 0 ? prompts.filter((p) => selected.has(p.id)) : prompts
+    let base = 0
+    let claude = 0
+    for (const p of chosen) {
+      const platforms = p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])
+      for (const platform of platforms) {
+        if (platform === "claude") claude += p.samplesPerRun
+        else base += p.samplesPerRun
+      }
+    }
+    return { base, claude }
+  }, [prompts, selected])
 
   const runNow = async (promptIds?: string[]) => {
     setBusy(true)
@@ -171,7 +190,7 @@ export default function LlmPromptListPage() {
       <div className="page-h">
         <div>
           <div className="tiny muted">
-            <Link href="/dashboard/llm-tracker/prompts">AI Prompt Tracker</Link> · {project.brandName}
+            <Link href="/dashboard/ai-prompt-tracker">AI Prompt Tracker</Link> · {project.brandName}
           </div>
           <h1>{project.name}</h1>
         </div>
@@ -188,6 +207,8 @@ export default function LlmPromptListPage() {
           </button>
         </div>
       </div>
+
+      <RunCost base={runAnswers.base} claude={runAnswers.claude} />
 
       {summary && (
         <div className="grid g-3" style={{ marginBottom: 16 }}>
@@ -269,7 +290,7 @@ export default function LlmPromptListPage() {
                         ) : null}
                         {idx === 0 ? (
                           <td rowSpan={p.platforms.length || 1} className="kw">
-                            <Link href={`/dashboard/llm-tracker/prompts/${projectId}/${p.id}`}>{p.prompt}</Link>
+                            <Link href={`/dashboard/ai-prompt-tracker/${projectId}/${p.id}`}>{p.prompt}</Link>
                           </td>
                         ) : null}
                         <td>
@@ -482,6 +503,31 @@ function AddPromptsModal({
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The price of the run the button next to it would start.
+ *
+ * Renders nothing for a grandfathered worker subscriber, who spends daily checks
+ * rather than credits, and nothing while the rate card is loading — the same
+ * rules <CreditCost> follows. It exists instead of <CreditCost> only because a
+ * run can span two rates at once.
+ */
+function RunCost({ base, claude }: { base: number; claude: number }) {
+  const flat = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(base, 1))
+  const pricey = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(claude, 1), "claude")
+  if (!flat.applies || flat.cost == null || pricey.cost == null) return null
+
+  const total = (base > 0 ? flat.cost : 0) + (claude > 0 ? pricey.cost : 0)
+  if (total === 0) return null
+  const short = flat.balance != null && total > flat.balance
+
+  return (
+    <div className="tiny" style={{ marginBottom: 12, color: short ? "var(--warn)" : "var(--muted)" }}>
+      Uses {formatCredits(total)} credit{total === 1 ? "" : "s"}
+      {flat.balance != null && (short ? ` \u00b7 only ${formatCredits(flat.balance)} left` : ` \u00b7 ${formatCredits(flat.balance)} left`)}
     </div>
   )
 }

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
+import { ToolContext } from "@/components/dashboard/tool-context"
 
 // ───── Types (mirror /api/llm-tracker/projects) ─────────────────────────────
 type ProjectSummary = {
@@ -31,7 +32,7 @@ export default function LlmPromptsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [unavailable, setUnavailable] = useState(false)
+  const [unavailable, setUnavailable] = useState<"" | "missing" | "no-access">("")
   const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
@@ -43,9 +44,12 @@ export default function LlmPromptsPage() {
       const data = await api.get<{ projects: ProjectSummary[] }>("/api/llm-tracker/projects")
       setProjects(data.projects)
     } catch (err: unknown) {
-      // 404 = the feature flag is off on this backend. Say so plainly rather
-      // than showing a generic failure.
-      if (err instanceof ApiError && err.status === 404) setUnavailable(true)
+      // 404 = the feature flag is off on this backend. 403 = the caller isn't on
+      // the early-access allowlist. Both are states, not failures, so neither
+      // belongs in the red error card — and now that this is the headline nav
+      // item, the 403 is what most users will hit.
+      if (err instanceof ApiError && err.status === 404) setUnavailable("missing")
+      else if (err instanceof ApiError && err.status === 403) setUnavailable("no-access")
       else setError(err instanceof Error ? err.message : "Failed to load projects")
     } finally {
       setLoading(false)
@@ -71,7 +75,9 @@ export default function LlmPromptsPage() {
           <h1>AI Prompt Tracker</h1>
         </div>
         <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          Prompt tracking isn&apos;t available on this API version yet.
+          {unavailable === "no-access"
+            ? "AI Prompt Tracker is in early access and your account isn't on the list yet. Contact us and we'll add you."
+            : "Prompt tracking isn't available on this API version yet."}
         </div>
       </div>
     )
@@ -86,15 +92,12 @@ export default function LlmPromptsPage() {
             Ask the AI platforms what your buyers ask, and track whether you get named.
           </div>
         </div>
-        <div className="row" style={{ gap: 8 }}>
-          <Link href="/dashboard/llm-tracker" className="btn">
-            Category view
-          </Link>
-          <button className="btn primary" onClick={() => setShowAdd(true)}>
-            <Icon.plus /> New brand
-          </button>
-        </div>
+        <button className="btn primary" onClick={() => setShowAdd(true)}>
+          <Icon.plus /> New brand
+        </button>
       </div>
+
+      <ToolContext id="ai-prompt-tracker" />
 
       {error && (
         <div className="card" style={{ padding: 16, marginBottom: 16, color: "var(--neg)", fontSize: 13 }}>
@@ -128,7 +131,7 @@ export default function LlmPromptsPage() {
       ) : (
         <div className="grid g-3">
           {projects.map((p) => (
-            <Link key={p.id} href={`/dashboard/llm-tracker/prompts/${p.id}`} className="card" style={{ display: "block" }}>
+            <Link key={p.id} href={`/dashboard/ai-prompt-tracker/${p.id}`} className="card" style={{ display: "block" }}>
               <div className="card-h">
                 <div>
                   <div className="t">{p.name}</div>
@@ -153,7 +156,7 @@ export default function LlmPromptsPage() {
             setShowAdd(false)
             // ?new=1 opens the add-prompts modal straight away — a brand with no
             // prompts does nothing, so don't make them find the button.
-            router.push(`/dashboard/llm-tracker/prompts/${p.id}?new=1`)
+            router.push(`/dashboard/ai-prompt-tracker/${p.id}?new=1`)
           }}
         />
       )}

@@ -101,7 +101,7 @@ export default function LlmPromptDetailPage() {
         )
       } catch (err: unknown) {
         if (err instanceof ApiError && err.status === 404) {
-          router.replace(`/dashboard/llm-tracker/prompts/${params.id}`)
+          router.replace(`/dashboard/ai-prompt-tracker/${params.id}`)
           return
         }
         if (!silent) setError(err instanceof Error ? err.message : "Failed to load")
@@ -149,8 +149,8 @@ export default function LlmPromptDetailPage() {
       <div className="page-h">
         <div>
           <div className="tiny muted">
-            <Link href="/dashboard/llm-tracker/prompts">AI Prompt Tracker</Link> ·{" "}
-            <Link href={`/dashboard/llm-tracker/prompts/${data.project.id}`}>{data.project.name}</Link>
+            <Link href="/dashboard/ai-prompt-tracker">AI Prompt Tracker</Link> ·{" "}
+            <Link href={`/dashboard/ai-prompt-tracker/${data.project.id}`}>{data.project.name}</Link>
           </div>
           <h1 style={{ fontSize: 20 }}>{data.prompt.prompt}</h1>
         </div>

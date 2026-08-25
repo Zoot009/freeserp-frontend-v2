@@ -71,9 +71,29 @@ export interface CompetitorResult {
     h2Tags: string[]
   }>
   fullCrawlData: CrawlData | null
+  offPage?: OffPageMetrics | null
   crawlMethod?: string | null
   crawlError?: CrawlError | null
   internalCrawlStatus?: 'pending' | 'crawling' | 'done' | 'failed' | 'locked'
+}
+
+/**
+ * Off-page authority as served by the API, read from the dedicated DB columns
+ * rather than derived from the crawl blob.
+ *
+ * Two reasons it exists separately from the score breakdown:
+ *  - a page whose crawl was blocked still has valid DA/PA (the provider is keyed
+ *    on the URL, not on our ability to fetch the page), and
+ *  - `status` distinguishes "the provider has nothing for this URL" from "the
+ *    call failed", which previously both rendered as a bare "—".
+ */
+export interface OffPageMetrics {
+  da: number | null
+  pa: number | null
+  domainBacklinks: number | null
+  pageBacklinks: number | null
+  status: 'ok' | 'no-data' | 'unavailable' | 'off' | 'unknown'
+  checkedAt: string | null
 }
 
 export type CrawlErrorCode =
@@ -212,6 +232,7 @@ export interface AnalysisData {
     h2Tags: string[]
   }>
   yourFullCrawlData: CrawlData | null
+  yourOffPage?: OffPageMetrics | null
   yourInternalCrawlStatus?: 'pending' | 'crawling' | 'done' | 'failed'
   competitors: CompetitorResult[]
   createdAt: string
