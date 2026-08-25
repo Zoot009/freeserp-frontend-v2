@@ -795,7 +795,7 @@
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
     "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
     "locked": "Upgraden",
-    "lockedTip": "Bereit zum Verfolgen. Ihr Tarif prüft {limit} Keywords pro Tag, beginnend mit dem höchsten Suchvolumen — upgraden oder aufladen, um dieses einzuschließen.",
+    "lockedTip": "Noch nicht geprüft. Ihr Tarif prüft {limit} Keywords pro Tag, beginnend mit dem höchsten Suchvolumen — upgraden oder aufladen, um dieses einzuschließen.",
     "checksResetIn": "Checks zurückgesetzt in",
     "outOfChecksTip": "Du hast die heutigen Rang-Checks aufgebraucht – sie werden um 00:00 UTC zurückgesetzt. Keywords kannst du weiterhin hinzufügen; upgrade für höhere Tageslimits.",
     "aiSkip": "Überspringen und Keywords manuell hinzufügen",
@@ -841,7 +841,8 @@
     "engineLabel": "Suchmaschine",
     "engineAlwaysTracked": "{engine} wird immer verfolgt",
     "engineMultiplier": "{keywords} Keywords × {engines} Suchmaschinen = {total} verfolgte Keywords",
-    "noEngineKeywords": "Noch keine {engine}-Keywords auf {device}."
+    "noEngineKeywords": "Noch keine {engine}-Keywords auf {device}.",
+    "lockedCta": "Upgraden zum Ansehen"
   },
   "dashKeywords": {
     "headerEyebrow": "RANKING-TRACKING",

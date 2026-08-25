@@ -795,7 +795,7 @@
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
     "locked": "Améliorer",
-    "lockedTip": "Prêt à suivre. Votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés — passez à un forfait supérieur ou rechargez pour inclure celui-ci.",
+    "lockedTip": "Pas encore vérifié. Votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés — passez à un forfait supérieur ou rechargez pour inclure celui-ci.",
     "checksResetIn": "Vérifications dans",
     "outOfChecksTip": "Vous avez utilisé vos vérifications du jour ; elles se réinitialisent à 00:00 UTC. Vous pouvez toujours ajouter des mots-clés ; passez à un forfait supérieur pour des limites plus élevées.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
@@ -841,7 +841,8 @@
     "engineLabel": "Moteur de recherche",
     "engineAlwaysTracked": "{engine} est toujours suivi",
     "engineMultiplier": "{keywords} mots-clés × {engines} moteurs = {total} mots-clés suivis",
-    "noEngineKeywords": "Aucun mot-clé {engine} sur {device} pour le moment."
+    "noEngineKeywords": "Aucun mot-clé {engine} sur {device} pour le moment.",
+    "lockedCta": "Améliorer pour voir"
   },
   "dashKeywords": {
     "headerEyebrow": "SUIVI DE POSITION",

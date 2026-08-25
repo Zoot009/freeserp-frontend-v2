@@ -785,34 +785,19 @@
 }
 .fs-app .kw-locked:hover { filter: brightness(0.94); }
 
-/* A keyword past today's check allowance.
+/* A keyword past today's check allowance, with no result yet.
  *
- * The row used to carry the word "Upgrade" in the POSITION column, which put a
- * sales message inside a table of numbers and made the column mean two
- * different things depending on the row. The row is frosted instead: legible
- * enough to see WHICH keyword it is, plainly not readable as data, and the
- * whole row opens the upgrade dialog.
- *
- * The keyword cell itself is left sharp on purpose — blurring the name would
- * hide the one thing that tells you whether you care about unlocking it. */
-.fs-app tr.kw-row-locked > td { opacity: 0.78; }
+ * No blur. The blurred version was see-through enough to read and smeared
+ * enough to annoy — it obscured nothing and cost legibility. The row simply
+ * dims, its position cell says what unlocks it, and clicking anywhere on it
+ * opens the upgrade dialog. Nothing is hidden because nothing has been
+ * fetched: the point is that no check has run, not that a result is being
+ * withheld. */
+.fs-app tr.kw-row-locked > td { opacity: 0.62; }
 .fs-app tr.kw-row-locked > td:nth-child(2),
 .fs-app tr.kw-row-locked > td:nth-child(3) { opacity: 1; }
-
-.fs-app tr.kw-row-locked > td:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:last-child) {
-  filter: blur(3px);
-  user-select: none;
-}
-
-/* Un-blur on hover: the promise is that this is real data waiting behind a
-   limit, not an empty row dressed up as one. */
-.fs-app tr.kw-row-locked:hover > td { opacity: 0.9; }
-.fs-app tr.kw-row-locked:hover > td:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:last-child) {
-  filter: blur(1.5px);
-}
-
-.fs-app tr.kw-row-locked > td,
-.fs-app tr.kw-row-locked:hover > td { transition: filter .15s ease, opacity .15s ease; }
+.fs-app tr.kw-row-locked:hover > td { opacity: 0.8; }
+.fs-app tr.kw-row-locked > td { transition: opacity .15s ease; }
 
 
 /* Small non-blocking "checks reset in Xh Ym" notice — a free user out of today's
