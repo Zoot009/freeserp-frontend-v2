@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { hasDeclinedKeywordAi } from "@/lib/keywordAiChoice"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { createPortal } from "react-dom"
@@ -1235,10 +1236,16 @@ export default function ProjectKeywordsPage() {
     const alreadyStarted = aiStartedRef.current
     aiStartedRef.current = true
 
-    const start = alreadyStarted
+    const start = alreadyStarted || hasDeclinedKeywordAi(projectId)
       ? Promise.resolve()
       // A failed start is still worth polling — getOrCreate is idempotent, so
       // the run may already exist from a previous mount.
+      //
+      // Skipped entirely for someone who chose "I'll add my own" at create
+      // time. This POST does not care what the server was told; it starts a run
+      // on mount for any new project, so declining and then opening the
+      // keywords page began the very analysis that was declined — and spent
+      // the 8 credits it costs.
       : api.post(`/api/projects/${projectId}/keyword-suggestions`, {}).catch(() => undefined)
 
     void start.then(() => {
