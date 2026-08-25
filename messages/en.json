@@ -798,7 +798,7 @@
     "checkStayOverdue": "this check has run past its expected window; it will be marked failed shortly and you can retry it",
     "checkRunningFor": "running for {duration}",
     "locked": "Upgrade",
-    "lockedTip": "Ready to track. Your plan checks {limit} keywords a day, starting with the highest search volume — upgrade or top up to include this one.",
+    "lockedTip": "Not checked yet. Your plan checks {limit} keywords a day, highest search volume first — upgrade or top up to include this one.",
     "checksResetIn": "Checks reset in",
     "outOfChecksTip": "You've used today's rank checks — they reset at 00:00 UTC. You can still add keywords; upgrade for higher daily limits.",
     "aiSkip": "Skip and add keywords manually",
@@ -841,7 +841,8 @@
     "engineLabel": "Search engine",
     "engineAlwaysTracked": "{engine} is always tracked",
     "engineMultiplier": "{keywords} keywords × {engines} engines = {total} tracked keywords",
-    "noEngineKeywords": "No {engine} keywords on {device} yet."
+    "noEngineKeywords": "No {engine} keywords on {device} yet.",
+    "lockedCta": "Upgrade to view"
   },
   "dashKeywords": {
     "headerEyebrow": "RANK TRACKING",

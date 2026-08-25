@@ -795,7 +795,7 @@
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
     "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
     "locked": "Mejorar",
-    "lockedTip": "Lista para seguir. Tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen de búsqueda: mejora tu plan o recarga para incluir esta.",
+    "lockedTip": "Todavía sin comprobar. Tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen: mejora tu plan o recarga para incluir esta.",
     "checksResetIn": "Comprobaciones en",
     "outOfChecksTip": "Has usado las comprobaciones de hoy; se restablecen a las 00:00 UTC. Aún puedes añadir palabras clave; mejora tu plan para límites diarios más altos.",
     "aiSkip": "Omitir y añadir palabras clave manualmente",
@@ -841,7 +841,8 @@
     "engineLabel": "Motor de búsqueda",
     "engineAlwaysTracked": "{engine} siempre se rastrea",
     "engineMultiplier": "{keywords} palabras clave × {engines} motores = {total} palabras clave rastreadas",
-    "noEngineKeywords": "Aún no hay palabras clave de {engine} en {device}."
+    "noEngineKeywords": "Aún no hay palabras clave de {engine} en {device}.",
+    "lockedCta": "Mejora para verlo"
   },
   "dashKeywords": {
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",

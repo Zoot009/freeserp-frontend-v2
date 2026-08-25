@@ -1776,11 +1776,37 @@ export default function ProjectKeywordsPage() {
   const overAllowanceIds = useMemo(() => {
     const limit = usage?.dailyLimit
     if (usage?.plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
-    const byValue = [...filtered].sort((a, b) => (b.searchVolume ?? -1) - (a.searchVolume ?? -1))
+    // Highest search volume first, oldest-added breaking ties — the exact
+    // ordering the scheduler uses. Volume alone was not enough: keywords whose
+    // volume has not loaded yet all sort as -1, so which of them ranked last
+    // came down to array order and shuffled as the data arrived. Locking a
+    // different row on every refresh is what made this look arbitrary.
+    const byValue = [...filtered].sort(
+      (a, b) =>
+        (b.searchVolume ?? -1) - (a.searchVolume ?? -1) ||
+        new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime(),
+    )
     return new Set(byValue.slice(limit).map((k) => k.id))
   }, [filtered, usage?.dailyLimit, usage?.plan])
 
-  const isLocked = (id: string) => lockedKwIds.has(id) || overAllowanceIds.has(id)
+  /**
+   * Locked means "there is nothing here yet", never "there is something here
+   * you may not see".
+   *
+   * The allowance decides what gets CHECKED. It has no business hiding a result
+   * that was already checked and already paid for — and it was doing exactly
+   * that: every keyword in the project had a position and a checked-at date,
+   * and three of them were being covered up because they happened to fall
+   * outside today's top three by volume.
+   *
+   * So a row only locks when it genuinely has no result. Once a check lands,
+   * the data is the user's, whichever side of the allowance it arrived on.
+   */
+  const isLocked = (kw: Keyword) => {
+    const hasResult = kw.checkedAt != null || kw.position != null
+    if (hasResult) return false
+    return lockedKwIds.has(kw.id) || overAllowanceIds.has(kw.id)
+  }
 
 
   const clickSort = (k: SortKey) =>
@@ -2521,7 +2547,7 @@ export default function ProjectKeywordsPage() {
                 {filtered.map((kw, i) => {
                   const isActive = kw.status === "PENDING" || kw.status === "PROCESSING"
                   const isSelected = selectedKeywords.has(kw.id)
-                  const locked = isLocked(kw.id)
+                  const locked = isLocked(kw)
                   const rowStyle: React.CSSProperties = {}
                   if (isActive) rowStyle.background = "var(--warn-soft)"
                   else if (isSelected) rowStyle.background = "var(--brand-soft)"
@@ -2567,11 +2593,12 @@ export default function ProjectKeywordsPage() {
                       <td>
                         <div className="row" style={{ gap: 8, alignItems: "center" }}>
                           {locked ? (
-                            // A lock, not the word "Upgrade". The row is already
-                            // blurred and clickable; repeating the pitch in a
-                            // data column made a table of numbers read as an ad.
-                            <span className="kw-locked" aria-label={t("locked")}>
-                              <Icon.lock size={12} />
+                            // Says what unlocks it. The blur it replaces was
+                            // both unreadable and see-through — it obscured
+                            // enough to be annoying and not enough to be a
+                            // limit, which is the worst of both.
+                            <span className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
+                              <Icon.lock size={11} /> {t("lockedCta")}
                             </span>
                           ) : (
                             <>
