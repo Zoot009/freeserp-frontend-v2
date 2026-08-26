@@ -22,9 +22,31 @@ export interface Engine {
   label: string
   devices: string[]
   maxDepth: number
+  /**
+   * Whether the synchronous DataForSEO /live/ endpoint serves this engine.
+   *
+   * Not a statement about the per-keyword "Check now" button, which is async and
+   * works everywhere — so do NOT render this as "instant checks unavailable".
+   * It exists for the standalone SERP Checker.
+   */
   supportsLive: boolean
-  /** Google: pre-selected in the picker, and never deselectable. */
+  /** Google: pre-selected in the picker. Selectable-away, unlike before. */
   isDefault: boolean
+  /**
+   * Cadence floor WE impose, in hours. 0 = follow the project's own frequency;
+   * 168 (the default for every non-Google engine) = at most weekly.
+   *
+   * Served by the API but not currently rendered — the picker deliberately shows
+   * only a logo and a name. Kept because the difference is real and invisible
+   * everywhere else in the product: someone tracking on Bing gets weekly checks
+   * and nothing tells them so. Optional, since an older backend omits it.
+   */
+  minHoursBetweenChecks?: number
+  /**
+   * False once consecutive failures have sidelined the engine. Optional for the
+   * same reason — an older backend never disables anything.
+   */
+  available?: boolean
 }
 
 /** Legacy rows predate the column; treat them as Google, as `device` does null. */
@@ -51,8 +73,19 @@ async function load(): Promise<Engine[]> {
       .catch(() => {
         // An older backend has no /api/engines. Fall back to Google alone rather
         // than rendering nothing — the dashboard must not depend on this call.
+        // Every value here is true of Google specifically, so the degraded path
+        // states nothing false — it just knows about one engine.
         cache = [
-          { id: DEFAULT_ENGINE, label: "Google", devices: ["desktop", "mobile"], maxDepth: 100, supportsLive: true, isDefault: true },
+          {
+            id: DEFAULT_ENGINE,
+            label: "Google",
+            devices: ["desktop", "mobile"],
+            maxDepth: 100,
+            supportsLive: true,
+            isDefault: true,
+            minHoursBetweenChecks: 0,
+            available: true,
+          },
         ]
         return cache
       })

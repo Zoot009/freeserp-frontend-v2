@@ -32,7 +32,7 @@ export type ToolContextContent = {
 // to the es/fr/de audiences.
 export const TOOL_CONTEXT: Record<string, ToolContextContent> = {
   "google-tracker": {
-    lede: "Tracks where your domain ranks on Google for the keywords you choose, in the country you choose, and keeps that position as history.",
+    lede: "Tracks where your domain ranks in search for the keywords you choose, on the engine and in the country you choose, and keeps that position as history.",
     points: [
       {
         head: "Why it matters",

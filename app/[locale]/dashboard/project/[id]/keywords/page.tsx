@@ -16,6 +16,7 @@ import { LocationPicker } from "@/components/location-picker"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
+import { EnginePicker } from "@/components/dashboard/engine-picker"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
@@ -438,12 +439,16 @@ function AddKeywordsModal({
   onAdded: (device: "desktop" | "mobile", engines: string[]) => void
 }) {
   const t = useTranslations("projKeywords")
-  const { engines: availableEngines, multiEngine } = useEngines()
+  // `multiEngine` is not needed here: EnginePicker self-gates on the engine
+  // count, and passing `loading` lets it reserve its own height instead of
+  // popping into the middle of the form when the fetch lands.
+  const { engines: availableEngines, loading: enginesLoading } = useEngines()
   const [raw, setRaw] = useState("")
   const [location, setLocation] = useState("in")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
-  // Google is always tracked and cannot be turned off — every project has it,
-  // and an "add keywords" that tracks nothing is not a state worth allowing.
+  // Google is pre-selected, not mandatory — tracking a keyword on Bing alone is
+  // a legitimate choice. The empty array is reachable only inside the
+  // multi-engine disclosure, and the submit button is disabled while it holds.
   const [selectedEngines, setSelectedEngines] = useState<string[]>([DEFAULT_ENGINE])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -634,18 +639,24 @@ function AddKeywordsModal({
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* First, because it scopes everything under it: which engine you
+                  pick decides what "rank" means for every keyword below. It
+                  hides itself when the backend offers only Google, so a
+                  single-engine deployment sees the modal it always saw. */}
+              <EnginePicker
+                engines={availableEngines}
+                loading={enginesLoading}
+                value={selectedEngines}
+                onChange={setSelectedEngines}
+                keywordCount={pendingLines.length}
+                isFree={isFree}
+                freeDailyChecks={FREE_DAILY_CHECKS}
+                device={device}
+              />
               <div className="field">
-                <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-                  <label style={{ margin: 0 }}>
-                    Keywords <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>(one per line or comma-separated)</span>
-                  </label>
-                  <span
-                    className="tiny"
-                    style={{ color: "var(--text-mute)", fontFamily: "var(--font-mono)" }}
-                  >
-                    {`${pendingLines.length} pending · unlimited`}
-                  </span>
-                </div>
+                <label style={{ margin: 0 }}>
+                  Keywords <span className="muted" style={{ textTransform: "none", letterSpacing: 0, fontWeight: 400 }}>(one per line or comma-separated)</span>
+                </label>
                 <textarea
                   ref={taRef}
                   required
@@ -760,51 +771,6 @@ function AddKeywordsModal({
                   ))}
                 </div>
               </div>
-              {/* Only rendered when the backend actually offers a second engine.
-                  With Google alone the concept is noise, and the modal looks
-                  exactly as it did before multi-engine existed. */}
-              {multiEngine && (
-                <div className="field">
-                  <label>{t("engineLabel")}</label>
-                  {/* Multi-select, so these are toggles (aria-pressed), not the
-                      radio semantics the Device row above uses. */}
-                  <div className="pill-toggle" style={{ width: "fit-content" }}>
-                    {availableEngines.map((e) => {
-                      const on = selectedEngines.includes(e.id)
-                      return (
-                        <button
-                          key={e.id}
-                          type="button"
-                          aria-pressed={on}
-                          disabled={e.isDefault}
-                          title={e.isDefault ? t("engineAlwaysTracked", { engine: e.label }) : undefined}
-                          className={on ? "active" : ""}
-                          onClick={() => {
-                            if (e.isDefault) return
-                            setSelectedEngines((prev) =>
-                              prev.includes(e.id) ? prev.filter((x) => x !== e.id) : [...prev, e.id],
-                            )
-                          }}
-                          style={e.isDefault ? { cursor: "default", opacity: 0.9 } : undefined}
-                        >
-                          {e.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {/* The plan cap counts ROWS, so a multiplier the user cannot
-                      see reads as a bug when they hit the limit. Show the sum. */}
-                  {selectedEngines.length > 1 && pendingLines.length > 0 && (
-                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                      {t("engineMultiplier", {
-                        keywords: pendingLines.length,
-                        engines: selectedEngines.length,
-                        total: pendingLines.length * selectedEngines.length,
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
               {error && (
                 <div className="card tight" style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}>
                   {error}
@@ -813,7 +779,7 @@ function AddKeywordsModal({
             </div>
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={loading}>
+              <button type="submit" className="btn primary" disabled={loading || selectedEngines.length === 0}>
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
@@ -1093,6 +1059,7 @@ export default function ProjectKeywordsPage() {
   // Time window for the "Rankings improved" card (1/7/15/30-day deltas).
   const [rankPeriod, setRankPeriod] = useState<"d1" | "d7" | "d15" | "d30">("d1")
   const deviceTabInit = useRef(false)
+  const engineTabInit = useRef(false)
 
   // Auth gate
   useEffect(() => {
@@ -1155,6 +1122,20 @@ export default function ProjectKeywordsPage() {
     const hasMobile = project.keywords.some((k) => k.device === "mobile")
     if (!hasDesktop && hasMobile) setDeviceTab("mobile")
   }, [project])
+
+  // Same idea for engines, and newly necessary: the add-keywords modal no longer
+  // forces Google into every submit, so a project can legitimately hold nothing
+  // but Bing rows. `engineTab` defaults to Google and is never auto-switched, so
+  // without this a Bing-only project opens on an empty Google tab — which reads
+  // as data loss rather than as a filter. One-shot, like deviceTabInit: helping
+  // on first load is useful, moving the tab under someone later is not.
+  useEffect(() => {
+    if (engineTabInit.current || !project) return
+    engineTabInit.current = true
+    if (project.keywords.some((k) => engineOf(k) === engineTab)) return
+    const first = project.keywords[0]
+    if (first) setEngineTab(engineOf(first))
+  }, [project, engineTab])
 
   // Open the score-breakdown modal for a keyword and fetch its detail on demand
   // (mirrors the analysis-history modal). The header falls back to the row's
@@ -1773,20 +1754,30 @@ export default function ProjectKeywordsPage() {
    * render, so the first successful load threw #310, "rendered more hooks than
    * during the previous render", and took every project page down with it.
    */
+  // Which keywords fall outside the daily check allowance, and so show as
+  // Locked. MUST mirror the scheduler's ordering (modules/rankings/scheduler.ts,
+  // the DueItem sort) — if the two disagree the table marks one keyword Locked
+  // while the backend quietly checks a different one, which is worse than not
+  // marking anything at all.
   const overAllowanceIds = useMemo(() => {
     const limit = usage?.dailyLimit
     if (usage?.plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
-    // Highest search volume first, oldest-added breaking ties — the exact
-    // ordering the scheduler uses. Volume alone was not enough: keywords whose
-    // volume has not loaded yet all sort as -1, so which of them ranked last
-    // came down to array order and shuffled as the data arrived. Locking a
-    // different row on every refresh is what made this look arbitrary.
-    const byValue = [...filtered].sort(
-      (a, b) =>
-        (b.searchVolume ?? -1) - (a.searchVolume ?? -1) ||
-        new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime(),
+    // Oldest-added first, id breaking ties.
+    //
+    // This used to mirror a scheduler that sorted by search volume with addedAt
+    // as the tiebreak — a fix for volume-only ordering, where keywords whose
+    // volume had not loaded yet all sorted as -1 and shuffled as the data
+    // arrived, locking a different row on every refresh.
+    //
+    // The scheduler has since dropped volume ordering altogether, for the same
+    // reason taken one step further: volume is backfilled asynchronously, so the
+    // set it chose kept moving on its own for days after the keywords were
+    // added. Insertion order is the one ordering a user can predict and control,
+    // so both sides now use it and the tiebreak is stable rather than a proxy.
+    const byAdded = [...filtered].sort(
+      (a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime() || a.id.localeCompare(b.id),
     )
-    return new Set(byValue.slice(limit).map((k) => k.id))
+    return new Set(byAdded.slice(limit).map((k) => k.id))
   }, [filtered, usage?.dailyLimit, usage?.plan])
 
   /**

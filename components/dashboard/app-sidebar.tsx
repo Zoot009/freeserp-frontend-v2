@@ -16,8 +16,6 @@ import {
   ScanSearch,
   ChevronsUpDown,
   Youtube,
-  Compass,
-  MessageCircle,
   MapPin,
   Map,
   Navigation,
@@ -32,6 +30,12 @@ import {
   Link2,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
+import {
+  ChatGptMarkIcon,
+  ClaudeMarkIcon,
+  GeminiMarkIcon,
+  PerplexityMarkIcon,
+} from "@/components/dashboard/platform-marks"
 import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
@@ -53,10 +57,12 @@ type Item = { key: string; url: string; icon: React.ComponentType<{ className?: 
 const PRIMARY: Item[] = [{ key: "overview", url: "/dashboard", icon: LayoutDashboard }]
 
 const SEARCH_ENGINE: Item[] = [
+  // Key predates the rename. The tracker is engine-neutral now — the engine is
+  // chosen per keyword in the add modal — so the LABEL is "Keyword Rank
+  // Tracker". Renaming the key would mean coordinated edits across every
+  // message file for no user-visible gain, and one miss is a runtime error.
   { key: "googleTracker", url: "/dashboard/projects", icon: LineChart },
   { key: "quickSerp", url: "/dashboard/serp-checker", icon: Zap },
-  { key: "bingTracker", url: "/dashboard/bing-tracker", icon: Compass, soon: true },
-  { key: "yahooTracker", url: "/dashboard/yahoo-tracker", icon: MessageCircle, soon: true },
   // Its own project list, separate from the web projects above — which is also
   // why it isn't a card on the SEO Dashboard: that page is scoped to one web
   // project at a time and a YouTube panel would have nothing to scope to.
@@ -69,10 +75,25 @@ const MAPS: Item[] = [
   { key: "appleMapsTracker", url: "/dashboard/apple-maps-tracker", icon: Navigation, soon: true },
 ]
 
-// One entry, not one per platform: the tracker is a list of BRANDS, and which
-// models answer for a brand is a per-prompt choice inside it. Four menu items
-// would promise four views that do not exist.
+// The tracker is a list of BRANDS: a project is a brand, and which models answer
+// for it is a per-prompt choice inside. That is still the primary shape, so it
+// keeps its own entry here.
 const AI: Item[] = [{ key: "aiPromptTracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit }]
+
+// The other cut of the same data: every prompt you run on ONE platform, across
+// every brand, with that platform's own aggregate numbers.
+//
+// An earlier version of this file argued against exactly this, on the grounds
+// that four menu items "would promise four views that do not exist". They exist
+// now — each is a real route backed by GET /api/llm-tracker/platforms/:platform.
+// Listed alphabetically rather than in the backend's array order: a nav list is
+// read, not iterated.
+const AI_PLATFORMS: Item[] = [
+  { key: "platformChatgpt", url: "/dashboard/ai-platforms/chatgpt", icon: ChatGptMarkIcon },
+  { key: "platformClaude", url: "/dashboard/ai-platforms/claude", icon: ClaudeMarkIcon },
+  { key: "platformGemini", url: "/dashboard/ai-platforms/gemini", icon: GeminiMarkIcon },
+  { key: "platformPerplexity", url: "/dashboard/ai-platforms/perplexity", icon: PerplexityMarkIcon },
+]
 
 const AUDIT: Item[] = [
   // Same page, two modes. The mode is a real toggle inside the page, so these
@@ -197,6 +218,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         <Group labelKey="searchEngine" items={SEARCH_ENGINE} />
         <Group labelKey="maps" items={MAPS} />
         <Group labelKey="ai" items={AI} />
+        <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />
         <Group labelKey="comingSoon" items={COMING_SOON} />
