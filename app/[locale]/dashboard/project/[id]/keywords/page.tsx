@@ -10,6 +10,7 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
+import { toast } from "sonner"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
@@ -148,7 +149,10 @@ interface ProjectDetail {
 
 type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
 
-type SortKey = "kw" | "pos" | "d1" | "d7" | "vol" | "checkedAt" | "score" | "aio"
+// "added" is insertion order — the order the keywords were typed into the Add
+// keywords modal — and it is the table's resting state. It has no header of its
+// own; clicking a sortable column a third time returns to it (see clickSort).
+type SortKey = "added" | "kw" | "pos" | "d1" | "d7" | "vol" | "checkedAt" | "score" | "aio"
 
 // Sort rank for the AI Overview column. Ascending puts the actionable rows first:
 // where we're cited, then where Google answered without us, then the states we
@@ -170,6 +174,27 @@ const AIO_RANK: Record<AioSortState, number> = {
 function aioRank(features: SerpFeatures | null): number {
   if (features?.aiOverviewData?.pending) return AIO_RANK.pending
   return AIO_RANK[aiCitationState(features)]
+}
+
+/**
+ * Insertion order: the order the keywords were typed into the Add keywords
+ * modal.
+ *
+ * The modal posts its lines in typed order and the backend stamps `addedAt` one
+ * millisecond apart per row in that same order (keywords.service.addMany), so
+ * this reproduces the list the user actually wrote rather than any derived
+ * metric. The id tiebreak covers rows added before that stamping existed, which
+ * share a transaction timestamp to the millisecond.
+ */
+function byAddedOrder(a: Keyword, b: Keyword): number {
+  return new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime() || a.id.localeCompare(b.id)
+}
+
+// The direction a column starts in on its first click — whichever one answers
+// the question the column is there to answer ("who ranks best", "what has the
+// most volume"), not a blanket default.
+function firstSortDir(k: SortKey): "asc" | "desc" {
+  return k === "kw" || k === "pos" || k === "added" ? "asc" : "desc"
 }
 
 // ───── Helpers ─────────────────────────────────────────────────────────────
@@ -612,9 +637,27 @@ function AddKeywordsModal({
       // `engines` is sent per keyword. The backend expands it to one row per
       // keyword per engine — which is what "engine is part of a keyword's
       // identity" means — so N keywords x M engines creates N*M rows.
-      await api.post(`/api/projects/${projectId}/keywords`, {
+      const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
         keywords: lines.map((k) => ({ keyword: k, location, device, engines: selectedEngines })),
       })
+      // The insert is skipDuplicates, so re-adding a keyword that is already
+      // tracked on the same engine creates nothing. Saying so matters: silence
+      // was indistinguishable from a failure, and the engine picker makes this
+      // far easier to hit — the same keyword on a second engine looks like a new
+      // row to the user but is a duplicate the moment they pick that engine twice.
+      const added = res?.added
+      const asked = lines.length * Math.max(1, selectedEngines.length)
+      if (added === 0) {
+        toast.info(
+          asked === 1
+            ? "That keyword is already tracked here."
+            : "Those keywords are already tracked on the engines you picked.",
+        )
+      } else if (added != null && added < asked) {
+        toast.success(`Added ${added} — the rest were already tracked.`)
+      } else if (added != null) {
+        toast.success(`Added ${added} keyword${added === 1 ? "" : "s"}.`)
+      }
       // Adding to a still-empty project might be this account's first-ever set of
       // keywords — let the backend decide (deduped per account, so it won't
       // re-fire on a later new project the way the old per-browser guard could).
@@ -771,12 +814,30 @@ function AddKeywordsModal({
                   ))}
                 </div>
               </div>
-              {error && (
-                <div className="card tight" style={{ borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}>
-                  {error}
-                </div>
-              )}
             </div>
+            {/* Outside .modal-b on purpose.
+                .modal-b scrolls (the modal is capped at 100dvh - 80px) and this
+                used to be its LAST child, so on a short viewport — or once the
+                engine picker made the form taller — a failed submit rendered an
+                error the user could not see without scrolling. It read as the
+                button doing nothing. `.modal > form` is display:contents, so
+                placing it here makes it a flex sibling of the footer: pinned,
+                never scrolled away. */}
+            {error && (
+              <div
+                role="alert"
+                style={{
+                  flexShrink: 0,
+                  padding: "10px 22px",
+                  borderTop: "1px solid var(--neg)",
+                  background: "var(--neg-soft)",
+                  color: "var(--neg)",
+                  fontSize: 12,
+                }}
+              >
+                {error}
+              </div>
+            )}
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
               <button type="submit" className="btn primary" disabled={loading || selectedEngines.length === 0}>
@@ -1046,7 +1107,11 @@ export default function ProjectKeywordsPage() {
 
   // Filter + sort state
   const [filter, setFilter] = useState("")
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "pos", dir: "asc" })
+  // Insertion order by default, not position. A freshly added batch reads back
+  // in the order it was typed instead of being interleaved by rank — and rows
+  // that have no position yet no longer sit in whatever order the API returned
+  // them, which was newest-first and so the exact reverse of what was typed.
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "added", dir: "asc" })
   // Device view — keywords are tracked separately per device, so the table
   // shows one device at a time. Defaults to desktop; auto-flips to mobile once
   // (on first load) if the project only has mobile keywords.
@@ -1712,13 +1777,14 @@ export default function ProjectKeywordsPage() {
     }
     rows = [...rows].sort((a, b) => {
       const dir = sort.dir === "asc" ? 1 : -1
+      if (sort.key === "added") return byAddedOrder(a, b) * dir
       if (sort.key === "kw") return a.keyword.localeCompare(b.keyword) * dir
       if (sort.key === "checkedAt") {
         const av = a.checkedAt ? new Date(a.checkedAt).getTime() : 0
         const bv = b.checkedAt ? new Date(b.checkedAt).getTime() : 0
         return (av - bv) * dir
       }
-      const map: Record<Exclude<SortKey, "kw" | "checkedAt">, (k: Keyword) => number> = {
+      const map: Record<Exclude<SortKey, "added" | "kw" | "checkedAt">, (k: Keyword) => number> = {
         pos: (k) => k.position ?? 999,
         d1: (k) => k.d1 ?? 0,
         d7: (k) => k.d7 ?? 0,
@@ -1727,7 +1793,7 @@ export default function ProjectKeywordsPage() {
         score: (k) => k.pageScore ?? -1,
         aio: (k) => aioRank(k.serpFeatures),
       }
-      const fn = map[sort.key as Exclude<SortKey, "kw" | "checkedAt">]
+      const fn = map[sort.key as Exclude<SortKey, "added" | "kw" | "checkedAt">]
       return (fn(a) - fn(b)) * dir
     })
     return rows
@@ -1774,9 +1840,7 @@ export default function ProjectKeywordsPage() {
     // set it chose kept moving on its own for days after the keywords were
     // added. Insertion order is the one ordering a user can predict and control,
     // so both sides now use it and the tiebreak is stable rather than a proxy.
-    const byAdded = [...filtered].sort(
-      (a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime() || a.id.localeCompare(b.id),
-    )
+    const byAdded = [...filtered].sort(byAddedOrder)
     return new Set(byAdded.slice(limit).map((k) => k.id))
   }, [filtered, usage?.dailyLimit, usage?.plan])
 
@@ -1800,8 +1864,17 @@ export default function ProjectKeywordsPage() {
   }
 
 
+  // Three states per column: first click sorts the useful way, second flips it,
+  // third drops back to insertion order. The third click is what makes that
+  // order reachable at all — it is the default but owns no header, so without it
+  // a user who sorted by Position could only get their own list back by
+  // reloading the page.
   const clickSort = (k: SortKey) =>
-    setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === "asc" ? "desc" : "asc") : k === "kw" ? "asc" : "desc" }))
+    setSort((s) => {
+      if (s.key !== k) return { key: k, dir: firstSortDir(k) }
+      if (s.dir === firstSortDir(k)) return { key: k, dir: s.dir === "asc" ? "desc" : "asc" }
+      return { key: "added", dir: "asc" }
+    })
 
   // ───── Render ──────────────────────────────────────────────────────────
 
