@@ -25,7 +25,6 @@ import {
   ShoppingBag,
   Package,
   Tag,
-  BrainCircuit,
   Users,
   Link2,
 } from "lucide-react"
@@ -75,13 +74,10 @@ const MAPS: Item[] = [
   { key: "appleMapsTracker", url: "/dashboard/apple-maps-tracker", icon: Navigation, soon: true },
 ]
 
-// The tracker is a list of BRANDS: a project is a brand, and which models answer
-// for it is a per-prompt choice inside. That is still the primary shape, so it
-// keeps its own entry here.
-const AI: Item[] = [{ key: "aiPromptTracker", url: "/dashboard/ai-prompt-tracker", icon: BrainCircuit }]
-
-// The other cut of the same data: every prompt you run on ONE platform, across
-// every brand, with that platform's own aggregate numbers.
+// Every prompt you run on ONE platform, across every brand, with that
+// platform's own aggregate numbers. These are the only LLM-tracker entries in
+// the nav now — the brand-scoped AI Prompt Tracker entry was removed, though
+// /dashboard/ai-prompt-tracker still exists and these pages still link into it.
 //
 // An earlier version of this file argued against exactly this, on the grounds
 // that four menu items "would promise four views that do not exist". They exist
@@ -217,7 +213,6 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         <Group items={PRIMARY} />
         <Group labelKey="searchEngine" items={SEARCH_ENGINE} />
         <Group labelKey="maps" items={MAPS} />
-        <Group labelKey="ai" items={AI} />
         <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />
