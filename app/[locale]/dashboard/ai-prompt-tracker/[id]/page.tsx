@@ -14,30 +14,32 @@ import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { StatTile } from "@/components/dashboard/primitives"
 import { CREDIT_ACTION_KEYS, useCreditQuote, formatCredits } from "@/lib/credits"
+import { toast } from "sonner"
+import { PlatformMark } from "@/components/dashboard/platform-marks"
+import {
+  RunStateCell,
+  RateCell,
+  CitedCell,
+  ProminenceCell,
+} from "@/components/dashboard/ai-tracker/run-state-cell"
+import {
+  ACTIVE_STATUSES,
+  deriveRunState,
+  isWithinRunWindow,
+  nextRunAllowedAt,
+  clockTime,
+  pct,
+  PLATFORM_LABEL,
+  type Platform,
+  type PromptRow,
+  type RunResult,
+  type RunSummary,
+} from "@/lib/ai-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
-type Platform = "chat_gpt" | "gemini" | "perplexity" | "claude"
-
-type RunSummary = {
-  id: string
-  platform: Platform
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
-  mentionRate: number | null
-  citationRate: number | null
-  avgProminence: number | null
-  change: number | null
-  samplesRequested: number
-  samplesCompleted: number
-  runAt: string
-}
-
-type PromptRow = {
-  id: string
-  prompt: string
-  platforms: Platform[]
-  samplesPerRun: number
-  runs: RunSummary[]
-}
+// Platform, RunSummary, PromptRow and the status vocabulary live in
+// lib/ai-tracker so this page and the prompt-detail page cannot drift apart —
+// which is how PENDING and PROCESSING ended up rendering identically here.
 
 type Project = {
   id: string
@@ -47,16 +49,19 @@ type Project = {
   competitorNames: string[]
 }
 
-const PLATFORM_LABEL: Record<Platform, string> = {
-  chat_gpt: "ChatGPT",
-  gemini: "Gemini",
-  perplexity: "Perplexity",
-  claude: "Claude",
-}
 
-const ACTIVE = new Set(["PENDING", "PROCESSING"])
 
-const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`)
+/** How often to ask where a run has got to. Samples take 15-75s each. */
+const RUN_POLL_MS = 3000
+
+/**
+ * Stop polling after this long without the wave settling.
+ *
+ * Generous, because a full project on a scraper platform genuinely takes many
+ * minutes at worker concurrency 8 — but not unbounded, or a wedged run leaves
+ * the page polling forever.
+ */
+const RUN_POLL_TIMEOUT_MS = 10 * 60_000
 
 export default function LlmPromptListPage() {
   const router = useRouter()
@@ -70,6 +75,14 @@ export default function LlmPromptListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  /**
+   * A persistent line for the "nothing happened" outcome, which a toast cannot
+   * carry: it scrolls away, and this is precisely the case the user reads as a
+   * broken button.
+   */
+  const [notice, setNotice] = useState("")
+  /** Prompt ids with a run POST in flight — the visible half of duplicate prevention. */
+  const inflight = useRef<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -106,15 +119,52 @@ export default function LlmPromptListPage() {
 
   // Poll while any run is in flight. A sample can take up to ~2 minutes, so this
   // runs for a while — hence `silent`, which never raises a banner.
+  //
+  // Two independent starters, deliberately. This one catches a run that was
+  // already in flight when the page loaded (started in another tab, or before a
+  // refresh). `runNow` starts the other one from the run ids the POST returns,
+  // because waiting to OBSERVE a PENDING row is exactly the race that used to
+  // leave the table frozen: the old code refetched once after 1200ms and, if the
+  // row had not committed yet, `hasActive` stayed false and no interval was ever
+  // installed.
   const hasActive = useMemo(
-    () => prompts.some((p) => p.runs.some((r) => ACTIVE.has(r.status))),
+    () => prompts.some((p) => p.runs.some((r) => ACTIVE_STATUSES.has(r.status))),
     [prompts],
   )
   useEffect(() => {
     if (!hasActive) return
-    const id = setInterval(() => void load(true), 3000)
+    const id = setInterval(() => void load(true), RUN_POLL_MS)
     return () => clearInterval(id)
   }, [hasActive, load])
+
+  // The explicit poller, owned by runNow. Stops itself once nothing is active
+  // and the deadline guards a wave that dies without ever reporting.
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollDeadline = useRef(0)
+  const stopPolling = useCallback(() => {
+    if (pollTimer.current) clearInterval(pollTimer.current)
+    pollTimer.current = null
+  }, [])
+  useEffect(() => stopPolling, [stopPolling])
+
+  const startPolling = useCallback(() => {
+    pollDeadline.current = Date.now() + RUN_POLL_TIMEOUT_MS
+    stopPolling()
+    pollTimer.current = setInterval(() => {
+      if (Date.now() > pollDeadline.current) {
+        stopPolling()
+        return
+      }
+      void load(true)
+    }, RUN_POLL_MS)
+    // Fire once immediately rather than waiting a full interval to show anything.
+    void load(true)
+  }, [load, stopPolling])
+
+  // Hand back to the state-derived poller once every run has settled.
+  useEffect(() => {
+    if (pollTimer.current && !hasActive) stopPolling()
+  }, [hasActive, stopPolling])
 
   const openedNew = useRef(false)
   useEffect(() => {
@@ -142,18 +192,68 @@ export default function LlmPromptListPage() {
     return { base, claude }
   }, [prompts, selected])
 
+  /**
+   * Report what the 202 actually said.
+   *
+   * The response body was previously discarded entirely, which is why "already
+   * run this hour" reached the user as a button that flashed and did nothing.
+   * The server dedupes on (prompt, platform, calendar hour), so a re-run inside
+   * the hour returns `{runIds: [], skipped: n}` — a success, with no work done.
+   */
+  const reportRunOutcome = useCallback((res: RunResult) => {
+    const started = res.runIds?.length ?? 0
+    if (started > 0) {
+      toast.success(`Started ${started} run${started === 1 ? "" : "s"}.`, {
+        description: "Answers arrive in about a minute.",
+      })
+    }
+    if (res.refused > 0) {
+      toast.error(`${res.refused} run${res.refused === 1 ? "" : "s"} skipped — not enough credits.`)
+    }
+    if (res.skipped > 0) {
+      const at = res.outcomes?.find((o) => o.status === "skipped")?.existingRunAt
+      const when = at ? ` You can run them again after ${clockTime(nextRunAllowedAt(at))}.` : ""
+      if (started === 0 && res.refused === 0) {
+        // Nothing happened at all. This is the case that read as a broken button,
+        // so it gets a persistent notice rather than a toast that scrolls away.
+        setNotice(
+          `Already run in the last hour — nothing was charged, and the numbers below are the same ones.${when}`,
+        )
+      } else {
+        toast.info(
+          `${res.skipped} already ran in the last hour — nothing was charged for those.${when}`,
+        )
+      }
+    }
+  }, [])
+
   const runNow = async (promptIds?: string[]) => {
+    const ids = promptIds ?? prompts.map((p) => p.id)
+    // Client-side duplicate guard. The server's hour bucket makes a double-click
+    // free, but it also makes it INVISIBLE — the second click would just report
+    // "skipped". Refusing here means the guard is something the user can see.
+    if (ids.some((id) => inflight.current.has(id))) return
+    ids.forEach((id) => inflight.current.add(id))
+
     setBusy(true)
+    setNotice("")
     try {
-      await api.post(`/api/llm-tracker/projects/${projectId}/run`, promptIds ? { promptIds } : {})
+      const res = await api.post<RunResult>(
+        `/api/llm-tracker/projects/${projectId}/run`,
+        promptIds ? { promptIds } : {},
+      )
       setSelected(new Set())
-      setTimeout(() => void load(true), 1200)
+      reportRunOutcome(res)
+      // Poll from the ids we were handed, not from a hopeful refetch.
+      if ((res.runIds?.length ?? 0) > 0) startPolling()
+      else void load(true)
     } catch (err: unknown) {
       // 402 is handled globally by the quota upsell modal via the api client.
       if (!(err instanceof ApiError && err.status === 402)) {
         setError(err instanceof Error ? err.message : "Failed to start run")
       }
     } finally {
+      ids.forEach((id) => inflight.current.delete(id))
       setBusy(false)
     }
   }
@@ -232,9 +332,28 @@ export default function LlmPromptListPage() {
         </div>
       </div>
 
+      {notice && (
+        <div className="card tight" style={{ marginBottom: 12 }}>
+          <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
+            <Icon.info size={13} />
+            <div className="tiny" style={{ flex: 1 }}>
+              <span className="b">Already run — nothing was charged. </span>
+              <span className="muted">{notice}</span>
+            </div>
+            <button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => setNotice("")}>
+              <Icon.close />
+            </button>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="card" style={{ padding: 16, marginBottom: 16, color: "var(--neg)", fontSize: 13 }}>
           {error}
+          <div style={{ marginTop: 10 }}>
+            <button type="button" className="btn sm" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
         </div>
       )}
 
@@ -258,6 +377,9 @@ export default function LlmPromptListPage() {
                   </th>
                   <th>Prompt</th>
                   <th>Platform</th>
+                  {/* Status was never a column: it was smuggled into Mention
+                      rate, where PENDING and PROCESSING rendered identically. */}
+                  <th style={{ width: 200 }}>Status</th>
                   <th style={{ textAlign: "right" }}>Mention rate</th>
                   <th style={{ textAlign: "right" }}>Cited</th>
                   <th style={{ textAlign: "right" }}>Prominence</th>
@@ -268,9 +390,14 @@ export default function LlmPromptListPage() {
                 {prompts.flatMap((p) =>
                   (p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])).map((platform, idx) => {
                     const run = p.runs.find((r) => r.platform === platform)
-                    const active = run && ACTIVE.has(run.status)
+                    const active = run && ACTIVE_STATUSES.has(run.status)
+                    const state = deriveRunState(run)
+                    // A completed run inside the current calendar hour cannot be
+                    // re-run: the server dedupes it and reports "skipped". Saying
+                    // so on the button beats letting the click look like it failed.
+                    const blocked = isWithinRunWindow(run)
                     return (
-                      <tr key={`${p.id}-${platform}`}>
+                      <tr key={`${p.id}-${platform}`} className={idx === 0 ? "llm-grp" : undefined}>
                         {idx === 0 ? (
                           <td rowSpan={p.platforms.length || 1}>
                             <input
@@ -294,38 +421,39 @@ export default function LlmPromptListPage() {
                           </td>
                         ) : null}
                         <td>
-                          <span className="chip outline">{PLATFORM_LABEL[platform]}</span>
+                          <span className="llm-plat">
+                            <PlatformMark id={platform} size={15} />
+                            {PLATFORM_LABEL[platform]}
+                          </span>
+                        </td>
+                        <td>
+                          <RunStateCell
+                            state={state}
+                            onRetry={state.kind === "failed" ? () => void runNow([p.id]) : undefined}
+                          />
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          {active ? (
-                            <span className="tiny muted">
-                              {run!.samplesCompleted}/{run!.samplesRequested}…
-                            </span>
-                          ) : run?.status === "FAILED" ? (
-                            <span className="chip neg">Failed</span>
-                          ) : run ? (
-                            <span className="b tabular">{pct(run.mentionRate)}</span>
-                          ) : (
-                            <span className="tiny muted">Not run</span>
-                          )}
+                          <RateCell rate={run?.mentionRate ?? null} change={run?.change ?? null} />
                         </td>
-                        <td style={{ textAlign: "right" }} className="tabular">
-                          {run?.status === "COMPLETED" ? pct(run.citationRate) : "—"}
+                        <td style={{ textAlign: "right" }}>
+                          <CitedCell state={state} rate={run?.citationRate ?? null} />
                         </td>
-                        <td style={{ textAlign: "right" }} className="tabular">
-                          {run?.avgProminence != null ? (
-                            `${Math.round(run.avgProminence * 100)}%`
-                          ) : (
-                            "—"
-                          )}
+                        <td style={{ textAlign: "right" }}>
+                          <ProminenceCell state={state} value={run?.avgProminence ?? null} />
                         </td>
                         {idx === 0 ? (
                           <td rowSpan={p.platforms.length || 1}>
                             <div className="row" style={{ gap: 4 }}>
                               <button
                                 className="icon-btn"
-                                title="Run now"
-                                disabled={busy}
+                                title={
+                                  active
+                                    ? "Already running"
+                                    : blocked && run
+                                      ? `Already run at ${clockTime(new Date(run.runAt))} — re-runs open at ${clockTime(nextRunAllowedAt(run.runAt))}`
+                                      : "Run now"
+                                }
+                                disabled={busy || !!active || blocked}
                                 onClick={() => void runNow([p.id])}
                               >
                                 <Icon.refresh />
@@ -350,9 +478,13 @@ export default function LlmPromptListPage() {
         <AddPromptsModal
           projectId={projectId}
           onClose={() => setShowAdd(false)}
-          onAdded={() => {
+          onAdded={({ runIds }) => {
             setShowAdd(false)
-            void load(true)
+            setNotice("")
+            // Runs already started, so poll from their ids rather than hoping a
+            // refetch happens to observe a PENDING row.
+            if (runIds && runIds.length > 0) startPolling()
+            else void load(true)
           }}
         />
       )}
@@ -374,12 +506,14 @@ function AddPromptsModal({
 }: {
   projectId: string
   onClose: () => void
-  onAdded: () => void
+  /** `runIds` is non-empty when the user chose "Add & run" and runs started. */
+  onAdded: (result: { runIds?: string[] }) => void
 }) {
   const [text, setText] = useState("")
   const [platforms, setPlatforms] = useState<Platform[]>(["chat_gpt"])
   const [samples, setSamples] = useState(3)
-  const [loading, setLoading] = useState(false)
+  const [busyMode, setBusyMode] = useState<"add" | "run" | null>(null)
+  const loading = busyMode !== null
   const [error, setError] = useState("")
 
   const prompts = useMemo(
@@ -387,26 +521,71 @@ function AddPromptsModal({
     [text],
   )
   const tooLong = prompts.filter((p) => p.length > 500)
+  const disabled =
+    loading || prompts.length === 0 || platforms.length === 0 || tooLong.length > 0
+
+  // Claude is 3 credits an answer where the others are 1, so the two rates have
+  // to be summed rather than quoted separately.
+  const addBase = prompts.length * platforms.filter((x) => x !== "claude").length * samples
+  const addClaude = platforms.includes("claude") ? prompts.length * samples : 0
 
   const toggle = (p: Platform) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]))
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  /**
+   * Add, and optionally run what was just added.
+   *
+   * Two calls rather than a server-side `autoRun` flag: the prompts ARE created
+   * even if the run is refused for credits, so a 402 status on the combined
+   * request would misreport what happened — and would bypass the global upsell
+   * modal that the api client fires on a 402 from the run endpoint.
+   */
+  const submit = async (mode: "add" | "run") => {
     setError("")
-    setLoading(true)
+    setBusyMode(mode)
     try {
-      await api.post(`/api/llm-tracker/projects/${projectId}/prompts`, {
-        prompts,
-        platforms,
-        samplesPerRun: samples,
-      })
-      onAdded()
+      const res = await api.post<{ added: number; requested: number; prompts?: { id: string }[] }>(
+        `/api/llm-tracker/projects/${projectId}/prompts`,
+        { prompts, platforms, samplesPerRun: samples },
+      )
+      const dupes = res.requested - res.added
+      if (dupes > 0) {
+        toast.info(`${dupes} ${dupes === 1 ? "prompt was" : "prompts were"} already tracked.`)
+      }
+
+      const ids = (res.prompts ?? []).map((x) => x.id)
+      if (mode === "add" || ids.length === 0) {
+        toast.success(`Added ${res.added} prompt${res.added === 1 ? "" : "s"}.`)
+        onAdded({})
+        return
+      }
+
+      // Close first: the prompts are saved either way, so a run failure must
+      // never make it look as though the add failed.
+      onAdded({})
+      try {
+        const run = await api.post<RunResult>(`/api/llm-tracker/projects/${projectId}/run`, {
+          promptIds: ids,
+        })
+        onAdded({ runIds: run.runIds })
+      } catch (err) {
+        if (!(err instanceof ApiError && err.status === 402)) {
+          toast.error(
+            err instanceof ApiError ? err.message : "Prompts were added, but the run didn't start.",
+          )
+        }
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add prompts")
     } finally {
-      setLoading(false)
+      setBusyMode(null)
     }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Enter fires the primary action, which is Add & run.
+    void submit("run")
   }
 
   return (
@@ -489,17 +668,21 @@ function AddPromptsModal({
             )}
             {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}
           </div>
-          <div className="modal-f">
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn primary"
-              disabled={loading || prompts.length === 0 || platforms.length === 0 || tooLong.length > 0}
-            >
-              {loading ? "Adding…" : `Add ${prompts.length || ""}`.trim()}
-            </button>
+          <div className="modal-f split">
+            {/* The price of the run this button would start. The modal decided
+                the spend and showed no cost at all until now. */}
+            <RunCost base={addBase} claude={addClaude} />
+            <div className="row" style={{ gap: 8 }}>
+              <button type="button" className="btn" onClick={onClose} disabled={loading}>
+                Cancel
+              </button>
+              <button type="button" className="btn" disabled={disabled} onClick={() => void submit("add")}>
+                {busyMode === "add" ? "Adding…" : "Add only"}
+              </button>
+              <button type="submit" className="btn primary" disabled={disabled}>
+                {busyMode === "run" ? "Starting…" : "Add & run"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

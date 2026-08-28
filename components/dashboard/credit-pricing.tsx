@@ -221,7 +221,7 @@ function PlanCard({
 // Tool NAMES stay in English: they are product names, and a translated row
 // that renames the tool no longer matches the sidebar the user clicks.
 const TOOLS: { name: string; whatKey: string; costKey: string }[] = [
-  { name: "Google Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword" },
+  { name: "Keyword Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword" },
   { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword" },
   { name: "Google Maps Tracker", whatKey: "toolMapsWhat", costKey: "costPerScan" },
   { name: "Keyword Magic Tool", whatKey: "toolMagicWhat", costKey: "costPerSearch" },
