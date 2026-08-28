@@ -5,9 +5,13 @@ import { declineKeywordAi } from "@/lib/keywordAiChoice"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useTranslations } from "next-intl"
-import { api } from "@/lib/api"
+import { api, ApiError } from "@/lib/api"
 import { Icon } from "./icons"
 import { normalizeDomain, projectNameFor } from "@/lib/pendingDomain"
+
+// 402s that mean "this plan won't allow another project" — as opposed to a bad
+// domain or a duplicate, which the form can still fix in place.
+const PLAN_LIMIT_CODES = new Set(["project_limit_reached", "project_create_limit_reached"])
 
 /**
  * Create a project, from wherever you happen to be.
@@ -29,9 +33,19 @@ import { normalizeDomain, projectNameFor } from "@/lib/pendingDomain"
 export function CreateProjectModal<T>({
   onClose,
   onCreated,
+  onPlanLimit,
 }: {
   onClose: () => void
   onCreated: (project: T) => void
+  /**
+   * The account's plan cap was hit. Callers check this before opening the form
+   * (see hooks/use-project-limit), so reaching it here means the client let the
+   * click through and the server refused — usage hadn't resolved yet, or another
+   * tab created a project first. Given the chance to, hand the caller the
+   * upgrade path instead of rendering the 402 as a red box under a form the user
+   * can no longer submit.
+   */
+  onPlanLimit?: (code: string) => void
 }) {
   // Reuses the strings the Rank Tracker's modal already had in all four
   // locales — no new keys, so this ships translated rather than English-only.
@@ -95,6 +109,10 @@ export function CreateProjectModal<T>({
       }
       onCreated(created)
     } catch (err: unknown) {
+      if (onPlanLimit && err instanceof ApiError && PLAN_LIMIT_CODES.has(err.code)) {
+        onPlanLimit(err.code)
+        return
+      }
       setError(err instanceof Error ? err.message : t("createError"))
     } finally {
       setLoading(false)

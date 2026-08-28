@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useTranslations } from "next-intl"
-import { Link, useRouter } from "@/i18n/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { useTutorial } from "@/lib/tutorial"
@@ -18,10 +18,10 @@ import { track } from "@/lib/analytics"
 import { clearPendingDomain, projectNameFor, readPendingDomain } from "@/lib/pendingDomain"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
-
-// Max projects a free user can own. Paid users are uncapped. Must stay in
-// sync with FREE_PROJECTS_LIMIT in freeserp-backend/src/routes/projects.js.
-const FREE_PROJECTS_LIMIT = 1
+import { ProjectLimitModal } from "@/components/dashboard/project-limit-modal"
+// Fallback only — the real cap comes from /api/usage (`projectsLimit`), so a
+// per-user override or a plan whose limit isn't 1 no longer reads wrong here.
+import { FREE_PROJECTS_LIMIT } from "@/hooks/use-project-limit"
 
 // ───── Types ───────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ interface ProjectSummary {
   trend?: number[]
 }
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
+type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean; projectsLimit?: number }
 
 // ───── Helpers ─────────────────────────────────────────────────────────────
 
@@ -56,52 +56,13 @@ function projectColor(id: string): string {
   return palette[h % palette.length]
 }
 
-// ───── Upgrade plan modal ──────────────────────────────────────────────────
-
-function UpgradeModal({ onClose }: { onClose: () => void }) {
-  const t = useTranslations("dashProjects")
-  return (
-    <div className="fs-app">
-      <div className="modal-bg" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-          <div className="modal-h">
-            <div>
-              <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}><span className="spark"><Icon.spark /></span> {t("upgradeEyebrow")}</div>
-              <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t("upgradeTitle")}</div>
-            </div>
-            <button type="button" onClick={onClose} className="icon-btn" aria-label={t("close")}><Icon.close /></button>
-          </div>
-          <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div className="tiny muted" style={{ lineHeight: 1.6 }}>
-              {t("upgradeBody", { limit: FREE_PROJECTS_LIMIT })}
-            </div>
-            <div
-              className="card tight"
-              style={{ borderColor: "var(--brand)", background: "var(--brand-soft)", display: "flex", flexDirection: "column", gap: 8 }}
-            >
-              {(t.raw("upgradeFeatures") as string[]).map((f) => (
-                <div key={f} className="row" style={{ gap: 8, color: "var(--brand)", fontSize: 13 }}>
-                  <Icon.check /> <span style={{ color: "var(--text)" }}>{f}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="modal-f">
-            <button type="button" className="btn" onClick={onClose}>{t("notNow")}</button>
-            <Link href="/pricing?clicked-buy-button"><button type="button" className="btn primary">{t("upgradePlan")}</button></Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ───── Projects list ───────────────────────────────────────────────────────
 
 function ProjectsList({
   projects,
   loading,
   plan,
+  limit,
   usage,
   onAdd,
   onUpgrade,
@@ -112,6 +73,8 @@ function ProjectsList({
   projects: ProjectSummary[]
   loading: boolean
   plan?: string
+  /** Projects this plan allows, as reported by /api/usage. */
+  limit: number
   usage: UsageInfo | null
   onAdd: () => void
   onUpgrade: () => void
@@ -125,12 +88,12 @@ function ProjectsList({
   // know the tier — don't assume "free" in that window, otherwise paid users
   // see the project-cap notice flash before usage resolves.
   const isFree = plan === "free"
-  const isAtProjectLimit = isFree && projects.length >= FREE_PROJECTS_LIMIT
+  const isAtProjectLimit = isFree && projects.length >= limit
   // The New-project button stays enabled even at the free limit — clicking it
   // opens the upgrade popup instead of the create-project modal.
   const handleAdd = isAtProjectLimit ? onUpgrade : onAdd
   const addTitle = isAtProjectLimit
-    ? t("addTitleAtLimit", { limit: FREE_PROJECTS_LIMIT })
+    ? t("addTitleAtLimit", { limit })
     : t("addTitleDefault")
 
   // Real average-position trend sparkline (lower position is better, hence
@@ -162,7 +125,7 @@ function ProjectsList({
           </h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
             {isFree
-              ? t("subFree", { used: projects.length, limit: FREE_PROJECTS_LIMIT })
+              ? t("subFree", { used: projects.length, limit })
               : t("subTracked", { count: projects.length })}
           </p>
         </div>
@@ -376,6 +339,10 @@ export default function ProjectsPage() {
   const [showAddProject, setShowAddProject] = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+  // The plan's real cap. Falls back to the free default only until /api/usage
+  // answers — the gate below is `plan === "free"`-conditioned, so an unresolved
+  // usage never blocks a paid user's button.
+  const projectLimit = usage?.projectsLimit ?? FREE_PROJECTS_LIMIT
   // Project favorites, cross-referenced once so each card's star starts correct.
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [favReady, setFavReady] = useState(false)
@@ -526,6 +493,7 @@ export default function ProjectsPage() {
         projects={projects}
         loading={projectsLoading}
         plan={usage?.plan}
+        limit={projectLimit}
         usage={usage}
         onAdd={() => setShowAddProject(true)}
         onUpgrade={() => setShowUpgrade(true)}
@@ -534,11 +502,22 @@ export default function ProjectsPage() {
         favReady={favReady}
       />
 
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && (
+        <ProjectLimitModal
+          limit={projectLimit}
+          used={projects.length}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
 
       {showAddProject && (
         <CreateProjectModal<ProjectSummary>
           onClose={() => setShowAddProject(false)}
+          // The cap check above runs on a usage snapshot that can be stale (a
+          // second tab, or a plan change). When the server refuses anyway, close
+          // the form — its 402 already fired `billing:quota`, so the global
+          // QuotaUpsellModal carries the upgrade path from here.
+          onPlanLimit={() => setShowAddProject(false)}
           onCreated={(p) => {
             // POST /api/projects returns the bare project row — no `_count`,
             // which only the list query includes. Inserting it as-is made the
