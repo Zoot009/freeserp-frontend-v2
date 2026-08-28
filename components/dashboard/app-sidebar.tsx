@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LineChart,
   KeyRound,
-  Star,
   Zap,
   Sparkles,
   Search,
@@ -104,7 +103,6 @@ const AUDIT: Item[] = [
 
 const TOOLS: Item[] = [
   { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },
-  { key: "favorites", url: "/dashboard/favorites", icon: Star },
   { key: "keywordMagic", url: "/dashboard/keyword-magic", icon: Sparkles },
   // Page Score Checker was removed: it scored a single URL from a plain fetch,
   // which the Website Audit above does properly — real browser, 63 rules, and it

@@ -3,7 +3,7 @@
 import type * as React from "react"
 import { useTransition } from "react"
 import { useLocale, useTranslations } from "next-intl"
-import { Languages, LogOut, Settings, Sparkles } from "lucide-react"
+import { Languages, LogOut, Settings, Sparkles, Star } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { useAuth } from "@/lib/auth"
@@ -104,6 +104,15 @@ export function UserMenu({
               {t("upgradeToPro")}
             </DropdownMenuItem>
           )}
+          {/* Moved out of the sidebar's Tools group. Favorites isn't a tool —
+              it's this account's saved things, which is what the rest of this
+              menu is — and sitting between Keywords and the Keyword Magic Tool
+              it read as a fifth tool that did keyword work. Same route, same
+              `dashboardNav.favorites` string, so it stays translated. */}
+          <DropdownMenuItem className={ROW} onClick={() => router.push("/dashboard/favorites")}>
+            <Star />
+            {t("favorites")}
+          </DropdownMenuItem>
           <DropdownMenuItem className={ROW} onClick={() => router.push("/dashboard/billing")}>
             <Settings />
             {t("settings")}
