@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { useProjectCrumb } from "./crumb-store"
+import { useDetailCrumb, useProjectCrumb } from "./crumb-store"
 
 /**
  * Path-derived breadcrumbs for the dashboard header.
@@ -22,7 +22,14 @@ import { useProjectCrumb } from "./crumb-store"
  */
 
 type CrumbDef = { key: string; href?: string }
-type Crumb = { label: string; href?: string }
+type Crumb = {
+  label: string
+  href?: string
+  /** A crumb that returns to a view on THIS url rather than navigating. */
+  onBack?: () => void
+  /** Free text from a page (a keyword, a title) — clamp it. */
+  clamp?: boolean
+}
 
 // Curated trails per route. A crumb without `href` is the leaf for that path.
 //
@@ -117,7 +124,19 @@ export function DashboardBreadcrumb({ className }: { className?: string }) {
   const pathname = usePathname() || "/dashboard"
   const tNav = useTranslations("dashboardNav")
   const projectName = useProjectCrumb(projectIdFrom(pathname))
-  const crumbs = crumbsFor(pathname, tNav, projectName)
+  const detail = useDetailCrumb()
+  const base = crumbsFor(pathname, tNav, projectName)
+
+  // A page-published leaf extends the trail by one. The crumb it lands on is no
+  // longer the page you are on, so it takes the page's own way back — the
+  // result is a state on this url, so there is no href to point it at.
+  const crumbs: Crumb[] = detail
+    ? [
+        ...base.slice(0, -1),
+        { ...base[base.length - 1]!, onBack: detail.onBack },
+        { label: detail.label, clamp: true },
+      ]
+    : base
 
   return (
     <Breadcrumb className={className}>
@@ -130,13 +149,21 @@ export function DashboardBreadcrumb({ className }: { className?: string }) {
               <BreadcrumbItem>
                 {/* The leaf is the current page: BreadcrumbPage renders it as
                     aria-current rather than a link to where you already are. */}
-                {isLast || !c.href ? (
-                  <BreadcrumbPage>{c.label}</BreadcrumbPage>
+                {isLast || (!c.href && !c.onBack) ? (
+                  <BreadcrumbPage className={c.clamp ? "max-w-[240px] truncate" : undefined}>
+                    {c.label}
+                  </BreadcrumbPage>
+                ) : c.onBack ? (
+                  <BreadcrumbLink asChild>
+                    <button type="button" className="cursor-pointer" onClick={c.onBack}>
+                      {c.label}
+                    </button>
+                  </BreadcrumbLink>
                 ) : (
                   // asChild (Radix Slot) — this install predates the newer
                   // `render` prop, so the next/link child is slotted in.
                   <BreadcrumbLink asChild>
-                    <Link href={c.href}>{c.label}</Link>
+                    <Link href={c.href!}>{c.label}</Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>

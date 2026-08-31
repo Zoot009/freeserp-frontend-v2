@@ -24,6 +24,7 @@ import {
   YtPosCell,
   type YtKeywordRow,
 } from "@/components/dashboard/youtube"
+import { StatCard } from "@/components/dashboard/stat-card"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
@@ -695,6 +696,36 @@ export default function YoutubeKeywordsPage() {
     return () => clearInterval(id)
   }, [hasActive, load])
 
+  /**
+   * The headline figures, mirroring the Google project page's strip.
+   *
+   * Derived from the rows we already hold, so there is no second request and
+   * the numbers cannot disagree with the table under them.
+   *
+   * `bestVideoPosition` is the best position among THIS channel's own videos
+   * (youtubeIngest.service.ts computes it from the owned results only), which is
+   * what makes it the right basis for "your" top 3 and top 10 — the same reading
+   * those tiles have on the Google page.
+   */
+  const stats = useMemo(() => {
+    const list = project?.keywords ?? []
+    const ranked = list.filter((k) => k.bestVideoPosition != null)
+    const sum = ranked.reduce((n, k) => n + (k.bestVideoPosition ?? 0), 0)
+    const atOrBetter = (n: number) => list.filter((k) => (k.bestVideoPosition ?? Infinity) <= n).length
+    return {
+      total: list.length,
+      ranked: ranked.length,
+      avgPos: ranked.length ? sum / ranked.length : 0,
+      top3: atOrBetter(3),
+      top10: atOrBetter(10),
+      /** Every one of the channel's videos that placed, across all keywords. */
+      videos: list.reduce((n, k) => n + (k.ownedCount ?? 0), 0),
+      // Counts notInTop, not "no position": a check that ran and found nothing
+      // is a real answer, and must stay distinguishable from one that never ran.
+      notInTop: list.filter((k) => k.notInTop).length,
+    }
+  }, [project])
+
   const rows = useMemo(() => {
     let list = project?.keywords ?? []
     if (filter.trim()) {
@@ -780,6 +811,15 @@ export default function YoutubeKeywordsPage() {
     )
   }
 
+  // The auto-check card's read-out. The cadence was only ever legible from the
+  // dropdown's own selected value, buried in a filter toolbar — the Google page
+  // states it, and states it beside the control rather than inside it.
+  const autoCheck = !project.autoCheckEnabled
+    ? { label: "Off · not scheduled", tone: "text-muted-foreground" }
+    : project.isPaused
+      ? { label: "Paused", tone: "text-amber-600 dark:text-amber-400" }
+      : { label: freqLabel(project.checkFrequency), tone: "text-primary" }
+
   const targetHref =
     project.targetType === "VIDEO" && project.targetVideoId
       ? `https://www.youtube.com/watch?v=${project.targetVideoId}`
@@ -789,65 +829,194 @@ export default function YoutubeKeywordsPage() {
 
   return (
     <div className="page">
-      {/* Headed like the Google project page: 26px title, the target on one
-          muted line beneath it, actions right. It was a 14px .t with the target
-          scattered across chips and links, so the project name read smaller
-          than the table headings under it. */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.02em]">
-            {project.name}
-          </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-            <span>{project.targetType === "CHANNEL" ? "Channel" : "Video"}</span>
-            <span aria-hidden>·</span>
-            {targetHref ? (
-              <a
-                href={targetHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
-              >
-                {project.targetLabel ?? project.targetRaw}
-                <Icon.external size={11} />
-              </a>
-            ) : (
-              <span>{project.targetLabel ?? project.targetRaw}</span>
-            )}
-            {/* Kept prominent: a name-only match means the numbers may belong to
-                a different channel with a similar name, which matters more than
-                anything else on this page. */}
-            {project.targetMatchStrategy === "channel_name" && (
-              <span
-                className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-                title="Matched by channel name until a check resolves the channel ID."
-              >
-                Fuzzy match
-              </span>
-            )}
+      {/* Headed like the Google project page: a way back out, a mark beside the
+          name, the target on one muted line beneath it, and the schedule stated
+          on the right above the actions. */}
+      <Link href="/dashboard/youtube" className="kd-back" style={{ display: "inline-flex" }}>
+        ← All channels
+      </Link>
+
+      <div className="mb-4 flex flex-wrap items-start gap-x-4 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* The Google page puts the site's favicon here. A YouTube project has
+              no domain to draw one from, so the platform's own mark stands in —
+              the point is that the title has something to sit against. */}
+          <span
+            aria-hidden
+            className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-red-500/12 text-red-600 dark:text-red-400"
+          >
+            <Icon.video />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.02em]">
+              {project.name}
+            </h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+              <span>{project.targetType === "CHANNEL" ? "Channel" : "Video"}</span>
+              <span aria-hidden>·</span>
+              {targetHref ? (
+                <a
+                  href={targetHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+                >
+                  {project.targetLabel ?? project.targetRaw}
+                  <Icon.external size={11} />
+                </a>
+              ) : (
+                <span>{project.targetLabel ?? project.targetRaw}</span>
+              )}
+              {/* Kept prominent: a name-only match means the numbers may belong to
+                  a different channel with a similar name, which matters more than
+                  anything else on this page. */}
+              {project.targetMatchStrategy === "channel_name" && (
+                <span
+                  className="rounded-full bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                  title="Matched by channel name until a check resolves the channel ID."
+                >
+                  Fuzzy match
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowAddKw(true)}
-            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
-          >
-            <Icon.plus /> Add keywords
-          </Button>
-          <Button
-            disabled={busy || project.keywords.length === 0}
-            onClick={() => runCheck(selected.size > 0 ? [...selected] : undefined)}
-            className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
-          >
-            <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
-          </Button>
+        <div className="ml-auto flex shrink-0 flex-col items-end gap-2.5">
+          {/* Auto check — the schedule, and the control that changes it. Lifted
+              out of the filter toolbar, where a cadence dropdown sat between a
+              keyword filter and a depth chip as if the three were the same kind
+              of thing. */}
+          <div className="rounded-xl border bg-card px-3.5 py-2.5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div
+                className="min-w-0"
+                title={
+                  project.autoCheckEnabled && project.nextScheduledCheck
+                    ? `Next check ${new Date(project.nextScheduledCheck).toLocaleString()}`
+                    : undefined
+                }
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  Auto check
+                </div>
+                <div className={`mt-0.5 whitespace-nowrap text-[13px] font-semibold ${autoCheck.tone}`}>
+                  {autoCheck.label}
+                </div>
+              </div>
+              <div className="h-8 w-px shrink-0 bg-border" />
+              {/* The app's own Dropdown, not a native select and not shadcn's.
+                  A native <select> can be styled down to the box but not the OPEN
+                  MENU — that is drawn by the OS, so it arrived with system fonts,
+                  square corners and the platform's blue highlight in the middle of
+                  an otherwise styled page. Dropdown is what the rest of the app
+                  uses for exactly this, the Google project's own frequency picker
+                  included. */}
+              <Dropdown
+                ariaLabel="Check frequency"
+                value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
+                onChange={(v) => updateFrequency(v === "off" ? "off" : Number(v))}
+                options={[
+                  { value: "off", label: "Manual checks only" },
+                  ...FREQ_CHOICES.map((h) => ({ value: String(h), label: freqLabel(h) })),
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAddKw(true)}
+              className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+            >
+              <Icon.plus /> Add keywords
+            </Button>
+            <Button
+              disabled={busy || project.keywords.length === 0}
+              onClick={() => runCheck(selected.size > 0 ? [...selected] : undefined)}
+              className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+            >
+              <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="mb-3 rounded-xl border bg-card p-3.5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2.5">
+      {/* Stat strip, on the Google page's StatCard so both trackers present a
+          number the same way — label, figure, and an explanation of what counts
+          as good, which a bare label has nowhere to put. */}
+      {(() => {
+        /** Greyed when there is nothing to report, so real numbers stand out. */
+        const dim = (n: number) => (n ? undefined : "text-muted-foreground/50")
+        const pct = (n: number) => (stats.total ? `${Math.round((n / stats.total) * 100)}% of tracked` : "—")
+        return (
+          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-6">
+            <StatCard
+              label="Keywords tracked"
+              hint="How many search terms you're tracking on this channel."
+              value={stats.total.toLocaleString()}
+              tone={dim(stats.total)}
+              caption={`${stats.top3} in top 3`}
+              fill={null}
+            />
+            <StatCard
+              label="Avg. position"
+              hint="Your average YouTube position across the keywords where one of your videos placed. Lower is better."
+              value={stats.avgPos ? stats.avgPos.toFixed(1) : "—"}
+              tone={dim(stats.avgPos)}
+              caption={stats.total ? `${stats.ranked} ranked` : "no data"}
+              fill={null}
+            />
+            <StatCard
+              label="Top 3 keywords"
+              hint="Keywords where one of your videos sits in the first three results — where nearly all the watch time goes."
+              value={stats.top3.toLocaleString()}
+              tone={dim(stats.top3)}
+              caption={pct(stats.top3)}
+              fill={stats.total ? (stats.top3 / stats.total) * 100 : 0}
+            />
+            <StatCard
+              label="In top 10"
+              hint="Keywords where one of your videos placed in the first ten results."
+              value={stats.top10.toLocaleString()}
+              tone={dim(stats.top10)}
+              caption={pct(stats.top10)}
+              fill={stats.total ? (stats.top10 / stats.total) * 100 : 0}
+            />
+            <StatCard
+              label="Videos ranking"
+              hint="Every one of your videos that placed, counted across all tracked keywords. One video ranking for three keywords counts three times."
+              value={stats.videos.toLocaleString()}
+              tone={dim(stats.videos)}
+              caption="across all keywords"
+              fill={null}
+            />
+            <StatCard
+              label={`Not in top ${project.defaultDepth}`}
+              hint="Keywords we checked where none of your videos appeared within the depth we looked at. Unlike Google's top 100, YouTube has no ceiling — so this is bounded by the depth, not by the platform."
+              value={stats.notInTop.toLocaleString()}
+              tone={stats.notInTop ? "text-muted-foreground" : "text-muted-foreground/50"}
+              caption={stats.total ? pct(stats.notInTop) : "—"}
+              fill={null}
+            />
+          </div>
+        )
+      })()}
+
+      {error && (
+        <div className="card tight" style={{ color: "var(--neg)", fontSize: 13, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {/* One card, headed like the Google page's "SERP Rank Tracking": the title,
+          the filter that narrows it and the count it narrows to, all attached to
+          the table they act on. The filter used to float in a card of its own
+          above the table, with the schedule dropdown beside it. */}
+      <div className="card" style={{ padding: 0 }}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b px-4 py-3">
+          <div className="text-sm font-semibold">YouTube Rank Tracking</div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -871,25 +1040,11 @@ export default function YoutubeKeywordsPage() {
             )}
           </div>
 
-          {/* The app's own Dropdown, not a native select and not shadcn's.
-              A native <select> can be styled down to the box but not the OPEN
-              MENU — that is drawn by the OS, so it arrived with system fonts,
-              square corners and the platform's blue highlight in the middle of an
-              otherwise styled page. A styled trigger over an unstyled menu is the
-              worst of the options, because it looks deliberate until you open it.
-
-              Dropdown is what the rest of the app uses for exactly this, the
-              Google project's own frequency picker included — so this control now
-              matches its sibling instead of introducing a third dropdown. */}
-          <Dropdown
-            ariaLabel="Check frequency"
-            value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
-            onChange={(v) => updateFrequency(v === "off" ? "off" : Number(v))}
-            options={[
-              { value: "off", label: "Manual checks only" },
-              ...FREQ_CHOICES.map((h) => ({ value: String(h), label: freqLabel(h) })),
-            ]}
-          />
+          {/* Says which rows the filter is showing, the way the Google page does
+              — a shortened table with no count reads as missing keywords. */}
+          <span className="text-xs text-muted-foreground">
+            Showing {rows.length} of {project.keywords.length}
+          </span>
 
           <span
             className="ml-auto rounded-md border border-border/60 bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
@@ -898,17 +1053,11 @@ export default function YoutubeKeywordsPage() {
             Top {project.defaultDepth} by default
           </span>
         </div>
+
         {/* Disclaimer #1 of 3 — persistent, right above the numbers it qualifies. */}
-        <VolatilityNote compact />
-      </div>
-
-      {error && (
-        <div className="card tight" style={{ color: "var(--neg)", fontSize: 13, marginBottom: 12 }}>
-          {error}
+        <div className="border-b px-4 py-2.5">
+          <VolatilityNote compact />
         </div>
-      )}
-
-      <div className="card" style={{ padding: 0 }}>
         {rows.length === 0 ? (
           <div style={{ padding: "40px 32px", textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
             {filter.trim() ? `No keywords match “${filter}”.` : "No keywords yet — add some to start tracking."}

@@ -506,7 +506,7 @@
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
     "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
-    "googleTracker": "Keyword Rank Tracker",
+    "googleTracker": "Google Rank Tracker",
     "youtubeTracker": "YouTube Rank Tracker",
     "mapsTracker": "Google Maps Tracker",
     "websiteAudit": "Full Website Audit",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "No rank data yet",
     "noData": "No data",
     "headerEyebrow": "RANK TRACKING",
-    "headerTitle": "Keyword Rank Tracker",
+    "headerTitle": "Google Rank Tracker",
     "subFree": "{used} of {limit} used on Free plan · upgrade for unlimited",
     "subTracked": "{count, plural, one {# project tracked} other {# projects tracked}}",
     "tour": "Tour",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "QUICK SERP",
-    "title": "Quick Serp",
+    "title": "Google Quick SERP Checker",
     "subtitle": "Run an unbiased Google query from a clean server. Top 100, depersonalized.",
     "exportReport": "Export report",
     "form": {
@@ -1052,7 +1052,8 @@
       "checking": "Checking…",
       "checkRankings": "Check Rankings",
       "costNote": "Live Google query · uses {count, plural, one {# check} other {# checks}} · ~10 seconds",
-      "costNoteCredits": "Live Google query · uses {count, plural, one {# credit} other {# credits}} · ~10 seconds"
+      "costNoteCredits": "Live Google query · uses {count, plural, one {# credit} other {# credits}} · ~10 seconds",
+      "optional": "optional"
     },
     "processing": {
       "withKeyword": "Querying Google for “{keyword}”… you can leave this page and come back.",
@@ -1091,7 +1092,8 @@
     },
     "history": {
       "title": "Previous searches",
-      "recent": "{count} recent",
+      "summary": "{queries, plural, one {# query} other {# queries}} · {checks, plural, one {# check} other {# checks}}",
+      "runs": "{count, plural, one {# run} other {# runs}}",
       "checking": "Checking…",
       "failed": "Failed"
     },
@@ -1123,7 +1125,19 @@
       "IMG": "Images",
       "LOCAL": "Local",
       "KG": "Knowledge"
-    }
+    },
+    "empty": {
+      "title": "Nothing checked yet",
+      "body": "Enter a keyword above and we'll query Google live from a clean server — no cookies, no history, no personalisation.",
+      "positionTitle": "Your exact position",
+      "positionBody": "Where your domain sits in the top 100 for this keyword, if you give one.",
+      "pageTitle": "The whole result page",
+      "pageBody": "Every organic result in order, with its title, URL and snippet.",
+      "featuresTitle": "What Google rendered",
+      "featuresBody": "AI Overview, featured snippet, People Also Ask, video and local packs."
+    },
+    "newCheck": "New check",
+    "checkedWhen": "checked {when}"
   },
   "notifications": {
     "title": "Notifications",

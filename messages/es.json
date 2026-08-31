@@ -506,7 +506,7 @@
     "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
     "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba",
-    "googleTracker": "Rastreador de posiciones de palabras clave",
+    "googleTracker": "Rastreador de posiciones de Google",
     "youtubeTracker": "Rastreador de posiciones de YouTube",
     "mapsTracker": "Rastreador de Google Maps",
     "websiteAudit": "Auditoría completa del sitio",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "Aún no hay datos de posición",
     "noData": "Sin datos",
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",
-    "headerTitle": "Rastreador de posiciones de palabras clave",
+    "headerTitle": "Rastreador de posiciones de Google",
     "subFree": "{used} de {limit} usados en el plan Gratuito · mejora para ilimitados",
     "subTracked": "{count, plural, one {# proyecto rastreado} other {# proyectos rastreados}}",
     "tour": "Tour",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RÁPIDA",
-    "title": "SERP rápida",
+    "title": "Comprobador rápido de SERP de Google",
     "subtitle": "Ejecuta una consulta de Google imparcial desde un servidor limpio. Top 100, despersonalizada.",
     "exportReport": "Exportar informe",
     "form": {
@@ -1052,7 +1052,8 @@
       "checking": "Comprobando…",
       "checkRankings": "Comprobar posiciones",
       "costNote": "Consulta de Google en vivo · usa {count, plural, one {# comprobación} other {# comprobaciones}} · ~10 segundos",
-      "costNoteCredits": "Consulta en vivo de Google · usa {count, plural, one {# crédito} other {# créditos}} · ~10 segundos"
+      "costNoteCredits": "Consulta en vivo de Google · usa {count, plural, one {# crédito} other {# créditos}} · ~10 segundos",
+      "optional": "opcional"
     },
     "processing": {
       "withKeyword": "Consultando Google para «{keyword}»… puedes salir de esta página y volver.",
@@ -1091,9 +1092,10 @@
     },
     "history": {
       "title": "Búsquedas anteriores",
-      "recent": "{count} recientes",
+      "summary": "{queries, plural, one {# consulta} other {# consultas}} · {checks, plural, one {# comprobación} other {# comprobaciones}}",
+      "runs": "{count, plural, one {# ejecución} other {# ejecuciones}}",
       "checking": "Comprobando…",
-      "failed": "Fallida"
+      "failed": "Ha fallado"
     },
     "confirm": {
       "eyebrow": "CONFIRMAR COMPROBACIÓN",
@@ -1123,7 +1125,19 @@
       "IMG": "Imágenes",
       "LOCAL": "Local",
       "KG": "Conocimiento"
-    }
+    },
+    "empty": {
+      "title": "Aún no has comprobado nada",
+      "body": "Introduce una palabra clave arriba y consultaremos Google en vivo desde un servidor limpio: sin cookies, sin historial y sin personalización.",
+      "positionTitle": "Tu posición exacta",
+      "positionBody": "Dónde aparece tu dominio en el top 100 para esta palabra clave, si indicas uno.",
+      "pageTitle": "La página de resultados completa",
+      "pageBody": "Todos los resultados orgánicos en orden, con su título, URL y descripción.",
+      "featuresTitle": "Lo que ha mostrado Google",
+      "featuresBody": "AI Overview, fragmento destacado, «Otras preguntas», packs de vídeo y locales."
+    },
+    "newCheck": "Nueva comprobación",
+    "checkedWhen": "comprobado {when}"
   },
   "notifications": {
     "title": "Notificaciones",

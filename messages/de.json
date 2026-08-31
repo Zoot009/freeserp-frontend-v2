@@ -506,7 +506,7 @@
     "competitorAnalysis": "Konkurrenzanalyse",
     "trialDaysLeft": "Noch {days, plural, one {# Tag} other {# Tage}} im Test",
     "trialHoursLeft": "Noch {hours, plural, one {# Stunde} other {# Stunden}} im Test",
-    "googleTracker": "Keyword Rank Tracker",
+    "googleTracker": "Google Rank Tracker",
     "youtubeTracker": "YouTube Rank Tracker",
     "mapsTracker": "Google-Maps-Tracker",
     "websiteAudit": "Vollständiges Website-Audit",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "Noch keine Ranking-Daten",
     "noData": "Keine Daten",
     "headerEyebrow": "RANKING-TRACKING",
-    "headerTitle": "Keyword Rank Tracker",
+    "headerTitle": "Google Rank Tracker",
     "subFree": "{used} von {limit} im kostenlosen Tarif genutzt · Upgrade für unbegrenzt",
     "subTracked": "{count, plural, one {# Projekt verfolgt} other {# Projekte verfolgt}}",
     "tour": "Tour",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SCHNELLE SERP",
-    "title": "Schnelle SERP",
+    "title": "Google Quick-SERP-Checker",
     "subtitle": "Führe eine unvoreingenommene Google-Abfrage von einem neutralen Server aus. Top 100, depersonalisiert.",
     "exportReport": "Bericht exportieren",
     "form": {
@@ -1052,7 +1052,8 @@
       "checking": "Wird geprüft…",
       "checkRankings": "Rankings prüfen",
       "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden",
-      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden"
+      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden",
+      "optional": "optional"
     },
     "processing": {
       "withKeyword": "Google wird für „{keyword}“ abgefragt… du kannst diese Seite verlassen und später zurückkommen.",
@@ -1091,7 +1092,8 @@
     },
     "history": {
       "title": "Frühere Suchen",
-      "recent": "{count} aktuelle",
+      "summary": "{queries, plural, one {# Suchanfrage} other {# Suchanfragen}} · {checks, plural, one {# Prüfung} other {# Prüfungen}}",
+      "runs": "{count, plural, one {# Durchlauf} other {# Durchläufe}}",
       "checking": "Wird geprüft…",
       "failed": "Fehlgeschlagen"
     },
@@ -1123,7 +1125,19 @@
       "IMG": "Bilder",
       "LOCAL": "Lokal",
       "KG": "Wissen"
-    }
+    },
+    "empty": {
+      "title": "Noch nichts geprüft",
+      "body": "Gib oben ein Keyword ein — wir fragen Google live von einem sauberen Server ab: keine Cookies, kein Verlauf, keine Personalisierung.",
+      "positionTitle": "Deine genaue Position",
+      "positionBody": "Wo deine Domain für dieses Keyword in den Top 100 steht, sofern du eine angibst.",
+      "pageTitle": "Die komplette Ergebnisseite",
+      "pageBody": "Jedes organische Ergebnis der Reihe nach, mit Titel, URL und Snippet.",
+      "featuresTitle": "Was Google ausgespielt hat",
+      "featuresBody": "AI Overview, Featured Snippet, „Ähnliche Fragen“, Video- und Local-Packs."
+    },
+    "newCheck": "Neue Prüfung",
+    "checkedWhen": "geprüft {when}"
   },
   "notifications": {
     "title": "Benachrichtigungen",

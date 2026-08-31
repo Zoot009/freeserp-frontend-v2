@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Favicon } from "@/components/favicon"
 import { useCredits } from "@/lib/credits"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
 import { ALL_LOCATIONS } from "@/lib/locations"
@@ -17,6 +17,7 @@ import {
   type SerpFeatures,
 } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { setDetailCrumb } from "@/components/dashboard/crumb-store"
 
 type SerpResultRow = {
   position: number
@@ -74,14 +75,33 @@ type CheckRow = {
 // value comes from GET /api/billing/config (backend LIVE_SERP_CHECK_UNITS).
 const LIVE_CHECK_COST_FALLBACK = 1
 
-function relativeTime(iso: string, t: ReturnType<typeof useTranslations>): string {
+// The date fell back to a hardcoded "en-US", so a French or German reader got
+// "Jul 31" in the middle of their own language.
+function relativeTime(iso: string, t: ReturnType<typeof useTranslations>, locale: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60_000)
   if (mins < 1) return t("time.justNow")
   if (mins < 60) return t("time.minutesAgo", { count: mins })
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return t("time.hoursAgo", { count: hrs })
-  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" })
+}
+
+/** "31 Jul, 14:22" — inside a group every run is the SAME query, so the clock is
+ *  the only thing that tells one from another. */
+function absoluteTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale, {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  })
+}
+
+/** One row of the history list, grouped by the query it repeats. */
+type HistoryGroup = {
+  key: string
+  /** Most recent run — what the collapsed row reports and opens. */
+  latest: HistoryItem
+  /** Every run of this query, newest first. */
+  items: HistoryItem[]
 }
 
 function fmtVolume(v: number | null): string {
@@ -114,8 +134,38 @@ export default function SerpCheckerPage() {
   const [submitting, setSubmitting] = useState(false)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>([])
+  // Which grouped query is showing its individual runs. One at a time — the
+  // list is a sidebar-width column, not a tree to browse.
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const locale = useLocale()
+
+  /**
+   * Repeats of the same query collapse into one row.
+   *
+   * The list is a log, and running the same check a dozen times is the normal
+   * way to use this tool — which produced a dozen identical rows, each 64px
+   * tall, all reading "seo · US · freeserp.com · Jul 31 · 100+". A list where
+   * every row says the same thing cannot be read and cannot be picked from:
+   * clicking one was a coin toss between twelve results.
+   *
+   * `history` arrives newest-first and Map keeps insertion order, so the first
+   * run seen for a key is the latest and the groups stay in recency order.
+   */
+  const groups = useMemo<HistoryGroup[]>(() => {
+    const by = new Map<string, HistoryGroup>()
+    for (const h of history) {
+      const key = `${h.keyword.trim().toLowerCase()}|${h.country}|${h.device}|${(h.domain ?? "").toLowerCase()}`
+      const g = by.get(key)
+      if (g) g.items.push(h)
+      else by.set(key, { key, latest: h, items: [h] })
+    }
+    return [...by.values()]
+  }, [history])
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Which check is on screen. The URL sync below compares against this so it is
+  // idempotent — it can run again without re-fetching what is already shown.
+  const shownIdRef = useRef<string | null>(null)
 
   // A check is "in progress" while the POST is in flight or a row is PROCESSING.
   const processing = submitting || processingId != null
@@ -138,6 +188,46 @@ export default function SerpCheckerPage() {
     }
   }, [])
 
+  /**
+   * Show a result, and give it a URL.
+   *
+   * A result used to be pure component state stacked under the form, with no
+   * way out of it: the page breadcrumb points at the route you are already on,
+   * and browser Back left the tool entirely rather than returning to the
+   * search. `?check=<id>` makes the result a real history entry — Back returns
+   * to the search, and the URL can be reloaded or shared.
+   *
+   * pushState rather than the router: this is the same route with a different
+   * view, so a navigation would be a re-render for nothing. (The keywords page
+   * scrubs its own params the same way.)
+   */
+  const showResult = useCallback((r: CheckResponse, id: string) => {
+    setResult(r)
+    setError(null)
+    shownIdRef.current = id
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get("check") !== id) {
+      url.searchParams.set("check", id)
+      window.history.pushState({ serpCheck: id }, "", url.toString())
+    }
+    window.scrollTo(0, 0)
+  }, [])
+
+  /** Back to the search form and the history list. */
+  const clearResult = useCallback(() => {
+    setResult(null)
+    setError(null)
+    shownIdRef.current = null
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("check")
+    // replace, not push: leaving a forward entry pointing at the result you
+    // just backed out of is a trap, not a convenience.
+    window.history.replaceState(null, "", url.toString())
+    window.scrollTo(0, 0)
+  }, [])
+
   // Poll a PROCESSING check until it terminates, then surface the result/error.
   const pollCheck = useCallback(
     (id: string) => {
@@ -149,7 +239,7 @@ export default function SerpCheckerPage() {
           if (check.status === "COMPLETED" || check.status === "FAILED") {
             stopPolling()
             setProcessingId(null)
-            if (check.status === "COMPLETED" && check.result) setResult(check.result)
+            if (check.status === "COMPLETED" && check.result) showResult(check.result, id)
             if (check.status === "FAILED") setError(check.error || t("errors.checkFailed"))
             void loadHistory()
             window.dispatchEvent(new Event("usage:refresh"))
@@ -161,7 +251,7 @@ export default function SerpCheckerPage() {
       void tick()
       pollRef.current = setInterval(() => void tick(), 2000)
     },
-    [loadHistory, stopPolling, t],
+    [loadHistory, stopPolling, showResult, t],
   )
 
   // On mount: load previous searches and resume any in-flight check so a page
@@ -232,9 +322,29 @@ export default function SerpCheckerPage() {
       }
       try {
         const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${item.id}`)
+        if (check.result) showResult(check.result, item.id)
+      } catch {
+        setError(t("errors.loadFailed"))
+      }
+    },
+    [pollCheck, showResult, t],
+  )
+
+  /** Open a check by id. Used by the ?check= we arrive with and by Back/Forward,
+   *  both of which already have the id in the URL — so this sets state directly
+   *  rather than pushing another entry for the one we are standing on. */
+  const loadCheckById = useCallback(
+    async (id: string) => {
+      try {
+        const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${id}`)
         if (check.result) {
           setResult(check.result)
           setError(null)
+          shownIdRef.current = id
+        } else if (check.status === "PROCESSING") {
+          pollCheck(id)
+        } else {
+          setError(t("errors.historyFailed"))
         }
       } catch {
         setError(t("errors.loadFailed"))
@@ -242,6 +352,36 @@ export default function SerpCheckerPage() {
     },
     [pollCheck, t],
   )
+
+  // The open result becomes the last crumb in the HEADER's trail — the page had
+  // grown its own second breadcrumb under the topbar's, which said the same
+  // thing twice and left the real one still ending at the tool.
+  useEffect(() => {
+    if (!result) {
+      setDetailCrumb(null)
+      return
+    }
+    setDetailCrumb({ label: result.keyword, onBack: clearResult })
+    return () => setDetailCrumb(null)
+  }, [result, clearResult])
+
+  // The URL is the source of truth for which view is on screen: read it on
+  // arrival, and follow it on every Back/Forward.
+  useEffect(() => {
+    const sync = () => {
+      const id = new URLSearchParams(window.location.search).get("check")
+      if (id === shownIdRef.current) return
+      if (!id) {
+        setResult(null)
+        shownIdRef.current = null
+        return
+      }
+      void loadCheckById(id)
+    }
+    sync()
+    window.addEventListener("popstate", sync)
+    return () => window.removeEventListener("popstate", sync)
+  }, [loadCheckById])
 
   function exportReport() {
     if (!result) return
@@ -258,14 +398,38 @@ export default function SerpCheckerPage() {
 
   return (
     <div className="page">
+      {/* Two modes, and the header says which one you are in. A result used to
+          appear BELOW the form with the page still titled "Quick SERP Checker",
+          so there was nothing to say you had opened something, and nothing to
+          close it — the only way back to the list was a browser Back that left
+          the tool. */}
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <h1>{t("title")}</h1>
-          <div className="sub">{t("subtitle")}</div>
+          {result ? (
+            <>
+              {/* No crumb trail here — the topbar's own trail carries the open
+                  result as its leaf (see setDetailCrumb above), and two of them
+                  stacked was the same journey drawn twice. */}
+              <h1 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {result.keyword}
+              </h1>
+              <div className="sub">
+                {result.country.toUpperCase()} · {result.device === "mobile" ? t("form.mobile") : t("form.desktop")} ·{" "}
+                {t("checkedWhen", { when: relativeTime(result.checkedAt, t, locale) })}
+              </div>
+            </>
+          ) : (
+            <>
+              <h1>{t("title")}</h1>
+              <div className="sub">{t("subtitle")}</div>
+            </>
+          )}
         </div>
-        {/* Export only makes sense once a check has produced a result. */}
         {result && (
-          <div className="row">
+          <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+            <button className="btn" onClick={clearResult}>
+              <Icon.search /> {t("newCheck")}
+            </button>
             <button className="btn" onClick={exportReport}>
               <Icon.download /> {t("exportReport")}
             </button>
@@ -273,29 +437,50 @@ export default function SerpCheckerPage() {
         )}
       </div>
 
-      <ToolContext id="quick-serp" />
+      {!result && <ToolContext id="quick-serp" />}
 
-      {/* Query form */}
+      {/* Query form.
+          The query on top, the settings under it. It was a 2x2 grid — which gave
+          the optional Domain field the same weight as the required Keyword, and
+          put Domain FIRST — over a full-width slab of a button, the loudest
+          thing on a page that had not run anything yet. */}
+      {!result && (
       <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
-        <div className="grid g-2" style={{ marginBottom: 14 }}>
-          <Field label={t("form.domain")}>
-            <input
-              className="input"
-              placeholder={t("form.domainPlaceholder")}
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-            />
+        <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {/* The one required field, so it leads and takes the width. */}
+          <Field label={t("form.keyword")} style={{ flex: "1 1 320px" }}>
+            <div style={{ position: "relative" }}>
+              <span style={FIELD_ICON}><Icon.search /></span>
+              <input
+                className="input lg"
+                style={{ paddingLeft: 38 }}
+                placeholder={t("form.keywordPlaceholder")}
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
           </Field>
-          <Field label={t("form.keyword")}>
-            <input
-              className="input"
-              placeholder={t("form.keywordPlaceholder")}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              required
-            />
+          <Field label={t("form.domain")} hint={t("form.optional")} style={{ flex: "1 1 260px" }}>
+            <div style={{ position: "relative" }}>
+              <span style={FIELD_ICON}><Icon.globe /></span>
+              <input
+                className="input lg"
+                style={{ paddingLeft: 38 }}
+                placeholder={t("form.domainPlaceholder")}
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
           </Field>
-          <Field label={t("form.country")}>
+        </div>
+
+        {/* Country, device, and the submit pushed to the end of the same line.
+            margin-left:auto rather than a spacer element, so the button still
+            sits right when the row wraps on a narrow screen. */}
+        <div className="row" style={{ gap: 12, marginTop: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <Field label={t("form.country")} style={{ flex: "0 1 220px" }}>
             <Dropdown
               block
               menuAlign="left"
@@ -312,14 +497,14 @@ export default function SerpCheckerPage() {
               ariaLabel={t("form.country")}
             />
           </Field>
-          <Field label={t("form.device")}>
-            <div className="pill-toggle" style={{ width: "100%" }}>
+          <Field label={t("form.device")} style={{ flex: "0 0 auto" }}>
+            <div className="pill-toggle">
               {(["desktop", "mobile"] as const).map((d) => (
                 <button
                   key={d}
                   type="button"
                   className={device === d ? "active" : ""}
-                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "7px 14px" }}
                   onClick={() => setDevice(d)}
                 >
                   {d === "desktop" ? <Icon.monitor size={15} /> : <Icon.smartphone size={15} />}
@@ -328,12 +513,18 @@ export default function SerpCheckerPage() {
               ))}
             </div>
           </Field>
+
+          <button
+            type="submit"
+            className="btn primary"
+            style={{ marginLeft: "auto", minWidth: 180, height: 38, justifyContent: "center" }}
+            disabled={!canSubmit}
+          >
+            {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
+          </button>
         </div>
 
-        <button type="submit" className="btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={!canSubmit}>
-          {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
-        </button>
-        <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
+        <div className="tiny muted" style={{ marginTop: 12 }}>
           {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: liveCheckCost })}
         </div>
 
@@ -346,19 +537,64 @@ export default function SerpCheckerPage() {
               borderRadius: "var(--r-md)",
               background: "var(--neg-soft)",
               color: "var(--neg)",
-              textAlign: "center",
             }}
           >
             {error}
           </div>
         )}
       </form>
+      )}
 
       {/* Processing state — survives reloads (resumed from history on mount). */}
       {processing && !result && (
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
           <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span>
           {keyword.trim() ? t("processing.withKeyword", { keyword: keyword.trim() }) : t("processing.noKeyword")}
+        </div>
+      )}
+
+      {/* Nothing run yet. The page used to end at the form, so two-thirds of the
+          viewport was blank white — a tool that looks broken before its first
+          use. This says what a check actually returns instead.
+          Only with no history: "Nothing checked yet" is false once Previous
+          searches is on screen, and that card already fills the space. */}
+      {!result && !processing && history.length === 0 && (
+        <div className="card" style={{ padding: "44px 32px" }}>
+          <div style={{ textAlign: "center" }}>
+            <div
+              aria-hidden
+              style={{
+                width: 46, height: 46, margin: "0 auto 14px",
+                display: "grid", placeItems: "center",
+                borderRadius: 14, background: "var(--brand-soft)", color: "var(--brand)",
+              }}
+            >
+              <Icon.zap />
+            </div>
+            <div className="b" style={{ fontSize: 17, letterSpacing: "-0.01em" }}>{t("empty.title")}</div>
+            {/* Not className="sub": that rule only exists under .page-h, so it
+                styles nothing here — the copy would render at full body size. */}
+            <div className="muted" style={{ margin: "6px auto 0", maxWidth: 470, fontSize: 13.5, lineHeight: 1.6 }}>
+              {t("empty.body")}
+            </div>
+          </div>
+
+          <div
+            className="grid g-3"
+            style={{ marginTop: 28, maxWidth: 740, marginInline: "auto", gap: 22 }}
+          >
+            {[
+              { key: "position", icon: <Icon.chart />, title: t("empty.positionTitle"), body: t("empty.positionBody") },
+              { key: "page", icon: <Icon.search />, title: t("empty.pageTitle"), body: t("empty.pageBody") },
+              { key: "features", icon: <Icon.ai />, title: t("empty.featuresTitle"), body: t("empty.featuresBody") },
+            ].map((f) => (
+              <div key={f.key} className="col" style={{ gap: 7 }}>
+                <span style={{ display: "inline-flex", color: "var(--brand)" }}>{f.icon}</span>
+                <span className="b" style={{ fontSize: 13 }}>{f.title}</span>
+                <span className="tiny muted" style={{ lineHeight: 1.55 }}>{f.body}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -551,59 +787,81 @@ export default function SerpCheckerPage() {
         </>
       )}
 
-      {/* Previous searches */}
-      {history.length > 0 && (
+      {/* Previous searches — one row per QUERY, not per run. See `groups`.
+          Hidden while a result is open: it is the list you came FROM, and the
+          breadcrumb is how you get back to it. */}
+      {!result && history.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
-          <div className="card-h" style={{ padding: "14px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
+          <div className="card-h" style={{ padding: "13px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
             <div className="b">{t("history.title")}</div>
-            <span className="tiny muted">{t("history.recent", { count: history.length })}</span>
+            <span className="tiny muted">
+              {t("history.summary", { queries: groups.length, checks: history.length })}
+            </span>
           </div>
+
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {history.map((h) => (
-              <li key={h.id}>
-                <button
-                  type="button"
-                  onClick={() => void openHistory(h)}
-                  disabled={h.status === "PROCESSING"}
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    textAlign: "left",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    border: "none",
-                    borderBottom: "1px solid var(--border)",
-                    background: "transparent",
-                    cursor: h.status === "PROCESSING" ? "default" : "pointer",
-                  }}
-                >
-                  <span style={{ flexShrink: 0, color: "var(--text-mute)" }}>
-                    {h.device === "mobile" ? <Icon.smartphone size={15} /> : <Icon.monitor size={15} />}
-                  </span>
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span className="b" style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {h.keyword}
-                    </span>
-                    <span className="tiny muted">
-                      {h.country.toUpperCase()}
-                      {h.domain ? ` · ${h.domain}` : ""} · {relativeTime(h.createdAt, t)}
-                    </span>
-                  </span>
-                  <span style={{ flexShrink: 0 }}>
-                    {h.status === "PROCESSING" ? (
-                      <span className="tiny" style={{ color: "var(--brand)" }}>{t("history.checking")}</span>
-                    ) : h.status === "FAILED" ? (
-                      <span className="tiny" style={{ color: "var(--neg)" }}>{t("history.failed")}</span>
-                    ) : (
-                      <span className={"pos-badge " + (h.position == null ? "" : h.position <= 3 ? "top3" : h.position <= 10 ? "top10" : "")}>
-                        {h.position == null ? "100+" : `#${h.position}`}
+            {groups.map((g) => {
+              const h = g.latest
+              const expanded = openGroup === g.key
+              return (
+                <li key={g.key} className="sc-hist-item">
+                  <div className="sc-hist-line">
+                    {/* The row opens the latest run. The runs chip beside it is
+                        a separate control, so one click never has to mean two
+                        different things. */}
+                    <button
+                      type="button"
+                      className="sc-hist-open"
+                      onClick={() => void openHistory(h)}
+                      disabled={h.status === "PROCESSING"}
+                    >
+                      <span className="sc-hist-dev">
+                        {h.device === "mobile" ? <Icon.smartphone size={14} /> : <Icon.monitor size={14} />}
                       </span>
+                      <span className="b sc-hist-kw">{h.keyword}</span>
+                      <span className="tiny muted sc-hist-meta">
+                        {h.country.toUpperCase()}{h.domain ? ` · ${h.domain}` : ""}
+                      </span>
+                    </button>
+
+                    {g.items.length > 1 && (
+                      <button
+                        type="button"
+                        className="sc-hist-runs"
+                        aria-expanded={expanded}
+                        onClick={() => setOpenGroup(expanded ? null : g.key)}
+                      >
+                        {t("history.runs", { count: g.items.length })}
+                        <span className={"sc-hist-chev" + (expanded ? " open" : "")}><Icon.chevD /></span>
+                      </button>
                     )}
-                  </span>
-                </button>
-              </li>
-            ))}
+
+                    <HistoryStatus item={h} t={t} />
+                    <span className="tiny muted tabular sc-hist-when">{relativeTime(h.createdAt, t, locale)}</span>
+                  </div>
+
+                  {expanded && (
+                    <ul className="sc-hist-sub">
+                      {g.items.map((it) => (
+                        <li key={it.id}>
+                          <button
+                            type="button"
+                            className="sc-hist-subrow"
+                            onClick={() => void openHistory(it)}
+                            disabled={it.status === "PROCESSING"}
+                          >
+                            <span className="tiny muted tabular" style={{ flex: 1, minWidth: 0 }}>
+                              {absoluteTime(it.createdAt, locale)}
+                            </span>
+                            <HistoryStatus item={it} t={t} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
@@ -639,15 +897,128 @@ export default function SerpCheckerPage() {
           </div>
         </div>
       )}
+      <style jsx>{`
+        /* Previous searches. A hover-highlighted line that holds two separate
+           controls, so the whole row can't be one button. */
+        .sc-hist-item { border-bottom: 1px solid var(--border); }
+        .sc-hist-item:last-child { border-bottom: none; }
+        .sc-hist-line {
+          display: flex; align-items: center; gap: 10px;
+          padding: 9px 16px;
+        }
+        .sc-hist-line:hover { background: var(--bg-inset); }
+        .sc-hist-open {
+          display: flex; align-items: center; gap: 10px;
+          flex: 1; min-width: 0;
+          padding: 0; border: none; background: transparent;
+          color: inherit; text-align: left; cursor: pointer;
+        }
+        .sc-hist-open:disabled { cursor: default; }
+        .sc-hist-dev { flex-shrink: 0; display: inline-flex; color: var(--text-mute); }
+        /* The keyword takes what it needs and the market line gives way first —
+           it is the part you can afford to lose. */
+        .sc-hist-kw {
+          font-size: 13px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          flex: 0 1 auto;
+        }
+        .sc-hist-meta {
+          min-width: 0; flex: 1 1 auto;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sc-hist-runs {
+          flex-shrink: 0;
+          display: inline-flex; align-items: center; gap: 3px;
+          padding: 3px 7px 3px 9px;
+          border: 1px solid var(--border); border-radius: 999px;
+          background: transparent; color: var(--text-mute);
+          font-size: 11.5px; font-weight: 500; white-space: nowrap;
+          cursor: pointer;
+        }
+        .sc-hist-runs:hover { color: var(--text); border-color: var(--border-strong); }
+        .sc-hist-chev { display: inline-flex; transition: transform 120ms ease; }
+        .sc-hist-chev.open { transform: rotate(180deg); }
+        .sc-hist-when { flex-shrink: 0; width: 62px; text-align: right; }
+
+        /* The runs of one query, indented to sit under its keyword. */
+        .sc-hist-sub { list-style: none; margin: 0; padding: 0; background: var(--bg-sub); }
+        .sc-hist-subrow {
+          display: flex; align-items: center; gap: 10px;
+          width: 100%;
+          padding: 7px 16px 7px 42px;
+          border: none; background: transparent;
+          text-align: left; cursor: pointer;
+        }
+        .sc-hist-subrow:hover { background: var(--bg-inset); }
+        .sc-hist-subrow:disabled { cursor: default; }
+      `}</style>
     </div>
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * What came of one check: a position pill, or why there isn't one.
+ *
+ * Not `.pos-badge`: that is a fixed 30x30 square built for "#4", and "100+"
+ * simply overflowed it — the miss case, which is most of them, was the one it
+ * couldn't draw. This sizes to its text.
+ */
+function HistoryStatus({ item, t }: { item: HistoryItem; t: ReturnType<typeof useTranslations> }) {
+  if (item.status === "PROCESSING") {
+    return <span className="tiny" style={{ flexShrink: 0, color: "var(--brand)" }}>{t("history.checking")}</span>
+  }
+  if (item.status === "FAILED") {
+    return <span className="tiny" style={{ flexShrink: 0, color: "var(--neg)" }}>{t("history.failed")}</span>
+  }
+  const p = item.position
+  const tone =
+    p == null ? { background: "var(--bg-inset)", color: "var(--text-mute)" }
+      : p <= 3 ? { background: "var(--brand)", color: "#fff" }
+      : p <= 10 ? { background: "var(--brand-soft)", color: "var(--brand)" }
+      : { background: "var(--bg-inset)", color: "var(--text)" }
   return (
-    <label className="col" style={{ gap: 6 }}>
-      <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
-        {label}
+    <span
+      className="tabular"
+      style={{
+        flexShrink: 0,
+        display: "inline-grid", placeItems: "center",
+        minWidth: 38, height: 24, padding: "0 8px",
+        borderRadius: 7, fontSize: 12, fontWeight: 600,
+        ...tone,
+      }}
+    >
+      {p == null ? "100+" : `#${p}`}
+    </span>
+  )
+}
+
+/** Leading icon inside a text input, matching the Keyword Magic search box. */
+const FIELD_ICON: React.CSSProperties = {
+  position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)",
+  color: "var(--text-mute)", display: "inline-flex", pointerEvents: "none",
+}
+
+function Field({
+  label, hint, style, children,
+}: {
+  label: string
+  /** Sits beside the label — "optional" and the like. */
+  hint?: string
+  style?: React.CSSProperties
+  children: React.ReactNode
+}) {
+  return (
+    <label className="col" style={{ gap: 6, minWidth: 0, ...style }}>
+      <span className="row" style={{ gap: 6, alignItems: "baseline" }}>
+        <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
+          {label}
+        </span>
+        {/* Beside the label, not in the placeholder: the placeholder disappears
+            the moment you type, which is when you would wonder whether the
+            field was required. */}
+        {hint && (
+          <span className="tiny muted" style={{ fontWeight: 500, opacity: 0.7 }}>{hint}</span>
+        )}
       </span>
       {children}
     </label>

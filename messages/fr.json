@@ -506,7 +506,7 @@
     "competitorAnalysis": "Analyse de la concurrence",
     "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
     "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai",
-    "googleTracker": "Suivi de position des mots-clés",
+    "googleTracker": "Suivi de position Google",
     "youtubeTracker": "Suivi de position YouTube",
     "mapsTracker": "Suivi Google Maps",
     "websiteAudit": "Audit complet du site",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "Pas encore de données de position",
     "noData": "Aucune donnée",
     "headerEyebrow": "SUIVI DE POSITION",
-    "headerTitle": "Suivi de position des mots-clés",
+    "headerTitle": "Suivi de position Google",
     "subFree": "{used} sur {limit} utilisés sur le plan Gratuit · passez à l'illimité",
     "subTracked": "{count, plural, one {# projet suivi} other {# projets suivis}}",
     "tour": "Visite",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RAPIDE",
-    "title": "SERP rapide",
+    "title": "Vérificateur SERP rapide Google",
     "subtitle": "Lancez une requête Google impartiale depuis un serveur neutre. Top 100, dépersonnalisée.",
     "exportReport": "Exporter le rapport",
     "form": {
@@ -1052,7 +1052,8 @@
       "checking": "Vérification…",
       "checkRankings": "Vérifier le classement",
       "costNote": "Requête Google en direct · utilise {count, plural, one {# vérification} other {# vérifications}} · ~10 secondes",
-      "costNoteCredits": "Requête Google en direct · utilise {count, plural, one {# crédit} other {# crédits}} · ~10 secondes"
+      "costNoteCredits": "Requête Google en direct · utilise {count, plural, one {# crédit} other {# crédits}} · ~10 secondes",
+      "optional": "facultatif"
     },
     "processing": {
       "withKeyword": "Interrogation de Google pour « {keyword} »… vous pouvez quitter cette page et revenir.",
@@ -1091,7 +1092,8 @@
     },
     "history": {
       "title": "Recherches précédentes",
-      "recent": "{count} récentes",
+      "summary": "{queries, plural, one {# requête} other {# requêtes}} · {checks, plural, one {# vérification} other {# vérifications}}",
+      "runs": "{count, plural, one {# exécution} other {# exécutions}}",
       "checking": "Vérification…",
       "failed": "Échec"
     },
@@ -1123,7 +1125,19 @@
       "IMG": "Images",
       "LOCAL": "Local",
       "KG": "Connaissances"
-    }
+    },
+    "empty": {
+      "title": "Aucune vérification pour l'instant",
+      "body": "Saisissez un mot-clé ci-dessus : nous interrogeons Google en direct depuis un serveur neutre — sans cookies, sans historique, sans personnalisation.",
+      "positionTitle": "Votre position exacte",
+      "positionBody": "La place de votre domaine dans le top 100 pour ce mot-clé, si vous en indiquez un.",
+      "pageTitle": "La page de résultats entière",
+      "pageBody": "Chaque résultat organique dans l'ordre, avec son titre, son URL et son extrait.",
+      "featuresTitle": "Ce que Google a affiché",
+      "featuresBody": "AI Overview, extrait optimisé, « Autres questions », packs vidéo et local."
+    },
+    "newCheck": "Nouvelle vérification",
+    "checkedWhen": "vérifié {when}"
   },
   "notifications": {
     "title": "Notifications",

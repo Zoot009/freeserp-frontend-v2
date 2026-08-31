@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { hasDeclinedKeywordAi, declineKeywordAi } from "@/lib/keywordAiChoice"
-import { Link } from "@/i18n/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 import { Loader2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { DEFAULT_ENGINE } from "@/hooks/use-engines"
@@ -413,17 +413,15 @@ function KeywordPicker({
 }
 
 export function KeywordSetupCard({
-  projectId, domain, onStatus, onAdded,
+  projectId, domain, onStatus,
 }: {
   projectId: string
   domain: string
   /** Reports whether an analysis is in flight, so the Next steps card can show
    *  the same spinner without a second poller on the same endpoint. */
   onStatus?: (running: boolean) => void
-  /** Keywords were just added from the picker — the page refetches instead of
-   *  waiting out its five-second poll to notice. */
-  onAdded?: () => void
 }) {
+  const router = useRouter()
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
@@ -695,7 +693,11 @@ export function KeywordSetupCard({
           suggestions={shortlist}
           location={shortlistLocation}
           onClose={() => setPicking(false)}
-          onAdded={() => { setPicking(false); onAdded?.() }}
+          // Straight to the tracker. The keywords just picked are rows on that
+          // page, and this card exists because the project had none — leaving
+          // the user on a dashboard that is still redrawing itself, to go and
+          // find them, is a worse answer than showing them.
+          onAdded={() => { setPicking(false); router.push(`/dashboard/project/${projectId}/keywords`) }}
         />
       )}
     </section>
