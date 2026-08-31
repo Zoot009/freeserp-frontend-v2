@@ -652,6 +652,9 @@ export default function YoutubeKeywordsPage() {
   // Separate from `busy`, which belongs to running checks: changing the
   // schedule must not disable the Run check button, or the reverse.
   const [savingFreq, setSavingFreq] = useState(false)
+  // The keyword slated for deletion — null when the confirmation is closed.
+  const [confirmDeleteKw, setConfirmDeleteKw] = useState<YtKeywordRow | null>(null)
+  const [deletingKw, setDeletingKw] = useState(false)
   const openedNew = useRef(false)
 
   useEffect(() => {
@@ -794,11 +797,26 @@ export default function YoutubeKeywordsPage() {
     }
   }
 
+  /**
+   * Delete, once it has been confirmed.
+   *
+   * The trash icon used to call this straight from the row: one click, gone,
+   * with the keyword's whole check history behind it and nothing to undo it
+   * with. The Google table asks first, and this is the same question.
+   */
   const deleteKeyword = async (kwId: string) => {
+    setDeletingKw(true)
+    // Optimistic: the row goes at once so the confirmation doesn't linger over
+    // a table that still shows what it just deleted. `load` below is what makes
+    // it true, or puts the row back if the call failed.
     setProject((prev) => (prev ? { ...prev, keywords: prev.keywords.filter((k) => k.id !== kwId) } : prev))
+    setConfirmDeleteKw(null)
     try {
       await api.delete(`/api/youtube/projects/${projectId}/keywords/${kwId}`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete keyword")
     } finally {
+      setDeletingKw(false)
       void load(true)
     }
   }
@@ -1330,7 +1348,7 @@ export default function YoutubeKeywordsPage() {
                             <button
                               className="icon-btn danger"
                               style={{ width: 28, height: 28 }}
-                              onClick={() => deleteKeyword(k.id)}
+                              onClick={() => setConfirmDeleteKw(k)}
                               aria-label={`Remove ${k.keyword}`}
                             >
                               <Icon.trash size={13} />
@@ -1346,6 +1364,47 @@ export default function YoutubeKeywordsPage() {
           </div>
         )}
       </div>
+
+      {confirmDeleteKw && (
+        <div className="modal-bg" onClick={() => !deletingKw && setConfirmDeleteKw(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11, color: "var(--neg)" }}>
+                  DELETE KEYWORD
+                </div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This can&apos;t be undone</div>
+              </div>
+              <button
+                onClick={() => setConfirmDeleteKw(null)}
+                className="icon-btn"
+                aria-label="Close"
+                disabled={deletingKw}
+              >
+                <Icon.close />
+              </button>
+            </div>
+            <div className="modal-b">
+              <div className="tiny muted">This will permanently delete</div>
+              <div className="b" style={{ fontSize: 16, color: "var(--neg)", marginTop: 2, wordBreak: "break-word" }}>
+                {confirmDeleteKw.keyword}
+              </div>
+              <div className="tiny muted" style={{ marginTop: 6 }}>and its rank history.</div>
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setConfirmDeleteKw(null)} disabled={deletingKw}>Cancel</button>
+              <button
+                onClick={() => void deleteKeyword(confirmDeleteKw.id)}
+                disabled={deletingKw}
+                className="btn"
+                style={{ background: "var(--neg)", color: "white", borderColor: "var(--neg)" }}
+              >
+                {deletingKw ? "Deleting…" : "Yes, delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddKw && (
         <AddKeywordsModal
