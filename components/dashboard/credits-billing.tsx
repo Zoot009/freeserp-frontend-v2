@@ -278,8 +278,11 @@ export function CreditsBilling({ highlight }: { highlight?: string | null }) {
       </div>
 
       <BalanceCard credits={credits} />
-      <Statement />
+      {/* Packs before the statement: someone who opens this page because they
+          are low on credits wants to buy, not to read history. The statement is
+          reference material and belongs at the bottom. */}
       <CreditPricing highlight={highlight} />
+      <Statement />
     </div>
   )
 }
