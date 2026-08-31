@@ -65,6 +65,11 @@ function freqLabel(hours: number, t: (k: string) => string): string {
 // Cadences offered when switching the schedule on, in the order they're listed.
 const FREQ_CHOICES = [24, 168, 360, 720]
 
+// The two dismissible insight-rail cards, and where the dismissals are stored.
+// Users who only ever read the table can hide both and get the full width.
+type RailCard = "movement" | "competitors"
+const RAIL_HIDDEN_KEY = "fs.projKeywords.hiddenRailCards"
+
 // ───── Types ───────────────────────────────────────────────────────────────
 
 /**
@@ -1153,6 +1158,36 @@ export default function ProjectKeywordsPage() {
   const [engineTab, setEngineTab] = useState<string>(DEFAULT_ENGINE)
   // Time window for the "Rankings improved" card (1/7/15/30-day deltas).
   const [rankPeriod, setRankPeriod] = useState<"d1" | "d7" | "d15" | "d30">("d1")
+  // Insight-rail cards the user has dismissed. Read from localStorage after
+  // mount (never during render) so the server and first client render agree;
+  // it's a per-browser layout preference, not project state, so it isn't keyed
+  // by project id. Dismissing both collapses the rail and hands the whole row
+  // to the keyword table, which is the point of the control.
+  const [hiddenRailCards, setHiddenRailCards] = useState<RailCard[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RAIL_HIDDEN_KEY)
+      if (!raw) return
+      const parsed: unknown = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        setHiddenRailCards(parsed.filter((c): c is RailCard => c === "movement" || c === "competitors"))
+      }
+    } catch { /* unreadable / blocked storage — just show both cards */ }
+  }, [])
+  const hideRailCard = useCallback((card: RailCard) => {
+    setHiddenRailCards((prev) => {
+      if (prev.includes(card)) return prev
+      const next = [...prev, card]
+      try { localStorage.setItem(RAIL_HIDDEN_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
+  const showRailCards = useCallback(() => {
+    setHiddenRailCards([])
+    try { localStorage.removeItem(RAIL_HIDDEN_KEY) } catch {}
+  }, [])
+  // Both gone → no rail at all, so the grid drops to a single column.
+  const railHidden = hiddenRailCards.length === 2
   const deviceTabInit = useRef(false)
   const engineTabInit = useRef(false)
 
@@ -2414,11 +2449,25 @@ export default function ProjectKeywordsPage() {
         </div>
       )}
 
-      {/* Keywords table — the insight rail always shows (even before any
-          keywords exist); the right column is the empty state or the table. */}
-      <div className="kd-layout">
-          {/* Insight rail */}
+      {/* Keywords table — the insight rail shows even before any keywords
+          exist, unless the user dismissed both of its cards; the right column
+          is the empty state or the table. */}
+      {/* With the rail dismissed there is nothing left on screen pointing back
+          to it, so the only way back has to live here. */}
+      {railHidden && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+          <button type="button" className="btn sm" onClick={showRailCards}>
+            {t("showInsights")}
+          </button>
+        </div>
+      )}
+
+      <div className={railHidden ? "kd-layout rail-hidden" : "kd-layout"}>
+          {/* Insight rail — each card can be dismissed; when both are gone the
+              rail itself is dropped rather than left as an empty column. */}
+          {!railHidden && (
           <div className="col" style={{ gap: 14, minWidth: 0 }}>
+            {!hiddenRailCards.includes("movement") && (
             <div className="card">
               <div className="card-h" style={{ marginBottom: 10 }}>
                 <div className="t">{t("rankingsImproved")}</div>
@@ -2436,6 +2485,15 @@ export default function ProjectKeywordsPage() {
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  className="card-x"
+                  onClick={() => hideRailCard("movement")}
+                  title={t("hideCard")}
+                  aria-label={t("hideCard")}
+                >
+                  <X size={14} />
+                </button>
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <span className="tabular" style={{ fontSize: 28, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1 }}>
@@ -2462,9 +2520,17 @@ export default function ProjectKeywordsPage() {
                 </div>
               </div>
             </div>
+            )}
 
-            <CompetitorsCard projectId={project.id} yourAvg={stats.avgPos > 0 ? stats.avgPos : null} />
+            {!hiddenRailCards.includes("competitors") && (
+              <CompetitorsCard
+                projectId={project.id}
+                yourAvg={stats.avgPos > 0 ? stats.avgPos : null}
+                onHide={() => hideRailCard("competitors")}
+              />
+            )}
           </div>
+          )}
 
           {/* Right column — for a just-created project we first ASK whether to
               run the (paid) AI analysis or add keywords by hand; then the analysis
@@ -2608,7 +2674,7 @@ export default function ProjectKeywordsPage() {
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl" style={{ minWidth: 980 }}>
+            <table className="tbl flush" style={{ minWidth: 980 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -3409,7 +3475,15 @@ type CompetitorRow = {
 }
 type CompetitorSuggestion = { domain: string; sharedCount: number }
 
-function CompetitorsCard({ projectId, yourAvg }: { projectId: string; yourAvg: number | null }) {
+function CompetitorsCard({
+  projectId,
+  yourAvg,
+  onHide,
+}: {
+  projectId: string
+  yourAvg: number | null
+  onHide: () => void
+}) {
   const t = useTranslations("projKeywords")
   const [tracked, setTracked] = useState<CompetitorRow[]>([])
   const [suggestions, setSuggestions] = useState<CompetitorSuggestion[]>([])
@@ -3458,7 +3532,18 @@ function CompetitorsCard({ projectId, yourAvg }: { projectId: string; yourAvg: n
     <div className="card">
       <div className="card-h">
         <div className="t">{t("competitors")}</div>
-        {tracked.length > 0 && <span className="tiny muted tabular">{tracked.length}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {tracked.length > 0 && <span className="tiny muted tabular">{tracked.length}</span>}
+          <button
+            type="button"
+            className="card-x"
+            onClick={onHide}
+            title={t("hideCard")}
+            aria-label={t("hideCard")}
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
       <Dropdown
         block
