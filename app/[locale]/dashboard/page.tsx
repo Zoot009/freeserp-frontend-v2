@@ -542,7 +542,12 @@ export default function SeoDashboardPage() {
                 itself in a dialog, so it asks before spending one rather than
                 firing on page load and reporting it afterwards. */}
             {noKeywords && (
-              <KeywordSetupCard projectId={projectId} domain={domain} onStatus={setKeywordsAnalysing} />
+              <KeywordSetupCard
+                projectId={projectId}
+                domain={domain}
+                onStatus={setKeywordsAnalysing}
+                onAdded={refresh}
+              />
             )}
 
             {/* ── The five headline figures ── */}

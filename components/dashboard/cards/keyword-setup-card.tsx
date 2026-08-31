@@ -24,7 +24,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { hasDeclinedKeywordAi, declineKeywordAi } from "@/lib/keywordAiChoice"
 import { Link } from "@/i18n/navigation"
-import { Sparkles } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
+import { toast } from "sonner"
+import { DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,6 +39,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 // start was already underway. "RUNNING" stays in the union only so an older
 // deployment that does send it is still read as in-flight.
 type RunStatus = "PENDING" | "PROCESSING" | "RUNNING" | "COMPLETED" | "FAILED"
+
+/** One AI-proposed keyword. `volume` is null when the provider had no figure. */
+type Suggestion = {
+  keyword: string
+  volume: number | null
+  rationale?: string
+}
+
 type Run = {
   id: string
   status: RunStatus
@@ -44,6 +54,28 @@ type Run = {
   /** When the run was created — the elapsed clock counts from here. */
   createdAt?: string | null
   completedAt: string | null
+  /**
+   * The shortlist itself, which this endpoint has always returned and this card
+   * always dropped. Reading it is what lets "Choose keywords" put the keywords
+   * on screen instead of a link to the page that has them.
+   *
+   * Optional because an older deployment may answer without it — the card falls
+   * back to the keywords page when it does.
+   */
+  suggestions?: {
+    location: string
+    suggestions: Suggestion[]
+  } | null
+}
+
+/** How many of the shortlist arrive ticked. They come volume-sorted, so this is
+ *  the head of the list. */
+const PRESELECT_COUNT = 10
+
+function formatVolume(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, "")}k`
+  return String(v)
 }
 
 const IN_FLIGHT: ReadonlySet<string> = new Set(["PENDING", "PROCESSING", "RUNNING"])
@@ -196,14 +228,201 @@ function KeywordAiPrompt({
   )
 }
 
+/**
+ * Pick from the shortlist, on the dashboard, without going anywhere.
+ *
+ * "Choose keywords" used to be a link. It read as an offer to choose and
+ * behaved as a redirect: you arrived on the rank tracker — a page about
+ * keywords you already track — to do the thing you had just asked to do, and
+ * the shortlist was another click away behind a second button.
+ *
+ * So the choosing happens here. The top few arrive ticked, because the whole
+ * point of running an analysis is that it already worked out what is worth
+ * tracking: the common path is one click, and disagreeing is possible rather
+ * than required.
+ */
+function KeywordPicker({
+  projectId,
+  domain,
+  suggestions,
+  location,
+  onClose,
+  onAdded,
+}: {
+  projectId: string
+  domain: string
+  suggestions: Suggestion[]
+  /** The locale the analysis ran in. The keywords are tracked in the same one,
+   *  so the picks mean what the volumes beside them said. */
+  location: string
+  onClose: () => void
+  onAdded: () => void
+}) {
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(suggestions.slice(0, PRESELECT_COUNT).map((s) => s.keyword)),
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Not while the POST is in flight — escaping then hides work that is
+      // still going to land.
+      if (e.key === "Escape" && !saving) onClose()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [onClose, saving])
+
+  const toggle = (kw: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(kw)) next.delete(kw)
+      else next.add(kw)
+      return next
+    })
+
+  const allPicked = suggestions.length > 0 && picked.size === suggestions.length
+
+  const submit = async () => {
+    const picks = suggestions.filter((s) => picked.has(s.keyword)).map((s) => s.keyword)
+    if (!picks.length) return
+    setSaving(true)
+    setError(null)
+    try {
+      // The same shape the Add keywords modal posts, so both paths create
+      // identical rows: one per keyword per engine.
+      const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
+        keywords: picks.map((k) => ({ keyword: k, location, device: "desktop", engines: [DEFAULT_ENGINE] })),
+      })
+      // The insert is skipDuplicates server-side, so "added" can legitimately
+      // come back lower than asked. Say which happened — silence there is
+      // indistinguishable from a failure.
+      const added = res?.added ?? picks.length
+      toast.success(
+        added === 0
+          ? "Those keywords are already tracked."
+          : `Now tracking ${added} keyword${added === 1 ? "" : "s"} — the first check is queued.`,
+      )
+      onAdded()
+    } catch (err: unknown) {
+      // Stay open. The picks are the user's work, and closing throws them away
+      // along with the error that explains why.
+      setSaving(false)
+      setError(err instanceof Error ? err.message : "Couldn't add those keywords.")
+    }
+  }
+
+  return (
+    <div className="fs-app">
+      <div className="modal-bg" onClick={() => { if (!saving) onClose() }}>
+        <div
+          className="modal"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: 520 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose keywords to track"
+        >
+          <div className="modal-h">
+            <div>
+              <div className="b" style={{ fontSize: 17, letterSpacing: "-0.01em" }}>Choose your keywords</div>
+              <p className="tiny muted" style={{ marginTop: 4 }}>
+                {`From our analysis of ${domain}. The top ${Math.min(PRESELECT_COUNT, suggestions.length)} are ticked — untick anything you don't want.`}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="modal-b"
+            style={{ maxHeight: 320, display: "flex", flexDirection: "column", gap: 2, padding: "12px 14px" }}
+          >
+            {suggestions.map((s) => {
+              const on = picked.has(s.keyword)
+              return (
+                <label
+                  key={s.keyword}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "7px 8px", borderRadius: 8,
+                    cursor: saving ? "default" : "pointer",
+                    background: on ? "var(--brand-soft)" : "transparent",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={saving}
+                    onChange={() => toggle(s.keyword)}
+                    style={{ width: 15, height: 15, accentColor: "var(--brand)", flexShrink: 0 }}
+                  />
+                  <span
+                    title={s.rationale ?? s.keyword}
+                    style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {s.keyword}
+                  </span>
+                  {s.volume != null && (
+                    <span className="tiny muted" style={{ fontFamily: "var(--font-mono)", flexShrink: 0 }}>
+                      {formatVolume(s.volume)}/mo
+                    </span>
+                  )}
+                </label>
+              )
+            })}
+          </div>
+
+          {error && (
+            <p className="tiny" style={{ margin: 0, padding: "0 22px 10px", color: "var(--neg)" }}>{error}</p>
+          )}
+
+          <div className="modal-f" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => setPicked(allPicked ? new Set() : new Set(suggestions.map((s) => s.keyword)))}
+              style={{ background: "none", border: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 500, fontSize: 12 }}
+            >
+              {allPicked ? "Clear all" : `Select all ${suggestions.length}`}
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 text-[13px] hover:bg-muted hover:text-foreground"
+                disabled={saving}
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-9 gap-1.5 text-[13px]"
+                disabled={saving || picked.size === 0}
+                onClick={() => void submit()}
+              >
+                {saving && <Loader2 className="size-3.5 animate-spin" />}
+                {saving ? "Adding…" : `Track ${picked.size} keyword${picked.size === 1 ? "" : "s"}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function KeywordSetupCard({
-  projectId, domain, onStatus,
+  projectId, domain, onStatus, onAdded,
 }: {
   projectId: string
   domain: string
   /** Reports whether an analysis is in flight, so the Next steps card can show
    *  the same spinner without a second poller on the same endpoint. */
   onStatus?: (running: boolean) => void
+  /** Keywords were just added from the picker — the page refetches instead of
+   *  waiting out its five-second poll to notice. */
+  onAdded?: () => void
 }) {
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
@@ -217,6 +436,8 @@ export function KeywordSetupCard({
   // null until the stored preference is read, so a dismissed prompt never
   // flashes on its way to being hidden.
   const [askDismissed, setAskDismissed] = useState<boolean | null>(null)
+  // The shortlist picker, open on the dashboard — see KeywordPicker above.
+  const [picking, setPicking] = useState(false)
   const [graceOver, setGraceOver] = useState(false)
   const graceOverRef = useRef(false)
   const onStatusRef = useRef(onStatus)
@@ -381,6 +602,13 @@ export function KeywordSetupCard({
   // without this the page would hold "analysing" true forever after a success.
   useEffect(() => () => onStatusRef.current?.(false), [])
 
+  // What this run actually produced. A COMPLETED run with an empty list is a
+  // real outcome — the crawl found nothing to suggest, or the account had no
+  // credits for the analysis — so every use of this checks the length rather
+  // than assuming a completed run has keywords in it.
+  const shortlist = run?.suggestions?.suggestions ?? []
+  const shortlistLocation = run?.suggestions?.location ?? "in"
+
   if (loading) return <Skeleton className="h-24 w-full rounded-lg" />
 
 
@@ -426,17 +654,24 @@ export function KeywordSetupCard({
           <div>
             <div className="text-[13px] font-semibold">Your keywords are ready to pick</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              We analysed {domain} and shortlisted the keywords worth tracking. Choose the ones you want and we&apos;ll
-              start checking their rank.
+              {shortlist.length > 0
+                ? `We analysed ${domain} and shortlisted ${shortlist.length} keyword${shortlist.length === 1 ? "" : "s"} worth tracking. Pick the ones you want and we'll start checking their rank.`
+                : `We analysed ${domain}. Add the keywords you want and we'll start checking their rank.`}
             </p>
           </div>
-          <Button asChild size="sm" className="h-8 text-xs">
-            {/* ?add=1 — "Choose keywords" has to arrive AT the shortlist. Without
-                it the button landed on the keywords page and asked for the same
-                click again, with the keywords it had just promised nowhere in
-                sight. */}
-            <Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Choose keywords</Link>
-          </Button>
+          {shortlist.length > 0 ? (
+            // Opens the list right here. This was a link to the rank tracker —
+            // a page for keywords you already track — so the button that
+            // promised a choice spent the click on a page change and then asked
+            // for the same choice again.
+            <Button size="sm" className="h-8 text-xs" onClick={() => setPicking(true)}>Choose keywords</Button>
+          ) : (
+            // The run finished with nothing to offer. There is no choice to
+            // make, so this is honestly a link to the manual box.
+            <Button asChild size="sm" className="h-8 text-xs">
+              <Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Add keywords</Link>
+            </Button>
+          )}
         </div>
       ) : run?.status === "FAILED" ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -452,6 +687,17 @@ export function KeywordSetupCard({
           </div>
         </div>
       ) : null}
+
+      {picking && shortlist.length > 0 && (
+        <KeywordPicker
+          projectId={projectId}
+          domain={domain}
+          suggestions={shortlist}
+          location={shortlistLocation}
+          onClose={() => setPicking(false)}
+          onAdded={() => { setPicking(false); onAdded?.() }}
+        />
+      )}
     </section>
   )
 }
