@@ -945,7 +945,7 @@
     "activityRecent": "reciente"
   },
   "dashPrimitives": {
-    "notFoundTitle": "No encontrado en los 100 primeros resultados — posicionado más allá del alcance de nuestro análisis",
+    "notFoundTitle": "No encontrado en los {depth} primeros resultados — su posición está más allá del alcance de nuestro análisis",
     "processingTitle": "Comprobando posición…",
     "feat": {
       "AI": "Vista general de IA",

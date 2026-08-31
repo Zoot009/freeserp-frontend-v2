@@ -21,6 +21,7 @@ import { EnginePicker } from "@/components/dashboard/engine-picker"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
+import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
 import { InfoHint } from "@/components/dashboard/widget"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
@@ -86,8 +87,17 @@ interface Keyword {
   device: string | null
   /** Absent on older API responses; engineOf() treats that as Google. */
   engine?: string | null
+  /** Set on sub-country keywords ("Austin,Texas,United States"); null = country. */
+  locationLabel?: string | null
+  /** ISO2 of the containing country — what the flag needs when location is a code. */
+  locationCountry?: string | null
   addedAt: string
   position: number | null
+  /** How deep the latest check actually looked. Free plans crawl to the
+      trialCheckDepth admin setting, not 100, so a missing position must be
+      labelled with this rather than a hardcoded "100+". Absent on older
+      API responses. */
+  depthSearched?: number | null
   // First (oldest) rank ever recorded for this keyword — drives the "First check" column.
   firstPosition: number | null
   // Position deltas over the 1/7/15/30-day windows (positive = rank improved).
@@ -470,6 +480,11 @@ function AddKeywordsModal({
   const { engines: availableEngines, loading: enginesLoading } = useEngines()
   const [raw, setRaw] = useState("")
   const [location, setLocation] = useState("in")
+  // The CONTAINING country of `location`. Same value for a country selection;
+  // for a city it is the parent. Google autocomplete's `gl` only accepts a
+  // 2-letter code, so without this a city selection silently fell back to
+  // global suggestions.
+  const [locationCountry, setLocationCountry] = useState("in")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   // Google is pre-selected, not mandatory — tracking a keyword on Bing alone is
   // a legitimate choice. The empty array is reachable only inside the
@@ -543,7 +558,7 @@ function AddKeywordsModal({
     try {
       const ctx = nicheTokens.join(",")
       const res = await fetch(
-        `/api/keyword-suggest?q=${encodeURIComponent(subSeed)}&gl=${encodeURIComponent(location)}&ctx=${encodeURIComponent(ctx)}`,
+        `/api/keyword-suggest?q=${encodeURIComponent(subSeed)}&gl=${encodeURIComponent(locationCountry)}&ctx=${encodeURIComponent(ctx)}`,
       )
       const data: { suggestions?: string[] } = await res.json()
       // Discard if the first keyword changed while this request was in flight,
@@ -564,7 +579,7 @@ function AddKeywordsModal({
     } finally {
       setSuggLoading(false)
     }
-  }, [nicheTokens, location])
+  }, [nicheTokens, locationCountry])
 
   // Reset the pool whenever the (debounced) first keyword or location changes.
   useEffect(() => {
@@ -572,7 +587,7 @@ function AddKeywordsModal({
     setSuggestions([])
     fetchedSeedsRef.current = new Set()
     expandIdxRef.current = 0
-  }, [debouncedSeed, location])
+  }, [debouncedSeed, locationCountry])
 
   // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
@@ -809,7 +824,15 @@ function AddKeywordsModal({
               </div>
               <div className="field">
                 <label>Search location</label>
-                <LocationPicker value={location} onChange={setLocation} variant="dashboard" showFlags />
+                <LocationPicker
+                  value={location}
+                  onChange={(code, loc) => {
+                    setLocation(code)
+                    setLocationCountry(loc?.countryIso ?? code)
+                  }}
+                  variant="dashboard"
+                  showFlags
+                />
               </div>
               <div className="field">
                 <label>Device</label>
@@ -2069,6 +2092,10 @@ export default function ProjectKeywordsPage() {
                     enabled={project.autoCheckEnabled}
                     frequency={project.checkFrequency || 24}
                     busy={updatingFrequency}
+                    choices={FREQ_CHOICES}
+                    labelFor={(h) => freqLabel(h, t)}
+                    offLabel={t("freqOff")}
+                    title={t("freqTitle")}
                     onPick={handleUpdateFrequency}
                   />
                 </div>
@@ -2681,8 +2708,24 @@ export default function ProjectKeywordsPage() {
                         {/* minWidth:0 lets the .kw ellipsis engage — without it the
                             flex child sizes to its content and never truncates. */}
                         <span className="row" style={{ gap: 8, alignItems: "center", minWidth: 0 }}>
-                          <Flag code={kw.location} title={kw.location?.toUpperCase()} />
+                          {/* A sub-country keyword stores a bare DataForSEO code in
+                              `location`, so the flag comes from the country and the
+                              tooltip from the label — "1026201" is meaningless on
+                              its own. Country rows are unchanged. */}
+                          <Flag
+                            code={kw.locationCountry ?? kw.location}
+                            title={kw.locationLabel ?? kw.location?.toUpperCase()}
+                          />
                           <span className="kw" title={kw.keyword}>{kw.keyword}</span>
+                          {kw.locationLabel && (
+                            <span
+                              className="chip"
+                              title={kw.locationLabel}
+                              style={{ flex: "none", fontSize: 10, padding: "1px 5px" }}
+                            >
+                              {kw.locationLabel.split(",")[0]}
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td>
@@ -2697,7 +2740,12 @@ export default function ProjectKeywordsPage() {
                             </span>
                           ) : (
                             <>
-                              <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
+                              <PosCell
+                                position={kw.position}
+                                processing={isActive}
+                                checked={!!kw.checkedAt}
+                                depthSearched={kw.depthSearched}
+                              />
                               {/* Inline delta only when there was actual movement —
                                   a "—" placeholder next to the badge reads as clutter. */}
                               {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (
@@ -3508,93 +3556,6 @@ function CompetitorsCard({ projectId, yourAvg }: { projectId: string; yourAvg: n
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-// Auto-check schedule control: a switch that shows the live state, and opens a
-// small anchored dropdown of cadences when clicked. Picking one applies it
-// immediately (including "Off"), so there's no confirmation popup in the way.
-function ScheduleToggle({
-  enabled,
-  frequency,
-  busy,
-  onPick,
-}: {
-  enabled: boolean
-  frequency: number
-  busy: boolean
-  onPick: (choice: number | "off") => void
-}) {
-  const t = useTranslations("projKeywords")
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  // Close on outside click WITHOUT swallowing it (pointerdown fires before the
-  // outside element's click), matching the shared Dropdown's behaviour.
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
-    document.addEventListener("pointerdown", onPointerDown)
-    document.addEventListener("keydown", onKey)
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown)
-      document.removeEventListener("keydown", onKey)
-    }
-  }, [open])
-
-  const choose = (choice: number | "off") => { setOpen(false); onPick(choice) }
-
-  return (
-    <div ref={rootRef} style={{ position: "relative" }}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        aria-expanded={open}
-        className={"auto-toggle" + (enabled ? " on" : "")}
-        disabled={busy}
-        title={t("freqTitle")}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="track" aria-hidden><span className="knob" /></span>
-        <span>{enabled ? freqLabel(frequency, t) : t("freqOff")}</span>
-      </button>
-      {open && (
-        <div className="dd-menu" role="listbox" aria-label={t("freqTitle")} data-lenis-prevent style={{ zIndex: 50 }}>
-          <button
-            type="button"
-            role="option"
-            aria-selected={!enabled}
-            className="dd-item"
-            data-active={!enabled}
-            onClick={() => choose("off")}
-          >
-            {t("freqOff")}
-            {!enabled && <Icon.check size={13} />}
-          </button>
-          {FREQ_CHOICES.map((h) => {
-            const active = enabled && frequency === h
-            return (
-              <button
-                key={h}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className="dd-item"
-                data-active={active}
-                onClick={() => choose(h)}
-              >
-                {freqLabel(h, t)}
-                {active && <Icon.check size={13} />}
-              </button>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }

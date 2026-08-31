@@ -80,7 +80,14 @@ export const CREDIT_ACTION_KEYS = {
 
 export type CreditActionKey = (typeof CREDIT_ACTION_KEYS)[keyof typeof CREDIT_ACTION_KEYS]
 
-/** Fired after anything spends, so the balance pill refreshes without polling. */
+/**
+ * Fired after anything spends, so the balance pill refreshes without polling.
+ *
+ * Dispatched centrally by `apiRequest` in lib/api.ts on every successful
+ * mutation — see the note there for why it is not fired per surface. This
+ * helper stays for the cases the HTTP layer cannot see, such as a balance
+ * changed by another tab or restored from a cancelled job.
+ */
 export const CREDITS_REFRESH_EVENT = "credits:refresh"
 
 export function notifyCreditsChanged(): void {

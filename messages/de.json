@@ -945,7 +945,7 @@
     "activityRecent": "kürzlich"
   },
   "dashPrimitives": {
-    "notFoundTitle": "Nicht in den Top-100-Ergebnissen gefunden — platziert jenseits der Reichweite unseres Scans",
+    "notFoundTitle": "Nicht in den Top-{depth}-Ergebnissen gefunden — die Platzierung liegt tiefer als unser Scan reicht",
     "processingTitle": "Ranking wird geprüft…",
     "feat": {
       "AI": "KI-Übersicht",

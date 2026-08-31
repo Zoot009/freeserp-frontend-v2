@@ -9,6 +9,11 @@ import {
   SLUG_TO_PLATFORM,
   PLATFORM_SLUG,
   PLATFORMS,
+  untilTime,
+  runsPerMonth,
+  frequencyValue,
+  FREQUENCY_OPTIONS,
+  FREQUENCIES,
   type PromptRow,
   type RunSummary,
   type Platform,
@@ -142,5 +147,49 @@ describe("helpers", () => {
     for (const id of PLATFORMS) expect(SLUG_TO_PLATFORM[PLATFORM_SLUG[id]]).toBe(id)
     // The underscore never reaches a URL.
     expect(PLATFORM_SLUG.chat_gpt).toBe("chatgpt")
+  })
+})
+
+describe("cadence", () => {
+  const NOW = new Date("2026-08-28T12:00:00Z").getTime()
+  const at = (ms: number) => new Date(NOW + ms).toISOString()
+
+  it("formats a FUTURE time, which relTime cannot", () => {
+    expect(untilTime(at(30 * 60_000), NOW)).toBe("in 30m")
+    expect(untilTime(at(5 * 3_600_000), NOW)).toBe("in 5h")
+    expect(untilTime(at(24 * 3_600_000), NOW)).toBe("tomorrow")
+    expect(untilTime(at(6 * 24 * 3_600_000), NOW)).toBe("in 6d")
+  })
+
+  it("says 'due now' rather than counting backwards past zero", () => {
+    // The whole reason this exists: relTime would render an overdue run as
+    // "-3m ago", and a tick that has not fired yet is legitimately overdue.
+    expect(untilTime(at(0), NOW)).toBe("due now")
+    expect(untilTime(at(-3 * 60_000), NOW)).toBe("due now")
+  })
+
+  it("prices a cadence per 30-day month", () => {
+    expect(runsPerMonth(24)).toBe(30)
+    expect(runsPerMonth(168)).toBe(4)
+    expect(runsPerMonth(720)).toBe(1)
+  })
+
+  it("shows manual-only whenever a prompt is not armed", () => {
+    expect(frequencyValue({ autoRunEnabled: true, checkFrequency: 168 })).toBe("168")
+    expect(frequencyValue({ autoRunEnabled: false, checkFrequency: 168 })).toBe("off")
+    // A client that predates cadence sends neither field.
+    expect(frequencyValue({})).toBe("off")
+  })
+
+  it("offers manual-only plus every cadence, and nothing else", () => {
+    expect(FREQUENCY_OPTIONS.map((o) => o.value)).toEqual([
+      "off",
+      ...FREQUENCIES.map(String),
+    ])
+    // Every option round-trips through frequencyValue, so the dropdown can never
+    // sit on a value it has no row for.
+    for (const h of FREQUENCIES) {
+      expect(frequencyValue({ autoRunEnabled: true, checkFrequency: h })).toBe(String(h))
+    }
   })
 })

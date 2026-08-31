@@ -945,7 +945,7 @@
     "activityRecent": "récent"
   },
   "dashPrimitives": {
-    "notFoundTitle": "Introuvable dans les 100 premiers résultats — classé au-delà de la portée de notre analyse",
+    "notFoundTitle": "Introuvable dans les {depth} premiers résultats — le classement est plus profond que notre analyse",
     "processingTitle": "Vérification du classement…",
     "feat": {
       "AI": "Aperçu IA",

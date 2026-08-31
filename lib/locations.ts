@@ -1,7 +1,23 @@
 // v2 backend supports a curated set of markets via DataForSEO location_code.
 // Mapping must stay in sync with backend-v2/src/modules/serp/dataforseo.mapper.ts.
+//
+// This static list now covers COUNTRIES only. Anything below country level — a
+// city, region or postcode — is far too large to ship in a bundle (DataForSEO
+// publishes ~197k of them) and is searched through GET /api/locations instead.
+// The countries stay here so the picker's default view needs no network at all.
 
-export type Location = { code: string; name: string }
+import { api } from "@/lib/api"
+
+export type LocationType = "Country" | "Region" | "City" | "Postal Code"
+
+export type Location = {
+  /** What to send as a keyword's location: an ISO2, or a DataForSEO code as a string. */
+  code: string
+  name: string
+  /** ISO2 of the containing country — what the flag needs. Defaults to `code`. */
+  countryIso?: string
+  type?: LocationType
+}
 
 export const POPULAR_LOCATIONS: Location[] = [
   { code: "in", name: "India" },
@@ -123,4 +139,38 @@ export function flagFor(code: string): string {
   const second = upper.charCodeAt(1)
   if (first < A || first > A + 25 || second < A || second > A + 25) return "\u{1F30D}"
   return String.fromCodePoint(base + (first - A), base + (second - A))
+}
+
+/**
+ * Search markets below country level.
+ *
+ * Returns [] for a query shorter than two characters, and [] on any failure —
+ * the picker still has its country list, so a search outage degrades to today's
+ * behaviour rather than an empty dropdown. Same reason the endpoint returns
+ * countries when the catalogue table has never been seeded.
+ */
+export async function searchLocations(
+  q: string,
+  opts: { country?: string; signal?: AbortSignal } = {},
+): Promise<Location[]> {
+  if (q.trim().length < 2) return []
+  const params = new URLSearchParams({ q: q.trim(), limit: "25" })
+  if (opts.country) params.set("country", opts.country)
+  try {
+    // Full path including /api — in the browser API_BASE is "" and the Next
+    // rewrite proxies /api/* to the backend, so a bare "/locations" 404s.
+    const res = await api.get<{ locations: Location[] }>(`/api/locations?${params}`, {
+      signal: opts.signal,
+    })
+    return res.locations ?? []
+  } catch (err) {
+    // Falling back to [] keeps a search outage from breaking the picker — the
+    // country list still works. But swallowing it silently is how a wrong
+    // request path presented as "No location found." instead of an error, so
+    // the reason is at least visible in development.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[locations] search failed", err)
+    }
+    return []
+  }
 }

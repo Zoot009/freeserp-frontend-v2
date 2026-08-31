@@ -68,6 +68,48 @@ export type PromptRow = {
   platforms: Platform[]
   samplesPerRun: number
   runs: RunSummary[]
+  /** Cadence fields are optional so a frontend deployed ahead of the backend
+   *  still typechecks against the older payload, which simply omits them. */
+  autoRunEnabled?: boolean
+  checkFrequency?: number
+  nextScheduledRun?: string | null
+}
+
+// ───── Cadence ──────────────────────────────────────────────────────────────
+
+/** Mirrors frequencySchema in the backend's llmPrompt.routes.ts. Hours. */
+export const FREQUENCIES = [24, 72, 168, 720] as const
+export type Frequency = (typeof FREQUENCIES)[number]
+
+export const FREQUENCY_LABEL: Record<Frequency, string> = {
+  24: "Daily",
+  72: "Every 3 days",
+  168: "Weekly",
+  720: "Monthly",
+}
+
+/**
+ * Options for the cadence Dropdown, with "off" as the explicit manual choice.
+ *
+ * "off" rather than an empty string: a falsy value in a <select>-alike is the
+ * one that gets confused with "nothing chosen yet", and manual-only is a real
+ * choice a user makes, not the absence of one.
+ */
+export const FREQUENCY_OPTIONS = [
+  { value: "off", label: "Manual only" },
+  ...FREQUENCIES.map((h) => ({ value: String(h), label: FREQUENCY_LABEL[h] })),
+]
+
+export function isFrequency(v: number): v is Frequency {
+  return (FREQUENCIES as readonly number[]).includes(v)
+}
+
+/** Runs a 30-day month gets at this cadence — what multiplies the per-run cost. */
+export const runsPerMonth = (hours: number): number => Math.round((30 * 24) / hours)
+
+/** What the dropdown should show for a prompt, including the manual case. */
+export function frequencyValue(p: Pick<PromptRow, "autoRunEnabled" | "checkFrequency">): string {
+  return p.autoRunEnabled && p.checkFrequency ? String(p.checkFrequency) : "off"
 }
 
 /**
@@ -167,6 +209,22 @@ export function isWithinRunWindow(run: RunSummary | undefined | null, now = new 
 /** A rate as a whole percent. Null is "we have not measured", never "0%". */
 export const pct = (v: number | null | undefined): string =>
   v == null ? "—" : `${Math.round(v * 100)}%`
+
+/**
+ * Forward counterpart to relTime, which is past-tense only.
+ *
+ * relTime on a future timestamp renders "-43m ago", which is why a scheduled
+ * run needs its own formatter rather than reusing that one.
+ */
+export function untilTime(iso: string, now = Date.now()): string {
+  const m = Math.round((new Date(iso).getTime() - now) / 60_000)
+  if (m <= 0) return "due now"
+  if (m < 60) return `in ${m}m`
+  const h = Math.round(m / 60)
+  if (h < 24) return `in ${h}h`
+  const d = Math.round(h / 24)
+  return d === 1 ? "tomorrow" : `in ${d}d`
+}
 
 export function relTime(iso: string, now = Date.now()): string {
   const diff = now - new Date(iso).getTime()

@@ -22,6 +22,12 @@ interface ShareKeyword {
   /** Absent on older payloads; treated as Google. */
   engine?: string | null
   position: number | null
+  /** How deep the latest check looked; labels a missing position honestly
+      instead of hardcoding "100+". Absent on older payloads. */
+  depthSearched?: number | null
+  /** Set on sub-country keywords; `location` is a bare code when it is. */
+  locationLabel?: string | null
+  locationCountry?: string | null
   firstPosition: number | null
   d1: number | null
   url: string | null
@@ -309,13 +315,23 @@ export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
                       <tr key={kw.id} style={isActive ? { background: "var(--warn-soft)" } : undefined}>
                         <td>
                           <span className="row" style={{ gap: 8, alignItems: "center" }}>
-                            <Flag code={kw.location} title={kw.location?.toUpperCase()} />
+                            {/* See the note in dashboard/keywords: below country
+                                level `location` is a bare DataForSEO code. */}
+                            <Flag
+                              code={kw.locationCountry ?? kw.location}
+                              title={kw.locationLabel ?? kw.location?.toUpperCase()}
+                            />
                             <span className="kw" title={kw.keyword}>{kw.keyword}</span>
                           </span>
                         </td>
                         <td>
                           <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                            <PosCell position={kw.position} processing={isActive} checked={!!kw.checkedAt} />
+                            <PosCell
+                              position={kw.position}
+                              processing={isActive}
+                              checked={!!kw.checkedAt}
+                              depthSearched={kw.depthSearched}
+                            />
                             {/* Inline delta only when there was actual movement —
                                 a "—" placeholder next to the badge reads as clutter. */}
                             {kw.position != null && kw.d1 != null && kw.d1 !== 0 && (

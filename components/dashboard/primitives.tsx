@@ -59,14 +59,19 @@ export function PosBadge({ pos }: { pos: number | null | undefined }) {
 }
 
 // Renders a tracked keyword's position with the three states it can be in:
-//   processing  → "—" (takes priority; a stale null must not read as "100+")
+//   processing  → spinner (takes priority; a stale null must not read as "100+")
 //   ranked      → the numeric PosBadge
-//   not found   → "100+" — every plan now crawls the full top 100, so a null
-//                 position means the keyword ranks deeper than 100.
+//   not found   → "{depth}+" — the keyword ranks deeper than the check looked.
+//
+// The depth is NOT always 100. Free plans crawl to the `trialCheckDepth` admin
+// setting, so this used to promise "not found in the top 100" over a 20-result
+// scan. `depthSearched` comes from the check itself; when it's absent (rows
+// written before the column existed) we fall back to the old wording.
 export function PosCell({
   position,
   processing = false,
   checked = true,
+  depthSearched = null,
 }: {
   position: number | null | undefined
   processing?: boolean
@@ -74,6 +79,8 @@ export function PosCell({
       and there's no position, render "—" (not checked yet) instead of "100+"
       (checked, not in the top 100) — they mean very different things. */
   checked?: boolean
+  /** How deep the check that produced this position actually looked. */
+  depthSearched?: number | null
 }) {
   const t = useTranslations("dashPrimitives")
   if (processing) {
@@ -107,12 +114,13 @@ export function PosCell({
       </span>
     )
   }
+  const depth = depthSearched && depthSearched > 0 ? depthSearched : 100
   return (
     <span
       className="chip"
-      title={t("notFoundTitle")}
+      title={t("notFoundTitle", { depth })}
     >
-      100+
+      {depth}+
     </span>
   )
 }

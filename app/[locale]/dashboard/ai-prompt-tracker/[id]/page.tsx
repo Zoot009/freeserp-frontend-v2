@@ -16,6 +16,7 @@ import { StatTile } from "@/components/dashboard/primitives"
 import { CREDIT_ACTION_KEYS, useCreditQuote, formatCredits } from "@/lib/credits"
 import { toast } from "sonner"
 import { PlatformMark } from "@/components/dashboard/platform-marks"
+import { Dropdown } from "@/components/dashboard/dropdown"
 import {
   RunStateCell,
   RateCell,
@@ -30,6 +31,10 @@ import {
   clockTime,
   pct,
   PLATFORM_LABEL,
+  FREQUENCY_OPTIONS,
+  frequencyValue,
+  runsPerMonth,
+  untilTime,
   type Platform,
   type PromptRow,
   type RunResult,
@@ -258,6 +263,41 @@ export default function LlmPromptListPage() {
     }
   }
 
+  /**
+   * Change one prompt's cadence.
+   *
+   * Optimistic, because the dropdown must not sit on the old value while the
+   * request flies — that reads as the click not registering. On failure the row
+   * is resynced from the server rather than left showing a lie.
+   */
+  const updateSchedule = async (promptId: string, checkFrequency: number | null) => {
+    setPrompts((prev) =>
+      prev.map((p) =>
+        p.id === promptId
+          ? {
+              ...p,
+              autoRunEnabled: checkFrequency != null,
+              checkFrequency: checkFrequency ?? p.checkFrequency,
+              // Cleared rather than guessed: the server decides the next run, and
+              // showing a countdown we invented would be wrong by whatever the
+              // round-trip took.
+              nextScheduledRun: null,
+            }
+          : p,
+      ),
+    )
+    try {
+      const updated = await api.patch<PromptRow>(
+        `/api/llm-tracker/projects/${projectId}/prompts/${promptId}`,
+        { checkFrequency },
+      )
+      setPrompts((prev) => prev.map((p) => (p.id === promptId ? { ...p, ...updated } : p)))
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't change the schedule.")
+      void load(true)
+    }
+  }
+
   const deletePrompt = async (promptId: string) => {
     setPrompts((prev) => prev.filter((p) => p.id !== promptId))
     try {
@@ -383,6 +423,7 @@ export default function LlmPromptListPage() {
                   <th style={{ textAlign: "right" }}>Mention rate</th>
                   <th style={{ textAlign: "right" }}>Cited</th>
                   <th style={{ textAlign: "right" }}>Prominence</th>
+                  <th style={{ width: 150 }}>Schedule</th>
                   <th style={{ width: 80 }} />
                 </tr>
               </thead>
@@ -441,6 +482,27 @@ export default function LlmPromptListPage() {
                         <td style={{ textAlign: "right" }}>
                           <ProminenceCell state={state} value={run?.avgProminence ?? null} />
                         </td>
+                        {/* Cadence is a per-prompt property, so it belongs with the
+                            other per-prompt cells in the rowSpan'd group — not
+                            repeated once per platform row. */}
+                        {idx === 0 ? (
+                          <td rowSpan={p.platforms.length || 1}>
+                            <Dropdown
+                              ariaLabel={`Run frequency for "${p.prompt}"`}
+                              value={frequencyValue(p)}
+                              options={FREQUENCY_OPTIONS}
+                              onChange={(v) => void updateSchedule(p.id, v === "off" ? null : Number(v))}
+                              /* The table lives in .tbl-scroll, which clips an
+                                 absolutely positioned menu. */
+                              portal
+                            />
+                            {p.autoRunEnabled && p.nextScheduledRun ? (
+                              <div className="tiny muted" style={{ marginTop: 4 }}>
+                                Next {untilTime(p.nextScheduledRun)}
+                              </div>
+                            ) : null}
+                          </td>
+                        ) : null}
                         {idx === 0 ? (
                           <td rowSpan={p.platforms.length || 1}>
                             <div className="row" style={{ gap: 4 }}>
@@ -512,6 +574,9 @@ function AddPromptsModal({
   const [text, setText] = useState("")
   const [platforms, setPlatforms] = useState<Platform[]>(["chat_gpt"])
   const [samples, setSamples] = useState(3)
+  // "off" by default: adding prompts and committing to recurring spend are two
+  // different decisions, and the second should be opted into.
+  const [freq, setFreq] = useState("off")
   const [busyMode, setBusyMode] = useState<"add" | "run" | null>(null)
   const loading = busyMode !== null
   const [error, setError] = useState("")
@@ -546,7 +611,7 @@ function AddPromptsModal({
     try {
       const res = await api.post<{ added: number; requested: number; prompts?: { id: string }[] }>(
         `/api/llm-tracker/projects/${projectId}/prompts`,
-        { prompts, platforms, samplesPerRun: samples },
+        { prompts, platforms, samplesPerRun: samples, checkFrequency: freq === "off" ? null : Number(freq) },
       )
       const dupes = res.requested - res.added
       if (dupes > 0) {
@@ -653,6 +718,25 @@ function AddPromptsModal({
               </div>
             </div>
 
+            <div className="field">
+              <label htmlFor="llm-freq">Run automatically</label>
+              <Dropdown
+                ariaLabel="Run frequency"
+                value={freq}
+                options={FREQUENCY_OPTIONS}
+                onChange={setFreq}
+                block
+                /* The menu is inside .modal-b, which scrolls — an absolutely
+                   positioned one would be clipped by it. */
+                portal
+              />
+              <div className="tiny muted" style={{ marginTop: 6 }}>
+                {freq === "off"
+                  ? "You'll run these yourself. You can turn on a schedule later."
+                  : `${runsPerMonth(Number(freq))} runs a month. AI answers drift slowly — weekly is enough to see a trend without paying for noise.`}
+              </div>
+            </div>
+
             {prompts.length > 0 && (
               <div className="tiny muted">
                 {prompts.length} prompt{prompts.length === 1 ? "" : "s"} × {platforms.length} platform
@@ -671,7 +755,7 @@ function AddPromptsModal({
           <div className="modal-f split">
             {/* The price of the run this button would start. The modal decided
                 the spend and showed no cost at all until now. */}
-            <RunCost base={addBase} claude={addClaude} />
+            <RunCost base={addBase} claude={addClaude} everyHours={freq === "off" ? null : Number(freq)} />
             <div className="row" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={onClose} disabled={loading}>
                 Cancel
@@ -698,7 +782,16 @@ function AddPromptsModal({
  * rules <CreditCost> follows. It exists instead of <CreditCost> only because a
  * run can span two rates at once.
  */
-function RunCost({ base, claude }: { base: number; claude: number }) {
+function RunCost({
+  base,
+  claude,
+  everyHours,
+}: {
+  base: number
+  claude: number
+  /** Set when a cadence is chosen, to also price the recurring commitment. */
+  everyHours?: number | null
+}) {
   const flat = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(base, 1))
   const pricey = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(claude, 1), "claude")
   if (!flat.applies || flat.cost == null || pricey.cost == null) return null
@@ -711,6 +804,14 @@ function RunCost({ base, claude }: { base: number; claude: number }) {
     <div className="tiny" style={{ marginBottom: 12, color: short ? "var(--warn)" : "var(--muted)" }}>
       Uses {formatCredits(total)} credit{total === 1 ? "" : "s"}
       {flat.balance != null && (short ? ` \u00b7 only ${formatCredits(flat.balance)} left` : ` \u00b7 ${formatCredits(flat.balance)} left`)}
+      {/* The number above prices ONE run, which is the right one next to a button
+          that starts one run. A schedule is a standing commitment, so it gets its
+          own line rather than quietly changing what the first number means. */}
+      {everyHours ? (
+        <div style={{ marginTop: 2 }}>
+          Then about {formatCredits(total * runsPerMonth(everyHours))} a month while scheduled.
+        </div>
+      ) : null}
     </div>
   )
 }

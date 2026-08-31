@@ -39,6 +39,11 @@ type Keyword = {
   /** Absent on older responses; treated as Google. */
   engine?: string | null
   position: number | null
+  /** How deep the latest check looked; absent on older responses. */
+  depthSearched?: number | null
+  /** Set on sub-country keywords; `location` is a bare code when it is. */
+  locationLabel?: string | null
+  locationCountry?: string | null
   d1: number | null
   d7: number | null
   url: string | null
@@ -61,6 +66,9 @@ type ProjectDetail = {
 type EnrichedRow = KeywordRow & {
   projectId: string
   projectDomain: string
+  depthSearched?: number | null
+  locationLabel?: string | null
+  locationCountry?: string | null
   location: string | null
   device: string | null
   engine?: string | null
@@ -133,6 +141,9 @@ export default function KeywordsListPage() {
               device: k.device,
               engine: k.engine,
               traffic: k.monthlyTraffic,
+              depthSearched: k.depthSearched,
+              locationLabel: k.locationLabel,
+              locationCountry: k.locationCountry,
               status: k.status,
               checkedAt: k.checkedAt,
               trend5: k.trend5 ?? "neutral",
@@ -384,8 +395,15 @@ export default function KeywordsListPage() {
                     <div className="kw" title={r.kw}>{r.kw}</div>
                     {(r.location || r.device) && (
                       <div className="row tiny muted" style={{ marginTop: 2, gap: 6, alignItems: "center" }}>
+                        {/* Flag by the CONTAINING country: below country level
+                            `location` is a DataForSEO code, which Flag would
+                            render as a globe and title as "1026201". */}
                         {r.location && (
-                          <Flag code={r.location} size={14} title={r.location.toUpperCase()} />
+                          <Flag
+                            code={r.locationCountry ?? r.location}
+                            size={14}
+                            title={r.locationLabel ?? r.location.toUpperCase()}
+                          />
                         )}
                         {r.device && (
                           <span className="row" style={{ gap: 3, alignItems: "center" }}>
@@ -408,6 +426,7 @@ export default function KeywordsListPage() {
                       position={r.pos}
                       processing={r.status === "PENDING" || r.status === "PROCESSING"}
                       checked={!!r.checkedAt}
+                      depthSearched={r.depthSearched}
                     />
                   </td>
                   <td>
