@@ -91,11 +91,11 @@ const AI_PLATFORMS: Item[] = [
 ]
 
 const AUDIT: Item[] = [
-  // Same page, two modes. The mode is a real toggle inside the page, so these
-  // deep-link it rather than pretending to be separate routes — see the page's
-  // `?mode=` handling, which exists for exactly these two entries.
-  { key: "websiteAudit", url: "/dashboard/page-audit?mode=site", icon: ScanSearch },
-  { key: "pageAudit", url: "/dashboard/page-audit?mode=single", icon: FileSearch },
+  // Two routes, not one page with a mode toggle. They share a crawler and a
+  // report, but each is a tool someone comes here to use by name, with its own
+  // URL, title and history.
+  { key: "websiteAudit", url: "/dashboard/site-audit", icon: ScanSearch },
+  { key: "pageAudit", url: "/dashboard/page-audit", icon: FileSearch },
   { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store, soon: true },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
   { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
@@ -126,9 +126,8 @@ function isActive(url: string, pathname: string | null, search: string | null): 
   const [path, query] = url.split("?")
   if (path === "/dashboard") return p === "/dashboard"
   if (!(p === path || p.startsWith(path + "/"))) return false
-  // Two entries can share a path and differ only by mode (the audits). Matching
-  // on the path alone would light both of them up at once; an entry with no
-  // query still matches whatever the query happens to be.
+  // An entry may pin itself to a query value; one without a query matches
+  // whatever the query happens to be.
   if (!query) return true
   const [k, v] = query.split("=")
   return new URLSearchParams(search ?? "").get(k!) === v

@@ -58,6 +58,11 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   "/dashboard/keyword-analysis": [WORKSPACE, { key: "keywordAnalysis" }],
   "/dashboard/alerts": [WORKSPACE, { key: "alerts" }],
   "/dashboard/billing": [WORKSPACE, { key: "settings" }],
+  // The two audits are separate routes, so each names itself here. A report at
+  // /dashboard/page-audit/<id> never reaches this — it renders in focus mode,
+  // without the header.
+  "/dashboard/site-audit": [WORKSPACE, { key: "websiteAudit" }],
+  "/dashboard/page-audit": [WORKSPACE, { key: "pageAudit" }],
 }
 
 // Path segments that are database ids (uuid/cuid/ObjectId…) shouldn't become

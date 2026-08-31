@@ -149,15 +149,28 @@ export const TOOL_CONTEXT: Record<string, ToolContextContent> = {
     ],
   },
   "website-audit": {
-    lede: "Crawls a page — or a whole site — with a real browser and runs 63 SEO rules over what loads.",
+    lede: "Crawls outward from one URL with a real browser, runs 63 SEO rules over every page it reaches, and rolls the findings up across the site.",
     points: [
       {
         head: "Why it matters",
-        body: "Technical faults never show up in a rank report. They just quietly cap what every page on the site can achieve, no matter how good the content is.",
+        body: "Technical faults never show up in a rank report. They just quietly cap what every page on the site can achieve, no matter how good the content is — and the ones worth fixing first are usually the ones repeated across hundreds of pages, which only a crawl can show you.",
       },
       {
         head: "How to read it",
-        body: "A real browser is the point: it sees what renders, including anything injected by JavaScript, rather than the raw HTML a simple fetch would return. Issues arrive in priority order with the exact fix.",
+        body: "A real browser is the point: it sees what renders, including anything injected by JavaScript, rather than the raw HTML a simple fetch would return. Start with the site rollup — it counts how many pages share each fault — then open a page to see it in place. How far the crawl goes depends on your plan.",
+      },
+    ],
+  },
+  "page-audit": {
+    lede: "Audits one URL with a real browser and runs the same 63 SEO rules over what actually loads.",
+    points: [
+      {
+        head: "Why it matters",
+        body: "One page at a time is the right tool when you have just changed something, or when a single page matters more than the rest — a landing page, a product page, the one you are trying to rank. It costs a fraction of a full crawl and returns in seconds.",
+      },
+      {
+        head: "How to read it",
+        body: "Issues arrive in priority order with the exact fix, so work down from the top. If the faults here look like they belong to the template rather than the page, run a full website audit to find out how many other pages share them.",
       },
     ],
   },

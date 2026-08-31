@@ -226,7 +226,7 @@ export function SetupCard({
       description: auditRunning
         ? "We're crawling the site now — status codes, titles, headings and internal links. The report lands on this page when it finishes."
         : "Crawl the site with a real browser and get the technical faults that cap every page — with the exact fixes, in priority order.",
-      href: "/dashboard/page-audit",
+      href: "/dashboard/site-audit",
       cta: auditRunning ? "Crawling…" : "Open",
       done: null,
       busy: auditRunning,

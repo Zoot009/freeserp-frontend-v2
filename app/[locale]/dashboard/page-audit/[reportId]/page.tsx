@@ -6,6 +6,10 @@
  * Having a real route per report is what makes the history table clickable, the
  * browser back button work, and a report linkable to a colleague who has an
  * account. (The public, no-account version is /audit/shared/<token>.)
+ *
+ * One route for both kinds of report. A finished audit is a document — which
+ * form started it only decides where the "back" link points, which is why that
+ * href follows the report's own mode rather than the route it sits on.
  */
 
 import { useCallback, useEffect, useState } from "react"
@@ -54,6 +58,10 @@ export default function AuditReportPage() {
     }
   }, [reportId])
 
+  // Until the report loads we don't know which of the two audits it came from;
+  // the single-page form is the safe default for the error state.
+  const backHref = isSite ? "/dashboard/site-audit" : "/dashboard/page-audit"
+
   useEffect(() => {
     if (reportId) void load()
   }, [reportId, load])
@@ -85,8 +93,8 @@ export default function AuditReportPage() {
           <h2 className="mt-3 text-lg font-semibold">Report unavailable</h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{error}</p>
           <Button asChild variant="outline" size="sm" className="mt-5 gap-1.5">
-            <Link href="/dashboard/page-audit">
-              <ArrowLeft className="size-4" /> Back to Website Audit
+            <Link href={backHref}>
+              <ArrowLeft className="size-4" /> Back to audits
             </Link>
           </Button>
         </div>
@@ -97,13 +105,13 @@ export default function AuditReportPage() {
   return (
     <div className="px-6 pb-10 pt-5">
       <Button asChild variant="ghost" size="sm" className="mb-3 gap-1.5 text-[13px]">
-        <Link href="/dashboard/page-audit">
+        <Link href={backHref}>
           <ArrowLeft className="size-4" /> All audits
         </Link>
       </Button>
       <AuditReportResults
         report={report}
-        onNewAudit={() => router.push("/dashboard/page-audit")}
+        onNewAudit={() => router.push(backHref)}
         isAuthenticated
         /* Site audits replace the Recommendations section with the rollup. Same
            slot — first thing after the scores — and the list it displaces is
