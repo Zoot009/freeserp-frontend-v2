@@ -1135,7 +1135,9 @@
       "pageBody": "Jedes organische Ergebnis der Reihe nach, mit Titel, URL und Snippet.",
       "featuresTitle": "Was Google ausgespielt hat",
       "featuresBody": "AI Overview, Featured Snippet, „Ähnliche Fragen“, Video- und Local-Packs."
-    }
+    },
+    "newCheck": "Neue Prüfung",
+    "checkedWhen": "geprüft {when}"
   },
   "notifications": {
     "title": "Benachrichtigungen",

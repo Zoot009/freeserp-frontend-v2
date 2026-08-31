@@ -1135,7 +1135,9 @@
       "pageBody": "Todos los resultados orgánicos en orden, con su título, URL y descripción.",
       "featuresTitle": "Lo que ha mostrado Google",
       "featuresBody": "AI Overview, fragmento destacado, «Otras preguntas», packs de vídeo y locales."
-    }
+    },
+    "newCheck": "Nueva comprobación",
+    "checkedWhen": "comprobado {when}"
   },
   "notifications": {
     "title": "Notificaciones",

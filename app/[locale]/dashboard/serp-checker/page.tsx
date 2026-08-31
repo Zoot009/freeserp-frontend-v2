@@ -162,6 +162,9 @@ export default function SerpCheckerPage() {
   }, [history])
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Which check is on screen. The URL sync below compares against this so it is
+  // idempotent — it can run again without re-fetching what is already shown.
+  const shownIdRef = useRef<string | null>(null)
 
   // A check is "in progress" while the POST is in flight or a row is PROCESSING.
   const processing = submitting || processingId != null
@@ -184,6 +187,46 @@ export default function SerpCheckerPage() {
     }
   }, [])
 
+  /**
+   * Show a result, and give it a URL.
+   *
+   * A result used to be pure component state stacked under the form, with no
+   * way out of it: the page breadcrumb points at the route you are already on,
+   * and browser Back left the tool entirely rather than returning to the
+   * search. `?check=<id>` makes the result a real history entry — Back returns
+   * to the search, and the URL can be reloaded or shared.
+   *
+   * pushState rather than the router: this is the same route with a different
+   * view, so a navigation would be a re-render for nothing. (The keywords page
+   * scrubs its own params the same way.)
+   */
+  const showResult = useCallback((r: CheckResponse, id: string) => {
+    setResult(r)
+    setError(null)
+    shownIdRef.current = id
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get("check") !== id) {
+      url.searchParams.set("check", id)
+      window.history.pushState({ serpCheck: id }, "", url.toString())
+    }
+    window.scrollTo(0, 0)
+  }, [])
+
+  /** Back to the search form and the history list. */
+  const clearResult = useCallback(() => {
+    setResult(null)
+    setError(null)
+    shownIdRef.current = null
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("check")
+    // replace, not push: leaving a forward entry pointing at the result you
+    // just backed out of is a trap, not a convenience.
+    window.history.replaceState(null, "", url.toString())
+    window.scrollTo(0, 0)
+  }, [])
+
   // Poll a PROCESSING check until it terminates, then surface the result/error.
   const pollCheck = useCallback(
     (id: string) => {
@@ -195,7 +238,7 @@ export default function SerpCheckerPage() {
           if (check.status === "COMPLETED" || check.status === "FAILED") {
             stopPolling()
             setProcessingId(null)
-            if (check.status === "COMPLETED" && check.result) setResult(check.result)
+            if (check.status === "COMPLETED" && check.result) showResult(check.result, id)
             if (check.status === "FAILED") setError(check.error || t("errors.checkFailed"))
             void loadHistory()
             window.dispatchEvent(new Event("usage:refresh"))
@@ -207,7 +250,7 @@ export default function SerpCheckerPage() {
       void tick()
       pollRef.current = setInterval(() => void tick(), 2000)
     },
-    [loadHistory, stopPolling, t],
+    [loadHistory, stopPolling, showResult, t],
   )
 
   // On mount: load previous searches and resume any in-flight check so a page
@@ -278,9 +321,29 @@ export default function SerpCheckerPage() {
       }
       try {
         const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${item.id}`)
+        if (check.result) showResult(check.result, item.id)
+      } catch {
+        setError(t("errors.loadFailed"))
+      }
+    },
+    [pollCheck, showResult, t],
+  )
+
+  /** Open a check by id. Used by the ?check= we arrive with and by Back/Forward,
+   *  both of which already have the id in the URL — so this sets state directly
+   *  rather than pushing another entry for the one we are standing on. */
+  const loadCheckById = useCallback(
+    async (id: string) => {
+      try {
+        const { check } = await api.get<{ check: CheckRow }>(`/api/serp-check/${id}`)
         if (check.result) {
           setResult(check.result)
           setError(null)
+          shownIdRef.current = id
+        } else if (check.status === "PROCESSING") {
+          pollCheck(id)
+        } else {
+          setError(t("errors.historyFailed"))
         }
       } catch {
         setError(t("errors.loadFailed"))
@@ -288,6 +351,24 @@ export default function SerpCheckerPage() {
     },
     [pollCheck, t],
   )
+
+  // The URL is the source of truth for which view is on screen: read it on
+  // arrival, and follow it on every Back/Forward.
+  useEffect(() => {
+    const sync = () => {
+      const id = new URLSearchParams(window.location.search).get("check")
+      if (id === shownIdRef.current) return
+      if (!id) {
+        setResult(null)
+        shownIdRef.current = null
+        return
+      }
+      void loadCheckById(id)
+    }
+    sync()
+    window.addEventListener("popstate", sync)
+    return () => window.removeEventListener("popstate", sync)
+  }, [loadCheckById])
 
   function exportReport() {
     if (!result) return
@@ -304,14 +385,40 @@ export default function SerpCheckerPage() {
 
   return (
     <div className="page">
+      {/* Two modes, and the header says which one you are in. A result used to
+          appear BELOW the form with the page still titled "Quick SERP Checker",
+          so there was nothing to say you had opened something, and nothing to
+          close it — the only way back to the list was a browser Back that left
+          the tool. */}
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
-          <h1>{t("title")}</h1>
-          <div className="sub">{t("subtitle")}</div>
+          {result ? (
+            <>
+              <nav className="sc-crumbs" aria-label={t("title")}>
+                <button type="button" onClick={clearResult}>{t("title")}</button>
+                <span aria-hidden>/</span>
+                <span className="cur">{result.keyword}</span>
+              </nav>
+              <h1 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {result.keyword}
+              </h1>
+              <div className="sub">
+                {result.country.toUpperCase()} · {result.device === "mobile" ? t("form.mobile") : t("form.desktop")} ·{" "}
+                {t("checkedWhen", { when: relativeTime(result.checkedAt, t, locale) })}
+              </div>
+            </>
+          ) : (
+            <>
+              <h1>{t("title")}</h1>
+              <div className="sub">{t("subtitle")}</div>
+            </>
+          )}
         </div>
-        {/* Export only makes sense once a check has produced a result. */}
         {result && (
-          <div className="row">
+          <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+            <button className="btn" onClick={clearResult}>
+              <Icon.search /> {t("newCheck")}
+            </button>
             <button className="btn" onClick={exportReport}>
               <Icon.download /> {t("exportReport")}
             </button>
@@ -319,13 +426,14 @@ export default function SerpCheckerPage() {
         )}
       </div>
 
-      <ToolContext id="quick-serp" />
+      {!result && <ToolContext id="quick-serp" />}
 
       {/* Query form.
           The query on top, the settings under it. It was a 2x2 grid — which gave
           the optional Domain field the same weight as the required Keyword, and
           put Domain FIRST — over a full-width slab of a button, the loudest
           thing on a page that had not run anything yet. */}
+      {!result && (
       <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
         <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           {/* The one required field, so it leads and takes the width. */}
@@ -424,6 +532,7 @@ export default function SerpCheckerPage() {
           </div>
         )}
       </form>
+      )}
 
       {/* Processing state — survives reloads (resumed from history on mount). */}
       {processing && !result && (
@@ -667,8 +776,10 @@ export default function SerpCheckerPage() {
         </>
       )}
 
-      {/* Previous searches — one row per QUERY, not per run. See `groups`. */}
-      {history.length > 0 && (
+      {/* Previous searches — one row per QUERY, not per run. See `groups`.
+          Hidden while a result is open: it is the list you came FROM, and the
+          breadcrumb is how you get back to it. */}
+      {!result && history.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
           <div className="card-h" style={{ padding: "13px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
             <div className="b">{t("history.title")}</div>
@@ -776,6 +887,25 @@ export default function SerpCheckerPage() {
         </div>
       )}
       <style jsx>{`
+        /* In-page breadcrumb, shown while a result is open. The topbar's own
+           trail ends at this route, so it cannot lead anywhere from here. */
+        .sc-crumbs {
+          display: flex; align-items: center; gap: 7px;
+          min-width: 0;
+          font-size: 12.5px; color: var(--text-mute);
+          margin-bottom: 7px;
+        }
+        .sc-crumbs button {
+          padding: 0; border: none; background: none;
+          font: inherit; color: var(--text-mute); cursor: pointer;
+          white-space: nowrap;
+        }
+        .sc-crumbs button:hover { color: var(--brand); }
+        .sc-crumbs .cur {
+          min-width: 0; color: var(--text-soft);
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
         /* Previous searches. A hover-highlighted line that holds two separate
            controls, so the whole row can't be one button. */
         .sc-hist-item { border-bottom: 1px solid var(--border); }

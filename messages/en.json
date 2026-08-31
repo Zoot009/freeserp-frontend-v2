@@ -1135,7 +1135,9 @@
       "pageBody": "Every organic result in order, with its title, URL and snippet.",
       "featuresTitle": "What Google rendered",
       "featuresBody": "AI Overview, featured snippet, People Also Ask, video and local packs."
-    }
+    },
+    "newCheck": "New check",
+    "checkedWhen": "checked {when}"
   },
   "notifications": {
     "title": "Notifications",

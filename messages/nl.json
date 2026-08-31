@@ -606,7 +606,9 @@
       "runs": "{count, plural, one {# uitvoering} other {# uitvoeringen}}",
       "checking": "Bezig met controleren…",
       "failed": "Mislukt"
-    }
+    },
+    "newCheck": "Nieuwe controle",
+    "checkedWhen": "gecontroleerd {when}"
   },
   "dashProjects": {
     "startLabel": "Hoe wil je beginnen met het volgen van zoekwoorden?",

@@ -1135,7 +1135,9 @@
       "pageBody": "Chaque résultat organique dans l'ordre, avec son titre, son URL et son extrait.",
       "featuresTitle": "Ce que Google a affiché",
       "featuresBody": "AI Overview, extrait optimisé, « Autres questions », packs vidéo et local."
-    }
+    },
+    "newCheck": "Nouvelle vérification",
+    "checkedWhen": "vérifié {when}"
   },
   "notifications": {
     "title": "Notifications",
