@@ -506,7 +506,7 @@
     "competitorAnalysis": "Competitor Analysis",
     "trialDaysLeft": "{days, plural, one {# day} other {# days}} left in trial",
     "trialHoursLeft": "{hours, plural, one {# hour} other {# hours}} left in trial",
-    "googleTracker": "Keyword Rank Tracker",
+    "googleTracker": "Google Rank Tracker",
     "youtubeTracker": "YouTube Rank Tracker",
     "mapsTracker": "Google Maps Tracker",
     "websiteAudit": "Full Website Audit",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "No rank data yet",
     "noData": "No data",
     "headerEyebrow": "RANK TRACKING",
-    "headerTitle": "Keyword Rank Tracker",
+    "headerTitle": "Google Rank Tracker",
     "subFree": "{used} of {limit} used on Free plan · upgrade for unlimited",
     "subTracked": "{count, plural, one {# project tracked} other {# projects tracked}}",
     "tour": "Tour",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "QUICK SERP",
-    "title": "Quick SERP Checker",
+    "title": "Google Quick SERP Checker",
     "subtitle": "Run an unbiased Google query from a clean server. Top 100, depersonalized.",
     "exportReport": "Export report",
     "form": {

@@ -506,7 +506,7 @@
     "competitorAnalysis": "Analyse de la concurrence",
     "trialDaysLeft": "Il reste {days, plural, one {# jour} other {# jours}} d'essai",
     "trialHoursLeft": "Il reste {hours, plural, one {# heure} other {# heures}} d'essai",
-    "googleTracker": "Suivi de position des mots-clés",
+    "googleTracker": "Suivi de position Google",
     "youtubeTracker": "Suivi de position YouTube",
     "mapsTracker": "Suivi Google Maps",
     "websiteAudit": "Audit complet du site",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "Pas encore de données de position",
     "noData": "Aucune donnée",
     "headerEyebrow": "SUIVI DE POSITION",
-    "headerTitle": "Suivi de position des mots-clés",
+    "headerTitle": "Suivi de position Google",
     "subFree": "{used} sur {limit} utilisés sur le plan Gratuit · passez à l'illimité",
     "subTracked": "{count, plural, one {# projet suivi} other {# projets suivis}}",
     "tour": "Visite",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RAPIDE",
-    "title": "Vérificateur SERP rapide",
+    "title": "Vérificateur SERP rapide Google",
     "subtitle": "Lancez une requête Google impartiale depuis un serveur neutre. Top 100, dépersonnalisée.",
     "exportReport": "Exporter le rapport",
     "form": {

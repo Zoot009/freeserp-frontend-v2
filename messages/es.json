@@ -506,7 +506,7 @@
     "competitorAnalysis": "Análisis de la competencia",
     "trialDaysLeft": "{days, plural, one {Queda # día} other {Quedan # días}} de prueba",
     "trialHoursLeft": "{hours, plural, one {Queda # hora} other {Quedan # horas}} de prueba",
-    "googleTracker": "Rastreador de posiciones de palabras clave",
+    "googleTracker": "Rastreador de posiciones de Google",
     "youtubeTracker": "Rastreador de posiciones de YouTube",
     "mapsTracker": "Rastreador de Google Maps",
     "websiteAudit": "Auditoría completa del sitio",
@@ -1002,7 +1002,7 @@
     "noRankDataYet": "Aún no hay datos de posición",
     "noData": "Sin datos",
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",
-    "headerTitle": "Rastreador de posiciones de palabras clave",
+    "headerTitle": "Rastreador de posiciones de Google",
     "subFree": "{used} de {limit} usados en el plan Gratuito · mejora para ilimitados",
     "subTracked": "{count, plural, one {# proyecto rastreado} other {# proyectos rastreados}}",
     "tour": "Tour",
@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SERP RÁPIDA",
-    "title": "Comprobador rápido de SERP",
+    "title": "Comprobador rápido de SERP de Google",
     "subtitle": "Ejecuta una consulta de Google imparcial desde un servidor limpio. Top 100, despersonalizada.",
     "exportReport": "Exportar informe",
     "form": {

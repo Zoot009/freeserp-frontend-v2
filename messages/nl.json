@@ -162,7 +162,7 @@
     "trialDaysLeft": "nog {days, plural, one {# dag} other {# dagen}} in de proefperiode",
     "trialHoursLeft": "nog {hours, plural, one {# uur} other {# uur}} in de proefperiode",
     "llmPrompts": "Mijn prompts",
-    "googleTracker": "Google Tracker",
+    "googleTracker": "Google Rank Tracker",
     "youtubeTracker": "YouTube Tracker",
     "bingTracker": "Bing Tracker",
     "yahooTracker": "Yahoo Tracker",
@@ -589,7 +589,7 @@
     "confirm": {
       "titleCredits": "Dit gebruikt {count, plural, one {# credit} other {# credits}}"
     },
-    "title": "Quick SERP Checker",
+    "title": "Google Quick SERP Checker",
     "empty": {
       "title": "Nog niets gecontroleerd",
       "body": "Voer hierboven een zoekwoord in — we bevragen Google live vanaf een schone server: geen cookies, geen geschiedenis, geen personalisatie.",
