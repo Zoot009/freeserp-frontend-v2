@@ -652,6 +652,13 @@ export default function YoutubeKeywordsPage() {
   // Separate from `busy`, which belongs to running checks: changing the
   // schedule must not disable the Run check button, or the reverse.
   const [savingFreq, setSavingFreq] = useState(false)
+  // Auto-check scheduling is paid-only: the frequency route sits behind
+  // requirePaidPlan (youtube.routes.ts), so on a free plan the switch is a
+  // control that can only fail. The Google project page hides its card for
+  // exactly this reason; this reads the same signal from the same endpoint.
+  // Null until /api/usage answers, so the card appears for a paid plan rather
+  // than flashing and being taken away from a free one.
+  const [plan, setPlan] = useState<string | null>(null)
   // The keyword slated for deletion — null when the confirmation is closed.
   const [confirmDeleteKw, setConfirmDeleteKw] = useState<YtKeywordRow | null>(null)
   const [deletingKw, setDeletingKw] = useState(false)
@@ -686,6 +693,15 @@ export default function YoutubeKeywordsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!user?.emailVerified) return
+    api.get<{ plan?: string }>("/api/usage")
+      .then((d) => setPlan(d?.plan ?? null))
+      // A failed read leaves the schedule card hidden, which is the safe way
+      // round: worse to offer a control that 402s than to omit one.
+      .catch(() => undefined)
+  }, [user?.emailVerified])
 
   // ?new=1 from the create flow — open the add-keywords modal once.
   useEffect(() => {
@@ -911,40 +927,42 @@ export default function YoutubeKeywordsPage() {
           {/* Auto check — the schedule, and the control that changes it. Lifted
               out of the filter toolbar, where a cadence dropdown sat between a
               keyword filter and a depth chip as if the three were the same kind
-              of thing. */}
-          <div className="rounded-xl border bg-card px-3.5 py-2.5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div
-                className="min-w-0"
-                title={
-                  project.autoCheckEnabled && project.nextScheduledCheck
-                    ? `Next check ${new Date(project.nextScheduledCheck).toLocaleString()}`
-                    : undefined
-                }
-              >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  Auto check
+              of thing. Paid only, like the Google page: see `plan` above. */}
+          {plan === "paid" && (
+            <div className="rounded-xl border bg-card px-3.5 py-2.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div
+                  className="min-w-0"
+                  title={
+                    project.autoCheckEnabled && project.nextScheduledCheck
+                      ? `Next check ${new Date(project.nextScheduledCheck).toLocaleString()}`
+                      : undefined
+                  }
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Auto check
+                  </div>
+                  <div className={`mt-0.5 whitespace-nowrap text-[13px] font-semibold ${autoCheck.tone}`}>
+                    {autoCheck.label}
+                  </div>
                 </div>
-                <div className={`mt-0.5 whitespace-nowrap text-[13px] font-semibold ${autoCheck.tone}`}>
-                  {autoCheck.label}
-                </div>
+                <div className="h-8 w-px shrink-0 bg-border" />
+                {/* The Google project page's own switch, now shared. A Dropdown
+                    here read as one more filter control; this reads as a schedule
+                    that is on or off, which is the question being asked. */}
+                <ScheduleToggle
+                  enabled={project.autoCheckEnabled}
+                  frequency={project.checkFrequency || 24}
+                  busy={savingFreq}
+                  choices={FREQ_CHOICES}
+                  labelFor={freqLabel}
+                  offLabel="Off (no schedule)"
+                  title="Set how often automated rank checks run for this channel"
+                  onPick={updateFrequency}
+                />
               </div>
-              <div className="h-8 w-px shrink-0 bg-border" />
-              {/* The Google project page's own switch, now shared. A Dropdown
-                  here read as one more filter control; this reads as a schedule
-                  that is on or off, which is the question being asked. */}
-              <ScheduleToggle
-                enabled={project.autoCheckEnabled}
-                frequency={project.checkFrequency || 24}
-                busy={savingFreq}
-                choices={FREQ_CHOICES}
-                labelFor={freqLabel}
-                offLabel="Off (no schedule)"
-                title="Set how often automated rank checks run for this channel"
-                onPick={updateFrequency}
-              />
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2">
             <Button
