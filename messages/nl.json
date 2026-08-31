@@ -599,6 +599,13 @@
       "pageBody": "Elk organisch resultaat op volgorde, met titel, URL en snippet.",
       "featuresTitle": "Wat Google heeft getoond",
       "featuresBody": "AI Overview, uitgelicht fragment, 'Mensen vragen ook', video- en local packs."
+    },
+    "history": {
+      "title": "Eerdere zoekopdrachten",
+      "summary": "{queries, plural, one {# zoekopdracht} other {# zoekopdrachten}} · {checks, plural, one {# controle} other {# controles}}",
+      "runs": "{count, plural, one {# uitvoering} other {# uitvoeringen}}",
+      "checking": "Bezig met controleren…",
+      "failed": "Mislukt"
     }
   },
   "dashProjects": {

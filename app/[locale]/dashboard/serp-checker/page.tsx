@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Favicon } from "@/components/favicon"
 import { useCredits } from "@/lib/credits"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
 import { ALL_LOCATIONS } from "@/lib/locations"
@@ -74,14 +74,33 @@ type CheckRow = {
 // value comes from GET /api/billing/config (backend LIVE_SERP_CHECK_UNITS).
 const LIVE_CHECK_COST_FALLBACK = 1
 
-function relativeTime(iso: string, t: ReturnType<typeof useTranslations>): string {
+// The date fell back to a hardcoded "en-US", so a French or German reader got
+// "Jul 31" in the middle of their own language.
+function relativeTime(iso: string, t: ReturnType<typeof useTranslations>, locale: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60_000)
   if (mins < 1) return t("time.justNow")
   if (mins < 60) return t("time.minutesAgo", { count: mins })
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return t("time.hoursAgo", { count: hrs })
-  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" })
+}
+
+/** "31 Jul, 14:22" — inside a group every run is the SAME query, so the clock is
+ *  the only thing that tells one from another. */
+function absoluteTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale, {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  })
+}
+
+/** One row of the history list, grouped by the query it repeats. */
+type HistoryGroup = {
+  key: string
+  /** Most recent run — what the collapsed row reports and opens. */
+  latest: HistoryItem
+  /** Every run of this query, newest first. */
+  items: HistoryItem[]
 }
 
 function fmtVolume(v: number | null): string {
@@ -114,6 +133,33 @@ export default function SerpCheckerPage() {
   const [submitting, setSubmitting] = useState(false)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>([])
+  // Which grouped query is showing its individual runs. One at a time — the
+  // list is a sidebar-width column, not a tree to browse.
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const locale = useLocale()
+
+  /**
+   * Repeats of the same query collapse into one row.
+   *
+   * The list is a log, and running the same check a dozen times is the normal
+   * way to use this tool — which produced a dozen identical rows, each 64px
+   * tall, all reading "seo · US · freeserp.com · Jul 31 · 100+". A list where
+   * every row says the same thing cannot be read and cannot be picked from:
+   * clicking one was a coin toss between twelve results.
+   *
+   * `history` arrives newest-first and Map keeps insertion order, so the first
+   * run seen for a key is the latest and the groups stay in recency order.
+   */
+  const groups = useMemo<HistoryGroup[]>(() => {
+    const by = new Map<string, HistoryGroup>()
+    for (const h of history) {
+      const key = `${h.keyword.trim().toLowerCase()}|${h.country}|${h.device}|${(h.domain ?? "").toLowerCase()}`
+      const g = by.get(key)
+      if (g) g.items.push(h)
+      else by.set(key, { key, latest: h, items: [h] })
+    }
+    return [...by.values()]
+  }, [history])
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -621,59 +667,79 @@ export default function SerpCheckerPage() {
         </>
       )}
 
-      {/* Previous searches */}
+      {/* Previous searches — one row per QUERY, not per run. See `groups`. */}
       {history.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
-          <div className="card-h" style={{ padding: "14px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
+          <div className="card-h" style={{ padding: "13px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
             <div className="b">{t("history.title")}</div>
-            <span className="tiny muted">{t("history.recent", { count: history.length })}</span>
+            <span className="tiny muted">
+              {t("history.summary", { queries: groups.length, checks: history.length })}
+            </span>
           </div>
+
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {history.map((h) => (
-              <li key={h.id}>
-                <button
-                  type="button"
-                  onClick={() => void openHistory(h)}
-                  disabled={h.status === "PROCESSING"}
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    textAlign: "left",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    border: "none",
-                    borderBottom: "1px solid var(--border)",
-                    background: "transparent",
-                    cursor: h.status === "PROCESSING" ? "default" : "pointer",
-                  }}
-                >
-                  <span style={{ flexShrink: 0, color: "var(--text-mute)" }}>
-                    {h.device === "mobile" ? <Icon.smartphone size={15} /> : <Icon.monitor size={15} />}
-                  </span>
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span className="b" style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {h.keyword}
-                    </span>
-                    <span className="tiny muted">
-                      {h.country.toUpperCase()}
-                      {h.domain ? ` · ${h.domain}` : ""} · {relativeTime(h.createdAt, t)}
-                    </span>
-                  </span>
-                  <span style={{ flexShrink: 0 }}>
-                    {h.status === "PROCESSING" ? (
-                      <span className="tiny" style={{ color: "var(--brand)" }}>{t("history.checking")}</span>
-                    ) : h.status === "FAILED" ? (
-                      <span className="tiny" style={{ color: "var(--neg)" }}>{t("history.failed")}</span>
-                    ) : (
-                      <span className={"pos-badge " + (h.position == null ? "" : h.position <= 3 ? "top3" : h.position <= 10 ? "top10" : "")}>
-                        {h.position == null ? "100+" : `#${h.position}`}
+            {groups.map((g) => {
+              const h = g.latest
+              const expanded = openGroup === g.key
+              return (
+                <li key={g.key} className="sc-hist-item">
+                  <div className="sc-hist-line">
+                    {/* The row opens the latest run. The runs chip beside it is
+                        a separate control, so one click never has to mean two
+                        different things. */}
+                    <button
+                      type="button"
+                      className="sc-hist-open"
+                      onClick={() => void openHistory(h)}
+                      disabled={h.status === "PROCESSING"}
+                    >
+                      <span className="sc-hist-dev">
+                        {h.device === "mobile" ? <Icon.smartphone size={14} /> : <Icon.monitor size={14} />}
                       </span>
+                      <span className="b sc-hist-kw">{h.keyword}</span>
+                      <span className="tiny muted sc-hist-meta">
+                        {h.country.toUpperCase()}{h.domain ? ` · ${h.domain}` : ""}
+                      </span>
+                    </button>
+
+                    {g.items.length > 1 && (
+                      <button
+                        type="button"
+                        className="sc-hist-runs"
+                        aria-expanded={expanded}
+                        onClick={() => setOpenGroup(expanded ? null : g.key)}
+                      >
+                        {t("history.runs", { count: g.items.length })}
+                        <span className={"sc-hist-chev" + (expanded ? " open" : "")}><Icon.chevD /></span>
+                      </button>
                     )}
-                  </span>
-                </button>
-              </li>
-            ))}
+
+                    <HistoryStatus item={h} t={t} />
+                    <span className="tiny muted tabular sc-hist-when">{relativeTime(h.createdAt, t, locale)}</span>
+                  </div>
+
+                  {expanded && (
+                    <ul className="sc-hist-sub">
+                      {g.items.map((it) => (
+                        <li key={it.id}>
+                          <button
+                            type="button"
+                            className="sc-hist-subrow"
+                            onClick={() => void openHistory(it)}
+                            disabled={it.status === "PROCESSING"}
+                          >
+                            <span className="tiny muted tabular" style={{ flex: 1, minWidth: 0 }}>
+                              {absoluteTime(it.createdAt, locale)}
+                            </span>
+                            <HistoryStatus item={it} t={t} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
@@ -709,7 +775,98 @@ export default function SerpCheckerPage() {
           </div>
         </div>
       )}
+      <style jsx>{`
+        /* Previous searches. A hover-highlighted line that holds two separate
+           controls, so the whole row can't be one button. */
+        .sc-hist-item { border-bottom: 1px solid var(--border); }
+        .sc-hist-item:last-child { border-bottom: none; }
+        .sc-hist-line {
+          display: flex; align-items: center; gap: 10px;
+          padding: 9px 16px;
+        }
+        .sc-hist-line:hover { background: var(--bg-inset); }
+        .sc-hist-open {
+          display: flex; align-items: center; gap: 10px;
+          flex: 1; min-width: 0;
+          padding: 0; border: none; background: transparent;
+          color: inherit; text-align: left; cursor: pointer;
+        }
+        .sc-hist-open:disabled { cursor: default; }
+        .sc-hist-dev { flex-shrink: 0; display: inline-flex; color: var(--text-mute); }
+        /* The keyword takes what it needs and the market line gives way first —
+           it is the part you can afford to lose. */
+        .sc-hist-kw {
+          font-size: 13px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          flex: 0 1 auto;
+        }
+        .sc-hist-meta {
+          min-width: 0; flex: 1 1 auto;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sc-hist-runs {
+          flex-shrink: 0;
+          display: inline-flex; align-items: center; gap: 3px;
+          padding: 3px 7px 3px 9px;
+          border: 1px solid var(--border); border-radius: 999px;
+          background: transparent; color: var(--text-mute);
+          font-size: 11.5px; font-weight: 500; white-space: nowrap;
+          cursor: pointer;
+        }
+        .sc-hist-runs:hover { color: var(--text); border-color: var(--border-strong); }
+        .sc-hist-chev { display: inline-flex; transition: transform 120ms ease; }
+        .sc-hist-chev.open { transform: rotate(180deg); }
+        .sc-hist-when { flex-shrink: 0; width: 62px; text-align: right; }
+
+        /* The runs of one query, indented to sit under its keyword. */
+        .sc-hist-sub { list-style: none; margin: 0; padding: 0; background: var(--bg-sub); }
+        .sc-hist-subrow {
+          display: flex; align-items: center; gap: 10px;
+          width: 100%;
+          padding: 7px 16px 7px 42px;
+          border: none; background: transparent;
+          text-align: left; cursor: pointer;
+        }
+        .sc-hist-subrow:hover { background: var(--bg-inset); }
+        .sc-hist-subrow:disabled { cursor: default; }
+      `}</style>
     </div>
+  )
+}
+
+/**
+ * What came of one check: a position pill, or why there isn't one.
+ *
+ * Not `.pos-badge`: that is a fixed 30x30 square built for "#4", and "100+"
+ * simply overflowed it — the miss case, which is most of them, was the one it
+ * couldn't draw. This sizes to its text.
+ */
+function HistoryStatus({ item, t }: { item: HistoryItem; t: ReturnType<typeof useTranslations> }) {
+  if (item.status === "PROCESSING") {
+    return <span className="tiny" style={{ flexShrink: 0, color: "var(--brand)" }}>{t("history.checking")}</span>
+  }
+  if (item.status === "FAILED") {
+    return <span className="tiny" style={{ flexShrink: 0, color: "var(--neg)" }}>{t("history.failed")}</span>
+  }
+  const p = item.position
+  const tone =
+    p == null ? { background: "var(--bg-inset)", color: "var(--text-mute)" }
+      : p <= 3 ? { background: "var(--brand)", color: "#fff" }
+      : p <= 10 ? { background: "var(--brand-soft)", color: "var(--brand)" }
+      : { background: "var(--bg-inset)", color: "var(--text)" }
+  return (
+    <span
+      className="tabular"
+      style={{
+        flexShrink: 0,
+        display: "inline-grid", placeItems: "center",
+        minWidth: 38, height: 24, padding: "0 8px",
+        borderRadius: 7, fontSize: 12, fontWeight: 600,
+        ...tone,
+      }}
+    >
+      {p == null ? "100+" : `#${p}`}
+    </span>
   )
 }
 

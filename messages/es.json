@@ -1092,9 +1092,10 @@
     },
     "history": {
       "title": "Búsquedas anteriores",
-      "recent": "{count} recientes",
+      "summary": "{queries, plural, one {# consulta} other {# consultas}} · {checks, plural, one {# comprobación} other {# comprobaciones}}",
+      "runs": "{count, plural, one {# ejecución} other {# ejecuciones}}",
       "checking": "Comprobando…",
-      "failed": "Fallida"
+      "failed": "Ha fallado"
     },
     "confirm": {
       "eyebrow": "CONFIRMAR COMPROBACIÓN",

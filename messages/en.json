@@ -1092,7 +1092,8 @@
     },
     "history": {
       "title": "Previous searches",
-      "recent": "{count} recent",
+      "summary": "{queries, plural, one {# query} other {# queries}} · {checks, plural, one {# check} other {# checks}}",
+      "runs": "{count, plural, one {# run} other {# runs}}",
       "checking": "Checking…",
       "failed": "Failed"
     },

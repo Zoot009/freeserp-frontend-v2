@@ -1092,7 +1092,8 @@
     },
     "history": {
       "title": "Frühere Suchen",
-      "recent": "{count} aktuelle",
+      "summary": "{queries, plural, one {# Suchanfrage} other {# Suchanfragen}} · {checks, plural, one {# Prüfung} other {# Prüfungen}}",
+      "runs": "{count, plural, one {# Durchlauf} other {# Durchläufe}}",
       "checking": "Wird geprüft…",
       "failed": "Fehlgeschlagen"
     },

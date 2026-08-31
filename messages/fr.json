@@ -1092,7 +1092,8 @@
     },
     "history": {
       "title": "Recherches précédentes",
-      "recent": "{count} récentes",
+      "summary": "{queries, plural, one {# requête} other {# requêtes}} · {checks, plural, one {# vérification} other {# vérifications}}",
+      "runs": "{count, plural, one {# exécution} other {# exécutions}}",
       "checking": "Vérification…",
       "failed": "Échec"
     },
