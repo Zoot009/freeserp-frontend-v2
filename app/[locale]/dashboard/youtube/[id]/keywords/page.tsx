@@ -659,9 +659,10 @@ export default function YoutubeKeywordsPage() {
   // Null until /api/usage answers, so the card appears for a paid plan rather
   // than flashing and being taken away from a free one.
   const [plan, setPlan] = useState<string | null>(null)
-  // The keyword slated for deletion — null when the confirmation is closed.
-  const [confirmDeleteKw, setConfirmDeleteKw] = useState<YtKeywordRow | null>(null)
-  const [deletingKw, setDeletingKw] = useState(false)
+  // Keywords slated for deletion: [oneId] from a row's trash, the whole
+  // selection from "Delete N". null = the confirmation is closed.
+  const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const openedNew = useRef(false)
 
   useEffect(() => {
@@ -814,25 +815,34 @@ export default function YoutubeKeywordsPage() {
   }
 
   /**
-   * Delete, once it has been confirmed.
+   * Delete one keyword or the whole selection, once confirmed.
    *
-   * The trash icon used to call this straight from the row: one click, gone,
-   * with the keyword's whole check history behind it and nothing to undo it
-   * with. The Google table asks first, and this is the same question.
+   * allSettled rather than all, and rows are removed per RESULT: a partial
+   * failure must not take the survivors off the table, and must not claim
+   * success either. Same shape as the Google table's bulk delete, which fans
+   * out over the same single-keyword endpoint — there is no bulk route, and one
+   * request per keyword is honest about what actually happened to each.
    */
-  const deleteKeyword = async (kwId: string) => {
-    setDeletingKw(true)
-    // Optimistic: the row goes at once so the confirmation doesn't linger over
-    // a table that still shows what it just deleted. `load` below is what makes
-    // it true, or puts the row back if the call failed.
-    setProject((prev) => (prev ? { ...prev, keywords: prev.keywords.filter((k) => k.id !== kwId) } : prev))
-    setConfirmDeleteKw(null)
+  const deleteKeywords = async (kwIds: string[]) => {
+    setBulkDeleting(true)
+    setError("")
     try {
-      await api.delete(`/api/youtube/projects/${projectId}/keywords/${kwId}`)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete keyword")
+      const results = await Promise.allSettled(
+        kwIds.map((id) => api.delete(`/api/youtube/projects/${projectId}/keywords/${id}`)),
+      )
+      const deleted = new Set<string>()
+      kwIds.forEach((id, i) => { if (results[i]!.status === "fulfilled") deleted.add(id) })
+      setProject((prev) => (prev ? { ...prev, keywords: prev.keywords.filter((k) => !deleted.has(k.id)) } : prev))
+      setSelected((prev) => {
+        const next = new Set(prev)
+        deleted.forEach((id) => next.delete(id))
+        return next
+      })
+      const failed = kwIds.length - deleted.size
+      if (failed > 0) setError(`Removed ${deleted.size} of ${kwIds.length} keywords — ${failed} failed.`)
     } finally {
-      setDeletingKw(false)
+      setBulkDeleting(false)
+      setConfirmDeleteKwIds(null)
       void load(true)
     }
   }
@@ -979,6 +989,18 @@ export default function YoutubeKeywordsPage() {
             >
               <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
             </Button>
+            {/* Only with a selection to act on. No tooltip: the label already
+                says exactly what one would, and repeating it on hover is noise. */}
+            {selected.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteKwIds([...selected])}
+                className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+                style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
+              >
+                <Icon.trash /> Delete {selected.size}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1366,7 +1388,7 @@ export default function YoutubeKeywordsPage() {
                             <button
                               className="icon-btn danger"
                               style={{ width: 28, height: 28 }}
-                              onClick={() => setConfirmDeleteKw(k)}
+                              onClick={() => setConfirmDeleteKwIds([k.id])}
                               aria-label={`Remove ${k.keyword}`}
                             >
                               <Icon.trash size={13} />
@@ -1383,46 +1405,55 @@ export default function YoutubeKeywordsPage() {
         )}
       </div>
 
-      {confirmDeleteKw && (
-        <div className="modal-bg" onClick={() => !deletingKw && setConfirmDeleteKw(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-h">
-              <div>
-                <div className="eyebrow" style={{ margin: 0, fontSize: 11, color: "var(--neg)" }}>
-                  DELETE KEYWORD
+      {confirmDeleteKwIds && confirmDeleteKwIds.length > 0 && (() => {
+        const ids = confirmDeleteKwIds
+        const isBulk = ids.length > 1
+        const firstKw = project.keywords.find((k) => k.id === ids[0])
+        return (
+          <div className="modal-bg" onClick={() => !bulkDeleting && setConfirmDeleteKwIds(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <div className="modal-h">
+                <div>
+                  <div className="eyebrow" style={{ margin: 0, fontSize: 11, color: "var(--neg)" }}>
+                    {isBulk ? `DELETE ${ids.length} KEYWORDS` : "DELETE KEYWORD"}
+                  </div>
+                  <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This can&apos;t be undone</div>
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This can&apos;t be undone</div>
+                <button
+                  onClick={() => setConfirmDeleteKwIds(null)}
+                  className="icon-btn"
+                  aria-label="Close"
+                  disabled={bulkDeleting}
+                >
+                  <Icon.close />
+                </button>
               </div>
-              <button
-                onClick={() => setConfirmDeleteKw(null)}
-                className="icon-btn"
-                aria-label="Close"
-                disabled={deletingKw}
-              >
-                <Icon.close />
-              </button>
-            </div>
-            <div className="modal-b">
-              <div className="tiny muted">This will permanently delete</div>
-              <div className="b" style={{ fontSize: 16, color: "var(--neg)", marginTop: 2, wordBreak: "break-word" }}>
-                {confirmDeleteKw.keyword}
+              <div className="modal-b">
+                <div className="tiny muted">
+                  {isBulk ? "This will permanently remove" : "This will permanently delete"}
+                </div>
+                <div className="b" style={{ fontSize: 16, color: "var(--neg)", marginTop: 2, wordBreak: "break-word" }}>
+                  {isBulk ? `${ids.length} keywords` : firstKw?.keyword ?? ids[0]}
+                </div>
+                <div className="tiny muted" style={{ marginTop: 6 }}>
+                  and {isBulk ? "their" : "its"} rank history.
+                </div>
               </div>
-              <div className="tiny muted" style={{ marginTop: 6 }}>and its rank history.</div>
-            </div>
-            <div className="modal-f">
-              <button className="btn" onClick={() => setConfirmDeleteKw(null)} disabled={deletingKw}>Cancel</button>
-              <button
-                onClick={() => void deleteKeyword(confirmDeleteKw.id)}
-                disabled={deletingKw}
-                className="btn"
-                style={{ background: "var(--neg)", color: "white", borderColor: "var(--neg)" }}
-              >
-                {deletingKw ? "Deleting…" : "Yes, delete"}
-              </button>
+              <div className="modal-f">
+                <button className="btn" onClick={() => setConfirmDeleteKwIds(null)} disabled={bulkDeleting}>Cancel</button>
+                <button
+                  onClick={() => void deleteKeywords(ids)}
+                  disabled={bulkDeleting}
+                  className="btn"
+                  style={{ background: "var(--neg)", color: "white", borderColor: "var(--neg)" }}
+                >
+                  {bulkDeleting ? "Deleting…" : isBulk ? `Yes, delete ${ids.length}` : "Yes, delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {showAddKw && (
         <AddKeywordsModal
