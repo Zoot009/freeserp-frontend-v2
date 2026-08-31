@@ -1037,7 +1037,7 @@
   },
   "dashSerpChecker": {
     "eyebrow": "SCHNELLE SERP",
-    "title": "Schnelle SERP",
+    "title": "Quick-SERP-Checker",
     "subtitle": "Führe eine unvoreingenommene Google-Abfrage von einem neutralen Server aus. Top 100, depersonalisiert.",
     "exportReport": "Bericht exportieren",
     "form": {
@@ -1052,7 +1052,8 @@
       "checking": "Wird geprüft…",
       "checkRankings": "Rankings prüfen",
       "costNote": "Live-Google-Abfrage · verbraucht {count, plural, one {# Check} other {# Checks}} · ~10 Sekunden",
-      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden"
+      "costNoteCredits": "Live-Google-Abfrage · verbraucht {count, plural, one {# Credit} other {# Credits}} · ~10 Sekunden",
+      "optional": "optional"
     },
     "processing": {
       "withKeyword": "Google wird für „{keyword}“ abgefragt… du kannst diese Seite verlassen und später zurückkommen.",
@@ -1123,6 +1124,16 @@
       "IMG": "Bilder",
       "LOCAL": "Lokal",
       "KG": "Wissen"
+    },
+    "empty": {
+      "title": "Noch nichts geprüft",
+      "body": "Gib oben ein Keyword ein — wir fragen Google live von einem sauberen Server ab: keine Cookies, kein Verlauf, keine Personalisierung.",
+      "positionTitle": "Deine genaue Position",
+      "positionBody": "Wo deine Domain für dieses Keyword in den Top 100 steht, sofern du eine angibst.",
+      "pageTitle": "Die komplette Ergebnisseite",
+      "pageBody": "Jedes organische Ergebnis der Reihe nach, mit Titel, URL und Snippet.",
+      "featuresTitle": "Was Google ausgespielt hat",
+      "featuresBody": "AI Overview, Featured Snippet, „Ähnliche Fragen“, Video- und Local-Packs."
     }
   },
   "notifications": {

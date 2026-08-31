@@ -275,27 +275,47 @@ export default function SerpCheckerPage() {
 
       <ToolContext id="quick-serp" />
 
-      {/* Query form */}
+      {/* Query form.
+          The query on top, the settings under it. It was a 2x2 grid — which gave
+          the optional Domain field the same weight as the required Keyword, and
+          put Domain FIRST — over a full-width slab of a button, the loudest
+          thing on a page that had not run anything yet. */}
       <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
-        <div className="grid g-2" style={{ marginBottom: 14 }}>
-          <Field label={t("form.domain")}>
-            <input
-              className="input"
-              placeholder={t("form.domainPlaceholder")}
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-            />
+        <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {/* The one required field, so it leads and takes the width. */}
+          <Field label={t("form.keyword")} style={{ flex: "1 1 320px" }}>
+            <div style={{ position: "relative" }}>
+              <span style={FIELD_ICON}><Icon.search /></span>
+              <input
+                className="input lg"
+                style={{ paddingLeft: 38 }}
+                placeholder={t("form.keywordPlaceholder")}
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
           </Field>
-          <Field label={t("form.keyword")}>
-            <input
-              className="input"
-              placeholder={t("form.keywordPlaceholder")}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              required
-            />
+          <Field label={t("form.domain")} hint={t("form.optional")} style={{ flex: "1 1 260px" }}>
+            <div style={{ position: "relative" }}>
+              <span style={FIELD_ICON}><Icon.globe /></span>
+              <input
+                className="input lg"
+                style={{ paddingLeft: 38 }}
+                placeholder={t("form.domainPlaceholder")}
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
           </Field>
-          <Field label={t("form.country")}>
+        </div>
+
+        {/* Country, device, and the submit pushed to the end of the same line.
+            margin-left:auto rather than a spacer element, so the button still
+            sits right when the row wraps on a narrow screen. */}
+        <div className="row" style={{ gap: 12, marginTop: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <Field label={t("form.country")} style={{ flex: "0 1 220px" }}>
             <Dropdown
               block
               menuAlign="left"
@@ -312,14 +332,14 @@ export default function SerpCheckerPage() {
               ariaLabel={t("form.country")}
             />
           </Field>
-          <Field label={t("form.device")}>
-            <div className="pill-toggle" style={{ width: "100%" }}>
+          <Field label={t("form.device")} style={{ flex: "0 0 auto" }}>
+            <div className="pill-toggle">
               {(["desktop", "mobile"] as const).map((d) => (
                 <button
                   key={d}
                   type="button"
                   className={device === d ? "active" : ""}
-                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "7px 14px" }}
                   onClick={() => setDevice(d)}
                 >
                   {d === "desktop" ? <Icon.monitor size={15} /> : <Icon.smartphone size={15} />}
@@ -328,12 +348,18 @@ export default function SerpCheckerPage() {
               ))}
             </div>
           </Field>
+
+          <button
+            type="submit"
+            className="btn primary"
+            style={{ marginLeft: "auto", minWidth: 180, height: 38, justifyContent: "center" }}
+            disabled={!canSubmit}
+          >
+            {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
+          </button>
         </div>
 
-        <button type="submit" className="btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={!canSubmit}>
-          {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
-        </button>
-        <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
+        <div className="tiny muted" style={{ marginTop: 12 }}>
           {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: liveCheckCost })}
         </div>
 
@@ -346,7 +372,6 @@ export default function SerpCheckerPage() {
               borderRadius: "var(--r-md)",
               background: "var(--neg-soft)",
               color: "var(--neg)",
-              textAlign: "center",
             }}
           >
             {error}
@@ -359,6 +384,51 @@ export default function SerpCheckerPage() {
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
           <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span>
           {keyword.trim() ? t("processing.withKeyword", { keyword: keyword.trim() }) : t("processing.noKeyword")}
+        </div>
+      )}
+
+      {/* Nothing run yet. The page used to end at the form, so two-thirds of the
+          viewport was blank white — a tool that looks broken before its first
+          use. This says what a check actually returns instead.
+          Only with no history: "Nothing checked yet" is false once Previous
+          searches is on screen, and that card already fills the space. */}
+      {!result && !processing && history.length === 0 && (
+        <div className="card" style={{ padding: "44px 32px" }}>
+          <div style={{ textAlign: "center" }}>
+            <div
+              aria-hidden
+              style={{
+                width: 46, height: 46, margin: "0 auto 14px",
+                display: "grid", placeItems: "center",
+                borderRadius: 14, background: "var(--brand-soft)", color: "var(--brand)",
+              }}
+            >
+              <Icon.zap />
+            </div>
+            <div className="b" style={{ fontSize: 17, letterSpacing: "-0.01em" }}>{t("empty.title")}</div>
+            {/* Not className="sub": that rule only exists under .page-h, so it
+                styles nothing here — the copy would render at full body size. */}
+            <div className="muted" style={{ margin: "6px auto 0", maxWidth: 470, fontSize: 13.5, lineHeight: 1.6 }}>
+              {t("empty.body")}
+            </div>
+          </div>
+
+          <div
+            className="grid g-3"
+            style={{ marginTop: 28, maxWidth: 740, marginInline: "auto", gap: 22 }}
+          >
+            {[
+              { key: "position", icon: <Icon.chart />, title: t("empty.positionTitle"), body: t("empty.positionBody") },
+              { key: "page", icon: <Icon.search />, title: t("empty.pageTitle"), body: t("empty.pageBody") },
+              { key: "features", icon: <Icon.ai />, title: t("empty.featuresTitle"), body: t("empty.featuresBody") },
+            ].map((f) => (
+              <div key={f.key} className="col" style={{ gap: 7 }}>
+                <span style={{ display: "inline-flex", color: "var(--brand)" }}>{f.icon}</span>
+                <span className="b" style={{ fontSize: 13 }}>{f.title}</span>
+                <span className="tiny muted" style={{ lineHeight: 1.55 }}>{f.body}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -643,11 +713,33 @@ export default function SerpCheckerPage() {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Leading icon inside a text input, matching the Keyword Magic search box. */
+const FIELD_ICON: React.CSSProperties = {
+  position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)",
+  color: "var(--text-mute)", display: "inline-flex", pointerEvents: "none",
+}
+
+function Field({
+  label, hint, style, children,
+}: {
+  label: string
+  /** Sits beside the label — "optional" and the like. */
+  hint?: string
+  style?: React.CSSProperties
+  children: React.ReactNode
+}) {
   return (
-    <label className="col" style={{ gap: 6 }}>
-      <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
-        {label}
+    <label className="col" style={{ gap: 6, minWidth: 0, ...style }}>
+      <span className="row" style={{ gap: 6, alignItems: "baseline" }}>
+        <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
+          {label}
+        </span>
+        {/* Beside the label, not in the placeholder: the placeholder disappears
+            the moment you type, which is when you would wonder whether the
+            field was required. */}
+        {hint && (
+          <span className="tiny muted" style={{ fontWeight: 500, opacity: 0.7 }}>{hint}</span>
+        )}
       </span>
       {children}
     </label>

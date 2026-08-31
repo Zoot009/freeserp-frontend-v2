@@ -583,10 +583,22 @@
   },
   "dashSerpChecker": {
     "form": {
-      "costNoteCredits": "Live Google-zoekopdracht · gebruikt {count, plural, one {# credit} other {# credits}} · ~10 seconden"
+      "costNoteCredits": "Live Google-zoekopdracht · gebruikt {count, plural, one {# credit} other {# credits}} · ~10 seconden",
+      "optional": "optioneel"
     },
     "confirm": {
       "titleCredits": "Dit gebruikt {count, plural, one {# credit} other {# credits}}"
+    },
+    "title": "Quick SERP Checker",
+    "empty": {
+      "title": "Nog niets gecontroleerd",
+      "body": "Voer hierboven een zoekwoord in — we bevragen Google live vanaf een schone server: geen cookies, geen geschiedenis, geen personalisatie.",
+      "positionTitle": "Je exacte positie",
+      "positionBody": "Waar jouw domein staat in de top 100 voor dit zoekwoord, als je er een opgeeft.",
+      "pageTitle": "De volledige resultatenpagina",
+      "pageBody": "Elk organisch resultaat op volgorde, met titel, URL en snippet.",
+      "featuresTitle": "Wat Google heeft getoond",
+      "featuresBody": "AI Overview, uitgelicht fragment, 'Mensen vragen ook', video- en local packs."
     }
   },
   "dashProjects": {
