@@ -652,9 +652,17 @@ export default function YoutubeKeywordsPage() {
   // Separate from `busy`, which belongs to running checks: changing the
   // schedule must not disable the Run check button, or the reverse.
   const [savingFreq, setSavingFreq] = useState(false)
-  // The keyword slated for deletion — null when the confirmation is closed.
-  const [confirmDeleteKw, setConfirmDeleteKw] = useState<YtKeywordRow | null>(null)
-  const [deletingKw, setDeletingKw] = useState(false)
+  // Auto-check scheduling is paid-only: the frequency route sits behind
+  // requirePaidPlan (youtube.routes.ts), so on a free plan the switch is a
+  // control that can only fail. The Google project page hides its card for
+  // exactly this reason; this reads the same signal from the same endpoint.
+  // Null until /api/usage answers, so the card appears for a paid plan rather
+  // than flashing and being taken away from a free one.
+  const [plan, setPlan] = useState<string | null>(null)
+  // Keywords slated for deletion: [oneId] from a row's trash, the whole
+  // selection from "Delete N". null = the confirmation is closed.
+  const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const openedNew = useRef(false)
 
   useEffect(() => {
@@ -686,6 +694,15 @@ export default function YoutubeKeywordsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!user?.emailVerified) return
+    api.get<{ plan?: string }>("/api/usage")
+      .then((d) => setPlan(d?.plan ?? null))
+      // A failed read leaves the schedule card hidden, which is the safe way
+      // round: worse to offer a control that 402s than to omit one.
+      .catch(() => undefined)
+  }, [user?.emailVerified])
 
   // ?new=1 from the create flow — open the add-keywords modal once.
   useEffect(() => {
@@ -798,25 +815,34 @@ export default function YoutubeKeywordsPage() {
   }
 
   /**
-   * Delete, once it has been confirmed.
+   * Delete one keyword or the whole selection, once confirmed.
    *
-   * The trash icon used to call this straight from the row: one click, gone,
-   * with the keyword's whole check history behind it and nothing to undo it
-   * with. The Google table asks first, and this is the same question.
+   * allSettled rather than all, and rows are removed per RESULT: a partial
+   * failure must not take the survivors off the table, and must not claim
+   * success either. Same shape as the Google table's bulk delete, which fans
+   * out over the same single-keyword endpoint — there is no bulk route, and one
+   * request per keyword is honest about what actually happened to each.
    */
-  const deleteKeyword = async (kwId: string) => {
-    setDeletingKw(true)
-    // Optimistic: the row goes at once so the confirmation doesn't linger over
-    // a table that still shows what it just deleted. `load` below is what makes
-    // it true, or puts the row back if the call failed.
-    setProject((prev) => (prev ? { ...prev, keywords: prev.keywords.filter((k) => k.id !== kwId) } : prev))
-    setConfirmDeleteKw(null)
+  const deleteKeywords = async (kwIds: string[]) => {
+    setBulkDeleting(true)
+    setError("")
     try {
-      await api.delete(`/api/youtube/projects/${projectId}/keywords/${kwId}`)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete keyword")
+      const results = await Promise.allSettled(
+        kwIds.map((id) => api.delete(`/api/youtube/projects/${projectId}/keywords/${id}`)),
+      )
+      const deleted = new Set<string>()
+      kwIds.forEach((id, i) => { if (results[i]!.status === "fulfilled") deleted.add(id) })
+      setProject((prev) => (prev ? { ...prev, keywords: prev.keywords.filter((k) => !deleted.has(k.id)) } : prev))
+      setSelected((prev) => {
+        const next = new Set(prev)
+        deleted.forEach((id) => next.delete(id))
+        return next
+      })
+      const failed = kwIds.length - deleted.size
+      if (failed > 0) setError(`Removed ${deleted.size} of ${kwIds.length} keywords — ${failed} failed.`)
     } finally {
-      setDeletingKw(false)
+      setBulkDeleting(false)
+      setConfirmDeleteKwIds(null)
       void load(true)
     }
   }
@@ -911,40 +937,42 @@ export default function YoutubeKeywordsPage() {
           {/* Auto check — the schedule, and the control that changes it. Lifted
               out of the filter toolbar, where a cadence dropdown sat between a
               keyword filter and a depth chip as if the three were the same kind
-              of thing. */}
-          <div className="rounded-xl border bg-card px-3.5 py-2.5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div
-                className="min-w-0"
-                title={
-                  project.autoCheckEnabled && project.nextScheduledCheck
-                    ? `Next check ${new Date(project.nextScheduledCheck).toLocaleString()}`
-                    : undefined
-                }
-              >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                  Auto check
+              of thing. Paid only, like the Google page: see `plan` above. */}
+          {plan === "paid" && (
+            <div className="rounded-xl border bg-card px-3.5 py-2.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div
+                  className="min-w-0"
+                  title={
+                    project.autoCheckEnabled && project.nextScheduledCheck
+                      ? `Next check ${new Date(project.nextScheduledCheck).toLocaleString()}`
+                      : undefined
+                  }
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                    Auto check
+                  </div>
+                  <div className={`mt-0.5 whitespace-nowrap text-[13px] font-semibold ${autoCheck.tone}`}>
+                    {autoCheck.label}
+                  </div>
                 </div>
-                <div className={`mt-0.5 whitespace-nowrap text-[13px] font-semibold ${autoCheck.tone}`}>
-                  {autoCheck.label}
-                </div>
+                <div className="h-8 w-px shrink-0 bg-border" />
+                {/* The Google project page's own switch, now shared. A Dropdown
+                    here read as one more filter control; this reads as a schedule
+                    that is on or off, which is the question being asked. */}
+                <ScheduleToggle
+                  enabled={project.autoCheckEnabled}
+                  frequency={project.checkFrequency || 24}
+                  busy={savingFreq}
+                  choices={FREQ_CHOICES}
+                  labelFor={freqLabel}
+                  offLabel="Off (no schedule)"
+                  title="Set how often automated rank checks run for this channel"
+                  onPick={updateFrequency}
+                />
               </div>
-              <div className="h-8 w-px shrink-0 bg-border" />
-              {/* The Google project page's own switch, now shared. A Dropdown
-                  here read as one more filter control; this reads as a schedule
-                  that is on or off, which is the question being asked. */}
-              <ScheduleToggle
-                enabled={project.autoCheckEnabled}
-                frequency={project.checkFrequency || 24}
-                busy={savingFreq}
-                choices={FREQ_CHOICES}
-                labelFor={freqLabel}
-                offLabel="Off (no schedule)"
-                title="Set how often automated rank checks run for this channel"
-                onPick={updateFrequency}
-              />
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2">
             <Button
@@ -961,6 +989,18 @@ export default function YoutubeKeywordsPage() {
             >
               <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
             </Button>
+            {/* Only with a selection to act on. No tooltip: the label already
+                says exactly what one would, and repeating it on hover is noise. */}
+            {selected.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteKwIds([...selected])}
+                className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+                style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
+              >
+                <Icon.trash /> Delete {selected.size}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1348,7 +1388,7 @@ export default function YoutubeKeywordsPage() {
                             <button
                               className="icon-btn danger"
                               style={{ width: 28, height: 28 }}
-                              onClick={() => setConfirmDeleteKw(k)}
+                              onClick={() => setConfirmDeleteKwIds([k.id])}
                               aria-label={`Remove ${k.keyword}`}
                             >
                               <Icon.trash size={13} />
@@ -1365,46 +1405,55 @@ export default function YoutubeKeywordsPage() {
         )}
       </div>
 
-      {confirmDeleteKw && (
-        <div className="modal-bg" onClick={() => !deletingKw && setConfirmDeleteKw(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-h">
-              <div>
-                <div className="eyebrow" style={{ margin: 0, fontSize: 11, color: "var(--neg)" }}>
-                  DELETE KEYWORD
+      {confirmDeleteKwIds && confirmDeleteKwIds.length > 0 && (() => {
+        const ids = confirmDeleteKwIds
+        const isBulk = ids.length > 1
+        const firstKw = project.keywords.find((k) => k.id === ids[0])
+        return (
+          <div className="modal-bg" onClick={() => !bulkDeleting && setConfirmDeleteKwIds(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <div className="modal-h">
+                <div>
+                  <div className="eyebrow" style={{ margin: 0, fontSize: 11, color: "var(--neg)" }}>
+                    {isBulk ? `DELETE ${ids.length} KEYWORDS` : "DELETE KEYWORD"}
+                  </div>
+                  <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This can&apos;t be undone</div>
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>This can&apos;t be undone</div>
+                <button
+                  onClick={() => setConfirmDeleteKwIds(null)}
+                  className="icon-btn"
+                  aria-label="Close"
+                  disabled={bulkDeleting}
+                >
+                  <Icon.close />
+                </button>
               </div>
-              <button
-                onClick={() => setConfirmDeleteKw(null)}
-                className="icon-btn"
-                aria-label="Close"
-                disabled={deletingKw}
-              >
-                <Icon.close />
-              </button>
-            </div>
-            <div className="modal-b">
-              <div className="tiny muted">This will permanently delete</div>
-              <div className="b" style={{ fontSize: 16, color: "var(--neg)", marginTop: 2, wordBreak: "break-word" }}>
-                {confirmDeleteKw.keyword}
+              <div className="modal-b">
+                <div className="tiny muted">
+                  {isBulk ? "This will permanently remove" : "This will permanently delete"}
+                </div>
+                <div className="b" style={{ fontSize: 16, color: "var(--neg)", marginTop: 2, wordBreak: "break-word" }}>
+                  {isBulk ? `${ids.length} keywords` : firstKw?.keyword ?? ids[0]}
+                </div>
+                <div className="tiny muted" style={{ marginTop: 6 }}>
+                  and {isBulk ? "their" : "its"} rank history.
+                </div>
               </div>
-              <div className="tiny muted" style={{ marginTop: 6 }}>and its rank history.</div>
-            </div>
-            <div className="modal-f">
-              <button className="btn" onClick={() => setConfirmDeleteKw(null)} disabled={deletingKw}>Cancel</button>
-              <button
-                onClick={() => void deleteKeyword(confirmDeleteKw.id)}
-                disabled={deletingKw}
-                className="btn"
-                style={{ background: "var(--neg)", color: "white", borderColor: "var(--neg)" }}
-              >
-                {deletingKw ? "Deleting…" : "Yes, delete"}
-              </button>
+              <div className="modal-f">
+                <button className="btn" onClick={() => setConfirmDeleteKwIds(null)} disabled={bulkDeleting}>Cancel</button>
+                <button
+                  onClick={() => void deleteKeywords(ids)}
+                  disabled={bulkDeleting}
+                  className="btn"
+                  style={{ background: "var(--neg)", color: "white", borderColor: "var(--neg)" }}
+                >
+                  {bulkDeleting ? "Deleting…" : isBulk ? `Yes, delete ${ids.length}` : "Yes, delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {showAddKw && (
         <AddKeywordsModal
