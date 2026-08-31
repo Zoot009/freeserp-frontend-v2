@@ -37,6 +37,8 @@ import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/d
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
 import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
+import { ProjectLimitModal } from "@/components/dashboard/project-limit-modal"
+import { useProjectLimit } from "@/hooks/use-project-limit"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -211,6 +213,12 @@ export default function SeoDashboardPage() {
   // Creating a project no longer means leaving this page for the Rank Tracker.
   // The modal opens here, and the new project becomes the one on screen.
   const [showCreate, setShowCreate] = useState(false)
+  // …unless the plan is already full. The Rank Tracker has always checked this
+  // before opening the form; the Overview didn't, so its three entry points
+  // walked a free user through naming a domain only to answer with the server's
+  // 402 in a red box. Same check here, same upgrade popup.
+  const [showLimit, setShowLimit] = useState(false)
+  const { limit: projectLimit, atLimit } = useProjectLimit()
   // ProjectSwitcher fetches its own list, so it needs telling that the list
   // changed underneath it.
   const [switcherKey, setSwitcherKey] = useState(0)
@@ -221,6 +229,14 @@ export default function SeoDashboardPage() {
   // dashboard has to be able to say so rather than asking for keywords that are
   // already being found.
   const [keywordsAnalysing, setKeywordsAnalysing] = useState(false)
+
+  // Every "Create SEO Project" affordance on this page routes through here, so
+  // the header button, the empty state and the switcher's "New project" item
+  // can't drift apart on which one checks the cap.
+  const startCreate = useCallback(() => {
+    if (atLimit(projects.length)) setShowLimit(true)
+    else setShowCreate(true)
+  }, [atLimit, projects.length])
 
   // Project list — fetched once; the switcher only changes which id we scope to.
   useEffect(() => {
@@ -474,7 +490,7 @@ export default function SeoDashboardPage() {
             <ProjectSwitcher
               value={projectId}
               onSelect={setProjectId}
-              onNewProject={() => setShowCreate(true)}
+              onNewProject={startCreate}
               refreshKey={switcherKey}
             />
           </h1>
@@ -498,7 +514,7 @@ export default function SeoDashboardPage() {
             </div>
             <Button
               className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
-              onClick={() => setShowCreate(true)}
+              onClick={startCreate}
             >
               <Plus className="size-4" /> Create SEO Project
             </Button>
@@ -518,7 +534,7 @@ export default function SeoDashboardPage() {
             <div className="max-w-sm">
               <h2 className="text-base font-bold">Add your first website</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">Create a project and FreeSERP starts tracking its keywords, crawling its pages and watching its AI-search visibility.</p>
-              <Button size="sm" className="mt-4" onClick={() => setShowCreate(true)}>Create SEO Project</Button>
+              <Button size="sm" className="mt-4" onClick={startCreate}>Create SEO Project</Button>
             </div>
           </div>
         ) : !projectId ? (
@@ -535,7 +551,12 @@ export default function SeoDashboardPage() {
                 itself in a dialog, so it asks before spending one rather than
                 firing on page load and reporting it afterwards. */}
             {noKeywords && (
-              <KeywordSetupCard projectId={projectId} domain={domain} onStatus={setKeywordsAnalysing} />
+              <KeywordSetupCard
+                projectId={projectId}
+                domain={domain}
+                onStatus={setKeywordsAnalysing}
+                onAdded={refresh}
+              />
             )}
 
             {/* ── The five headline figures ── */}
@@ -650,6 +671,21 @@ export default function SeoDashboardPage() {
               setSwitcherKey((k) => k + 1)
               setShowCreate(false)
             }}
+            // The server owns the cap, so it can still refuse after the client
+            // let the click through (usage hadn't resolved, or another tab
+            // created a project first). Close the form — the 402 already fired
+            // `billing:quota`, so the global QuotaUpsellModal is coming up with
+            // the project-limit copy and shouldn't land on top of a half-filled
+            // form showing the same message in red.
+            onPlanLimit={() => setShowCreate(false)}
+          />
+        )}
+
+        {showLimit && (
+          <ProjectLimitModal
+            limit={projectLimit}
+            used={projects.length}
+            onClose={() => setShowLimit(false)}
           />
         )}
       </div>
