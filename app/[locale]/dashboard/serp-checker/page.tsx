@@ -17,6 +17,7 @@ import {
   type SerpFeatures,
 } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { setDetailCrumb } from "@/components/dashboard/crumb-store"
 
 type SerpResultRow = {
   position: number
@@ -352,6 +353,18 @@ export default function SerpCheckerPage() {
     [pollCheck, t],
   )
 
+  // The open result becomes the last crumb in the HEADER's trail — the page had
+  // grown its own second breadcrumb under the topbar's, which said the same
+  // thing twice and left the real one still ending at the tool.
+  useEffect(() => {
+    if (!result) {
+      setDetailCrumb(null)
+      return
+    }
+    setDetailCrumb({ label: result.keyword, onBack: clearResult })
+    return () => setDetailCrumb(null)
+  }, [result, clearResult])
+
   // The URL is the source of truth for which view is on screen: read it on
   // arrival, and follow it on every Back/Forward.
   useEffect(() => {
@@ -394,11 +407,9 @@ export default function SerpCheckerPage() {
         <div style={{ minWidth: 0 }}>
           {result ? (
             <>
-              <nav className="sc-crumbs" aria-label={t("title")}>
-                <button type="button" onClick={clearResult}>{t("title")}</button>
-                <span aria-hidden>/</span>
-                <span className="cur">{result.keyword}</span>
-              </nav>
+              {/* No crumb trail here — the topbar's own trail carries the open
+                  result as its leaf (see setDetailCrumb above), and two of them
+                  stacked was the same journey drawn twice. */}
               <h1 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {result.keyword}
               </h1>
@@ -887,25 +898,6 @@ export default function SerpCheckerPage() {
         </div>
       )}
       <style jsx>{`
-        /* In-page breadcrumb, shown while a result is open. The topbar's own
-           trail ends at this route, so it cannot lead anywhere from here. */
-        .sc-crumbs {
-          display: flex; align-items: center; gap: 7px;
-          min-width: 0;
-          font-size: 12.5px; color: var(--text-mute);
-          margin-bottom: 7px;
-        }
-        .sc-crumbs button {
-          padding: 0; border: none; background: none;
-          font: inherit; color: var(--text-mute); cursor: pointer;
-          white-space: nowrap;
-        }
-        .sc-crumbs button:hover { color: var(--brand); }
-        .sc-crumbs .cur {
-          min-width: 0; color: var(--text-soft);
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-
         /* Previous searches. A hover-highlighted line that holds two separate
            controls, so the whole row can't be one button. */
         .sc-hist-item { border-bottom: 1px solid var(--border); }
