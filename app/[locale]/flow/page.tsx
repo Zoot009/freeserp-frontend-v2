@@ -8,11 +8,11 @@ import { useAuth } from "@/lib/auth"
 import { track } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 import {
-  PRICE_PER_WORKER_USD,
-  PRICE_PER_WORKER_YEAR_USD,
-  SEARCHES_PER_WORKER,
-  type BillingInterval,
-} from "@/lib/pricing"
+  useCreditRates,
+  formatCredits,
+  formatPrice,
+  type CreditPlan,
+} from "@/lib/credits"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -46,11 +46,26 @@ const FOCUS_OPTIONS = [
   { key: "ai_visibility", label: "AI visibility" },
   { key: "unsure", label: "Not sure" },
 ]
-const PLAN_CARDS = [
-  { workers: 5, name: "Starter" },
-  { workers: 20, name: "Growth", recommended: true },
-  { workers: 50, name: "Pro" },
+// Display names per rate-card plan key, matching credit-pricing.tsx so the
+// onboarding step and the pricing page cannot name the same tier differently.
+// `recommended` is the tier the step's "For you" badge lands on — the same one
+// the pricing page marks most popular.
+const PLAN_COPY: Record<string, { name: string; recommended?: boolean }> = {
+  "plan:credits-19": { name: "Starter" },
+  "plan:credits-49": { name: "Pro", recommended: true },
+  "plan:credits-99": { name: "Agency" },
+}
+const RECOMMENDED_PLAN_KEY = "plan:credits-49"
+
+// Offline fallback, mirroring DEFAULT_CREDIT_RATES in the backend's
+// credits/catalog.ts. GET /api/credits/rates is the source of truth; this only
+// keeps the step from rendering an empty card row if that call fails.
+const FALLBACK_PLANS: CreditPlan[] = [
+  { key: "plan:credits-19", credits: 2000, priceCents: 1900, currency: "USD" },
+  { key: "plan:credits-49", credits: 6000, priceCents: 4900, currency: "USD" },
+  { key: "plan:credits-99", credits: 15000, priceCents: 9900, currency: "USD" },
 ]
+const FALLBACK_FREE_MONTHLY = 100
 const PLAN_FEATURES = [
   "Daily Google rank tracking",
   "Keyword Magic — hundreds of ideas with volume & KD",
@@ -90,8 +105,7 @@ export default function FlowPage() {
   const [otherText, setOtherText] = useState("")
   const [experience, setExperience] = useState<string | null>(null)
   const [focuses, setFocuses] = useState<string[]>([])
-  const [interval, setBillingInterval] = useState<BillingInterval>("year")
-  const [selectedWorkers, setSelectedWorkers] = useState(20)
+  const [selectedPlanKey, setSelectedPlanKey] = useState(RECOMMENDED_PLAN_KEY)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [ready, setReady] = useState(false)
@@ -108,13 +122,18 @@ export default function FlowPage() {
   const toggleFocus = (key: string) =>
     setFocuses((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
 
-  const price = useMemo(() => {
-    const perYear = selectedWorkers * PRICE_PER_WORKER_YEAR_USD
-    const perMonth = selectedWorkers * PRICE_PER_WORKER_USD
-    return { perYear, perMonth, monthlyEquivalent: interval === "year" ? perYear / 12 : perMonth }
-  }, [selectedWorkers, interval])
-
-  const fmt = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`)
+  // Prices, credit allowances and the free monthly grant all come from the
+  // same rows that get charged, so what this step quotes and what Stripe bills
+  // cannot drift apart.
+  const { rates, loading: ratesLoading } = useCreditRates()
+  const plans = useMemo(() => {
+    const list = rates?.plans?.length ? rates.plans : FALLBACK_PLANS
+    // The endpoint makes no ordering promise, and a card row that is not
+    // cheapest-first reads as three unrelated prices rather than one scale.
+    return list.filter((p) => PLAN_COPY[p.key]).sort((a, b) => (a.priceCents ?? 0) - (b.priceCents ?? 0))
+  }, [rates])
+  const freeMonthly = rates?.freeMonthly ?? FALLBACK_FREE_MONTHLY
+  const selectedPlan = plans.find((p) => p.key === selectedPlanKey) ?? plans[0] ?? null
 
   const submitRole = async () => {
     if (!role || (needsOther && !otherText.trim())) { setError("Please pick the option that best describes you."); return }
@@ -131,16 +150,26 @@ export default function FlowPage() {
 
   const goToDashboard = () => router.push("/dashboard")
 
-  const startCheckout = async (forceMonthly = false) => {
+  // Credit tiers check out by slug — the rate card knows plans by their key,
+  // and the server resolves it to a plan id. No worker count and no interval:
+  // a credit plan is one flat monthly subscription.
+  const startCheckout = async () => {
+    if (!selectedPlan) return
+    const planSlug = selectedPlan.key.replace(/^plan:/, "")
     setError(""); setBusy(true)
-    const useInterval: BillingInterval = forceMonthly ? "month" : interval
-    track("flow_get_trial", { workers: selectedWorkers, interval: useInterval })
+    track("flow_choose_plan", { plan: planSlug, credits: selectedPlan.credits })
     try {
-      const data = await api.post<{ url?: string }>("/api/payments/checkout", { workerCount: selectedWorkers, interval: useInterval })
+      const data = await api.post<{ url?: string }>("/api/billing/checkout", { planSlug })
       if (!data?.url) throw new Error("Couldn't start checkout — please try again.")
       window.location.href = data.url
     } catch (err) {
-      if (!forceMonthly && err instanceof ApiError && err.code === "annual_unavailable") { setBillingInterval("month"); void startCheckout(true); return }
+      // The tier exists but has no Stripe price wired up yet — say so plainly
+      // rather than leaving the button spinning on a generic failure.
+      if (err instanceof ApiError && (err.code === "plan_not_purchasable" || err.code === "checkout_unconfigured")) {
+        setError("This plan isn't available for purchase yet. You can keep going on the free plan.")
+        setBusy(false)
+        return
+      }
       setError(err instanceof Error ? err.message : "Couldn't start checkout — please try again.")
       setBusy(false)
     }
@@ -231,27 +260,23 @@ export default function FlowPage() {
         {step === 4 && (
           <>
             <h1 className="text-3xl font-bold tracking-tight">This is your best plan match</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Your all-in-one SEO toolkit — start free, upgrade anytime.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Your all-in-one SEO toolkit — every tool runs on one credit balance.</p>
 
-            <div className="mt-5 inline-flex rounded-full border p-1 text-sm">
-              <button onClick={() => setBillingInterval("month")} className={cn("rounded-full px-4 py-1.5 font-medium transition", interval === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Monthly</button>
-              <button onClick={() => setBillingInterval("year")} className={cn("rounded-full px-4 py-1.5 font-medium transition", interval === "year" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>Annual</button>
-            </div>
-            {interval === "year" && <span className="ml-3 text-xs font-semibold text-primary">Save ~2 months</span>}
-
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
-              {PLAN_CARDS.map((p) => {
-                const active = selectedWorkers === p.workers
-                const perMonth = interval === "year" ? (p.workers * PRICE_PER_WORKER_YEAR_USD) / 12 : p.workers * PRICE_PER_WORKER_USD
-                return (
-                  <button key={p.workers} onClick={() => setSelectedWorkers(p.workers)} className={cn("relative rounded-xl border p-3.5 text-left transition-all", active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-input hover:border-muted-foreground/40")}>
-                    {p.recommended && <span className="absolute -top-2 left-3 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">For you</span>}
-                    <div className="text-sm font-semibold">{p.name}</div>
-                    <div className="mt-1 text-lg font-bold">{Number.isInteger(perMonth) ? `$${perMonth}` : `$${perMonth.toFixed(2)}`}<span className="text-xs font-normal text-muted-foreground">/mo</span></div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">{p.workers * SEARCHES_PER_WORKER} checks/day</div>
-                  </button>
-                )
-              })}
+            <div className="mt-5 grid grid-cols-3 gap-2.5">
+              {ratesLoading && plans.length === 0
+                ? [0, 1, 2].map((i) => <div key={i} className="h-[86px] animate-pulse rounded-xl border border-input bg-muted/40" />)
+                : plans.map((plan) => {
+                    const copy = PLAN_COPY[plan.key]
+                    const active = selectedPlan?.key === plan.key
+                    return (
+                      <button key={plan.key} onClick={() => setSelectedPlanKey(plan.key)} className={cn("relative rounded-xl border p-3.5 text-left transition-all", active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-input hover:border-muted-foreground/40")}>
+                        {copy.recommended && <span className="absolute -top-2 left-3 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">For you</span>}
+                        <div className="text-sm font-semibold">{copy.name}</div>
+                        <div className="mt-1 text-lg font-bold">{formatPrice(plan.priceCents, plan.currency)}<span className="text-xs font-normal text-muted-foreground">/mo</span></div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">{formatCredits(plan.credits)} credits/mo</div>
+                      </button>
+                    )
+                  })}
             </div>
 
             <ul className="mt-5 space-y-2">
@@ -260,14 +285,18 @@ export default function FlowPage() {
               ))}
             </ul>
 
-            <p className="mt-5 text-sm font-medium">7 days free, then {fmt(interval === "year" ? price.perYear : price.perMonth)}<span className="font-normal text-muted-foreground">{interval === "year" ? "/yr" : "/mo"} ({fmt(Math.round(price.monthlyEquivalent * 100) / 100)}/mo)</span></p>
+            {selectedPlan && (
+              <p className="mt-5 text-sm font-medium">
+                {formatPrice(selectedPlan.priceCents, selectedPlan.currency)}<span className="font-normal text-muted-foreground">/month — {formatCredits(selectedPlan.credits)} credits, refilled every month.</span>
+              </p>
+            )}
             {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
             <div className="mt-4 space-y-2.5">
-              <Button size="lg" className="w-full" onClick={() => startCheckout()} disabled={busy}>{busy ? "Starting…" : "Get free trial"}</Button>
-              <Button size="lg" variant="secondary" className="w-full" onClick={goToDashboard} disabled={busy}>Skip trial</Button>
+              <Button size="lg" className="w-full" onClick={() => startCheckout()} disabled={busy || !selectedPlan}>{busy ? "Starting…" : selectedPlan ? `Continue with ${PLAN_COPY[selectedPlan.key].name}` : "Continue"}</Button>
+              <Button size="lg" variant="secondary" className="w-full" onClick={goToDashboard} disabled={busy}>Start free with {formatCredits(freeMonthly)} credits/month</Button>
             </div>
-            <p className="mt-3 text-center text-xs text-muted-foreground">No commitment — cancel anytime. You can also keep using the free plan.</p>
+            <p className="mt-3 text-center text-xs text-muted-foreground">No commitment — cancel anytime. The free plan keeps working, and you can upgrade whenever you need more credits.</p>
           </>
         )}
       </div>

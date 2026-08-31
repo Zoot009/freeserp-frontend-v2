@@ -42,12 +42,18 @@ export type Scope = {
   devices?: string[]
 }
 
-/** Country code → display name, falling back to the uppercased code. */
+/**
+ * Market → display name.
+ *
+ * Uppercasing the fallback is right for an ISO2 ("us" -> "US") and wrong for
+ * anything else: a sub-country market arrives here already named ("Austin"),
+ * and shouting it was the only reason cities read as "AUSTIN".
+ */
 function countryName(code: string): string {
   return (
     ALL_LOCATIONS.find((l) => l.code === code)?.name ??
     POPULAR_LOCATIONS.find((l) => l.code === code)?.name ??
-    code.toUpperCase()
+    (code.length === 2 ? code.toUpperCase() : code)
   )
 }
 

@@ -193,6 +193,31 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
     }
     throw err
   }
+  /**
+   * Global "the balance may have moved" signal.
+   *
+   * Credits are spent as a side effect of ~15 different tool actions, and the
+   * balance pill in the dashboard chrome has no way to know any of them
+   * happened. Firing per-surface was the original plan and it did not survive
+   * contact: `notifyCreditsChanged()` shipped with zero call sites, so the pill
+   * sat on its mount-time number until a full page reload while credits really
+   * were being deducted — which reads as the credit system not working at all.
+   *
+   * Dispatching centrally on any successful mutation is deliberately broader
+   * than "requests that actually spend": a POST that costs nothing triggers one
+   * cheap re-read of an aggregate, whereas a spend that fires nothing leaves a
+   * visibly wrong number on screen. The asymmetry is the whole argument. It
+   * also means a tool added later is covered without anyone remembering to.
+   *
+   * Same shape as the 402 `billing:quota` dispatch above. The event name is
+   * `CREDITS_REFRESH_EVENT` in lib/credits.ts, written out here rather than
+   * imported because that module imports this one.
+   */
+  if (typeof window !== "undefined") {
+    const method = ((rest.method as string | undefined) ?? "GET").toUpperCase()
+    if (method !== "GET") window.dispatchEvent(new Event("credits:refresh"))
+  }
+
   if (res.status === 204) return undefined as T
   const ct = (res.headers["content-type"] as string | undefined) ?? ""
   if (!ct.includes("application/json")) return undefined as T

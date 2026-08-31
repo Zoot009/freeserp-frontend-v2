@@ -945,7 +945,7 @@
     "activityRecent": "recent"
   },
   "dashPrimitives": {
-    "notFoundTitle": "Not found in the top 100 results — ranking deeper than our scan reaches",
+    "notFoundTitle": "Not found in the top {depth} results — ranking deeper than our scan reaches",
     "processingTitle": "Checking ranking…",
     "feat": {
       "AI": "AI Overview",

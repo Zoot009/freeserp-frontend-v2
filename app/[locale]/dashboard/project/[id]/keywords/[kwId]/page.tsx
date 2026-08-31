@@ -33,6 +33,17 @@ interface LatestCheck {
   monthlyTraffic: number | null
   revenueLoss: number | null
   status: string
+  /** True only when this check read from position 1 and still didn't find the
+      domain — i.e. absence was actually established, not merely unconfirmed. */
+  notInTop?: boolean
+  /** How deep this check looked. Free plans crawl to the trialCheckDepth admin
+      setting rather than 100, so a missing position must be labelled with this. */
+  depthSearched?: number | null
+  /** Non-null when `competitors` were CARRIED FORWARD from an earlier check
+      rather than observed by this one (a windowed fetch skips the top of the
+      SERP and has no competitor data of its own). Holds that earlier check's
+      timestamp, so the SERP tab can date them instead of implying they're current. */
+  carriedFromAt?: string | null
   checkedAt: string
 }
 
@@ -42,6 +53,7 @@ interface HistoryEntry {
   change: number | null
   monthlyTraffic: number | null
   revenueLoss: number | null
+  depthSearched?: number | null
   checkedAt: string
 }
 
@@ -49,6 +61,9 @@ interface KeywordDetail {
   id: string
   keyword: string
   location: string
+  /** Set on sub-country keywords ("Austin,Texas,United States"); null = country. */
+  locationLabel?: string | null
+  locationCountry?: string | null
   device?: string
   /** Engine of THIS row. Absent on older responses; treated as Google. */
   engine?: string | null
@@ -208,7 +223,13 @@ export default function KeywordDetailPage() {
     )
   }
 
-  const { keyword, location, device, addedAt, project, latestCheck, history } = data
+  const { keyword, location, locationLabel, device, addedAt, project, latestCheck, history } = data
+  // `location` is a bare DataForSEO code below country level, so uppercasing it
+  // yields "1026201". The label is the only readable form; strip the trailing
+  // country because it is redundant next to the project's own market.
+  const marketLabel = locationLabel
+    ? locationLabel.split(",").slice(0, -1).join(", ") || locationLabel
+    : location.toUpperCase()
 
   // 1-day / 7-day position movement + the search-volume trend — these used to be
   // table columns; they now live here on the detail page.
@@ -239,6 +260,11 @@ export default function KeywordDetailPage() {
   }
 
   const competitors = latestCheck?.competitors || []
+  // How deep the latest check actually looked. Free plans crawl to the
+  // trialCheckDepth admin setting, so "100+" was a lie for them; fall back to
+  // 100 only for rows written before the depth was recorded.
+  const notFoundDepth =
+    latestCheck?.depthSearched && latestCheck.depthSearched > 0 ? latestCheck.depthSearched : 100
   const totalSerpPages = Math.ceil(competitors.length / ITEMS_PER_PAGE)
   const startSerpIndex = (serpPage - 1) * ITEMS_PER_PAGE
   const paginatedCompetitors = competitors.slice(startSerpIndex, startSerpIndex + ITEMS_PER_PAGE)
@@ -321,7 +347,7 @@ export default function KeywordDetailPage() {
         <div style={{ minWidth: 0 }}>
           <h1 style={{ wordBreak: "break-word" }}>{keyword}</h1>
           <div className="sub">
-            {location.toUpperCase()} · {(device ?? "desktop").toUpperCase()}
+            {marketLabel} · {(device ?? "desktop").toUpperCase()}
             {/* Only when more than one engine is offered — otherwise every page
                 would gain a redundant "GOOGLE" for a distinction that does not
                 exist yet. */}
@@ -365,8 +391,14 @@ export default function KeywordDetailPage() {
           <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
             <StatCard
               label="Position"
-              hint="Where this keyword ranks on Google right now. Anything below the top 100 shows as 100+."
-              value={inFlight ? "—" : latestCheck?.position != null ? `#${latestCheck.position}` : "100+"}
+              hint={`Where this keyword ranks on Google right now. Anything below the top ${notFoundDepth} shows as ${notFoundDepth}+.`}
+              value={
+                inFlight
+                  ? "—"
+                  : latestCheck?.position != null
+                    ? `#${latestCheck.position}`
+                    : `${notFoundDepth}+`
+              }
               caption={
                 <span className="flex items-center gap-2">
                   <ChangeCell change={latestCheck?.change ?? null} />
@@ -588,6 +620,25 @@ export default function KeywordDetailPage() {
                   ? `${competitors.length} ranking page${competitors.length === 1 ? "" : "s"} for this keyword`
                   : "Top ranking pages for this keyword"}
               </div>
+              {/* The latest check read only a slice of the SERP (a windowed
+                  fetch, which skips the top), so these rivals were carried
+                  forward from an earlier check. Say so — the position above IS
+                  current, but these rows are not, and silently presenting them
+                  as today's SERP is what makes people act on stale data. */}
+              {latestCheck?.carriedFromAt && (
+                <div
+                  className="tiny"
+                  style={{ marginTop: 4, color: "var(--warn)" }}
+                  title="This check measured your position without re-reading the top of the SERP, so the competitor list below is from the date shown."
+                >
+                  Competitors as of{" "}
+                  {new Date(latestCheck.carriedFromAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                  {" — not re-checked today"}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {/* Range and arrows in the header, the same pager the Search
@@ -839,7 +890,7 @@ export default function KeywordDetailPage() {
                           )}
                         </td>
                         <td>
-                          <PosCell position={h.position} />
+                          <PosCell position={h.position} depthSearched={h.depthSearched} />
                         </td>
                         <td><ChangeCell change={h.change} /></td>
                         <td className="tabular">{h.monthlyTraffic?.toLocaleString() ?? "—"}</td>

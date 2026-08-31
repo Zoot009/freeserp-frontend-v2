@@ -47,6 +47,8 @@ type Keyword = {
   keyword: string
   /** Market + device this keyword is checked in — set per keyword, not per project. */
   location: string | null
+  /** Set on sub-country keywords; `location` is a bare DataForSEO code then. */
+  locationLabel?: string | null
   device: string | null
   position: number | null
   firstPosition?: number | null
@@ -402,7 +404,14 @@ export default function SeoDashboardPage() {
         all: sorted.length ? sorted.map(([code]) => code) : [fallback],
       }
     }
-    const loc = tally(kws.map((k) => k.location), "us")
+    // Tally on a DISPLAY name, not the raw market key: below country level
+    // `location` is a DataForSEO code ("1026201") and the scope pill would name
+    // the market as that. The city segment alone is enough here — the full
+    // "Austin,Texas,United States" is shown on the keyword itself.
+    const loc = tally(
+      kws.map((k) => (k.locationLabel ? k.locationLabel.split(",")[0] : k.location)),
+      "us",
+    )
     const dev = tally(kws.map((k) => k.device), "desktop")
     // How many markets are actually in play, not just whether it's >1: the scope
     // line says "+2 more" rather than silently naming the dominant one, which

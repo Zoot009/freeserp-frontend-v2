@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -18,6 +18,7 @@ import {
   POPULAR_LOCATIONS,
   ALL_LOCATIONS,
   LOCATION_NAMES,
+  searchLocations,
   type Location,
 } from "@/lib/locations"
 import { Flag } from "@/components/flag"
@@ -26,10 +27,24 @@ type Variant = "mono" | "default" | "dashboard"
 
 interface LocationPickerProps {
   value: string
-  onChange: (code: string) => void
+  /**
+   * The second argument carries the full selection, so a caller that needs the
+   * containing country (e.g. to localise Google autocomplete, which only accepts
+   * a 2-letter `gl`) can read it. Optional and additive — existing callers that
+   * take only the code are unaffected.
+   */
+  onChange: (code: string, loc?: Location) => void
   showFlags?: boolean
   variant?: Variant
   className?: string
+  /**
+   * Display name for `value` when it is a sub-country market. A city is stored
+   * as a bare DataForSEO code ("1026201"), which LOCATION_NAMES cannot name — so
+   * a caller rendering an already-saved keyword passes its label here. The
+   * picker also remembers whatever the user selects during this session, so the
+   * add-keyword flow needs nothing.
+   */
+  valueLabel?: string | null
 }
 
 export function LocationPicker(props: LocationPickerProps) {
@@ -54,12 +69,28 @@ function buildTriggerClass(variant: Variant, className?: string) {
   return cn(base, className)
 }
 
-function TriggerContents({ value, showFlags }: { value: string; showFlags: boolean }) {
-  const selectedName = LOCATION_NAMES[value] ?? value.toUpperCase()
+function TriggerContents({
+  value,
+  showFlags,
+  label,
+  countryIso,
+}: {
+  value: string
+  showFlags: boolean
+  label?: string | null
+  countryIso?: string | null
+}) {
+  // A numeric value is a sub-country code, which has no name of its own here —
+  // fall back to the code rather than upper-casing digits into nonsense.
+  const selectedName = label ?? LOCATION_NAMES[value] ?? value.toUpperCase()
   return (
     <>
       <span className="truncate">
-        {showFlags && <span className="mr-2 inline-flex align-middle"><Flag code={value} size={15} /></span>}
+        {showFlags && (
+          <span className="mr-2 inline-flex align-middle">
+            <Flag code={countryIso ?? value} size={15} />
+          </span>
+        )}
         {selectedName}
       </span>
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -89,7 +120,7 @@ function LocationCommand({
   mobileTouchTargets = false,
 }: {
   value: string
-  onSelect: (code: string) => void
+  onSelect: (loc: Location) => void
   showFlags: boolean
   mobileTouchTargets?: boolean
 }) {
@@ -99,6 +130,49 @@ function LocationCommand({
   const [query, setQuery] = useState("")
   const searching = query.trim().length > 0
 
+  // Below country level the catalogue is ~197k rows, so it is searched on the
+  // server rather than shipped. Countries stay local: they are the default view
+  // and the common case, and making them wait on a round trip would be a
+  // regression for everyone who just wants "United Kingdom".
+  const [remote, setRemote] = useState<Location[]>([])
+  const [loading, setLoading] = useState(false)
+  const seq = useRef(0)
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setRemote([])
+      setLoading(false)
+      return
+    }
+    const mine = ++seq.current
+    const ctrl = new AbortController()
+    setLoading(true)
+    // 200ms is below the threshold where typing feels laggy but still collapses
+    // a burst of keystrokes into one request.
+    const t = setTimeout(async () => {
+      const rows = await searchLocations(q, { signal: ctrl.signal })
+      // Ignore a slow response that lost the race to a newer query, or the list
+      // flickers back to stale results after the user has typed further.
+      if (mine === seq.current) {
+        setRemote(rows)
+        setLoading(false)
+      }
+    }, 200)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [query])
+
+  // Countries that match locally, so "united" still answers instantly and the
+  // server results (cities, postcodes) append underneath.
+  const localMatches = searching
+    ? ALL_LOCATIONS.filter((l) => l.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : []
+  const localCodes = new Set(localMatches.map((l) => l.code))
+  const remoteMatches = remote.filter((l) => !localCodes.has(l.code))
+
   const itemClass = cn(
     "font-mono text-sm",
     mobileTouchTargets && "py-3 text-[15px]"
@@ -107,21 +181,32 @@ function LocationCommand({
     <CommandItem
       key={l.code}
       value={`${l.name} ${l.code}`}
-      onSelect={() => onSelect(l.code)}
+      onSelect={() => onSelect(l)}
       className={itemClass}
     >
-      {showFlags && <span className="mr-2 inline-flex"><Flag code={l.code} size={15} /></span>}
+      {showFlags && (
+        <span className="mr-2 inline-flex">
+          <Flag code={l.countryIso ?? l.code} size={15} />
+        </span>
+      )}
+      {/* Never truncated. DataForSEO ships no popularity signal, so "London"
+          is genuinely ambiguous between England, Ontario and Ohio — the full
+          "London,Ohio,United States" is what lets the user tell them apart. */}
       <span className="flex-1">{l.name}</span>
       <Check className={cn("ml-2 h-4 w-4", value === l.code ? "opacity-100" : "opacity-0")} />
     </CommandItem>
   )
 
+  // shouldFilter={false}: this list is already filtered — countries locally,
+  // cities and postcodes by the server. Leaving cmdk's own matcher on would
+  // re-filter the server's results against its word-boundary scoring and
+  // silently drop rows it had already decided were the best matches.
   return (
-    <Command>
+    <Command shouldFilter={false}>
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder="Search country..."
+        placeholder="Search country, city or postcode..."
         className={cn("font-mono text-sm", mobileTouchTargets && "h-12 text-[15px]")}
       />
       {/* A fixed cap rather than 50vh: on a desktop this list opens inside a
@@ -133,9 +218,16 @@ function LocationCommand({
           mobileTouchTargets ? "max-h-[70vh]" : "max-h-[264px]"
         )}
       >
-        <CommandEmpty>No location found.</CommandEmpty>
+        <CommandEmpty>{loading ? "Searching\u2026" : "No location found."}</CommandEmpty>
         {searching ? (
-          <CommandGroup>{ALL_LOCATIONS.map(renderItem)}</CommandGroup>
+          <>
+            {localMatches.length > 0 && (
+              <CommandGroup heading="Countries">{localMatches.map(renderItem)}</CommandGroup>
+            )}
+            {remoteMatches.length > 0 && (
+              <CommandGroup heading="Cities & postcodes">{remoteMatches.map(renderItem)}</CommandGroup>
+            )}
+          </>
         ) : (
           <>
             <CommandGroup heading="Popular">{POPULAR_LOCATIONS.map(renderItem)}</CommandGroup>
@@ -147,8 +239,9 @@ function LocationCommand({
   )
 }
 /** Desktop / tablet (≥768px) — anchored popover under the trigger. */
-function LocationPickerPopover({ value, onChange, showFlags = false, variant = "mono", className }: LocationPickerProps) {
+function LocationPickerPopover({ value, onChange, showFlags = false, variant = "mono", className, valueLabel }: LocationPickerProps) {
   const [open, setOpen] = useState(false)
+  const [picked, setPicked] = useState<Location | null>(null)
   // Forward a marker class to the portaled popover when we're in the dashboard
   // theme — the popover lives outside the .fs-app scope, so we re-skin it
   // through `.fs-location-popover` in dashboard.css.
@@ -160,7 +253,12 @@ function LocationPickerPopover({ value, onChange, showFlags = false, variant = "
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" role="combobox" aria-expanded={open} className={buildTriggerClass(variant, className)}>
-          <TriggerContents value={value} showFlags={showFlags} />
+          <TriggerContents
+            value={value}
+            showFlags={showFlags}
+            label={valueLabel ?? (picked?.code === value ? picked.name : null)}
+            countryIso={picked?.code === value ? picked.countryIso : null}
+          />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -172,8 +270,11 @@ function LocationPickerPopover({ value, onChange, showFlags = false, variant = "
       >
         <LocationCommand
           value={value}
-          onSelect={(code) => {
-            onChange(code)
+          onSelect={(loc) => {
+            // Remember it so the trigger can name a city: `value` alone is a
+            // bare DataForSEO code and nothing local can resolve it.
+            setPicked(loc)
+            onChange(loc.code, loc)
             setOpen(false)
           }}
           showFlags={showFlags}
@@ -184,19 +285,25 @@ function LocationPickerPopover({ value, onChange, showFlags = false, variant = "
 }
 
 /** Mobile (<768px) — full-width bottom drawer with big tap targets. */
-function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "mono", className }: LocationPickerProps) {
+function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "mono", className, valueLabel }: LocationPickerProps) {
   const [open, setOpen] = useState(false)
+  const [picked, setPicked] = useState<Location | null>(null)
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
         <button type="button" role="combobox" aria-expanded={open} className={buildTriggerClass(variant, className)}>
-          <TriggerContents value={value} showFlags={showFlags} />
+          <TriggerContents
+            value={value}
+            showFlags={showFlags}
+            label={valueLabel ?? (picked?.code === value ? picked.name : null)}
+            countryIso={picked?.code === value ? picked.countryIso : null}
+          />
         </button>
       </DrawerTrigger>
       <DrawerContent className={cn("z-[10010] max-h-[90vh]", variant === "dashboard" && "fs-location-popover")}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/40">
           <DrawerTitle className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            Select country
+            Select location
           </DrawerTitle>
           <DrawerClose className="p-2 -mr-2 text-muted-foreground hover:text-foreground" aria-label="Close">
             <X className="h-4 w-4" />
@@ -205,8 +312,9 @@ function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "m
         <div className="overflow-hidden pb-[env(safe-area-inset-bottom,16px)]">
           <LocationCommand
             value={value}
-            onSelect={(code) => {
-              onChange(code)
+            onSelect={(loc) => {
+              setPicked(loc)
+              onChange(loc.code, loc)
               setOpen(false)
             }}
             showFlags={showFlags}

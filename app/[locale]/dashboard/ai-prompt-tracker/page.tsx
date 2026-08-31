@@ -247,7 +247,10 @@ function AddProjectModal({
               />
               <div className="tiny muted" style={{ marginTop: 6 }}>
                 Exactly how the brand is written. We match it as a whole word, so
-                punctuation and casing are handled for you.
+                punctuation and casing are handled for you. A name made only of
+                ordinary words (&ldquo;Free SERP&rdquo;) can&rsquo;t be told apart
+                from an answer that just uses those words &mdash; add the domain
+                below and we&rsquo;ll match on that instead.
               </div>
             </div>
             <div className="field">
@@ -262,7 +265,8 @@ function AddProjectModal({
               />
               <div className="tiny muted" style={{ marginTop: 6 }}>
                 Used to tell a <em>citation</em> (AI linked to you) from a plain
-                mention. Subdomains count.
+                mention, and matched in the answer text too &mdash; a domain is the
+                one name nobody else can use by accident. Subdomains count.
               </div>
             </div>
             <div className="field">
@@ -273,11 +277,12 @@ function AddProjectModal({
                 rows={2}
                 value={aliasesRaw}
                 onChange={(e) => setAliasesRaw(e.target.value)}
-                placeholder="Free SERP, FreeSerp.com"
+                placeholder="FreeSERP, Free-SERP"
               />
               <div className="tiny muted" style={{ marginTop: 6 }}>
                 One per line or comma separated. Add spellings the AI might use — a
-                missed alias reads as &ldquo;not mentioned&rdquo;.
+                missed alias reads as &ldquo;not mentioned&rdquo;. Aliases that are
+                just common words are ignored, for the same reason as above.
               </div>
             </div>
             <div className="field">
