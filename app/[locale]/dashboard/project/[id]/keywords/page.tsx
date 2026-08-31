@@ -576,6 +576,7 @@ function AddKeywordsModal({
 
   // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
+  const existingSet = new Set(existingKeywords.map((k) => k.toLowerCase()))
   const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 12)
 
   // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
@@ -612,7 +613,13 @@ function AddKeywordsModal({
   // `pendingSet` (not on a separate "added" list) means clicking a chip makes it
   // disappear and deleting the line brings it back — same behaviour as the
   // Google strip, one source of truth.
-  const visibleAiSuggestions = (aiSuggestions ?? []).filter((s) => !pendingSet.has(s.keyword.toLowerCase()))
+  // Already-tracked keywords are dropped too. The shortlist used to be reachable
+  // only on a brand-new, empty project, so every suggestion was necessarily new;
+  // now the dashboard's "Choose keywords" opens it on projects that already track
+  // things, and offering those back is noise at best and a duplicate add at worst.
+  const visibleAiSuggestions = (aiSuggestions ?? []).filter(
+    (s) => !pendingSet.has(s.keyword.toLowerCase()) && !existingSet.has(s.keyword.toLowerCase()),
+  )
 
   // Bulk-add the top N. The whole point of the feature is that the user doesn't
   // have to evaluate 20 keywords one by one — they're already volume-sorted.
@@ -1388,6 +1395,30 @@ export default function ProjectKeywordsPage() {
     }, remaining)
     return () => clearTimeout(deadline)
   }, [isNewProject, aiPhase])
+
+  // A finished analysis outside the onboarding flow.
+  //
+  // The shortlist was only ever fetched under `?new=1`, so arriving from the
+  // dashboard's "Choose keywords" — which is offered precisely BECAUSE a run has
+  // completed — opened the Add keywords box with no chips in it at all: the one
+  // screen whose entire promise was "here are your keywords" showed an empty
+  // textarea. This reads that run for any project.
+  //
+  // GET only, and deliberately: a run costs credits to start, and nothing on
+  // this path asked for one. The ?new=1 effect above owns the POST.
+  useEffect(() => {
+    if (isNewProject || !token || !user?.emailVerified) return
+    let cancelled = false
+    api.get<{ run: SuggestionRun | null }>(`/api/projects/${projectId}/keyword-suggestions`)
+      .then(({ run }) => {
+        // COMPLETED only. A pending run has nothing to show, and a failed one
+        // has nothing to say here — the modal's own hints cover that.
+        if (cancelled || run?.status !== "COMPLETED") return
+        setAiRun(run)
+      })
+      .catch(() => { /* no shortlist — the box still works by hand */ })
+    return () => { cancelled = true }
+  }, [isNewProject, token, user?.emailVerified, projectId])
 
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
   // transitions without a manual refresh. Stops once everything is terminal.

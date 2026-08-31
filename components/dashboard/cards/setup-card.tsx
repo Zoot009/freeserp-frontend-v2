@@ -138,7 +138,14 @@ function searchConsoleStep(projectId: string, gsc: GscState): Step {
 export type KeywordState = { total: number; ranked: number } | null
 
 function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing: boolean): Step {
+  // Two destinations, because the step means two different things. With nothing
+  // tracked the CTA is a promise to add keywords, so it opens the add panel
+  // itself (?add=1) rather than landing on an empty table carrying the same
+  // button to press a second time — the click that promised the work should do
+  // the work. Once keywords exist, "N tracked" reports them, and the table it
+  // links to IS what it is reporting.
   const href = `/dashboard/project/${projectId}/keywords`
+  const addHref = `${href}?add=1`
   const base = { title: "Track keywords", href, primary: true }
 
   // Adding a project starts a keyword analysis by itself, server-side. While it
@@ -157,6 +164,7 @@ function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing:
   if (keywords === null) {
     return {
       ...base,
+      href: addHref,
       description: "Add the searches you want this site to rank for. Everything else on this page is measured against them.",
       cta: "Add keywords",
       done: null,
@@ -166,6 +174,7 @@ function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing:
   if (keywords.total === 0) {
     return {
       ...base,
+      href: addHref,
       description: "Add the searches you want this site to rank for. Everything else on this page is measured against them.",
       cta: "Add keywords",
       done: false,

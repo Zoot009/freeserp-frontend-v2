@@ -178,7 +178,7 @@ function KeywordAiPrompt({
               {starting ? "Starting…" : error ? "Try again" : "Analyse with AI"}
             </Button>
             <Button asChild size="sm" variant="outline" className="h-9 text-[13px] hover:bg-muted hover:text-foreground">
-              <Link href={`/dashboard/project/${projectId}/keywords`}>Add them myself</Link>
+              <Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Add them myself</Link>
             </Button>
           </div>
           {/* A quiet third option. "Not now" belongs below the two real answers,
@@ -431,7 +431,11 @@ export function KeywordSetupCard({
             </p>
           </div>
           <Button asChild size="sm" className="h-8 text-xs">
-            <Link href={`/dashboard/project/${projectId}/keywords`}>Choose keywords</Link>
+            {/* ?add=1 — "Choose keywords" has to arrive AT the shortlist. Without
+                it the button landed on the keywords page and asked for the same
+                click again, with the keywords it had just promised nowhere in
+                sight. */}
+            <Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Choose keywords</Link>
           </Button>
         </div>
       ) : run?.status === "FAILED" ? (
@@ -444,7 +448,7 @@ export function KeywordSetupCard({
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { startedRef.current = false; void start() }}>Try again</Button>
-            <Button asChild size="sm" className="h-8 text-xs"><Link href={`/dashboard/project/${projectId}/keywords`}>Add keywords</Link></Button>
+            <Button asChild size="sm" className="h-8 text-xs"><Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Add keywords</Link></Button>
           </div>
         </div>
       ) : null}
