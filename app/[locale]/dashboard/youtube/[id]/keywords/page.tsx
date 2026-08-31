@@ -25,6 +25,7 @@ import {
   type YtKeywordRow,
 } from "@/components/dashboard/youtube"
 import { StatCard } from "@/components/dashboard/stat-card"
+import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
@@ -648,6 +649,9 @@ export default function YoutubeKeywordsPage() {
   const [showAddKw, setShowAddKw] = useState(false)
   const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
+  // Separate from `busy`, which belongs to running checks: changing the
+  // schedule must not disable the Run check button, or the reverse.
+  const [savingFreq, setSavingFreq] = useState(false)
   const openedNew = useRef(false)
 
   useEffect(() => {
@@ -778,12 +782,15 @@ export default function YoutubeKeywordsPage() {
   }
 
   const updateFrequency = async (choice: number | "off") => {
+    setSavingFreq(true)
     try {
       const body = choice === "off" ? { autoCheckEnabled: false } : { autoCheckEnabled: true, checkFrequency: choice }
       const data = await api.patch<Partial<YtProject>>(`/api/youtube/projects/${projectId}/frequency`, body)
       setProject((prev) => (prev ? { ...prev, ...data } : prev))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update schedule")
+    } finally {
+      setSavingFreq(false)
     }
   }
 
@@ -905,21 +912,18 @@ export default function YoutubeKeywordsPage() {
                 </div>
               </div>
               <div className="h-8 w-px shrink-0 bg-border" />
-              {/* The app's own Dropdown, not a native select and not shadcn's.
-                  A native <select> can be styled down to the box but not the OPEN
-                  MENU — that is drawn by the OS, so it arrived with system fonts,
-                  square corners and the platform's blue highlight in the middle of
-                  an otherwise styled page. Dropdown is what the rest of the app
-                  uses for exactly this, the Google project's own frequency picker
-                  included. */}
-              <Dropdown
-                ariaLabel="Check frequency"
-                value={project.autoCheckEnabled ? String(project.checkFrequency) : "off"}
-                onChange={(v) => updateFrequency(v === "off" ? "off" : Number(v))}
-                options={[
-                  { value: "off", label: "Manual checks only" },
-                  ...FREQ_CHOICES.map((h) => ({ value: String(h), label: freqLabel(h) })),
-                ]}
+              {/* The Google project page's own switch, now shared. A Dropdown
+                  here read as one more filter control; this reads as a schedule
+                  that is on or off, which is the question being asked. */}
+              <ScheduleToggle
+                enabled={project.autoCheckEnabled}
+                frequency={project.checkFrequency || 24}
+                busy={savingFreq}
+                choices={FREQ_CHOICES}
+                labelFor={freqLabel}
+                offLabel="Off (no schedule)"
+                title="Set how often automated rank checks run for this channel"
+                onPick={updateFrequency}
               />
             </div>
           </div>
