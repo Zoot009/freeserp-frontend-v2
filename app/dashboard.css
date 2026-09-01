@@ -3277,4 +3277,44 @@
   [data-sidebar='menu-badge'] {
     transition: opacity 160ms cubic-bezier(0.32, 0.72, 0, 1);
   }
+
+  /* The nav's own buttons resize with it - Tailwind pins them to size-8 and
+     p-2 in icon mode - on their own 150ms clock and their own easing. Two
+     clocks running at once is most of what "not quite smooth" is: the icons
+     finish settling while the panel around them is still moving. Same
+     duration, same curve, and they travel together. */
+  [data-sidebar='menu-button'],
+  [data-slot='sidebar-menu-button'] {
+    transition-duration: 260ms;
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Tells the browser these three boxes are about to be animated so it can
+     prepare, rather than discovering it on the first frame and spending that
+     frame catching up. Kept to the three elements that actually move - a
+     will-change left on everything is a way of asking for less memory to be
+     available for the thing that needs it. */
+  [data-slot='sidebar-gap'],
+  [data-slot='sidebar-container'] {
+    will-change: width;
+  }
+  [data-slot='sidebar-inset'] {
+    will-change: margin;
+  }
+}
+
+/* Nothing above is information - it is all the same nav arriving in a
+   different order. Somebody who has asked their system for less motion gets
+   the end state directly. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='sidebar-gap'],
+  [data-slot='sidebar-container'],
+  [data-slot='sidebar-inset'],
+  [data-sidebar='group-label'],
+  [data-sidebar='menu-button'],
+  [data-slot='sidebar-menu-button'],
+  [data-sidebar='menu-button'] > span:last-child,
+  [data-sidebar='menu-badge'] {
+    transition-duration: 0ms !important;
+  }
 }

@@ -61,7 +61,21 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        {/*
+          debounce, because ResponsiveContainer watches its box with a
+          ResizeObserver and re-renders the whole chart on every single
+          observation. Anything that animates a width around a chart therefore
+          pays for ~15 full re-renders — every path recomputed, every axis
+          re-laid-out, all on the main thread — and the animation is what drops
+          frames for it. Opening the sidebar does exactly that, past two charts
+          at once.
+
+          With a debounce the SVG keeps its old size for the length of the
+          gesture and re-renders once when the box settles. The chart is briefly
+          the wrong width inside a card that clips it, which nobody notices, in
+          exchange for an animation that does not stutter.
+        */}
+        <RechartsPrimitive.ResponsiveContainer debounce={120}>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>
