@@ -138,7 +138,7 @@ const BAND_DEFS = [
 // The catalogue the Hidden Widgets panel restores from — every widget id used
 // below has to appear here, or a hidden card would have no way back.
 const WIDGETS: WidgetDef[] = [
-  { id: "setup", label: "Next steps" },
+  { id: "setup", label: "Your tools" },
   { id: "position-tracking", label: "Position Tracking" },
   { id: "site-crawl", label: "Site Audit" },
   { id: "traffic", label: "Traffic Analytics" },

@@ -1,36 +1,60 @@
 "use client"
 
 /**
- * Next steps — the things worth doing on a project, and the way into the tools
- * that do them.
+ * Your tools — every tool in the product, promoted from the project overview.
  *
- * Not a progress meter. It carried a "1 of 2 steps done · 50%" bar, but only two
- * of the five items can be verified at all, so the percentage measured the
- * coverage of our own checks rather than anything the user had achieved — and a
- * permanent 50% on a healthy project reads as a reproach. What is confirmed is
- * shown per item, with a tick.
+ * This was "Next steps": five numbered items with an Open button each. Two
+ * problems with that framing. A numbered checklist says there is a finite list
+ * to get through and then be done with, so the tools it named read as setup
+ * chores rather than as the product — and once the first two were ticked the
+ * card was mostly spent. And five slots is not what we ship: the Maps tracker,
+ * the AI Prompt Tracker, the YouTube tracker, Quick SERP and the keyword
+ * research tools were all absent from the one page every user lands on, which
+ * left the sidebar as the only place they existed.
  *
- * Step one is the rank tracker itself. The card used to open on Search Console
- * and never mention keywords at all, so a brand-new project's checklist skipped
- * the thing the product is FOR and led with a third-party integration. Every
- * panel below this card is computed from tracked keywords; with none added, the
- * other steps are decoration.
+ * So it promotes all of them, as tiles. No step numbers, no per-tile button —
+ * the whole tile is the link, because a grid of small "Open" buttons makes the
+ * reader aim at the smallest part of each card.
  *
- * The rest promote the tools that do the work around the tracker.
+ * The two tiles we can verify keep saying what they know, as a status line
+ * rather than a tick against a step:
  *
- * Search Console is verified in TWO parts, because the connection and the data
- * are different things:
- *   • /api/gsc/connection      — is a Google account linked? Account-wide.
- *   • /api/gsc/projects/:id/site — which property feeds THIS project? Per project.
- * Only the first was being checked, so one connection made every project on the
- * account claim to be set up — including projects with no property linked, and
- * projects pointed at somebody else's domain. The backend doesn't validate the
- * pairing on link either, so the domain check happens here.
+ *   • The rank tracker reports what is tracked and how much of it places, and
+ *     with nothing tracked it opens the add panel directly (?add=1) rather than
+ *     landing on an empty table carrying the same button to press again.
+ *   • Search Console is verified in TWO parts, because the connection and the
+ *     data are different things:
+ *       /api/gsc/connection      — is a Google account linked? Account-wide.
+ *       /api/gsc/projects/:id/site — which property feeds THIS project?
+ *     Only the first was being checked once, so one connection made every
+ *     project on the account claim to be set up — including projects pointed at
+ *     somebody else's domain. The backend doesn't validate the pairing on link
+ *     either, so the domain check happens here.
+ *
+ * The rank tracker stays first and keeps its accent: every panel below this
+ * card is computed from tracked keywords, and with none added the rest of the
+ * page is decoration.
  */
 
-import { AlertTriangle, Check, Loader2 } from "lucide-react"
+import type * as React from "react"
+import {
+  AlertTriangle,
+  Bot,
+  Check,
+  Globe,
+  KeyRound,
+  LineChart,
+  Link2,
+  Loader2,
+  MapPin,
+  ScanSearch,
+  Search,
+  Sparkles,
+  Users,
+  Youtube,
+  Zap,
+} from "lucide-react"
 import { Link } from "@/i18n/navigation"
-import { Button } from "@/components/ui/button"
 import { Widget } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
 
@@ -200,6 +224,36 @@ function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing:
   }
 }
 
+/**
+ * A tool tile. Same shape whether or not we can say anything about its state —
+ * a tool we cannot verify still gets promoted, it just has no status line.
+ */
+type Tool = {
+  title: string
+  description: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  /** Confirmed state, when there is any: "10 tracked", "Connected". */
+  status?: string
+  /** Needs attention. Replaces the status line and colours the tile amber. */
+  warning?: string
+  /** Work is already running — reported, not invited. */
+  busy?: boolean
+  /** The tracker. Everything else on the page is measured against it. */
+  primary?: boolean
+}
+
+/** A step's verified state, mapped onto the tile that now carries it. */
+function toolState(s: Step): Pick<Tool, "status" | "warning" | "busy"> {
+  return {
+    // Busy carries its CTA too ("Finding keywords…"): a spinner with no words
+    // beside it says something is happening but not what.
+    ...(s.done || s.busy ? { status: s.cta } : {}),
+    ...(s.warning ? { warning: s.warning } : {}),
+    ...(s.busy ? { busy: true } : {}),
+  }
+}
+
 export function SetupCard({
   projectId,
   gsc,
@@ -215,129 +269,166 @@ export function SetupCard({
   /** The automatic keyword analysis is in flight for this project. */
   keywordsAnalysing?: boolean
 }) {
-  // Our own tools first, the third-party integration last. Search Console is
-  // the one step that depends on someone else's account and OAuth consent, so
-  // leading with it put the slowest, least certain thing in front of the tools
-  // that work immediately.
-  const steps: Step[] = [
-    trackKeywordsStep(projectId, keywords, keywordsAnalysing),
+  const keywordStep = trackKeywordsStep(projectId, keywords, keywordsAnalysing)
+  const gscStep = searchConsoleStep(projectId, gsc)
+
+  // Ordered by what a project needs first, not by category: the tracker, then
+  // the audit that explains what caps it, then the surfaces beyond Google, then
+  // the research tools that feed all of them. The integration goes last — it is
+  // the one tile that depends on someone else's OAuth consent.
+  const tools: Tool[] = [
     {
-      title: "Website Audit",
-      description: auditRunning
-        ? "We're crawling the site now — status codes, titles, headings and internal links. The report lands on this page when it finishes."
-        : "Crawl the site with a real browser and get the technical faults that cap every page — with the exact fixes, in priority order.",
-      href: "/dashboard/page-audit",
-      cta: auditRunning ? "Crawling…" : "Open",
-      done: null,
-      busy: auditRunning,
+      title: "Keyword Rank Tracker",
+      description: keywordStep.description,
+      href: keywordStep.href,
+      icon: LineChart,
+      primary: true,
+      ...toolState(keywordStep),
     },
     {
-      title: "Keyword Magic",
-      description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent — then track the good ones here.",
+      title: "Full Website Audit",
+      description: auditRunning
+        ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
+        : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
+      href: "/dashboard/page-audit?mode=site",
+      icon: ScanSearch,
+      ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
+    },
+    {
+      title: "Google Maps Tracker",
+      description: "Track a business across a city grid and see where it drops out of the local pack.",
+      href: "/dashboard/google-maps-tracker",
+      icon: MapPin,
+    },
+    {
+      title: "AI Prompt Tracker",
+      description: "Watch whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
+      href: "/dashboard/ai-prompt-tracker",
+      icon: Bot,
+    },
+    {
+      title: "Keyword Magic Tool",
+      description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent.",
       href: "/dashboard/keyword-magic",
-      cta: "Open",
-      done: null,
+      icon: Sparkles,
+    },
+    {
+      title: "Keyword Score Checker",
+      description: "Score a keyword before you commit to it — how hard it is, and whether it is worth the work.",
+      href: "/dashboard/keyword-analysis",
+      icon: Search,
+    },
+    {
+      title: "Keywords",
+      description: "Every keyword you track, across every project, in one table.",
+      href: "/dashboard/keywords",
+      icon: KeyRound,
+    },
+    {
+      title: "Quick SERP Checker",
+      description: "Read a live SERP for any query and country, without adding it to a project first.",
+      href: "/dashboard/serp-checker",
+      icon: Zap,
+    },
+    {
+      title: "YouTube Rank Tracker",
+      description: "Track videos on YouTube search, with the channel, views and length of everything above you.",
+      href: "/dashboard/youtube",
+      icon: Youtube,
     },
     {
       title: "Competitor Spy",
-      description: "See the domains sitting above you on your own keywords, and which searches they own that you don't.",
+      description: "See the domains sitting above you on your own keywords, and which searches they own that you do not.",
       href: `/dashboard/project/${projectId}/competitor-spy`,
-      cta: "Open",
-      done: null,
+      icon: Users,
     },
-    searchConsoleStep(projectId, gsc),
+    {
+      title: "Internal Links Analysis",
+      description: "Find the pages your own site links to weakly, and the links worth adding.",
+      href: "/dashboard/ai-internal-linking",
+      icon: Link2,
+    },
+    {
+      title: "Search Console",
+      description: gscStep.description,
+      href: gscStep.href,
+      icon: Globe,
+      ...toolState(gscStep),
+    },
   ]
 
   return (
     <Widget
       id="setup"
-      title="Next steps"
-      hint="Start with keywords — every panel below this card is measured against them. The rest are the tools that act on what they show."
+      title="Your tools"
+      hint="Everything in the product, reachable from this project. Start with the rank tracker — every panel below this card is measured against the keywords it holds."
       bodyClassName="p-5"
     >
-      {/* Five now, not four. Below xl they stack two-up, which is why the
-          divider rule is tied to the breakpoint the single row appears at. */}
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        {steps.map((s, i) => (
-          <div
-            key={s.title}
-            // Divider on the left of every column but the first — on a narrow
-            // grid the columns stack, so the rule is tied to the breakpoint the
-            // four-across layout appears at.
-            className={cn("flex min-w-0 flex-col", i > 0 && "xl:border-l xl:pl-5")}
+      {/* Twelve tiles, so they are compact and the whole tile is the target: a
+          grid of "Open" buttons makes the reader aim at the smallest part of
+          each card. Four across on a wide screen, two on a tablet, one on a
+          phone. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {tools.map((tool) => (
+          <Link
+            key={tool.title}
+            href={tool.href}
+            className={cn(
+              "group flex min-w-0 flex-col rounded-lg border p-3.5 transition-colors",
+              // hover:bg-muted/50, not the default accent: this theme maps
+              // --accent to the brand blue (globals.css), so an accent hover
+              // turns the whole tile into a blue slab with unreadable body text.
+              "hover:border-foreground/20 hover:bg-muted/50",
+              tool.warning && "border-amber-500/40",
+              tool.primary && !tool.warning && "border-primary/30 bg-primary/[0.03]",
+            )}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span
                 className={cn(
-                  "grid size-[22px] shrink-0 place-items-center rounded-full text-[11px] font-bold",
-                  s.done ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : s.warning ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                    : s.busy ? "bg-primary/10 text-primary"
-                    : s.primary ? "bg-primary/10 text-primary"
+                  "grid size-8 shrink-0 place-items-center rounded-md",
+                  tool.warning ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                    : tool.status && !tool.busy ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : tool.busy || tool.primary ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground",
                 )}
               >
-                {s.done ? <Check className="size-3.5" strokeWidth={3} />
-                  : s.warning ? <AlertTriangle className="size-3" strokeWidth={2.5} />
-                  : s.busy ? <Loader2 className="size-3 animate-spin" />
-                  : i + 1}
+                {tool.busy ? <Loader2 className="size-4 animate-spin" /> : <tool.icon className="size-4" />}
               </span>
-              <span className="truncate text-[15px] font-semibold">{s.title}</span>
+              <span className="truncate text-[13.5px] font-semibold">{tool.title}</span>
             </div>
 
-            <p className="mt-2 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-              {s.description}
-              {s.warning && (
-                <span className="mt-1.5 block break-words font-medium text-amber-600 dark:text-amber-400">{s.warning}</span>
-              )}
+            <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">
+              {tool.description}
             </p>
 
-            <div className="mt-3.5">
-              {s.busy && s.primary ? (
-                // The primary step's busy CTA is a report, not an invitation:
-                // rendering it as the page's main button would put the loudest
-                // control on screen next to work already in progress.
-                <span className="inline-flex h-8 items-center gap-1.5 text-[13px] font-semibold text-primary">
-                  <Loader2 className="size-3.5 animate-spin" /> {s.cta}
-                </span>
-              ) : s.done ? (
-                // A link, not a label: "Connected" with nowhere to go is a dead
-                // end — the report you just connected is the point of connecting.
-                // hover:bg-emerald-500/10 is not decoration: the ghost variant
-                // hovers to bg-accent, and this theme maps --accent to the BRAND
-                // blue (see globals.css), so the confirmed step turned into a
-                // solid blue pill with white text the moment you pointed at it —
-                // reading as the primary action rather than a done marker.
-                <Button
-                  asChild
-                  size="sm"
-                  variant="ghost"
-                  className="-ml-2 h-8 gap-1.5 text-[13px] font-semibold text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
-                >
-                  <Link href={s.href}><Check className="size-3.5" strokeWidth={3} /> {s.cta}</Link>
-                </Button>
-              ) : (
-                <Button
-                  asChild
-                  size="sm"
-                  variant={s.primary ? "default" : "outline"}
-                  // hover:bg-muted on the outline variant: its default is
-                  // hover:bg-accent, and this theme maps --accent to the brand
-                  // blue (globals.css), so "Open" turned into a washed blue pill
-                  // with near-unreadable text on hover.
-                  className={cn(
-                    "h-8 text-[13px] font-semibold",
-                    !s.primary && "hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <Link href={s.href}>
-                    {s.busy && <Loader2 className="size-3.5 animate-spin" />}
-                    {s.cta}
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </div>
+            {/* Only tiles we can actually verify carry a footer line. The rest
+                end on the description rather than on an empty row that pads
+                every tile to the height of the tallest. */}
+            {(tool.status || tool.warning) && (
+              <span
+                className={cn(
+                  "mt-2.5 inline-flex items-baseline gap-1.5 text-[11.5px] font-semibold",
+                  tool.warning ? "text-amber-600 dark:text-amber-400"
+                    : tool.busy ? "text-primary"
+                    : "text-emerald-600 dark:text-emerald-400",
+                )}
+              >
+                {tool.warning ? (
+                  <>
+                    <AlertTriangle className="size-3 shrink-0 self-center" strokeWidth={2.5} />
+                    <span className="break-words">{tool.warning}</span>
+                  </>
+                ) : tool.busy ? (
+                  <span>{tool.status}</span>
+                ) : (
+                  <>
+                    <Check className="size-3 shrink-0 self-center" strokeWidth={3} /> {tool.status}
+                  </>
+                )}
+              </span>
+            )}
+          </Link>
         ))}
       </div>
     </Widget>
