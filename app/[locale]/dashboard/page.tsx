@@ -33,6 +33,7 @@ import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
 import { KeywordSetupCard } from "@/components/dashboard/cards/keyword-setup-card"
 import { StatStrip } from "@/components/dashboard/cards/stat-strip"
 import { SetupCard, type GscState } from "@/components/dashboard/cards/setup-card"
+import { ToolCard } from "@/components/dashboard/cards/tool-card"
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
@@ -143,6 +144,9 @@ const WIDGETS: WidgetDef[] = [
   { id: "site-crawl", label: "Site Audit" },
   { id: "traffic", label: "Traffic Analytics" },
   { id: "keyword-movement", label: "Keyword Movement" },
+  { id: "tool-rank-tracker", label: "Google Rank Tracker" },
+  { id: "tool-keyword-magic", label: "Keyword Magic Tool" },
+  { id: "tool-ai-prompts", label: "AI Prompt Tracker" },
 ]
 
 /**
@@ -602,6 +606,49 @@ export default function SeoDashboardPage() {
                   scope={m.scope}
                   keywords={m.topKeywords}
                 />
+
+                {/* Three tool prompts, filling the hole this column leaves.
+                    Position Tracking is the only card in the wide column and
+                    the narrow one stacks two, so the left side ran out of
+                    content while the right side was still going — several
+                    hundred pixels of blank page in the middle of the
+                    dashboard.
+                    Each is its own widget with its own ✕, so someone who never
+                    wants the AI prompt nudge can drop just that one and keep
+                    the other two. "Your tools" at the foot of the page is the
+                    full list; these three are the ones worth interrupting for. */}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <ToolCard
+                    id="tool-rank-tracker"
+                    title="Google Rank Tracker"
+                    description="Watch your keywords move on Google, by country and device, with the history behind every position."
+                    href={`/dashboard/project/${projectId}/keywords`}
+                    hint="Daily rank checks for the keywords on this project. Everything else on this page is measured against them."
+                    // Reports rather than invites once there is something to
+                    // report — ToolCard swaps the CTA to "Open" when a status
+                    // is present, so a project already tracking ten keywords is
+                    // not told to go and set the tracker up.
+                    status={m.tracked > 0 ? `${m.tracked} tracked` : undefined}
+                  />
+                  <ToolCard
+                    id="tool-keyword-magic"
+                    title="Keyword Magic Tool"
+                    description="Turn one seed keyword into hundreds of real ideas, with volume, difficulty and intent."
+                    href="/dashboard/keyword-magic"
+                    hint="Keyword research across the full database — filter by volume, difficulty and intent, then track the ones worth having."
+                    // Nothing to set up: it answers a query the moment you type
+                    // one, so "Set up" would be a promise of work that is not
+                    // there.
+                    cta="Open"
+                  />
+                  <ToolCard
+                    id="tool-ai-prompts"
+                    title="AI Prompt Tracker"
+                    description="See whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter."
+                    href="/dashboard/ai-prompt-tracker"
+                    hint="Runs your prompts against the four AI platforms on a schedule and records whether your brand was mentioned, and where."
+                  />
+                </div>
               </div>
 
               {/* Narrow column. Both cards render their own <Widget>, so hiding
