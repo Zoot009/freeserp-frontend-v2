@@ -32,7 +32,8 @@ import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
 import { KeywordSetupCard } from "@/components/dashboard/cards/keyword-setup-card"
 import { StatStrip } from "@/components/dashboard/cards/stat-strip"
-import { SetupCard, type GscState } from "@/components/dashboard/cards/setup-card"
+import { type GscState } from "@/components/dashboard/gsc"
+import { ToolCard } from "@/components/dashboard/cards/tool-card"
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
@@ -138,11 +139,16 @@ const BAND_DEFS = [
 // The catalogue the Hidden Widgets panel restores from — every widget id used
 // below has to appear here, or a hidden card would have no way back.
 const WIDGETS: WidgetDef[] = [
-  { id: "setup", label: "Next steps" },
   { id: "position-tracking", label: "Position Tracking" },
   { id: "site-crawl", label: "Site Audit" },
   { id: "traffic", label: "Traffic Analytics" },
   { id: "keyword-movement", label: "Keyword Movement" },
+  { id: "tool-maps-tracker", label: "Google Maps Tracker" },
+  { id: "tool-keyword-magic", label: "Keyword Magic Tool" },
+  { id: "tool-ai-prompts", label: "AI Prompt Tracker" },
+  { id: "tool-competitor-spy", label: "Competitor Spy" },
+  { id: "tool-youtube-tracker", label: "YouTube Rank Tracker" },
+  { id: "tool-quick-serp", label: "Quick SERP Checker" },
 ]
 
 /**
@@ -222,13 +228,6 @@ export default function SeoDashboardPage() {
   // ProjectSwitcher fetches its own list, so it needs telling that the list
   // changed underneath it.
   const [switcherKey, setSwitcherKey] = useState(0)
-  // Reported by the Site Audit card below, so the setup card can say "Crawling…"
-  // without a second poller on the same endpoint.
-  const [auditStatus, setAuditStatus] = useState<string | null>(null)
-  // Creating a project auto-starts a keyword analysis server-side, so the
-  // dashboard has to be able to say so rather than asking for keywords that are
-  // already being found.
-  const [keywordsAnalysing, setKeywordsAnalysing] = useState(false)
 
   // Every "Create SEO Project" affordance on this page routes through here, so
   // the header button, the empty state and the switcher's "New project" item
@@ -551,7 +550,7 @@ export default function SeoDashboardPage() {
                 itself in a dialog, so it asks before spending one rather than
                 firing on page load and reporting it afterwards. */}
             {noKeywords && (
-              <KeywordSetupCard projectId={projectId} domain={domain} onStatus={setKeywordsAnalysing} />
+              <KeywordSetupCard projectId={projectId} domain={domain} />
             )}
 
             {/* ── The five headline figures ── */}
@@ -562,16 +561,6 @@ export default function SeoDashboardPage() {
               tracked={m.tracked}
               organicKeywords={m.ranked}
               estTraffic={m.estTraffic}
-            />
-
-            <SetupCard
-              projectId={projectId}
-              gsc={gscState}
-              keywords={
-                overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
-              }
-              auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
-              keywordsAnalysing={keywordsAnalysing}
             />
 
             {/*
@@ -612,12 +601,117 @@ export default function SeoDashboardPage() {
                   scope={m.scope}
                   keywords={m.topKeywords}
                 />
+
+                {/* Tool prompts, filling the hole this column leaves.
+                    Position Tracking is the only card in the wide column and
+                    the narrow one stacks two, so the left side ran out of
+                    content while the right side was still going — several
+                    hundred pixels of blank page in the middle of the
+                    dashboard.
+
+                    Six, not three, and each one says what it gives you rather
+                    than only what it is: three short cards left most of that
+                    hole exactly as it was, sitting in a pool of their own
+                    whitespace. Two rows of substantial card fill the column
+                    and read as part of the dashboard.
+
+                    The Google rank tracker is deliberately NOT among them. It
+                    is the tool whose numbers fill this entire page — the table
+                    directly above these cards is its output — so a card
+                    offering to introduce it is talking past the reader. The
+                    Maps tracker is the one that goes here: same idea, a
+                    surface this project genuinely has not been pointed at yet.
+
+                    Each is its own widget with its own ✕, so someone who never
+                    wants the AI prompt nudge can drop just that one and keep
+                    the rest. "Your tools" at the foot of the page is the full
+                    list; these six are the ones worth interrupting for. */}
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <ToolCard
+                    id="tool-maps-tracker"
+                    title="Google Maps Tracker"
+                    description="Track a business across a grid of points in its city and see where it falls out of the local pack."
+                    href="/dashboard/google-maps-tracker"
+                    hint="Checks your listing's position from many points across a city, not one, because local results change street by street."
+                    points={[
+                      "Rank at every point on a city grid",
+                      "The rivals holding the pack you want",
+                      "Re-checked on the schedule you set",
+                    ]}
+                  />
+                  <ToolCard
+                    id="tool-keyword-magic"
+                    title="Keyword Magic Tool"
+                    description="Turn one seed keyword into hundreds of real ideas, with volume, difficulty and intent."
+                    href="/dashboard/keyword-magic"
+                    hint="Keyword research across the full database — filter by volume, difficulty and intent, then track the ones worth having."
+                    points={[
+                      "Volume, difficulty and intent per idea",
+                      "Filter down to what you can win",
+                      "Send the good ones straight to tracking",
+                    ]}
+                    // Nothing to set up: it answers a query the moment you type
+                    // one, so "Set up" would be a promise of work that is not
+                    // there.
+                    cta="Open"
+                  />
+                  <ToolCard
+                    id="tool-ai-prompts"
+                    title="AI Prompt Tracker"
+                    description="See whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter."
+                    href="/dashboard/ai-prompt-tracker"
+                    hint="Runs your prompts against the four AI platforms on a schedule and records whether your brand was mentioned, and where."
+                    points={[
+                      "Four platforms, the same prompts",
+                      "How often you are named, and beside whom",
+                      "Runs itself on a cadence you choose",
+                    ]}
+                  />
+                  <ToolCard
+                    id="tool-competitor-spy"
+                    title="Competitor Spy"
+                    description="See the domains sitting above you on your own keywords, and the searches they own that you do not."
+                    href={`/dashboard/project/${projectId}/competitor-spy`}
+                    hint="Built from this project's own keywords, so the competitors it names are the ones actually beating you on them."
+                    points={[
+                      "Who outranks you, keyword by keyword",
+                      "Searches they hold and you are missing",
+                      "Their authority beside yours",
+                    ]}
+                    cta="Open"
+                  />
+                  <ToolCard
+                    id="tool-youtube-tracker"
+                    title="YouTube Rank Tracker"
+                    description="Track videos on YouTube search and see the channel, views and length of everything ranking above you."
+                    href="/dashboard/youtube"
+                    hint="A separate project list from the web one, because a channel and a domain are not the same thing to rank."
+                    points={[
+                      "Positions on YouTube search itself",
+                      "What the videos beating you look like",
+                      "Checked automatically, like your keywords",
+                    ]}
+                  />
+                  <ToolCard
+                    id="tool-quick-serp"
+                    title="Quick SERP Checker"
+                    description="Read a live SERP for any query and country without adding it to a project first."
+                    href="/dashboard/serp-checker"
+                    hint="A one-off look at a live result page — useful before you commit a keyword to tracking."
+                    points={[
+                      "Any query, any country, right now",
+                      "The full page, features included",
+                      "No project or setup needed",
+                    ]}
+                    cta="Open"
+                  />
+                </div>
               </div>
 
               {/* Narrow column. Both cards render their own <Widget>, so hiding
                   one just drops it out of the stack and the other moves up. */}
               <div className="flex min-w-0 flex-col gap-4">
-                <SiteCrawlCard projectId={projectId} onStatus={setAuditStatus} />
+                <SiteCrawlCard projectId={projectId} />
                 <KeywordMovementCard
                   projectId={projectId}
                   loading={statsLoading || rowsLoading}

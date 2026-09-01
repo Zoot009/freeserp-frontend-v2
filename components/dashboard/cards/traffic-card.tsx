@@ -24,7 +24,7 @@ import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { type GscState, propertyCoversDomain } from "@/components/dashboard/cards/setup-card"
+import { type GscState, propertyCoversDomain } from "@/components/dashboard/gsc"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
 import { InfoHint, Widget } from "@/components/dashboard/widget"
@@ -49,6 +49,16 @@ type GscPerformance = {
 type Source = "freeserp" | "google"
 
 const nf = (n: number) => n.toLocaleString()
+
+/**
+ * Y-axis ticks, short enough to fit the gutter they are drawn in.
+ *
+ * The axis is 38px wide. "11,275" at 11px is wider than that, so the tick was
+ * being clipped on its left edge and the scale read "l275 / 000 / 000 / 0" —
+ * numbers that are not numbers, on a chart whose whole job is showing a
+ * quantity. Compact notation fits in any gutter this card will ever have.
+ */
+const axisNf = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 })
 const dayLabel = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
@@ -154,8 +164,14 @@ function TimeChart({
   zeroFloor: boolean
 }) {
   const config = Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }]))
+  // A line needs two points. With one check in the range there is nothing to
+  // draw between, so the panel is 230px of empty grid with a dot in the corner
+  // — which reads as a chart that failed rather than a chart with one
+  // measurement in it. The dot stays (it is real data), and the reason it is
+  // alone is said in the middle of the space it leaves.
+  const single = data.length < 2
   return (
-    <div className="mt-5 overflow-hidden rounded-[10px] border bg-bg-inset">
+    <div className="relative mt-5 overflow-hidden rounded-[10px] border bg-bg-inset">
       <ChartContainer config={config} className="!aspect-auto h-[230px] w-full">
         <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <defs>
@@ -187,7 +203,8 @@ function TimeChart({
               pick dataMin made a series of 0 → 2 fill the whole panel, so one
               visit looked like a vertical takeoff. */}
           <YAxis
-            width={30}
+            width={38}
+            tickFormatter={(v: number) => axisNf.format(v)}
             allowDecimals={false}
             domain={zeroFloor ? [0, (max: number) => Math.max(1, Math.ceil(max))] : ["auto", "auto"]}
             tickLine={false}
@@ -214,6 +231,16 @@ function TimeChart({
           ))}
         </AreaChart>
       </ChartContainer>
+
+      {single && (
+        // pointer-events-none so the dot underneath keeps its tooltip.
+        <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
+          <p className="max-w-[30ch] rounded-lg border bg-card/85 px-3 py-2 text-center text-xs leading-relaxed text-muted-foreground shadow-sm backdrop-blur-[2px]">
+            One check so far. The line appears from the second one — checks run
+            on this project&rsquo;s schedule.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -511,11 +538,15 @@ export function TrafficCard(p: TrafficProps) {
               />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <ChartLegend series={ownSeries} />
-                <p className="text-[11px] text-muted-foreground">
-                  {ownChart.length === 1
-                    ? "One check in this range — the trend needs at least two."
-                    : `${ownChart.length} checks in this range. Each dot is one day's measurement.`}
-                </p>
+                {/* Only the plural case. The single-check line used to live
+                    here too, in 11px grey under a panel of empty grid, where
+                    it was the explanation for the emptiness and nowhere near
+                    it. The chart says that one itself now. */}
+                {ownChart.length > 1 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {`${ownChart.length} checks in this range. Each dot is one day's measurement.`}
+                  </p>
+                )}
               </div>
             </>
           ) : (

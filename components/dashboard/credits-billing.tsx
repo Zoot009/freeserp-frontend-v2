@@ -19,9 +19,10 @@
 
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
-import { Coins, Loader2, TriangleAlert } from "lucide-react"
+import { ChevronLeft, ChevronRight, Coins, Loader2, TriangleAlert } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { CreditPricing } from "@/components/dashboard/credit-pricing"
 import {
   useCredits,
@@ -29,6 +30,9 @@ import {
   type CreditLedgerEntry,
   type CreditSummary,
 } from "@/lib/credits"
+
+/** Statement page size. Matches the audit history, which is the same shape. */
+const STATEMENT_PAGE_SIZE = 20
 
 /** Plan slug to the message key naming it. Unknown slugs fall back to the slug. */
 const PLAN_KEYS: Record<string, string> = {
@@ -179,17 +183,36 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
 }
 
 /** The statement. Append-only on the server, so this is only ever a read. */
+/**
+ * The statement. Append-only on the server, so this is only ever a read.
+ *
+ * Paged rather than a flat list: the endpoint answered with the newest 50 and
+ * no count, so an account past its first busy month had older movements it
+ * could not reach and no indication any were missing. Server-side, the same
+ * limit/offset the audit history uses — a ledger is the one list that only
+ * grows, and shipping the whole of it to slice in the browser is the version
+ * of this that gets slower every month.
+ */
 function Statement() {
   const t = useTranslations("credits")
   const [entries, setEntries] = useState<CreditLedgerEntry[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
     api
-      .get<{ entries: CreditLedgerEntry[] }>("/api/credits/ledger")
+      .get<{ entries: CreditLedgerEntry[]; total?: number }>(
+        `/api/credits/ledger?limit=${STATEMENT_PAGE_SIZE}&offset=${page * STATEMENT_PAGE_SIZE}`,
+      )
       .then((r) => {
-        if (!cancelled) setEntries(r.entries ?? [])
+        if (cancelled) return
+        setEntries(r.entries ?? [])
+        // An older server that doesn't send `total` would otherwise report 0
+        // and hide the footer entirely; fall back to what this page holds.
+        setTotal(r.total ?? r.entries?.length ?? 0)
       })
       .catch(() => {
         if (!cancelled) setEntries([])
@@ -200,7 +223,11 @@ function Statement() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [page])
+
+  const pageCount = Math.max(1, Math.ceil(total / STATEMENT_PAGE_SIZE))
+  const from = total === 0 ? 0 : page * STATEMENT_PAGE_SIZE + 1
+  const to = Math.min(total, (page + 1) * STATEMENT_PAGE_SIZE)
 
   return (
     <div>
@@ -249,6 +276,39 @@ function Statement() {
               </div>
             </div>
           ))
+        )}
+
+        {/* Rendered while a page is loading too, so stepping through the
+            statement doesn't drop the controls out from under the cursor. */}
+        {total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-4 py-2.5 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {t("statementRange", { from, to, total })}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={loading || page === 0}
+                onClick={() => setPage(page - 1)}
+              >
+                <ChevronLeft className="size-3.5" /> {t("statementPrev")}
+              </Button>
+              <span className="tabular-nums">
+                {t("statementPage", { page: page + 1, pages: pageCount })}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                disabled={loading || page >= pageCount - 1}
+                onClick={() => setPage(page + 1)}
+              >
+                {t("statementNext")} <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { LineChart } from "@/components/dashboard/primitives"
 import { Dropdown } from "@/components/dashboard/dropdown"
-import { propertyCoversDomain } from "@/components/dashboard/cards/setup-card"
+import { propertyCoversDomain } from "@/components/dashboard/gsc"
 import { downloadCSV } from "@/lib/csv"
 
 const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"

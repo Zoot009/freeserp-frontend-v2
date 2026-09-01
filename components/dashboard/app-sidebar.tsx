@@ -157,7 +157,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   // next; expanded, it sits above the label as a section rule. A transform
   // moves it, not a margin, so nothing below it shifts either way.
   const DIVIDER =
-    "before:pointer-events-none before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-sidebar-border before:transition-transform before:duration-200 before:ease-linear group-data-[collapsible=icon]:before:translate-y-[10px]"
+    "before:pointer-events-none before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-sidebar-border before:transition-transform before:duration-[260ms] before:ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[collapsible=icon]:before:translate-y-[10px]"
 
   const Group = ({ labelKey, items }: { labelKey?: string; items: Item[] }) => (
     <SidebarGroup className={labelKey ? DIVIDER : undefined}>

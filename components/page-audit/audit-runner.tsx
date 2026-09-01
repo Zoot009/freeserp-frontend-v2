@@ -45,13 +45,26 @@ type JobState = {
 /** How often to ask the backend where the crawl has got to. */
 const POLL_MS = 2500
 /**
- * Give up polling after this long.
+ * Give up polling after this long — scaled to the pages this account may crawl.
  *
- * A site-mode crawl is a real browser walking up to 100 pages, so the ceiling
- * has to be generous — but not unbounded, or a wedged job leaves the page
- * spinning forever with no way to tell the user anything useful.
+ * It was a flat 15 minutes, and its own comment gave the reason away: "up to
+ * 100 pages". Paid plans crawl 500. A real browser at roughly six seconds a
+ * page walks 500 of them in fifty minutes, so the client was abandoning
+ * perfectly healthy audits three quarters of the way through and telling the
+ * user it had taken too long — while the job ran on and quietly finished in
+ * the history table.
+ *
+ * Still bounded. A wedged job has to end in something we can say, not a page
+ * spinning forever.
  */
-const POLL_TIMEOUT_MS = 15 * 60_000
+const MS_PER_PAGE = 6_000
+const POLL_TIMEOUT_FLOOR_MS = 8 * 60_000
+const POLL_TIMEOUT_CEILING_MS = 75 * 60_000
+const pollTimeoutFor = (maxPages: number | undefined) =>
+  Math.min(
+    POLL_TIMEOUT_CEILING_MS,
+    Math.max(POLL_TIMEOUT_FLOOR_MS, (maxPages ?? 100) * MS_PER_PAGE),
+  )
 
 /** Page allowance for this account. Free gets 100, any paid plan 500. */
 type Limits = { maxPages: number; planMaxPages: number; maxConcurrent: number; plan: string }
@@ -104,6 +117,10 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
   const [limits, setLimits] = useState<Limits | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const startedAt = useRef(0)
+  // Held in a ref rather than read from `limits` inside poll: poll is a
+  // useCallback the interval closes over, and adding a dependency that arrives
+  // asynchronously would rebuild it mid-run.
+  const pollTimeout = useRef(pollTimeoutFor(undefined))
 
   // Non-fatal: without it the form just doesn't name a page count, and the
   // server clamps to the plan budget regardless. Only site mode shows it, but
@@ -135,7 +152,7 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
 
   const poll = useCallback(
     async (jobId: string) => {
-      if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) {
+      if (Date.now() - startedAt.current > pollTimeout.current) {
         stopPolling()
         setError("This audit is taking longer than expected. It may still finish — check back shortly.")
         return
@@ -180,6 +197,8 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
         return
       }
       startedAt.current = Date.now()
+      // A single-page audit is one page whatever the plan allows.
+      pollTimeout.current = pollTimeoutFor(mode === "site" ? limits?.maxPages : 1)
       setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
       stopPolling()
       timer.current = setInterval(() => void poll(res.jobId), POLL_MS)

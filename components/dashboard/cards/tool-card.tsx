@@ -6,6 +6,7 @@
  * Competitor Spy prompt can remove just that card.
  */
 
+import { Check } from "lucide-react"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
 import { Widget } from "@/components/dashboard/widget"
@@ -17,15 +18,23 @@ export type ToolCardProps = {
   href: string
   cta?: string
   hint?: string
+  /**
+   * What the tool actually gives you, three or four words each.
+   *
+   * A sentence says what a tool is; these say what you get out of it, which is
+   * the part someone deciding whether to click is actually weighing. They also
+   * give the card the height it needs to hold its own beside a keyword table —
+   * a two-line card in a column this wide sat in a pool of its own whitespace.
+   */
+  points?: string[]
   /** Shown instead of the CTA once the tool has data — e.g. "Site health 82". */
   status?: React.ReactNode
 }
 
-export function ToolCard({ id, title, description, href, cta = "Set up", hint, status }: ToolCardProps) {
+export function ToolCard({ id, title, description, href, cta = "Set up", hint, points, status }: ToolCardProps) {
   return (
-    // Compact by design: four of these share the narrow right-hand column beside
-    // Position Tracking, so the padding and type are a step down from a full
-    // widget's.
+    // Type and padding a step down from a full widget's: these are prompts
+    // sharing a row, not cards competing with the panels around them.
     <Widget
       id={id}
       title={title}
@@ -36,6 +45,20 @@ export function ToolCard({ id, title, description, href, cta = "Set up", hint, s
       bodyClassName="flex flex-1 flex-col gap-3 p-3.5 pt-3"
     >
       <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
+
+      {points && points.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {points.map((p) => (
+            <li key={p} className="flex items-start gap-1.5 text-xs leading-snug text-muted-foreground">
+              {/* mt-px, because a 12px tick centred on a 16px line sits high
+                  enough against the cap height to read as floating. */}
+              <Check className="mt-px size-3 shrink-0 text-primary" strokeWidth={3} />
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="mt-auto flex items-center gap-2">
         <Button asChild size="sm" className="h-7.5 px-3 text-xs"><Link href={href}>{status ? "Open" : cta}</Link></Button>
         {status && <span className="truncate text-xs text-muted-foreground">{status}</span>}
