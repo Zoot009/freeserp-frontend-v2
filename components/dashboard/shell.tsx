@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { usePathname, useRouter } from "next/navigation"
 import { Globe, Moon, Search, Sun } from "lucide-react"
@@ -66,6 +66,37 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  /**
+   * The nav rests as an icon rail and opens under the pointer.
+   *
+   * Two pieces of state, not one. `pinned` is a deliberate choice made with the
+   * trigger or Ctrl+B and outlives the pointer; `hovering` is transient. Folded
+   * into the provider's single `open` they would overwrite each other — moving
+   * the pointer off a sidebar you had just pinned open would close it.
+   *
+   * `pinned` starts false on every load and is not read back from the sidebar
+   * cookie: the rail is the resting state of this layout, so a page should open
+   * on it rather than on whatever the last session left behind.
+   */
+  const [pinned, setPinned] = useState(false)
+  const [hovering, setHovering] = useState(false)
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const hover = useCallback((on: boolean) => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    if (on) {
+      setHovering(true)
+      return
+    }
+    // A beat before it closes. A pointer skimming the rail's edge on its way
+    // somewhere else should not flap the whole nav open and shut behind it.
+    leaveTimer.current = setTimeout(() => setHovering(false), 120)
+  }, [])
+
+  useEffect(() => () => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current)
+  }, [])
+
   const redirecting = !user || !user.emailVerified || !user.occupationRole
   if (loading || redirecting) {
     return <DashboardSkeleton />
@@ -110,11 +141,31 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      open={pinned || hovering}
+      onOpenChange={setPinned}
+      // Marks the one state the layout has to treat differently: open because
+      // the pointer is there, not because anyone asked for it. dashboard.css
+      // reads this to keep the page still while the panel floats over it.
+      data-hover-expand={hovering && !pinned ? "true" : undefined}
+    >
       <AppSidebar
         name={name}
         plan={isPaid ? tNav("proPlan") : tNav("freePlan")}
         initial={initial}
+        // AppSidebar spreads the rest onto Sidebar, which spreads onto the
+        // fixed container — so these fire on the rail and on the panel it
+        // becomes, and nowhere else. The desktop container is `hidden md:block`,
+        // so a touch device never reaches them.
+        onMouseEnter={() => hover(true)}
+        onMouseLeave={() => hover(false)}
+        // Hover alone would strand a keyboard user on a 3rem strip of icons.
+        // relatedTarget is where focus is going: still inside the nav means a
+        // move between items, not a departure.
+        onFocusCapture={() => hover(true)}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hover(false)
+        }}
       />
       {/* bg-card, not the default bg-background: --background IS the page canvas
           in this theme (and equals --sidebar in dark), so the panel came out the

@@ -102,7 +102,9 @@ export function SeoTilesSkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <SidebarProvider>
+    // Collapsed, because that is what the shell it stands in for opens as —
+    // a skeleton with a full-width nav would widen and snap back on load.
+    <SidebarProvider defaultOpen={false}>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <AccountRowSkeleton />

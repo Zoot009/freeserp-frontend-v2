@@ -3229,3 +3229,42 @@
   .fs-app .sb-brand-name, .fs-app .sb-lbl, .fs-app .sb-section, .fs-app .sb-user-meta, .fs-app .sb-collapse { display: none; }
   .fs-app .sb-item, .fs-app .sb-brand, .fs-app .sb-foot { justify-content: center; }
 }
+
+/* === HOVER-EXPANDING SIDEBAR === */
+/* The nav rests as an icon rail and opens under the pointer. While it is open
+   for THAT reason only, it floats over the page instead of pushing it: the
+   spacer keeps the rail's width and the panel beside it keeps its margin, so
+   nothing reflows and no table rewraps because a pointer crossed the nav on its
+   way somewhere else.
+
+   A sidebar pinned open with the trigger (or Ctrl+B) is not marked and still
+   lays the page out the old way — a deliberate choice should move the content,
+   a passing pointer should not.
+
+   Keyed off data-hover-expand, set by the dashboard shell. Everything here is
+   md-and-up, because below that the desktop sidebar is not rendered at all and
+   the margin rules it overrides do not apply. */
+@media (min-width: 768px) {
+  /* The spacer that reserves layout width: held at the collapsed rail's size
+     (--sidebar-width-icon + the inset variant's 1rem of padding). */
+  [data-slot='sidebar-wrapper'][data-hover-expand='true'] [data-slot='sidebar-gap'] {
+    width: calc(var(--sidebar-width-icon) + 1rem);
+  }
+
+  /* The panel keeps the margin it has while collapsed, so it does not slide
+     8px left and back every time the pointer passes the nav. */
+  [data-slot='sidebar-wrapper'][data-hover-expand='true'] [data-slot='sidebar-inset'] {
+    margin-left: 0.5rem;
+  }
+
+  /* Above the sticky header (z-20), which the container's own z-10 would
+     otherwise let the expanded nav slide underneath. */
+  [data-slot='sidebar-wrapper'][data-hover-expand='true'] [data-slot='sidebar-container'] {
+    z-index: 30;
+  }
+
+  /* It is over the page now, so it casts one. */
+  [data-slot='sidebar-wrapper'][data-hover-expand='true'] [data-slot='sidebar-inner'] {
+    box-shadow: 0 10px 34px -14px rgb(0 0 0 / 0.38);
+  }
+}
