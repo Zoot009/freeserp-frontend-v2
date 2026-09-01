@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
@@ -195,6 +195,20 @@ export default function KeywordDetailPage() {
     return () => { cancelled = true }
   }, [fetchDetail])
 
+  // Open the SERP list on the page that holds your own result rather than at
+  // #1. At ten rows a page a position in the thirties is three clicks away, so
+  // the row the tab exists for was the one you had to go hunting for. Once per
+  // loaded keyword, so paging afterwards is left alone.
+  const serpPageInit = useRef<string | null>(null)
+  useEffect(() => {
+    if (!data || serpPageInit.current === data.id) return
+    serpPageInit.current = data.id
+    const check = data.latestCheck
+    if (check?.position == null || !check.url) return
+    const ahead = (check.competitors ?? []).filter((c) => c.position < check.position!).length
+    setSerpPage(Math.floor(ahead / ITEMS_PER_PAGE) + 1)
+  }, [data])
+
   // Poll while a check is in flight so the page reflects status without manual
   // refresh. Stops once the status is terminal.
   useEffect(() => {
@@ -240,7 +254,7 @@ export default function KeywordDetailPage() {
   const handleExportSERP = () => {
     downloadCSV(`serp-${keyword.replace(/\s+/g, "_")}.csv`, [
       ["Position", "Title", "Domain", "URL", "Snippet"],
-      ...(latestCheck?.competitors ?? []).map((c) => [
+      ...serpRows.map((c) => [
         String(c.position), c.title, c.domain, c.url, c.snippet,
       ]),
     ])
@@ -265,9 +279,38 @@ export default function KeywordDetailPage() {
   // 100 only for rows written before the depth was recorded.
   const notFoundDepth =
     latestCheck?.depthSearched && latestCheck.depthSearched > 0 ? latestCheck.depthSearched : 100
-  const totalSerpPages = Math.ceil(competitors.length / ITEMS_PER_PAGE)
+
+  const normalizedProject = project.domain.replace(/^www\./, "").toLowerCase()
+  const isOwnDomain = (d: string) => {
+    const n = d.replace(/^www\./, "").toLowerCase()
+    return n === normalizedProject || n.endsWith(`.${normalizedProject}`)
+  }
+
+  /**
+   * The one row people open this tab to find, put back.
+   *
+   * The stored competitor list has the project's own domain filtered out of it
+   * on purpose — the ingest keeps rivals, not you (buildCompetitors) — so the
+   * SERP tab was a list of everyone except the site being tracked. The check
+   * itself already carries the position and the ranking URL, which is enough to
+   * render the row in its rightful place; no title or snippet is stored for it,
+   * so the URL stands in for the title.
+   */
+  const ownResult: Competitor | null =
+    latestCheck?.position != null && latestCheck.url
+      ? { position: latestCheck.position, domain: project.domain, url: latestCheck.url, title: "", snippet: "" }
+      : null
+  // Rows written before that filter existed may still hold the own domain, so
+  // drop it from the rivals rather than showing the same page twice.
+  const serpRows = ownResult
+    ? [...competitors.filter((c) => !isOwnDomain(c.domain)), ownResult].sort((a, b) => a.position - b.position)
+    : competitors
+  const ownSerpIndex = ownResult ? serpRows.indexOf(ownResult) : -1
+  const ownSerpPage = ownSerpIndex >= 0 ? Math.floor(ownSerpIndex / ITEMS_PER_PAGE) + 1 : 1
+
+  const totalSerpPages = Math.ceil(serpRows.length / ITEMS_PER_PAGE)
   const startSerpIndex = (serpPage - 1) * ITEMS_PER_PAGE
-  const paginatedCompetitors = competitors.slice(startSerpIndex, startSerpIndex + ITEMS_PER_PAGE)
+  const paginatedCompetitors = serpRows.slice(startSerpIndex, startSerpIndex + ITEMS_PER_PAGE)
 
   const totalHistoryPages = Math.ceil(history.length / ITEMS_PER_PAGE)
   const startHistoryIndex = (historyPage - 1) * ITEMS_PER_PAGE
@@ -616,10 +659,42 @@ export default function KeywordDetailPage() {
             <div>
               <div className="t">SERP results</div>
               <div className="tiny muted" style={{ marginTop: 2 }}>
-                {competitors.length > 0
-                  ? `${competitors.length} ranking page${competitors.length === 1 ? "" : "s"} for this keyword`
+                {serpRows.length > 0
+                  ? `${serpRows.length} ranking page${serpRows.length === 1 ? "" : "s"} for this keyword`
                   : "Top ranking pages for this keyword"}
               </div>
+              {/* Where you are in the list below, said in words. The row is
+                  highlighted, but a highlight is no use on a page you are not
+                  looking at — hence the jump. */}
+              {serpRows.length > 0 && (
+                <div className="tiny" style={{ marginTop: 4 }}>
+                  {ownResult ? (
+                    <>
+                      <span style={{ color: "var(--brand)", fontWeight: 600 }}>
+                        Your site ranks #{ownResult.position}
+                      </span>
+                      {serpPage !== ownSerpPage && (
+                        <button
+                          type="button"
+                          onClick={() => setSerpPage(ownSerpPage)}
+                          style={{
+                            marginLeft: 8, background: "none", border: 0, padding: 0,
+                            color: "var(--brand)", font: "inherit", fontWeight: 600,
+                            textDecoration: "underline", cursor: "pointer",
+                          }}
+                        >
+                          Jump to it
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="muted">
+                      Your site wasn&apos;t found in the top {notFoundDepth} for this keyword.
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* The latest check read only a slice of the SERP (a windowed
                   fetch, which skips the top), so these rivals were carried
                   forward from an earlier check. Say so — the position above IS
@@ -649,8 +724,8 @@ export default function KeywordDetailPage() {
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="tabular-nums">
                     {startSerpIndex + 1}–
-                    {Math.min(startSerpIndex + ITEMS_PER_PAGE, competitors.length)} of{" "}
-                    {competitors.length}
+                    {Math.min(startSerpIndex + ITEMS_PER_PAGE, serpRows.length)} of{" "}
+                    {serpRows.length}
                   </span>
                   <Button
                     variant="outline"
@@ -674,7 +749,7 @@ export default function KeywordDetailPage() {
                   </Button>
                 </div>
               )}
-              {competitors.length > 0 && (
+              {serpRows.length > 0 && (
                 <button className="btn sm" onClick={handleExportSERP}>
                   <Icon.download /> Export CSV
                 </button>
@@ -682,14 +757,11 @@ export default function KeywordDetailPage() {
             </div>
           </div>
 
-          {competitors.length > 0 ? (
+          {serpRows.length > 0 ? (
             <>
               <div className="cmp-list">
               {paginatedCompetitors.map((c) => {
-                const normalizedProject = project.domain.replace(/^www\./, "").toLowerCase()
-                const normalizedResult = c.domain.replace(/^www\./, "").toLowerCase()
-                const isOwnSite =
-                  normalizedResult === normalizedProject || normalizedResult.endsWith(`.${normalizedProject}`)
+                const isOwnSite = isOwnDomain(c.domain)
                 // Build a breadcrumb-style URL like Google ("example.com › path › ›")
                 // from the raw URL. Stripping the protocol + splitting on `/`
                 // gives a short, decoded trail that reads cleanly.
