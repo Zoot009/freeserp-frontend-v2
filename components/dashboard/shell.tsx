@@ -141,14 +141,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider
-      open={pinned || hovering}
-      onOpenChange={setPinned}
-      // Marks the one state the layout has to treat differently: open because
-      // the pointer is there, not because anyone asked for it. dashboard.css
-      // reads this to keep the page still while the panel floats over it.
-      data-hover-expand={hovering && !pinned ? "true" : undefined}
-    >
+    <SidebarProvider open={pinned || hovering} onOpenChange={setPinned}>
       <AppSidebar
         name={name}
         plan={isPaid ? tNav("proPlan") : tNav("freePlan")}
