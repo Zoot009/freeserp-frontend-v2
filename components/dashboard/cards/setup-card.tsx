@@ -16,6 +16,12 @@
  * the whole tile is the link, because a grid of small "Open" buttons makes the
  * reader aim at the smallest part of each card.
  *
+ * They sit in three labelled bands rather than one twelve-wide grid: an
+ * undifferentiated wall of identical tiles has nowhere for the eye to enter
+ * and no way to skip the third of it you did not come for. One hue per band
+ * carries that grouping into the icon chips, and the tile itself is the
+ * hover target — it lifts, and an arrow arrives at the corner.
+ *
  * The two tiles we can verify keep saying what they know, as a status line
  * rather than a tick against a step:
  *
@@ -39,6 +45,7 @@
 import type * as React from "react"
 import {
   AlertTriangle,
+  ArrowUpRight,
   Bot,
   Check,
   Globe,
@@ -243,6 +250,22 @@ type Tool = {
   primary?: boolean
 }
 
+/**
+ * Tools in bands, because twelve identical tiles is a wall, not a menu — the
+ * eye has nowhere to enter it and no way to skip the third of it that is not
+ * what you came for.
+ *
+ * The bands are not the sidebar's five groups. Maps and AI hold one tool each
+ * here, and a band of one reads as a mistake; three bands of four scan in a
+ * glance and still land every tool in the place you would look for it.
+ */
+type Band = {
+  label: string
+  /** Icon-chip tint for every tile in the band. */
+  accent: string
+  tools: Tool[]
+}
+
 /** A step's verified state, mapped onto the tile that now carries it. */
 function toolState(s: Step): Pick<Tool, "status" | "warning" | "busy"> {
   return {
@@ -272,88 +295,106 @@ export function SetupCard({
   const keywordStep = trackKeywordsStep(projectId, keywords, keywordsAnalysing)
   const gscStep = searchConsoleStep(projectId, gsc)
 
-  // Ordered by what a project needs first, not by category: the tracker, then
-  // the audit that explains what caps it, then the surfaces beyond Google, then
-  // the research tools that feed all of them. The integration goes last — it is
-  // the one tile that depends on someone else's OAuth consent.
-  const tools: Tool[] = [
+  // One hue per band, and only the band's. Emerald and amber are NOT available
+  // to a chip: they mean "confirmed" and "needs attention" everywhere else on
+  // this page, and a tool tinted emerald for belonging to a category would
+  // claim a state it has not got.
+  const bands: Band[] = [
     {
-      title: "Keyword Rank Tracker",
-      description: keywordStep.description,
-      href: keywordStep.href,
-      icon: LineChart,
-      primary: true,
-      ...toolState(keywordStep),
+      label: "Rank tracking",
+      accent: "bg-primary/10 text-primary",
+      tools: [
+        {
+          title: "Keyword Rank Tracker",
+          description: keywordStep.description,
+          href: keywordStep.href,
+          icon: LineChart,
+          primary: true,
+          ...toolState(keywordStep),
+        },
+        {
+          title: "Google Maps Tracker",
+          description: "Track a business across a city grid and see where it drops out of the local pack.",
+          href: "/dashboard/google-maps-tracker",
+          icon: MapPin,
+        },
+        {
+          title: "YouTube Rank Tracker",
+          description: "Track videos on YouTube search, with the channel, views and length of everything above you.",
+          href: "/dashboard/youtube",
+          icon: Youtube,
+        },
+        {
+          title: "AI Prompt Tracker",
+          description: "Watch whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
+          href: "/dashboard/ai-prompt-tracker",
+          icon: Bot,
+        },
+      ],
     },
     {
-      title: "Full Website Audit",
-      description: auditRunning
-        ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
-        : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
-      href: "/dashboard/site-audit",
-      icon: ScanSearch,
-      ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
+      label: "Audit & analysis",
+      accent: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+      tools: [
+        {
+          title: "Full Website Audit",
+          description: auditRunning
+            ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
+            : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
+          href: "/dashboard/site-audit",
+          icon: ScanSearch,
+          ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
+        },
+        {
+          title: "Competitor Spy",
+          description: "See the domains sitting above you on your own keywords, and which searches they own that you do not.",
+          href: `/dashboard/project/${projectId}/competitor-spy`,
+          icon: Users,
+        },
+        {
+          title: "Internal Links Analysis",
+          description: "Find the pages your own site links to weakly, and the links worth adding.",
+          href: "/dashboard/ai-internal-linking",
+          icon: Link2,
+        },
+        {
+          title: "Search Console",
+          description: gscStep.description,
+          href: gscStep.href,
+          icon: Globe,
+          ...toolState(gscStep),
+        },
+      ],
     },
     {
-      title: "Google Maps Tracker",
-      description: "Track a business across a city grid and see where it drops out of the local pack.",
-      href: "/dashboard/google-maps-tracker",
-      icon: MapPin,
-    },
-    {
-      title: "AI Prompt Tracker",
-      description: "Watch whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
-      href: "/dashboard/ai-prompt-tracker",
-      icon: Bot,
-    },
-    {
-      title: "Keyword Magic Tool",
-      description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent.",
-      href: "/dashboard/keyword-magic",
-      icon: Sparkles,
-    },
-    {
-      title: "Keyword Score Checker",
-      description: "Score a keyword before you commit to it — how hard it is, and whether it is worth the work.",
-      href: "/dashboard/keyword-analysis",
-      icon: Search,
-    },
-    {
-      title: "Keywords",
-      description: "Every keyword you track, across every project, in one table.",
-      href: "/dashboard/keywords",
-      icon: KeyRound,
-    },
-    {
-      title: "Quick SERP Checker",
-      description: "Read a live SERP for any query and country, without adding it to a project first.",
-      href: "/dashboard/serp-checker",
-      icon: Zap,
-    },
-    {
-      title: "YouTube Rank Tracker",
-      description: "Track videos on YouTube search, with the channel, views and length of everything above you.",
-      href: "/dashboard/youtube",
-      icon: Youtube,
-    },
-    {
-      title: "Competitor Spy",
-      description: "See the domains sitting above you on your own keywords, and which searches they own that you do not.",
-      href: `/dashboard/project/${projectId}/competitor-spy`,
-      icon: Users,
-    },
-    {
-      title: "Internal Links Analysis",
-      description: "Find the pages your own site links to weakly, and the links worth adding.",
-      href: "/dashboard/ai-internal-linking",
-      icon: Link2,
-    },
-    {
-      title: "Search Console",
-      description: gscStep.description,
-      href: gscStep.href,
-      icon: Globe,
-      ...toolState(gscStep),
+      label: "Keyword research",
+      accent: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+      tools: [
+        {
+          title: "Keyword Magic Tool",
+          description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent.",
+          href: "/dashboard/keyword-magic",
+          icon: Sparkles,
+        },
+        {
+          title: "Keyword Score Checker",
+          description: "Score a keyword before you commit to it — how hard it is, and whether it is worth the work.",
+          href: "/dashboard/keyword-analysis",
+          icon: Search,
+        },
+        {
+          title: "Keywords",
+          description: "Every keyword you track, across every project, in one table.",
+          href: "/dashboard/keywords",
+          icon: KeyRound,
+        },
+        {
+          title: "Quick SERP Checker",
+          description: "Read a live SERP for any query and country, without adding it to a project first.",
+          href: "/dashboard/serp-checker",
+          icon: Zap,
+        },
+      ],
     },
   ]
 
@@ -364,71 +405,92 @@ export function SetupCard({
       hint="Everything in the product, reachable from this project. Start with the rank tracker — every panel below this card is measured against the keywords it holds."
       bodyClassName="p-5"
     >
-      {/* Twelve tiles, so they are compact and the whole tile is the target: a
-          grid of "Open" buttons makes the reader aim at the smallest part of
-          each card. Four across on a wide screen, two on a tablet, one on a
-          phone. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {tools.map((tool) => (
-          <Link
-            key={tool.title}
-            href={tool.href}
-            className={cn(
-              "group flex min-w-0 flex-col rounded-lg border p-3.5 transition-colors",
-              // hover:bg-muted/50, not the default accent: this theme maps
-              // --accent to the brand blue (globals.css), so an accent hover
-              // turns the whole tile into a blue slab with unreadable body text.
-              "hover:border-foreground/20 hover:bg-muted/50",
-              tool.warning && "border-amber-500/40",
-              tool.primary && !tool.warning && "border-primary/30 bg-primary/[0.03]",
-            )}
-          >
-            <div className="flex items-center gap-2.5">
-              <span
-                className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-md",
-                  tool.warning ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                    : tool.status && !tool.busy ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : tool.busy || tool.primary ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {tool.busy ? <Loader2 className="size-4 animate-spin" /> : <tool.icon className="size-4" />}
-              </span>
-              <span className="truncate text-[13.5px] font-semibold">{tool.title}</span>
+      <div className="flex flex-col gap-5">
+        {bands.map((band) => (
+          <section key={band.label}>
+            {/* Label + rule, at the same weight the tool-context panels use for
+                their headings, so a band reads as a divider between tiles
+                rather than as a heading with a card under it. */}
+            <div className="mb-2.5 flex items-center gap-3">
+              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                {band.label}
+              </h3>
+              <span className="h-px flex-1 bg-border" aria-hidden />
             </div>
 
-            <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">
-              {tool.description}
-            </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {band.tools.map((tool) => (
+                <Link
+                  key={tool.title}
+                  href={tool.href}
+                  className={cn(
+                    "group relative flex h-full min-w-0 flex-col rounded-xl border bg-card p-4",
+                    "transition-[transform,box-shadow,border-color] duration-150",
+                    // Lift + a soft shadow rather than a background change: this
+                    // theme maps --accent to the brand blue (globals.css), so
+                    // anything hovering to bg-accent turns the whole tile into a
+                    // blue slab with unreadable body text under it.
+                    "hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_4px_14px_-6px_rgb(0_0_0/0.18)]",
+                    tool.warning && "border-amber-500/40",
+                    tool.primary && !tool.warning && "border-primary/25 bg-primary/[0.035]",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn(
+                        "grid size-9 shrink-0 place-items-center rounded-lg",
+                        tool.warning
+                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          : band.accent,
+                      )}
+                    >
+                      {tool.busy ? (
+                        <Loader2 className="size-[18px] animate-spin" />
+                      ) : (
+                        <tool.icon className="size-[18px]" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 pt-1.5 text-[13.5px] font-semibold leading-tight">
+                      {tool.title}
+                    </span>
+                    {/* The only affordance on the tile, because the tile IS the
+                        link — it appears on hover so twelve arrows don't sit
+                        there competing at rest. */}
+                    <ArrowUpRight
+                      className="mt-1 size-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[transform,opacity] duration-150 group-hover:translate-x-0 group-hover:opacity-100"
+                      aria-hidden
+                    />
+                  </div>
 
-            {/* Only tiles we can actually verify carry a footer line. The rest
-                end on the description rather than on an empty row that pads
-                every tile to the height of the tallest. */}
-            {(tool.status || tool.warning) && (
-              <span
-                className={cn(
-                  "mt-2.5 inline-flex items-baseline gap-1.5 text-[11.5px] font-semibold",
-                  tool.warning ? "text-amber-600 dark:text-amber-400"
-                    : tool.busy ? "text-primary"
-                    : "text-emerald-600 dark:text-emerald-400",
-                )}
-              >
-                {tool.warning ? (
-                  <>
-                    <AlertTriangle className="size-3 shrink-0 self-center" strokeWidth={2.5} />
-                    <span className="break-words">{tool.warning}</span>
-                  </>
-                ) : tool.busy ? (
-                  <span>{tool.status}</span>
-                ) : (
-                  <>
-                    <Check className="size-3 shrink-0 self-center" strokeWidth={3} /> {tool.status}
-                  </>
-                )}
-              </span>
-            )}
-          </Link>
+                  <p className="mt-2.5 flex-1 text-xs leading-relaxed text-muted-foreground">
+                    {tool.description}
+                  </p>
+
+                  {/* Only tiles we can verify carry a footer. The description
+                      takes the slack (flex-1), so the pills line up across a
+                      row whose text runs to different lengths. */}
+                  {tool.warning ? (
+                    <span className="mt-3 flex items-start gap-1.5 text-[11px] font-medium leading-snug text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="mt-px size-3 shrink-0" strokeWidth={2.5} />
+                      <span className="break-words">{tool.warning}</span>
+                    </span>
+                  ) : tool.status ? (
+                    <span
+                      className={cn(
+                        "mt-3 inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        tool.busy
+                          ? "bg-primary/10 text-primary"
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                      )}
+                    >
+                      {!tool.busy && <Check className="size-3" strokeWidth={3} />}
+                      {tool.status}
+                    </span>
+                  ) : null}
+                </Link>
+              ))}
+            </div>
+          </section>
         ))}
       </div>
     </Widget>
