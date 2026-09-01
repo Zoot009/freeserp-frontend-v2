@@ -769,6 +769,8 @@
     "noCompetitors": "No competitors tracked yet — add one from the list above.",
     "noCompetitorSuggestions": "No competitors found yet. Run a rank check to discover who ranks alongside you.",
     "rankingsImproved": "Rankings improved",
+    "hideCard": "Hide this card",
+    "showInsights": "Show insights",
     "vs24h": "vs ~24 hours ago",
     "vs7d": "vs ~7 days ago",
     "vs15d": "vs ~15 days ago",

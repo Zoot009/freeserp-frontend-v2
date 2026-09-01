@@ -283,8 +283,13 @@ export default function GoogleMapsTrackerPage() {
 
       <ToolContext id="maps-tracker" />
 
+      {/* Scan builder — toolbar, map preview and grid controls all live inside
+          one elevated card, matching every other tool page's input surface
+          (e.g. the SERP Checker's form.card) instead of sitting loose on the
+          page background. */}
+      <div className="card" style={{ marginBottom: 16 }}>
       {/* Top bar — what to scan */}
-      <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="row" style={{ gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <PlatformDropdown />
         <LocationPicker
           locations={locations}
@@ -315,7 +320,7 @@ export default function GoogleMapsTrackerPage() {
       {/* Map canvas — always rendered, even with no location picked yet, so the
           map itself is the surface for finding/adding a business rather than
           a placeholder blocking it. */}
-      <div style={{ height: "min(60vh, 560px)", minHeight: 320, borderRadius: "var(--r-lg)", overflow: "hidden", position: "relative" }}>
+      <div style={{ height: "min(60vh, 560px)", minHeight: 320, borderRadius: "var(--r-lg)", overflow: "hidden", position: "relative", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
         <ScanMap
           centerLat={scan ? scan.centerLat : effectiveCenter ? effectiveCenter.lat : DEFAULT_MAP_CENTER.lat}
           centerLng={scan ? scan.centerLng : effectiveCenter ? effectiveCenter.lng : DEFAULT_MAP_CENTER.lng}
@@ -343,6 +348,7 @@ export default function GoogleMapsTrackerPage() {
               padding: "10px 16px",
               pointerEvents: "none",
               textAlign: "center",
+              boxShadow: "var(--shadow-md)",
             }}
           >
             <div className="tiny">Search or paste a Place ID above to add your business — the grid will preview here.</div>
@@ -351,7 +357,7 @@ export default function GoogleMapsTrackerPage() {
       </div>
 
       {/* Bottom bar — how to scan it */}
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
         <div className="row" style={{ gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <GridSizeDropdown value={gridSize} onChange={setGridSize} />
           <RadiusDropdown value={radius} unit={unit} onChange={setRadius} />
@@ -409,6 +415,7 @@ export default function GoogleMapsTrackerPage() {
             {error}
           </div>
         )}
+      </div>
       </div>
 
       <div style={{ marginTop: 16 }}>

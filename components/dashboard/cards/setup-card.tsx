@@ -290,7 +290,7 @@ export function SetupCard({
       description: auditRunning
         ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
         : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
-      href: "/dashboard/page-audit?mode=site",
+      href: "/dashboard/site-audit",
       icon: ScanSearch,
       ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
     },

@@ -769,6 +769,8 @@
     "noCompetitors": "Aucun concurrent suivi — ajoutez-en un depuis la liste ci-dessus.",
     "noCompetitorSuggestions": "Aucun concurrent trouvé pour l'instant. Lancez une vérification de position pour découvrir qui se classe à côté de vous.",
     "rankingsImproved": "Positions améliorées",
+    "hideCard": "Masquer cette carte",
+    "showInsights": "Afficher les insights",
     "vs24h": "vs il y a ~24 heures",
     "vs7d": "vs il y a ~7 jours",
     "vs15d": "vs il y a ~15 jours",

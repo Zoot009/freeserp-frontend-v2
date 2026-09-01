@@ -728,6 +728,20 @@
   align-items: start;
 }
 @media (max-width: 1100px) { .fs-app .kd-layout { grid-template-columns: 1fr; } }
+/* Both insight cards dismissed — the table takes the whole row. */
+.fs-app .kd-layout.rail-hidden { grid-template-columns: minmax(0, 1fr); }
+/* Dismiss control in an insight card header. Always visible — a hover-reveal
+   control is one nobody finds, least of all on touch. Muted so it sits behind
+   the figure it shares the card with, solid on hover. */
+.fs-app .card-x {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: transparent; border: 0;
+  border-radius: 6px;
+  color: var(--text-mute);
+  transition: background .15s, color .15s;
+}
+.fs-app .card-x:hover { background: var(--bg-inset); color: var(--text); }
 /* Header row inside the SERP Rank Tracking card. */
 .fs-app .serp-track-h {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -973,6 +987,26 @@
 .fs-app .tbl td:last-child { border-right: 1px solid var(--border); }
 .fs-app .tbl tr:last-child td:first-child { border-bottom-left-radius: 8px; }
 .fs-app .tbl tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+/* Full-bleed variant, for a table that fills a padding:0 card. The rules above
+   frame the table so it can stand on a bare page; inside a card that already
+   has a border and a radius they draw a second outline just inside the card's,
+   which reads as a table inside a table. Drop the frame and let the card be it,
+   and match the cell gutter to the card header's 16px so the columns line up
+   with the title above them. */
+.fs-app .tbl.flush th { border-top: 0; }
+.fs-app .tbl.flush th:first-child,
+.fs-app .tbl.flush td:first-child {
+  border-left: 0;
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+  padding-left: 16px;
+}
+.fs-app .tbl.flush th:last-child,
+.fs-app .tbl.flush td:last-child {
+  border-right: 0;
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+  padding-right: 16px;
+}
+.fs-app .tbl.flush tr:last-child td { border-bottom: 0; }
 /* Keyword cell: one line with an ellipsis, so a long keyword can't wrap and
    inflate the whole row. The full text is on the element's title attribute.
    min-width:0 is required — a flex/table child defaults to min-content width,
