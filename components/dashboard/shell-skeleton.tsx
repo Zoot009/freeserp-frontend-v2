@@ -101,8 +101,10 @@ export function SeoTilesSkeleton() {
 }
 
 export function DashboardSkeleton() {
+  // Collapsed, like the real shell — otherwise the skeleton lays out a
+  // full-width sidebar and the page jumps a rail's width once it loads.
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <AccountRowSkeleton />

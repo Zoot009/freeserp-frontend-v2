@@ -109,9 +109,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return <div className="fs-app min-h-screen bg-card">{children}</div>
   }
 
+  // Closed by default, every load: the nav is the icon rail, and it opens only
+  // while the pointer is on it. defaultOpen={false} rather than the remembered
+  // cookie state — the rail IS the resting state here, not a choice the last
+  // session made. The header trigger still pins it open for anyone who wants it
+  // that way, and is the only way in on touch.
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar
+        hoverToOpen
         name={name}
         plan={isPaid ? tNav("proPlan") : tNav("freePlan")}
         initial={initial}

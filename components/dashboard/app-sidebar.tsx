@@ -150,8 +150,17 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   // of it. Credits are that billing now, so the lists are plain constants and
   // the links are simply links.
 
+  // Hairline above every group but the first, drawn as a pseudo-element so it
+  // costs no layout and the two states stay pixel-identical. On the rail the
+  // label is invisible, so the line slides down into the middle of the gap it
+  // leaves and becomes the only thing separating one cluster of icons from the
+  // next; expanded, it sits above the label as a section rule. A transform
+  // moves it, not a margin, so nothing below it shifts either way.
+  const DIVIDER =
+    "before:pointer-events-none before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-sidebar-border before:transition-transform before:duration-200 before:ease-linear group-data-[collapsible=icon]:before:translate-y-[10px]"
+
   const Group = ({ labelKey, items }: { labelKey?: string; items: Item[] }) => (
-    <SidebarGroup>
+    <SidebarGroup className={labelKey ? DIVIDER : undefined}>
       {labelKey && <SidebarGroupLabel>{t(labelKey)}</SidebarGroupLabel>}
       <SidebarMenu>
         {items.map((it) => {
