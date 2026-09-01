@@ -3237,25 +3237,26 @@
  * layout still and let the panel overlay the content, on the theory that a
  * passing pointer should not move the page — but a nav that covers the
  * breadcrumb, the project name and the left column of every card is not
- * "not moving the page", it is hiding it. Everything stays reachable now; the
- * content just slides.
+ * "not moving the page", it is hiding it.
  *
- * Which makes the ANIMATION the whole job, because it is the page moving now
- * and not a panel. Three things move together and every one of them has to
- * agree, or the eye reads it as three separate jerks:
- *   • the spacer that reserves the nav's width
- *   • the fixed container that draws it
- *   • the main panel's margin, which had no transition at all and snapped its
- *     8px while the other two were still easing
+ * The rule for everything below: ONE thing moves, and it is the width of the
+ * nav. Every icon stays exactly where it is, and the text is simply absent and
+ * then present. Anything that slides, drops or slews while the panel opens
+ * reads as the nav shaking itself out, and it is all fixable — none of it was
+ * carrying information.
  *
- * Same duration, same curve, on all three. The curve is a decelerating ease
- * rather than the linear default: linear starts and stops at full speed, which
- * is exactly what reads as mechanical on something this wide. */
+ * Three boxes share the width animation (the spacer that reserves the nav's
+ * room, the fixed container that draws it, and the main panel's margin, which
+ * had no transition at all and used to snap its 8px while the other two were
+ * still easing). Same duration, same curve, or the eye reads three jerks. The
+ * curve decelerates rather than running linear: linear starts and stops at
+ * full speed, which is what feels mechanical on something this wide. */
 @media (min-width: 768px) {
   [data-slot='sidebar-gap'],
   [data-slot='sidebar-container'],
   [data-slot='sidebar-inset'],
-  [data-sidebar='group-label'] {
+  [data-sidebar='menu-button'],
+  [data-slot='sidebar-menu-button'] {
     transition-duration: 260ms;
     transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -3266,34 +3267,49 @@
     transition-property: margin;
   }
 
-  /* Labels and the rest of the nav's text are clipped by the container as it
-     narrows, which lands them mid-word for a frame. Fading them out under the
-     clip costs nothing and removes the flicker. */
+  /* ── Nothing moves vertically ──
+     The group headings ("Search Engine", "Maps", …) collapsed to nothing with
+     a -2rem margin, so opening the nav pushed everything below each one down
+     by 32px. Four headings, up to 128px of vertical travel under icons that
+     are supposed to be standing still — this was most of the wiggle.
+     They keep their box in both states now and only fade, so the rail carries
+     a blank line where each heading will appear. That also keeps the grouping
+     visible while collapsed, which the old version threw away. */
+  [data-sidebar='group-label'] {
+    margin-top: 0 !important;
+  }
+
+  /* The account/logo button is `lg` (h-12) expanded and gets squared down to
+     32px in icon mode, dropping everything under it by 16px on the way. Its
+     height is fixed in both states for the same reason. */
+  [data-sidebar='menu-button'][data-size='lg'] {
+    height: 3rem !important;
+  }
+
+  /* ── Text is absent, then present ──
+     It arrives after the panel has finished widening and leaves before it
+     starts narrowing, so it is never caught halfway out from under the clip,
+     mid-word or sliding. The delay is on the way IN only: leaving has to be
+     immediate or the text is still fading while the panel closes over it.
+     Two rules, because the transition that runs is the one on the state being
+     entered. */
+  [data-sidebar='group-label'],
+  [data-sidebar='menu-button'] > span:last-child,
+  [data-sidebar='menu-badge'] {
+    transition: opacity 130ms linear 150ms;
+  }
+  [data-slot='sidebar'][data-state='collapsed'] [data-sidebar='group-label'],
   [data-slot='sidebar'][data-state='collapsed'] [data-sidebar='menu-button'] > span:last-child,
   [data-slot='sidebar'][data-state='collapsed'] [data-sidebar='menu-badge'] {
     opacity: 0;
-  }
-  [data-sidebar='menu-button'] > span:last-child,
-  [data-sidebar='menu-badge'] {
-    transition: opacity 160ms cubic-bezier(0.32, 0.72, 0, 1);
+    transition: opacity 90ms linear 0ms;
   }
 
-  /* The nav's own buttons resize with it - Tailwind pins them to size-8 and
-     p-2 in icon mode - on their own 150ms clock and their own easing. Two
-     clocks running at once is most of what "not quite smooth" is: the icons
-     finish settling while the panel around them is still moving. Same
-     duration, same curve, and they travel together. */
-  [data-sidebar='menu-button'],
-  [data-slot='sidebar-menu-button'] {
-    transition-duration: 260ms;
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  /* Tells the browser these three boxes are about to be animated so it can
-     prepare, rather than discovering it on the first frame and spending that
-     frame catching up. Kept to the three elements that actually move - a
-     will-change left on everything is a way of asking for less memory to be
-     available for the thing that needs it. */
+  /* Tells the browser these boxes are about to be animated so it can prepare,
+     rather than discovering it on the first frame and spending that frame
+     catching up. Kept to the three that actually move — a will-change left on
+     everything is a way of asking for less memory to be available for the
+     thing that needs it. */
   [data-slot='sidebar-gap'],
   [data-slot='sidebar-container'] {
     will-change: width;
@@ -3303,7 +3319,7 @@
   }
 }
 
-/* Nothing above is information - it is all the same nav arriving in a
+/* Nothing above is information — it is all the same nav arriving in a
    different order. Somebody who has asked their system for less motion gets
    the end state directly. */
 @media (prefers-reduced-motion: reduce) {
@@ -3316,5 +3332,6 @@
   [data-sidebar='menu-button'] > span:last-child,
   [data-sidebar='menu-badge'] {
     transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
   }
 }
