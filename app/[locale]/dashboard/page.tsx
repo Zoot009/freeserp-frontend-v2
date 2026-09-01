@@ -32,7 +32,7 @@ import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
 import { KeywordSetupCard } from "@/components/dashboard/cards/keyword-setup-card"
 import { StatStrip } from "@/components/dashboard/cards/stat-strip"
-import { SetupCard, type GscState } from "@/components/dashboard/cards/setup-card"
+import { type GscState } from "@/components/dashboard/gsc"
 import { ToolCard } from "@/components/dashboard/cards/tool-card"
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
@@ -139,7 +139,6 @@ const BAND_DEFS = [
 // The catalogue the Hidden Widgets panel restores from — every widget id used
 // below has to appear here, or a hidden card would have no way back.
 const WIDGETS: WidgetDef[] = [
-  { id: "setup", label: "Your tools" },
   { id: "position-tracking", label: "Position Tracking" },
   { id: "site-crawl", label: "Site Audit" },
   { id: "traffic", label: "Traffic Analytics" },
@@ -229,13 +228,6 @@ export default function SeoDashboardPage() {
   // ProjectSwitcher fetches its own list, so it needs telling that the list
   // changed underneath it.
   const [switcherKey, setSwitcherKey] = useState(0)
-  // Reported by the Site Audit card below, so the setup card can say "Crawling…"
-  // without a second poller on the same endpoint.
-  const [auditStatus, setAuditStatus] = useState<string | null>(null)
-  // Creating a project auto-starts a keyword analysis server-side, so the
-  // dashboard has to be able to say so rather than asking for keywords that are
-  // already being found.
-  const [keywordsAnalysing, setKeywordsAnalysing] = useState(false)
 
   // Every "Create SEO Project" affordance on this page routes through here, so
   // the header button, the empty state and the switcher's "New project" item
@@ -558,7 +550,7 @@ export default function SeoDashboardPage() {
                 itself in a dialog, so it asks before spending one rather than
                 firing on page load and reporting it afterwards. */}
             {noKeywords && (
-              <KeywordSetupCard projectId={projectId} domain={domain} onStatus={setKeywordsAnalysing} />
+              <KeywordSetupCard projectId={projectId} domain={domain} />
             )}
 
             {/* ── The five headline figures ── */}
@@ -719,7 +711,7 @@ export default function SeoDashboardPage() {
               {/* Narrow column. Both cards render their own <Widget>, so hiding
                   one just drops it out of the stack and the other moves up. */}
               <div className="flex min-w-0 flex-col gap-4">
-                <SiteCrawlCard projectId={projectId} onStatus={setAuditStatus} />
+                <SiteCrawlCard projectId={projectId} />
                 <KeywordMovementCard
                   projectId={projectId}
                   loading={statsLoading || rowsLoading}
@@ -749,26 +741,6 @@ export default function SeoDashboardPage() {
               rangeLabel={RANGE_LABEL[range]}
               rangeDays={RANGE_DAYS[range]}
               gsc={gscState}
-            />
-
-            {/* Last, under the data.
-                This sat directly beneath the stat strip, which put a menu of
-                twelve things to go and do between the five headline figures and
-                the panels that explain them — the project's own numbers started
-                below the fold on a laptop, behind an advert for the rest of the
-                product. Somebody opening their dashboard came for the data.
-                It keeps every word of its copy: down here it has the room to
-                say what each tool is for, which is the point of promoting them
-                at all, and it is the natural next thing to read once the
-                numbers have been read. */}
-            <SetupCard
-              projectId={projectId}
-              gsc={gscState}
-              keywords={
-                overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
-              }
-              auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
-              keywordsAnalysing={keywordsAnalysing}
             />
 
             <DashboardFooter refreshed={refreshed} />
