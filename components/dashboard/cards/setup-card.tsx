@@ -12,18 +12,25 @@
  * research tools were all absent from the one page every user lands on, which
  * left the sidebar as the only place they existed.
  *
- * So it promotes all of them, as tiles. No step numbers, no per-tile button —
- * the whole tile is the link, because a grid of small "Open" buttons makes the
- * reader aim at the smallest part of each card.
+ * Twelve tools now, as real cards at three across — the shape the rest of this
+ * dashboard uses. Two earlier passes at this were flat: a grid of small tiles
+ * with grey chips, which promoted everything and made none of it look worth
+ * opening. A card here carries its own hue through the icon chip, a tint
+ * pooling in the top-right corner over a vertical wash (the surface the stat
+ * strips already use), a coloured shadow it lifts into on hover, and a CTA
+ * filled in the same hue.
  *
- * They sit in three labelled bands rather than one twelve-wide grid: an
- * undifferentiated wall of identical tiles has nowhere for the eye to enter
- * and no way to skip the third of it you did not come for. One hue per band
- * carries that grouping into the icon chips, and the tile itself is the
- * hover target — it lifts, and an arrow arrives at the corner.
+ * Six show; the rest are one click behind the expander. Twelve of these at
+ * three across is four rows of card, which would push Position Tracking and
+ * everything under it below the fold on a laptop — the overview would open on
+ * a menu instead of on the project. A tool carrying a WARNING is pulled in
+ * front of that expander regardless of where it sits in the list.
  *
- * The two tiles we can verify keep saying what they know, as a status line
- * rather than a tick against a step:
+ * The whole card is the link. There is no separate button, because a button
+ * inside an anchor is a second target for the same destination.
+ *
+ * The two cards we can verify keep saying what they know, as a pill by the
+ * icon rather than a tick against a step:
  *
  *   • The rank tracker reports what is tracked and how much of it places, and
  *     with nothing tracked it opens the add panel directly (?add=1) rather than
@@ -37,17 +44,18 @@
  *     somebody else's domain. The backend doesn't validate the pairing on link
  *     either, so the domain check happens here.
  *
- * The rank tracker stays first and keeps its accent: every panel below this
- * card is computed from tracked keywords, and with none added the rest of the
- * page is decoration.
+ * The rank tracker stays first: every panel below this card is computed from
+ * tracked keywords, and with none added the rest of the page is decoration.
  */
 
-import type * as React from "react"
+import { useState, type ComponentType } from "react"
 import {
   AlertTriangle,
   ArrowUpRight,
   Bot,
   Check,
+  ChevronDown,
+  ChevronUp,
   Globe,
   KeyRound,
   LineChart,
@@ -232,17 +240,29 @@ function trackKeywordsStep(projectId: string, keywords: KeywordState, analysing:
 }
 
 /**
- * A tool tile. Same shape whether or not we can say anything about its state —
+/**
+ * A tool card. Same shape whether or not we can say anything about its state —
  * a tool we cannot verify still gets promoted, it just has no status line.
  */
 type Tool = {
   title: string
   description: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
+  /**
+   * The card's colour, as bare RGB channels so one value drives the icon chip,
+   * the corner glow and the hover ring. Tailwind cannot express "this card's
+   * hue" without a class per colour per use, and a class list that long is
+   * where a card ends up half-tinted.
+   *
+   * Kept off emerald and amber: those mean "confirmed" and "needs attention"
+   * everywhere else here, and a tool tinted emerald for being a tool would
+   * claim a state it has not got.
+   */
+  hue: string
   /** Confirmed state, when there is any: "10 tracked", "Connected". */
   status?: string
-  /** Needs attention. Replaces the status line and colours the tile amber. */
+  /** Needs attention. Overrides the hue and pulls the card into view. */
   warning?: string
   /** Work is already running — reported, not invited. */
   busy?: boolean
@@ -251,22 +271,16 @@ type Tool = {
 }
 
 /**
- * Tools in bands, because twelve identical tiles is a wall, not a menu — the
- * eye has nowhere to enter it and no way to skip the third of it that is not
- * what you came for.
+ * How many cards show before the expander.
  *
- * The bands are not the sidebar's five groups. Maps and AI hold one tool each
- * here, and a band of one reads as a mistake; three bands of four scan in a
- * glance and still land every tool in the place you would look for it.
+ * Six, not twelve. Twelve of these at three across is four rows of real card,
+ * which pushes Position Tracking and the rest of the dashboard below the fold
+ * on a laptop — the overview would open on a menu instead of on the project.
+ * Six is two rows and still promotes twice what the old checklist did.
  */
-type Band = {
-  label: string
-  /** Icon-chip tint for every tile in the band. */
-  accent: string
-  tools: Tool[]
-}
+const FEATURED = 6
 
-/** A step's verified state, mapped onto the tile that now carries it. */
+/** A step's verified state, mapped onto the card that now carries it. */
 function toolState(s: Step): Pick<Tool, "status" | "warning" | "busy"> {
   return {
     // Busy carries its CTA too ("Finding keywords…"): a spinner with no words
@@ -292,111 +306,110 @@ export function SetupCard({
   /** The automatic keyword analysis is in flight for this project. */
   keywordsAnalysing?: boolean
 }) {
+  const [expanded, setExpanded] = useState(false)
   const keywordStep = trackKeywordsStep(projectId, keywords, keywordsAnalysing)
   const gscStep = searchConsoleStep(projectId, gsc)
 
-  // One hue per band, and only the band's. Emerald and amber are NOT available
-  // to a chip: they mean "confirmed" and "needs attention" everywhere else on
-  // this page, and a tool tinted emerald for belonging to a category would
-  // claim a state it has not got.
-  const bands: Band[] = [
+  // Ordered by what a project reaches for first, because the first six are what
+  // most people will ever see of this card.
+  const tools: Tool[] = [
     {
-      label: "Rank tracking",
-      accent: "bg-primary/10 text-primary",
-      tools: [
-        {
-          title: "Keyword Rank Tracker",
-          description: keywordStep.description,
-          href: keywordStep.href,
-          icon: LineChart,
-          primary: true,
-          ...toolState(keywordStep),
-        },
-        {
-          title: "Google Maps Tracker",
-          description: "Track a business across a city grid and see where it drops out of the local pack.",
-          href: "/dashboard/google-maps-tracker",
-          icon: MapPin,
-        },
-        {
-          title: "YouTube Rank Tracker",
-          description: "Track videos on YouTube search, with the channel, views and length of everything above you.",
-          href: "/dashboard/youtube",
-          icon: Youtube,
-        },
-        {
-          title: "AI Prompt Tracker",
-          description: "Watch whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
-          href: "/dashboard/ai-prompt-tracker",
-          icon: Bot,
-        },
-      ],
+      title: "Keyword Rank Tracker",
+      description: keywordStep.description,
+      href: keywordStep.href,
+      icon: LineChart,
+      hue: "45 91 255",
+      primary: true,
+      ...toolState(keywordStep),
     },
     {
-      label: "Audit & analysis",
-      accent: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-      tools: [
-        {
-          title: "Full Website Audit",
-          description: auditRunning
-            ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
-            : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
-          href: "/dashboard/site-audit",
-          icon: ScanSearch,
-          ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
-        },
-        {
-          title: "Competitor Spy",
-          description: "See the domains sitting above you on your own keywords, and which searches they own that you do not.",
-          href: `/dashboard/project/${projectId}/competitor-spy`,
-          icon: Users,
-        },
-        {
-          title: "Internal Links Analysis",
-          description: "Find the pages your own site links to weakly, and the links worth adding.",
-          href: "/dashboard/ai-internal-linking",
-          icon: Link2,
-        },
-        {
-          title: "Search Console",
-          description: gscStep.description,
-          href: gscStep.href,
-          icon: Globe,
-          ...toolState(gscStep),
-        },
-      ],
+      title: "Full Website Audit",
+      description: auditRunning
+        ? "Crawling now — status codes, titles, headings and internal links. The report lands on this page."
+        : "Crawl the site with a real browser and get the technical faults that cap every page, in priority order.",
+      href: "/dashboard/site-audit",
+      icon: ScanSearch,
+      hue: "139 92 246",
+      ...(auditRunning ? { busy: true, status: "Crawling…" } : {}),
     },
     {
-      label: "Keyword research",
-      accent: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-      tools: [
-        {
-          title: "Keyword Magic Tool",
-          description: "Turn one seed keyword into hundreds of real ideas with volume, difficulty and intent.",
-          href: "/dashboard/keyword-magic",
-          icon: Sparkles,
-        },
-        {
-          title: "Keyword Score Checker",
-          description: "Score a keyword before you commit to it — how hard it is, and whether it is worth the work.",
-          href: "/dashboard/keyword-analysis",
-          icon: Search,
-        },
-        {
-          title: "Keywords",
-          description: "Every keyword you track, across every project, in one table.",
-          href: "/dashboard/keywords",
-          icon: KeyRound,
-        },
-        {
-          title: "Quick SERP Checker",
-          description: "Read a live SERP for any query and country, without adding it to a project first.",
-          href: "/dashboard/serp-checker",
-          icon: Zap,
-        },
-      ],
+      title: "Google Maps Tracker",
+      description: "Track a business across a city grid and see exactly where it drops out of the local pack.",
+      href: "/dashboard/google-maps-tracker",
+      icon: MapPin,
+      hue: "244 63 94",
+    },
+    {
+      title: "AI Prompt Tracker",
+      description: "Watch whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
+      href: "/dashboard/ai-prompt-tracker",
+      icon: Bot,
+      hue: "168 85 247",
+    },
+    {
+      title: "Keyword Magic Tool",
+      description: "Turn one seed keyword into hundreds of real ideas, with volume, difficulty and intent.",
+      href: "/dashboard/keyword-magic",
+      icon: Sparkles,
+      hue: "99 102 241",
+    },
+    {
+      title: "Competitor Spy",
+      description: "See the domains sitting above you on your own keywords, and the searches they own that you do not.",
+      href: `/dashboard/project/${projectId}/competitor-spy`,
+      icon: Users,
+      hue: "6 182 212",
+    },
+    {
+      title: "Keyword Score Checker",
+      description: "Score a keyword before you commit to it — how hard it is, and whether it is worth the work.",
+      href: "/dashboard/keyword-analysis",
+      icon: Search,
+      hue: "14 165 233",
+    },
+    {
+      title: "Quick SERP Checker",
+      description: "Read a live SERP for any query and country, without adding it to a project first.",
+      href: "/dashboard/serp-checker",
+      icon: Zap,
+      hue: "20 184 166",
+    },
+    {
+      title: "YouTube Rank Tracker",
+      description: "Track videos on YouTube search, with the channel, views and length of everything above you.",
+      href: "/dashboard/youtube",
+      icon: Youtube,
+      hue: "239 68 68",
+    },
+    {
+      title: "Keywords",
+      description: "Every keyword you track, across every project, in one table.",
+      href: "/dashboard/keywords",
+      icon: KeyRound,
+      hue: "79 70 229",
+    },
+    {
+      title: "Internal Links Analysis",
+      description: "Find the pages your own site links to weakly, and the links worth adding.",
+      href: "/dashboard/ai-internal-linking",
+      icon: Link2,
+      hue: "13 148 136",
+    },
+    {
+      title: "Search Console",
+      description: gscStep.description,
+      href: gscStep.href,
+      icon: Globe,
+      hue: "56 132 255",
+      ...toolState(gscStep),
     },
   ]
+
+  // A warning is the one thing that must not wait behind an expander: Search
+  // Console linked to a property that covers somebody else's domain is
+  // reporting the wrong site's numbers, and it sits eleventh in this list.
+  const visible = expanded ? tools : tools.filter((t, i) => i < FEATURED || !!t.warning)
+  const rest = tools.length - visible.length
 
   return (
     <Widget
@@ -405,94 +418,133 @@ export function SetupCard({
       hint="Everything in the product, reachable from this project. Start with the rank tracker — every panel below this card is measured against the keywords it holds."
       bodyClassName="p-5"
     >
-      <div className="flex flex-col gap-5">
-        {bands.map((band) => (
-          <section key={band.label}>
-            {/* Label + rule, at the same weight the tool-context panels use for
-                their headings, so a band reads as a divider between tiles
-                rather than as a heading with a card under it. */}
-            <div className="mb-2.5 flex items-center gap-3">
-              <h3 className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-                {band.label}
-              </h3>
-              <span className="h-px flex-1 bg-border" aria-hidden />
-            </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visible.map((tool) => {
+          // Amber takes the card over when something is wrong: a tile keeping
+          // its decorative hue while warning you is a tile arguing with itself.
+          const hue = tool.warning ? "245 158 11" : tool.hue
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {band.tools.map((tool) => (
-                <Link
-                  key={tool.title}
-                  href={tool.href}
-                  className={cn(
-                    "group relative flex h-full min-w-0 flex-col rounded-xl border bg-card p-4",
-                    "transition-[transform,box-shadow,border-color] duration-150",
-                    // Lift + a soft shadow rather than a background change: this
-                    // theme maps --accent to the brand blue (globals.css), so
-                    // anything hovering to bg-accent turns the whole tile into a
-                    // blue slab with unreadable body text under it.
-                    "hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_4px_14px_-6px_rgb(0_0_0/0.18)]",
-                    tool.warning && "border-amber-500/40",
-                    tool.primary && !tool.warning && "border-primary/25 bg-primary/[0.035]",
-                  )}
-                >
-                  <div className="flex items-start gap-3">
+          return (
+            <Link
+              key={tool.title}
+              href={tool.href}
+              style={{ ["--hue" as string]: hue }}
+              className={cn(
+                "group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border bg-card p-5",
+                "shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-[transform,box-shadow,border-color] duration-200",
+                // Lift and a coloured shadow rather than a background swap: this
+                // theme maps --accent to the brand blue (globals.css), so
+                // anything hovering to bg-accent turns a card into a blue slab
+                // with unreadable body text.
+                "hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgb(var(--hue)/0.45)]",
+                tool.warning ? "border-amber-500/40" : "border-border hover:border-[rgb(var(--hue)/0.45)]",
+              )}
+            >
+              {/* The card's light: a tint pooling in the top-right corner over a
+                  gentle vertical wash, which is the surface the stat strips on
+                  this dashboard already use. Behind the content, never over it. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-90 transition-opacity duration-200 group-hover:opacity-100"
+                style={{
+                  background:
+                    "radial-gradient(120% 140% at 100% 0%, rgb(var(--hue) / 0.10), transparent 58%)," +
+                    "linear-gradient(180deg, rgb(var(--hue) / 0.035), transparent 60%)",
+                }}
+              />
+
+              <div className="relative flex flex-1 flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <span
+                    className="grid size-11 shrink-0 place-items-center rounded-xl transition-transform duration-200 group-hover:scale-105"
+                    style={{
+                      background: "rgb(var(--hue) / 0.12)",
+                      color: "rgb(var(--hue))",
+                      // A hairline of the same hue, so the chip reads as a
+                      // pressed token rather than a flat square of colour.
+                      // Inset shadow rather than ring-1, which would depend on
+                      // Tailwind's internal --tw-ring-color surviving a version.
+                      boxShadow: "inset 0 0 0 1px rgb(var(--hue) / 0.22)",
+                    }}
+                  >
+                    {tool.busy ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      <tool.icon className="size-5" />
+                    )}
+                  </span>
+
+                  {(tool.status || tool.warning) && !tool.warning && (
                     <span
                       className={cn(
-                        "grid size-9 shrink-0 place-items-center rounded-lg",
-                        tool.warning
-                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                          : band.accent,
-                      )}
-                    >
-                      {tool.busy ? (
-                        <Loader2 className="size-[18px] animate-spin" />
-                      ) : (
-                        <tool.icon className="size-[18px]" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1 pt-1.5 text-[13.5px] font-semibold leading-tight">
-                      {tool.title}
-                    </span>
-                    {/* The only affordance on the tile, because the tile IS the
-                        link — it appears on hover so twelve arrows don't sit
-                        there competing at rest. */}
-                    <ArrowUpRight
-                      className="mt-1 size-4 shrink-0 -translate-x-1 text-muted-foreground opacity-0 transition-[transform,opacity] duration-150 group-hover:translate-x-0 group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </div>
-
-                  <p className="mt-2.5 flex-1 text-xs leading-relaxed text-muted-foreground">
-                    {tool.description}
-                  </p>
-
-                  {/* Only tiles we can verify carry a footer. The description
-                      takes the slack (flex-1), so the pills line up across a
-                      row whose text runs to different lengths. */}
-                  {tool.warning ? (
-                    <span className="mt-3 flex items-start gap-1.5 text-[11px] font-medium leading-snug text-amber-600 dark:text-amber-400">
-                      <AlertTriangle className="mt-px size-3 shrink-0" strokeWidth={2.5} />
-                      <span className="break-words">{tool.warning}</span>
-                    </span>
-                  ) : tool.status ? (
-                    <span
-                      className={cn(
-                        "mt-3 inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
                         tool.busy
                           ? "bg-primary/10 text-primary"
-                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                          : "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
                       )}
                     >
                       {!tool.busy && <Check className="size-3" strokeWidth={3} />}
                       {tool.status}
                     </span>
-                  ) : null}
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
+                  )}
+                </div>
+
+                <h3 className="mt-4 text-[15px] font-semibold leading-snug tracking-[-0.01em]">
+                  {tool.title}
+                </h3>
+
+                <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-muted-foreground">
+                  {tool.description}
+                </p>
+
+                {tool.warning && (
+                  <span className="mt-3 flex items-start gap-1.5 text-[11.5px] font-medium leading-snug text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="mt-px size-3.5 shrink-0" strokeWidth={2.5} />
+                    <span className="break-words">{tool.warning}</span>
+                  </span>
+                )}
+
+                {/* The CTA is styled text, not a Button: the whole card is
+                    already the link, and a real button inside an anchor is a
+                    second target for the same destination. It fills with the
+                    card's hue on hover so the affordance is unmistakable
+                    without shouting at rest. */}
+                <span
+                  className={cn(
+                    "mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold",
+                    "transition-colors duration-200",
+                  )}
+                  style={{ background: "rgb(var(--hue) / 0.10)", color: "rgb(var(--hue))" }}
+                >
+                  {tool.primary ? "Open tracker" : "Open"}
+                  <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </span>
+              </div>
+            </Link>
+          )
+        })}
       </div>
+
+      {rest > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-solid hover:bg-muted/50 hover:text-foreground"
+        >
+          Show {rest} more {rest === 1 ? "tool" : "tools"}
+          <ChevronDown className="size-3.5" />
+        </button>
+      )}
+      {expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-solid hover:bg-muted/50 hover:text-foreground"
+        >
+          Show fewer
+          <ChevronUp className="size-3.5" />
+        </button>
+      )}
     </Widget>
   )
 }
