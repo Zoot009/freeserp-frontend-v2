@@ -564,16 +564,6 @@ export default function SeoDashboardPage() {
               estTraffic={m.estTraffic}
             />
 
-            <SetupCard
-              projectId={projectId}
-              gsc={gscState}
-              keywords={
-                overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
-              }
-              auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
-              keywordsAnalysing={keywordsAnalysing}
-            />
-
             {/*
               ── The four main cards, in two independently-flowing columns ──
 
@@ -647,6 +637,26 @@ export default function SeoDashboardPage() {
               rangeLabel={RANGE_LABEL[range]}
               rangeDays={RANGE_DAYS[range]}
               gsc={gscState}
+            />
+
+            {/* Last, under the data.
+                This sat directly beneath the stat strip, which put a menu of
+                twelve things to go and do between the five headline figures and
+                the panels that explain them — the project's own numbers started
+                below the fold on a laptop, behind an advert for the rest of the
+                product. Somebody opening their dashboard came for the data.
+                It keeps every word of its copy: down here it has the room to
+                say what each tool is for, which is the point of promoting them
+                at all, and it is the natural next thing to read once the
+                numbers have been read. */}
+            <SetupCard
+              projectId={projectId}
+              gsc={gscState}
+              keywords={
+                overview ? { total: overview.stats.totalKeywords, ranked: overview.stats.ranked } : null
+              }
+              auditRunning={auditStatus === "QUEUED" || auditStatus === "RUNNING"}
+              keywordsAnalysing={keywordsAnalysing}
             />
 
             <DashboardFooter refreshed={refreshed} />

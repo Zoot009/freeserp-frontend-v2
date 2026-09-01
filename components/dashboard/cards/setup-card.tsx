@@ -20,11 +20,14 @@
  * strips already use), a coloured shadow it lifts into on hover, and a CTA
  * filled in the same hue.
  *
- * Six show; the rest are one click behind the expander. Twelve of these at
- * three across is four rows of card, which would push Position Tracking and
- * everything under it below the fold on a laptop — the overview would open on
- * a menu instead of on the project. A tool carrying a WARNING is pulled in
- * front of that expander regardless of where it sits in the list.
+ * All twelve show. There was an expander here holding six of them back, for a
+ * good reason at the time: the card sat directly under the stat strip, and
+ * four rows of card between the headline figures and the panels that explain
+ * them meant the project's own numbers started below the fold. The card lives
+ * at the FOOT of the overview now, under the data, where hiding half the
+ * product behind a click buys nothing and costs the promotion this card exists
+ * to do. It is also where a reader arrives having already seen their numbers,
+ * which is the moment "what else is there" is a real question.
  *
  * The whole card is the link. There is no separate button, because a button
  * inside an anchor is a second target for the same destination.
@@ -44,18 +47,17 @@
  *     somebody else's domain. The backend doesn't validate the pairing on link
  *     either, so the domain check happens here.
  *
- * The rank tracker stays first: every panel below this card is computed from
- * tracked keywords, and with none added the rest of the page is decoration.
+ * The rank tracker stays first among the twelve: every panel above this card
+ * is computed from tracked keywords, and with none added the rest of the page
+ * is decoration.
  */
 
-import { useState, type ComponentType } from "react"
+import type { ComponentType } from "react"
 import {
   AlertTriangle,
   ArrowUpRight,
   Bot,
   Check,
-  ChevronDown,
-  ChevronUp,
   Globe,
   KeyRound,
   LineChart,
@@ -270,16 +272,6 @@ type Tool = {
   primary?: boolean
 }
 
-/**
- * How many cards show before the expander.
- *
- * Six, not twelve. Twelve of these at three across is four rows of real card,
- * which pushes Position Tracking and the rest of the dashboard below the fold
- * on a laptop — the overview would open on a menu instead of on the project.
- * Six is two rows and still promotes twice what the old checklist did.
- */
-const FEATURED = 6
-
 /** A step's verified state, mapped onto the card that now carries it. */
 function toolState(s: Step): Pick<Tool, "status" | "warning" | "busy"> {
   return {
@@ -306,7 +298,6 @@ export function SetupCard({
   /** The automatic keyword analysis is in flight for this project. */
   keywordsAnalysing?: boolean
 }) {
-  const [expanded, setExpanded] = useState(false)
   const keywordStep = trackKeywordsStep(projectId, keywords, keywordsAnalysing)
   const gscStep = searchConsoleStep(projectId, gsc)
 
@@ -405,21 +396,15 @@ export function SetupCard({
     },
   ]
 
-  // A warning is the one thing that must not wait behind an expander: Search
-  // Console linked to a property that covers somebody else's domain is
-  // reporting the wrong site's numbers, and it sits eleventh in this list.
-  const visible = expanded ? tools : tools.filter((t, i) => i < FEATURED || !!t.warning)
-  const rest = tools.length - visible.length
-
   return (
     <Widget
       id="setup"
       title="Your tools"
-      hint="Everything in the product, reachable from this project. Start with the rank tracker — every panel below this card is measured against the keywords it holds."
+      hint="Everything in the product, reachable from this project. The rank tracker leads because every panel above this card is measured against the keywords it holds."
       bodyClassName="p-5"
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {visible.map((tool) => {
+        {tools.map((tool) => {
           // Amber takes the card over when something is wrong: a tile keeping
           // its decorative hue while warning you is a tile arguing with itself.
           const hue = tool.warning ? "245 158 11" : tool.hue
@@ -524,27 +509,6 @@ export function SetupCard({
           )
         })}
       </div>
-
-      {rest > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-solid hover:bg-muted/50 hover:text-foreground"
-        >
-          Show {rest} more {rest === 1 ? "tool" : "tools"}
-          <ChevronDown className="size-3.5" />
-        </button>
-      )}
-      {expanded && (
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:border-solid hover:bg-muted/50 hover:text-foreground"
-        >
-          Show fewer
-          <ChevronUp className="size-3.5" />
-        </button>
-      )}
     </Widget>
   )
 }
