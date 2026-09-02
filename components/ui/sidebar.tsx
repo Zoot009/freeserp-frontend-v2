@@ -40,6 +40,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  peek: boolean
+  setPeek: (peek: boolean) => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -68,6 +70,10 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  // Set while the pointer is over a hover-to-open rail. Deliberately separate
+  // from `open`: a peek is a look, not a choice, so it expands the rail without
+  // touching the pinned state or writing the cookie that remembers it.
+  const [peek, setPeek] = React.useState(false)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -111,7 +117,7 @@ function SidebarProvider({
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
-  const state = open ? 'expanded' : 'collapsed'
+  const state = open || peek ? 'expanded' : 'collapsed'
 
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
@@ -122,8 +128,10 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      peek,
+      setPeek,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, peek],
   )
 
   return (
@@ -155,6 +163,7 @@ function Sidebar({
   side = 'left',
   variant = 'sidebar',
   collapsible = 'offcanvas',
+  hoverToOpen = false,
   className,
   children,
   ...props
@@ -162,8 +171,46 @@ function Sidebar({
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
   collapsible?: 'offcanvas' | 'icon' | 'none'
+  /**
+   * Expand the collapsed rail while the pointer is over it, and collapse it
+   * again on the way out. The rail stays the resting state — nothing is pinned
+   * — but while it is open it takes the same room a pinned sidebar would, so
+   * the page beside it makes way rather than being covered. Pointer-only, so
+   * the trigger and the mobile sheet are still the way in without a mouse.
+   */
+  hoverToOpen?: boolean
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, open, setPeek } =
+    useSidebar()
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const leaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Peeking only ever widens the rail, so a pinned-open sidebar ignores hover.
+  const peekable = hoverToOpen && collapsible === 'icon' && !isMobile && !open
+
+  const cancelLeave = React.useCallback(() => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current)
+    leaveTimer.current = null
+  }, [])
+  React.useEffect(() => cancelLeave, [cancelLeave])
+
+  const onEnter = () => {
+    if (!peekable) return
+    cancelLeave()
+    setPeek(true)
+  }
+  // A grace period, because the pointer clipping the edge on its way past
+  // shouldn't snap the rail shut mid-animation. A menu opened from inside the
+  // sidebar portals its content out of it, so leaving the rail for that menu
+  // reads as leaving the sidebar — hold the peek until the menu closes.
+  const onLeave = () => {
+    if (!peekable) return
+    cancelLeave()
+    leaveTimer.current = setTimeout(() => {
+      if (rootRef.current?.querySelector('[data-state="open"]')) return
+      setPeek(false)
+    }, 150)
+  }
 
   if (collapsible === 'none') {
     return (
@@ -207,12 +254,15 @@ function Sidebar({
 
   return (
     <div
+      ref={rootRef}
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === 'collapsed' ? collapsible : ''}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
     >
       {/* This is what handles the sidebar gap on desktop */}
       <div
@@ -374,7 +424,7 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        'flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
+        'flex min-h-0 flex-1 flex-col gap-1 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
         className,
       )}
       {...props}
@@ -387,7 +437,7 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="sidebar-group"
       data-sidebar="group"
-      className={cn('relative flex w-full min-w-0 flex-col p-2', className)}
+      className={cn('relative flex w-full min-w-0 flex-col px-2 py-1', className)}
       {...props}
     />
   )
@@ -405,8 +455,12 @@ function SidebarGroupLabel({
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
-        'text-sidebar-foreground/70 ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
-        'group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
+        'text-sidebar-foreground/70 ring-sidebar-ring flex h-6 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
+        // Fades out on the rail but keeps its row. Collapsing the row to zero
+        // height (the -mt-8 this replaces) pulled every icon below it up by
+        // 32px, so opening the sidebar slid the whole nav down past the cursor.
+        // The gap it leaves is what separates one group of icons from the next.
+        'group-data-[collapsible=icon]:opacity-0',
         className,
       )}
       {...props}
@@ -474,7 +528,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0',
+  'peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>*]:transition-opacity [&>*]:duration-[160ms] [&>*]:ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[collapsible=icon]:[&>*:not(:first-child)]:opacity-0',
   {
     variants: {
       variant: {

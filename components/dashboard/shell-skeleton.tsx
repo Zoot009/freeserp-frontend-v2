@@ -101,9 +101,9 @@ export function SeoTilesSkeleton() {
 }
 
 export function DashboardSkeleton() {
+  // Collapsed, like the real shell — otherwise the skeleton lays out a
+  // full-width sidebar and the page jumps a rail's width once it loads.
   return (
-    // Collapsed, because that is what the shell it stands in for opens as —
-    // a skeleton with a full-width nav would widen and snap back on load.
     <SidebarProvider defaultOpen={false}>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
