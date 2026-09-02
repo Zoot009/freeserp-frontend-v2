@@ -1514,5 +1514,179 @@
     "loading": "Wird geladen…",
     "cancel": "Abbrechen",
     "close": "Schließen"
+  },
+  "toolContext": {
+    "hide": "Ausblenden",
+    "show": "Wofür ist dieses Werkzeug da?",
+    "aria": "Über dieses Werkzeug",
+    "google-tracker": {
+      "lede": "Verfolgt, auf welcher Position Ihre Domain in der Suche für die von Ihnen gewählten Keywords steht — in der Suchmaschine und dem Land Ihrer Wahl — und hält diese Position als Verlauf fest.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Eine einzelne Position ist eine Momentaufnahme; das Signal ist die Linie, die sie zeichnet. Der Verlauf zeigt, ob eine Seite Boden gutmacht, überholt wird oder nach einer Änderung abrutscht — was eine einmalige Suche nie leisten kann."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Ein Projekt pro Domain, die Keywords darunter. Jede Prüfung speichert eine echte Position je Keyword, der Verlauf einer Karte ist also aufgezeichnete Historie und keine Schätzung. Projekte ohne Prüfungen zeigen gar keinen Verlauf — und keine flache Linie."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Verfolgt, auf welcher Position die Ergebnisse eines Kanals oder Videos in der YouTube-Suche für die von Ihnen hinzugefügten Keywords erscheinen.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "YouTube ist die zweitgrößte Suchmaschine, und ihre Rankings bewegen sich aus eigenen Gründen: Alter, Wiedergabezeit und Länge zählen so viel wie die Wörter im Titel. Aufrufe und Alter stehen neben der Position, weil sie eine Bewegung erklären."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Ergebnisse sind personalisiert und verschieben sich im Lauf des Tages — behandeln Sie eine Position als Tendenz, nicht als exakten Rang. Die Tiefe legt fest, wie weit eine Prüfung schaut: Ein Video auf Platz 34 ist für eine Top-20-Prüfung schlicht unsichtbar."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Tastet ein Raster von Punkten rund um einen Ort ab und meldet für jeden, an welcher Stelle ein Unternehmen in den Google-Maps-Ergebnissen erscheint.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Lokales Ranking ist keine einzelne Zahl — es ändert sich von Straße zu Straße. Ein Unternehmen kann an der eigenen Adresse auf Platz eins stehen und drei Kilometer weiter verschwinden; eine Prüfung an nur einem Punkt würde das nie zeigen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Jede Zelle des Rasters ist eine echte Suche von genau dieser Koordinate aus. Lesen Sie die Form, nicht den Durchschnitt: ein starkes Zentrum mit schwachen Rändern ist ein anderes Problem als überall schwach zu sein."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Verfolgt, ob KI-Assistenten Ihre Marke nennen, wenn man ihnen die Fragen stellt, die Ihre Kunden stellen.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Die Antwort eines Assistenten ersetzt zunehmend den Klick auf einen blauen Link. Empfiehlt ein Modell drei Unternehmen Ihrer Kategorie und keines davon sind Sie, ist das die neue Seite zwei — und in keinem Ihrer Ranking-Berichte sichtbar."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Verfolgen Sie Fragen, die ein echter Kunde eintippen würde, keine Keywords. Jeder Lauf hält fest, welche Marken genannt und welche Quellen zitiert wurden — Sie sehen also, wer an Ihrer Stelle empfohlen wird und woher das Modell es bezieht."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Alle Keywords, die Sie verfolgen, über sämtliche Projekte hinweg, in einer Liste.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Eine Projektseite beantwortet „Wie läuft diese Website?“. Diese hier beantwortet „Wo bin ich insgesamt stark oder schwach?“ — Ihre besten und schlechtesten Positionen und dasselbe Keyword über mehrere Websites hinweg, ohne jedes Projekt einzeln zu öffnen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Sortieren Sie nach Position, um zu finden, was fast da ist: Keywords zwischen Platz 11 und 20 sind meist eine Verbesserung von Seite eins entfernt — und dort liegen nahezu alle Klicks."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "Die Projekte und Keywords, die Sie markiert haben, an einem Ort gesammelt.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Wer Hunderte Keywords verfolgt, verliert die zwölf aus den Augen, die tatsächlich die Rechnungen bezahlen. Das hier ist das Arbeitsset, das Sie zuerst prüfen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Markieren Sie etwas in seiner Zeile oder Karte, und es erscheint hier. Nichts wird kopiert oder dupliziert — es sind dieselben Einträge, nur gesammelt."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Führt eine einzelne Suche aus und zeigt Ihnen die Ergebnisseite live, ohne etwas zu einem Projekt hinzuzufügen.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Für die Frage, die Sie gerade jetzt haben — wer rankt dafür, wie sieht die Seite in diesem Land aus — wenn Sie das Keyword nicht für immer verfolgen wollen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Hier wird nichts zu einem Projekt gespeichert und kein Verlauf geführt. Zählt die Antwort auch nächste Woche noch, verfolgen Sie das Keyword stattdessen."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Macht aus einem Ausgangs-Keyword Hunderte echter Ideen — mit Suchvolumen, Schwierigkeit, CPC und Suchintention.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Das Keyword, das einem zuerst einfällt, ist meist das schwerste im Markt. Der erreichbare Traffic liegt in den Varianten drumherum, und die lassen sich nicht erraten: Volumen und Schwierigkeit müssen aus Daten kommen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Die Intention entscheidet, was Sie bauen: Informationsbegriffe verlangen einen Artikel, transaktionale eine Produkt- oder Leistungsseite. Die Schwierigkeit entscheidet, ob Sie es mit Ihrer heutigen Autorität realistisch holen können."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Crawlt eine Ihrer eigenen Seiten und bewertet sie gegen ein Ziel-Keyword — On-Page und Off-Page, ganz ohne Wettbewerber.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Wenn eine Seite partout nicht rankt, sagt Ihnen das hier, ob die Seite selbst das Problem ist — bevor Sie einen Monat in Links oder Wettbewerbsrecherche stecken."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Die Punktzahl ist die Zusammenfassung; die Arbeit sind die fehlgeschlagenen Prüfungen. Sie kommen nach Priorität zurück — fangen Sie oben an, statt die Liste leerräumen zu wollen."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Crawlt von einer URL aus mit einem echten Browser weiter, wendet 63 SEO-Regeln auf jede erreichte Seite an und fasst die Befunde über die Website zusammen.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Technische Fehler tauchen in keinem Ranking-Bericht auf. Sie deckeln still, was jede Seite der Website erreichen kann, egal wie gut der Inhalt ist — und die, die zuerst behoben gehören, sind meist jene, die sich über Hunderte Seiten wiederholen. Das zeigt nur ein Crawl."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Der echte Browser ist der Punkt: Er sieht, was tatsächlich gerendert wird, auch von JavaScript Eingefügtes, statt des rohen HTML, das ein einfacher Abruf liefern würde. Beginnen Sie mit der Website-Zusammenfassung — sie zählt, wie viele Seiten sich einen Fehler teilen — und öffnen Sie dann eine Seite, um ihn im Kontext zu sehen. Wie weit der Crawl reicht, hängt von Ihrem Tarif ab."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Prüft eine einzelne URL mit einem echten Browser und wendet dieselben 63 SEO-Regeln auf das an, was wirklich lädt.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Eine Seite auf einmal ist das richtige Werkzeug, wenn Sie gerade etwas geändert haben oder wenn eine Seite mehr zählt als der Rest: eine Landingpage, eine Produktseite, die eine, die ranken soll. Es kostet einen Bruchteil eines vollen Crawls und antwortet in Sekunden."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Die Probleme kommen nach Priorität und mit der genauen Lösung — arbeiten Sie sich von oben nach unten. Wirken die Fehler eher nach Template als nach dieser Seite, starten Sie ein vollständiges Website-Audit, um zu sehen, wie viele andere Seiten sie teilen."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Crawlt Ihre Website und die von Ihnen genannten Wettbewerber für ein Keyword und stellt sie nebeneinander.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Ranking ist relativ, nicht absolut. Keine Punktzahl bringt eine Seite nach oben — nur besser zu sein als genau die Seiten, die heute für genau diese Suche darüber stehen."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Suchen Sie die Lücken, die sich bei allen Wettbewerbern über Ihnen wiederholen. Macht ein Rivale etwas, ist das seine Entscheidung; machen es alle, ist das die Messlatte für dieses Keyword."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Crawlt die internen Links einer Domain und zeigt, wie sich Autorität zwischen ihren Seiten bewegt.",
+      "points": [
+        {
+          "head": "Warum das zählt",
+          "body": "Interne Links sind der einzige Ranking-Faktor, den Sie vollständig steuern — kein Anschreiben, kein Warten. Eine verwaiste Seite erhält nichts von der Autorität Ihrer Website, so gut sie auch sein mag."
+        },
+        {
+          "head": "Wie Sie es lesen",
+          "body": "Verwaiste Seiten brauchen einen Link von einer passenden Stelle. Hubs sind dort, wo Sie Autorität zu vergeben haben — ein dort gesetzter Link ist mehr wert als derselbe Link an anderer Stelle."
+        }
+      ]
+    }
   }
 }

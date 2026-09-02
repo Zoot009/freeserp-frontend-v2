@@ -1514,5 +1514,179 @@
     "loading": "Cargando…",
     "cancel": "Cancelar",
     "close": "Cerrar"
+  },
+  "toolContext": {
+    "hide": "Ocultar",
+    "show": "¿Para qué sirve esta herramienta?",
+    "aria": "Acerca de esta herramienta",
+    "google-tracker": {
+      "lede": "Registra en qué posición aparece tu dominio en las búsquedas para las palabras clave que elijas, en el buscador y el país que elijas, y guarda esa posición como historial.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Una posición aislada es una anécdota; la señal es la línea que dibuja. La tendencia te dice si una página está ganando terreno, si la están adelantando o si cae tras un cambio que hiciste, algo que una búsqueda puntual nunca puede mostrar."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Un proyecto por dominio, con sus palabras clave debajo. Cada comprobación guarda una posición real por palabra clave, así que la tendencia de una tarjeta es historial registrado, no una estimación. Un proyecto sin comprobaciones no muestra ninguna tendencia, no una línea plana."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Registra en qué posición aparecen los resultados de un canal o un vídeo en la búsqueda de YouTube para las palabras clave que añadas.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "YouTube es el segundo buscador más grande, y sus posiciones se mueven por razones que no son las de Google: la antigüedad, el tiempo de visualización y la duración pesan tanto como las palabras del título. Las visitas y la antigüedad aparecen junto a la posición porque son lo que explica un movimiento."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Los resultados están personalizados y cambian a lo largo del día, así que trata la posición como una tendencia, no como un puesto exacto. La profundidad marca hasta dónde mira una comprobación: un vídeo en el puesto 34 es sencillamente invisible para una comprobación de Top 20."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Recorre una cuadrícula de puntos alrededor de una ubicación e indica en cada uno en qué posición aparece un negocio en los resultados de Google Maps.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La posición local no es un único número: cambia calle a calle. Un negocio puede ser el primero en su propia dirección y desaparecer tres kilómetros más allá, y una comprobación en un solo punto nunca lo mostraría."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Cada celda de la cuadrícula es una búsqueda real lanzada desde esa coordenada. Lee la forma, no el promedio: un centro fuerte con bordes débiles es un problema distinto al de ser débil en todas partes."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Comprueba si los asistentes de IA mencionan tu marca cuando les hacen las preguntas que hacen tus clientes.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La respuesta de un asistente sustituye cada vez más al clic en un enlace azul. Si un modelo recomienda tres empresas de tu categoría y ninguna eres tú, esa es la nueva página dos, y es invisible en todos los informes de posiciones que tienes."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Sigue preguntas que escribiría un cliente real, no palabras clave. Cada ejecución registra qué marcas se mencionaron y qué fuentes se citaron, así que ves a quién están recomendando en tu lugar y de dónde lo está sacando el modelo."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Todas las palabras clave que sigues, de todos tus proyectos, en una sola lista.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La página de un proyecto responde a «cómo va este sitio». Esta responde a «dónde soy fuerte o débil en conjunto»: tus mejores y peores posiciones, y una misma palabra clave en varios sitios, sin abrir cada proyecto uno por uno."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Ordena por posición para encontrar lo que está a punto: las palabras clave entre el puesto 11 y el 20 suelen estar a una mejora de la primera página, que es donde se concentran casi todos los clics."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "Los proyectos y las palabras clave que marcaste, reunidos en un solo sitio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Seguir cientos de palabras clave significa que la docena que de verdad paga las facturas se pierde entre ellas. Este es el conjunto de trabajo que consultas primero."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Marca cualquier cosa desde su fila o su tarjeta y aparecerá aquí. Nada se copia ni se duplica: son los mismos elementos, solo que reunidos."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Lanza una sola búsqueda y te muestra la página de resultados en vivo, sin añadir nada a un proyecto.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Para la pregunta que tienes ahora mismo — quién se posiciona por esto, qué aspecto tiene la página en ese país — cuando no quieres seguir esa palabra clave para siempre."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Aquí no se guarda nada en ningún proyecto ni se conserva historial. Si la respuesta también importa la semana que viene, sigue la palabra clave en su lugar."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Convierte una palabra clave semilla en cientos de ideas reales, con volumen de búsqueda, dificultad, CPC e intención.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La palabra clave que se te ocurre primero suele ser la más difícil de tu mercado. El tráfico que puedes ganar está en las variantes que la rodean, y esas no se adivinan: el volumen y la dificultad tienen que salir de los datos."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "La intención decide qué construir: un término informativo pide un artículo, uno transaccional una página de producto o servicio. La dificultad decide si puedes quedártelo de forma realista con la autoridad que tienes ahora."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Rastrea una de tus propias páginas y la puntúa frente a una palabra clave objetivo — on-page y off-page, sin competidores de por medio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Cuando una página no hay manera de posicionarla, esto te dice si el problema es la página misma antes de que dediques un mes a enlaces o a estudiar competidores."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "La puntuación es un resumen; el trabajo son las comprobaciones que fallan. Vuelven en orden de prioridad, así que empieza por arriba en lugar de intentar vaciar la lista."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Rastrea un sitio a partir de una URL con un navegador real, aplica 63 reglas SEO a cada página que alcanza y agrupa los hallazgos a escala del sitio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Los fallos técnicos nunca aparecen en un informe de posiciones. Simplemente limitan en silencio lo que puede lograr cada página del sitio, por bueno que sea el contenido; y los que conviene arreglar primero suelen ser los que se repiten en cientos de páginas, algo que solo un rastreo puede mostrarte."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "El navegador real es lo importante: ve lo que se renderiza de verdad, incluido lo que inyecta el JavaScript, y no el HTML en bruto que devolvería una petición simple. Empieza por el resumen del sitio — cuenta cuántas páginas comparten cada fallo — y luego abre una página para verlo en su sitio. Hasta dónde llega el rastreo depende de tu plan."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Audita una sola URL con un navegador real y aplica esas mismas 63 reglas SEO a lo que realmente se carga.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Una página cada vez es la herramienta adecuada cuando acabas de cambiar algo, o cuando una página importa más que el resto: una landing, una ficha de producto, la que intentas posicionar. Cuesta una fracción de un rastreo completo y responde en segundos."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Los problemas llegan por orden de prioridad y con la corrección exacta, así que baja desde arriba. Si los fallos parecen de la plantilla y no de la página, lanza una auditoría completa del sitio para saber cuántas páginas más los comparten."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Rastrea tu sitio y los competidores que indiques para una palabra clave, y luego los compara lado a lado.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Posicionarse es relativo, no absoluto. No hay ninguna puntuación que haga que una página se posicione: solo ser mejor que las páginas concretas que hoy están por encima para esa búsqueda concreta."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Busca las carencias que se repiten en todos los competidores que tienes por delante. Que un rival haga algo es una decisión suya; que lo hagan todos es el listón de esa palabra clave."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Rastrea los enlaces internos de un dominio y traza cómo circula la autoridad entre sus páginas.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Los enlaces internos son el único factor de posicionamiento que controlas por completo: sin contactar a nadie y sin esperar. Una página huérfana no recibe nada de la autoridad de tu sitio, por buena que sea."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Las huérfanas necesitan un enlace desde algún sitio relevante. Los concentradores son donde tienes autoridad que gastar, así que un enlace añadido ahí vale más que el mismo enlace añadido en cualquier otro sitio."
+        }
+      ]
+    }
   }
 }

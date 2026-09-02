@@ -1514,5 +1514,179 @@
     "loading": "Chargement…",
     "cancel": "Annuler",
     "close": "Fermer"
+  },
+  "toolContext": {
+    "hide": "Masquer",
+    "show": "À quoi sert cet outil ?",
+    "aria": "À propos de cet outil",
+    "google-tracker": {
+      "lede": "Suit la position de votre domaine dans les résultats de recherche pour les mots-clés que vous choisissez, sur le moteur et dans le pays de votre choix, et conserve cette position dans l'historique.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Une position isolée est anecdotique ; c'est la courbe qu'elle dessine qui est le signal. La tendance vous dit si une page progresse, se fait dépasser ou décroche après une modification que vous avez faite — ce qu'une recherche ponctuelle ne montrera jamais."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Un projet par domaine, les mots-clés en dessous. Chaque vérification enregistre une position réelle par mot-clé : la tendance d'une carte est donc un historique constaté, pas une estimation. Un projet sans vérification n'affiche aucune tendance, et non une ligne plate."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Suit la position des résultats d'une chaîne ou d'une vidéo dans la recherche YouTube pour les mots-clés que vous ajoutez.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "YouTube est le deuxième moteur de recherche au monde, et son classement bouge pour des raisons propres : l'ancienneté, la durée de visionnage et la longueur comptent autant que les mots du titre. Les vues et l'ancienneté figurent à côté de la position parce que ce sont elles qui expliquent un mouvement."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les résultats sont personnalisés et évoluent au fil de la journée : traitez une position comme une tendance, pas comme un rang exact. La profondeur détermine jusqu'où descend la vérification — une vidéo en 34e position est tout simplement invisible pour une vérification Top 20."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Balaie une grille de points autour d'un lieu et indique à chacun d'eux la position d'un établissement dans les résultats Google Maps.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le classement local n'est pas un chiffre unique : il change d'une rue à l'autre. Un établissement peut être premier à sa propre adresse et disparaître trois kilomètres plus loin, ce qu'une vérification en un seul point ne montrerait jamais."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Chaque cellule de la grille correspond à une recherche réelle lancée depuis cette coordonnée. Lisez la forme, pas la moyenne : un centre solide avec des bords faibles n'est pas le même problème qu'une faiblesse partout."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Vérifie si les assistants IA citent votre marque lorsqu'on leur pose les questions que posent vos clients.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "La réponse d'un assistant remplace de plus en plus le clic sur un lien bleu. Si un modèle recommande trois entreprises de votre secteur et qu'aucune n'est la vôtre, c'est la nouvelle page deux — et elle est invisible dans tous vos rapports de positionnement."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Suivez des requêtes qu'un vrai client taperait, pas des mots-clés. Chaque exécution enregistre les marques citées et les sources utilisées : vous voyez qui est recommandé à votre place et où le modèle est allé le chercher."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Tous les mots-clés que vous suivez, tous projets confondus, dans une seule liste.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "La page d'un projet répond à « comment se porte ce site ». Celle-ci répond à « où suis-je fort ou faible globalement » : vos meilleures et vos pires positions, et un même mot-clé sur plusieurs sites, sans ouvrir chaque projet l'un après l'autre."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Triez par position pour repérer ce qui est presque acquis : un mot-clé entre la 11e et la 20e place n'est généralement qu'à une amélioration de la première page, là où se concentrent presque tous les clics."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "Les projets et les mots-clés que vous avez mis en favori, réunis au même endroit.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Quand on suit des centaines de mots-clés, la dizaine qui fait réellement vivre l'activité se perd dans la masse. Voici l'ensemble de travail que vous consultez en premier."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Mettez en favori depuis n'importe quelle ligne ou carte et l'élément apparaît ici. Rien n'est copié ni dupliqué : ce sont les mêmes éléments, simplement rassemblés."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Lance une seule recherche et affiche la page de résultats en direct, sans rien ajouter à un projet.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Pour la question que vous vous posez maintenant — qui se classe sur ce terme, à quoi ressemble la page dans ce pays — quand vous ne voulez pas suivre ce mot-clé indéfiniment."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Rien n'est enregistré dans un projet et aucun historique n'est conservé. Si la réponse compte aussi la semaine prochaine, suivez plutôt le mot-clé."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Transforme un mot-clé de départ en des centaines d'idées réelles, avec volume de recherche, difficulté, CPC et intention.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le mot-clé auquel on pense en premier est presque toujours le plus difficile de son marché. C'est dans les variantes qui l'entourent que se trouve le trafic accessible, et cela ne se devine pas : le volume et la difficulté doivent venir des données."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "L'intention détermine ce qu'il faut produire : un terme informationnel appelle un article, un terme transactionnel une page produit ou service. La difficulté détermine si vous pouvez réellement le prendre avec votre autorité actuelle."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Explore une de vos pages et la note face à un mot-clé cible — on-page et off-page, sans faire intervenir de concurrents.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Quand une page refuse de se classer, cet outil vous dit si le problème vient de la page elle-même, avant de passer un mois sur les liens ou l'analyse des concurrents."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "La note est un résumé ; ce sont les contrôles échoués qui constituent le travail. Ils reviennent par ordre de priorité : commencez par le haut plutôt que de vouloir vider la liste."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Explore un site à partir d'une URL avec un vrai navigateur, applique 63 règles SEO à chaque page atteinte et regroupe les constats à l'échelle du site.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Les défauts techniques n'apparaissent jamais dans un rapport de positionnement. Ils plafonnent silencieusement ce que chaque page du site peut atteindre, aussi bon soit le contenu — et ceux qu'il faut corriger en premier sont généralement ceux qui se répètent sur des centaines de pages, ce que seule une exploration peut révéler."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Le vrai navigateur est essentiel : il voit ce qui s'affiche réellement, y compris ce qu'injecte le JavaScript, et non le HTML brut que renverrait une simple requête. Commencez par la synthèse du site — elle compte combien de pages partagent chaque défaut — puis ouvrez une page pour le voir en contexte. La profondeur de l'exploration dépend de votre offre."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Audite une seule URL avec un vrai navigateur et applique les mêmes 63 règles SEO à ce qui se charge réellement.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Une page à la fois, c'est le bon outil quand vous venez de modifier quelque chose, ou quand une page compte plus que les autres : une page d'atterrissage, une fiche produit, celle que vous cherchez à positionner. Cela coûte une fraction d'une exploration complète et répond en quelques secondes."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les problèmes arrivent par ordre de priorité avec le correctif exact : descendez la liste depuis le haut. Si les défauts semblent relever du gabarit plutôt que de la page, lancez un audit complet du site pour savoir combien d'autres pages les partagent."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Explore votre site et les concurrents que vous désignez pour un mot-clé, puis les compare côte à côte.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le classement est relatif, pas absolu. Aucun score ne fait se classer une page : il s'agit seulement d'être meilleur que les pages précises qui la devancent aujourd'hui sur cette recherche précise."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Cherchez les écarts qui se répètent chez tous les concurrents placés devant vous. Un seul rival qui fait quelque chose, c'est un choix ; tous qui le font, c'est le niveau exigé pour ce mot-clé."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Explore les liens internes d'un domaine et cartographie la circulation de l'autorité entre ses pages.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Les liens internes sont le seul facteur de classement que vous maîtrisez entièrement : ni démarchage, ni attente. Une page orpheline ne reçoit rien de l'autorité de votre site, aussi bonne soit-elle."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les pages orphelines ont besoin d'un lien depuis un endroit pertinent. Les pages pivots sont celles où vous avez de l'autorité à dépenser : un lien ajouté là vaut plus que le même lien ajouté ailleurs."
+        }
+      ]
+    }
   }
 }
