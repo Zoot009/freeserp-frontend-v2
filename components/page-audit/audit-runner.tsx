@@ -37,6 +37,10 @@ type JobState = {
   jobId: string
   state: string
   progress: number
+  /** Live crawl detail. Present only while the crawl phase is running. */
+  pagesDone?: number | null
+  pagesKnown?: number | null
+  recent?: { url: string; ok: boolean }[] | null
   reportId: string | null
   status: "PROCESSING" | "COMPLETED" | "FAILED"
   error: string | null
@@ -312,9 +316,12 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
           lands in the history either way. */}
       {running && !hideProgress && (
         <AuditProgressOverlay
-          url={url}
+          url={url.trim()}
           mode={mode}
           progress={job.progress}
+          pagesDone={job.pagesDone}
+          pagesKnown={job.pagesKnown}
+          recent={job.recent}
           onHide={() => setHideProgress(true)}
         />
       )}

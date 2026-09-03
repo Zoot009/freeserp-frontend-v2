@@ -58,15 +58,38 @@ const TIPS = [
 
 const TIP_INTERVAL_MS = 5_000
 
+/** One page the crawler has just been through. */
+export type CrawledPage = { url: string; ok: boolean }
+
+/** Just the path, which is what identifies a page inside one site. */
+function pagePath(raw: string): string {
+  try {
+    const u = new URL(raw)
+    const p = u.pathname === "/" ? "/" : u.pathname.replace(/\/$/, "")
+    return (p + u.search).slice(0, 64)
+  } catch {
+    return raw.slice(0, 64)
+  }
+}
+
 export function AuditProgressOverlay({
   url,
   mode,
   progress,
+  pagesDone,
+  pagesKnown,
+  recent,
   onHide,
 }: {
   url: string
   mode: "single" | "site"
   progress: number
+  /** Pages crawled so far, while the crawl is running. Null outside it. */
+  pagesDone?: number | null
+  /** Best current estimate of the total. Grows as links are discovered. */
+  pagesKnown?: number | null
+  /** Most recent pages, newest first. Null once the crawl has finished. */
+  recent?: CrawledPage[] | null
   onHide: () => void
 }) {
   const [tip, setTip] = useState(0)
@@ -181,6 +204,53 @@ export function AuditProgressOverlay({
             )
           })}
         </ol>
+
+        {/*
+          The pages themselves, while the crawl is running.
+
+          A site crawl takes minutes and the bar only creeps through the
+          twenties in that time, which reads as stuck. Naming the pages as they
+          land turns the same wait into something legible: not "is this
+          broken?" but "it is working through my blog".
+
+          Only outcomes. The rate-limit waits and the human-behaviour pacing
+          stay in the server log — they are why it is slow, and narrating them
+          to someone already waiting reads as an excuse rather than progress.
+        */}
+        {recent && recent.length > 0 && (
+          <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-3.5">
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Pages found
+              </span>
+              {typeof pagesDone === "number" && (
+                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {/* "of" only once the estimate is worth showing. Early on the
+                      denominator is a handful of URLs and climbing, so "3 of 4"
+                      would be a promise the next second breaks. */}
+                  {pagesKnown && pagesKnown > pagesDone
+                    ? `${pagesDone} of ~${pagesKnown}`
+                    : `${pagesDone}`}
+                </span>
+              )}
+            </div>
+            <ul className="space-y-1.5">
+              {recent.map((p) => (
+                <li
+                  key={p.url}
+                  className="fsa-fade flex items-center gap-2 text-[12.5px] text-muted-foreground"
+                >
+                  {p.ok ? (
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                  ) : (
+                    <X className="size-3 shrink-0 text-amber-500" />
+                  )}
+                  <span className="truncate font-mono text-[11.5px]">{pagePath(p.url)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Keyed on the index so React remounts it and the fade replays. */}
         <div
