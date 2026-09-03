@@ -1039,11 +1039,39 @@ interface ImageSample {
   hasAlt: boolean
 }
 
+/**
+ * Image optimizer routes that hide the real filename in a query parameter.
+ *
+ * A Next.js site serves every image from /_next/image?url=%2Fhero.jpg&w=640,
+ * so the last path segment is the literal word "image" — for every image on
+ * the page. A list of fourteen rows all labelled "image" identifies nothing.
+ * Cloudflare, Shopify and Wordpress's Jetpack do the same trick with their own
+ * parameter names.
+ */
+const OPTIMIZER_PARAMS = ["url", "src", "image"]
+
 function shortFilename(src: string): string {
   try {
     const u = new URL(src, "http://placeholder.invalid")
+
+    // If the path itself carries no name worth showing, look for the original
+    // URL in the query string before giving up on it.
     const segs = u.pathname.split("/").filter(Boolean)
-    const last = segs[segs.length - 1] ?? src
+    let last = segs[segs.length - 1] ?? src
+
+    if (!last.includes(".") || last === "image") {
+      for (const p of OPTIMIZER_PARAMS) {
+        const inner = u.searchParams.get(p)
+        if (!inner) continue
+        const innerSegs = new URL(inner, "http://placeholder.invalid").pathname.split("/").filter(Boolean)
+        const innerLast = innerSegs[innerSegs.length - 1]
+        if (innerLast?.includes(".")) {
+          last = innerLast
+          break
+        }
+      }
+    }
+
     return last.length > 40 ? last.slice(0, 37) + "..." : last
   } catch {
     return src.length > 40 ? src.slice(0, 37) + "..." : src
