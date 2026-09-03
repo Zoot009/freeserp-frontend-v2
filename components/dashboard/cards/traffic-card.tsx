@@ -16,6 +16,7 @@
  * invites reading one as the other. Each view labels which it is.
  */
 
+import { useTranslations } from "next-intl"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
@@ -78,15 +79,16 @@ function SourceToggle({
   onChange: (s: Source) => void
   gsc: GscState
 }) {
+  const t = useTranslations("dashOverview.traffic")
   // Three states, not two: an account can be connected while THIS project has no
   // property behind it, and "sign in with Google" would be wrong advice there.
   const hint = gsc.connected === null
-    ? "Real clicks and impressions from Google Search Console."
+    ? t("gscConnected")
     : !gsc.connected
-      ? "Sign in with Google to see real Search Console clicks and impressions here."
+      ? t("gscSignIn")
       : !gsc.siteUrl
-        ? "Google is connected — pick the Search Console property that covers this project."
-        : `Real clicks and impressions from ${gsc.siteUrl}.`
+        ? t("gscPickProperty")
+        : t("gscConnectedFrom", { site: gsc.siteUrl })
 
   const base = "inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-[5px] text-[13px] transition-colors"
   const on = "bg-card font-semibold shadow-sm"
@@ -99,13 +101,13 @@ function SourceToggle({
           the real source and FreeSERP like the placeholder. */}
       <button type="button" onClick={() => onChange("freeserp")} className={cn(base, source === "freeserp" ? on : off)}>
         <Image src="/logo.png" alt="" width={14} height={14} className="shrink-0" />
-        FreeSERP Data
+        {t("tabOwn")}
       </button>
       <Tooltip>
         <TooltipTrigger asChild>
           <button type="button" onClick={() => onChange("google")} className={cn(base, source === "google" ? on : off)}>
             <GoogleMark />
-            Google Data
+            {t("tabGsc")}
           </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-60 text-xs">{hint}</TooltipContent>
@@ -163,6 +165,7 @@ function TimeChart({
   ticks: number[]
   zeroFloor: boolean
 }) {
+  const t = useTranslations("dashOverview.traffic")
   const config = Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }]))
   // A line needs two points. With one check in the range there is nothing to
   // draw between, so the panel is 230px of empty grid with a dot in the corner
@@ -236,8 +239,7 @@ function TimeChart({
         // pointer-events-none so the dot underneath keeps its tooltip.
         <div className="pointer-events-none absolute inset-0 grid place-items-center p-4">
           <p className="max-w-[30ch] rounded-lg border bg-card/85 px-3 py-2 text-center text-xs leading-relaxed text-muted-foreground shadow-sm backdrop-blur-[2px]">
-            One check so far. The line appears from the second one — checks run
-            on this project&rsquo;s schedule.
+            {t("oneCheckOnly")}
           </p>
         </div>
       )}
@@ -286,6 +288,7 @@ type Row = GscMetrics & { key: string; href?: string }
  * without turning a dashboard card into a table nobody scrolls.
  */
 function DimTable({ perf }: { perf: GscPerformance }) {
+  const t = useTranslations("dashOverview.traffic")
   const [tab, setTab] = useState<"pages" | "queries">("pages")
   const [page, setPage] = useState(0)
 
@@ -302,8 +305,8 @@ function DimTable({ perf }: { perf: GscPerformance }) {
 
   const GRID = "grid grid-cols-[minmax(0,1fr)_72px_92px_64px_72px] items-center gap-3"
   const TABS = [
-    { id: "pages", label: "Top pages", n: perf.topPages?.length ?? 0 },
-    { id: "queries", label: "Top queries", n: perf.topQueries?.length ?? 0 },
+    { id: "pages", label: t("tabTopPages"), n: perf.topPages?.length ?? 0 },
+    { id: "queries", label: t("tabTopQueries"), n: perf.topQueries?.length ?? 0 },
   ] as const
 
   return (
@@ -330,10 +333,10 @@ function DimTable({ perf }: { perf: GscPerformance }) {
             <span className="tabular-nums">
               {current * PAGE_SIZE + 1}–{Math.min(rows.length, (current + 1) * PAGE_SIZE)} of {rows.length}
             </span>
-            <Button variant="outline" size="icon" className="size-7" disabled={current === 0} onClick={() => setPage(current - 1)} aria-label="Previous page">
+            <Button variant="outline" size="icon" className="size-7" disabled={current === 0} onClick={() => setPage(current - 1)} aria-label={t("prevPage")}>
               <ChevronLeft className="size-3.5" />
             </Button>
-            <Button variant="outline" size="icon" className="size-7" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} aria-label="Next page">
+            <Button variant="outline" size="icon" className="size-7" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} aria-label={t("nextPage")}>
               <ChevronRight className="size-3.5" />
             </Button>
           </div>
@@ -347,11 +350,11 @@ function DimTable({ perf }: { perf: GscPerformance }) {
       ) : (
         <div className="mt-3">
           <div className={cn(GRID, "border-b pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
-            <span>{tab === "pages" ? "Page" : "Query"}</span>
-            <span className="text-right">Clicks</span>
-            <span className="text-right">Impressions</span>
+            <span>{tab === "pages" ? t("colPage") : t("colQuery")}</span>
+            <span className="text-right">{t("colClicks")}</span>
+            <span className="text-right">{t("colImpressions")}</span>
             <span className="text-right">CTR</span>
-            <span className="text-right">Position</span>
+            <span className="text-right">{t("colPosition")}</span>
           </div>
           {slice.map((r) => (
             <div key={r.key} className={cn(GRID, "border-b py-2 text-[13px] last:border-0")}>
@@ -404,6 +407,7 @@ export type TrafficProps = {
 }
 
 export function TrafficCard(p: TrafficProps) {
+  const t = useTranslations("dashOverview.traffic")
   const router = useRouter()
   const [source, setSource] = useState<Source>("freeserp")
   const [perf, setPerf] = useState<GscPerformance | null>(null)
@@ -425,7 +429,7 @@ export function TrafficCard(p: TrafficProps) {
       .catch((err) => {
         if (cancelled) return
         setPerf(null)
-        setPerfError(err instanceof ApiError ? err.message : "Couldn't load Search Console data.")
+        setPerfError(err instanceof ApiError ? err.message : t("loadFailedToast"))
       })
       .finally(() => { if (!cancelled) setPerfLoading(false) })
     return () => { cancelled = true }
@@ -444,8 +448,8 @@ export function TrafficCard(p: TrafficProps) {
   // climbing means new pages started ranking.
   const ownChart = p.history.map((h) => ({ ts: new Date(h.t).getTime(), traffic: h.traffic, pages: h.pages }))
   const ownSeries: Series[] = [
-    { key: "traffic", label: "Est. visits", color: "var(--primary)" },
-    { key: "pages", label: "Ranking pages", color: "var(--warn)" },
+    { key: "traffic", label: t("seriesVisits"), color: "var(--primary)" },
+    { key: "pages", label: t("seriesPages"), color: "var(--warn)" },
   ]
   const gscChart = (perf?.series ?? []).map((s) => ({ ts: new Date(s.date).getTime(), clicks: s.clicks }))
 
@@ -468,11 +472,11 @@ export function TrafficCard(p: TrafficProps) {
   return (
     <Widget
       id="traffic"
-      title="Traffic Analytics"
+      title={t("title")}
       hint={
         source === "google"
-          ? "Measured clicks, impressions, CTR and average position from the Search Console property linked to this project."
-          : "Modelled traffic for the whole domain, updated after each completed check."
+          ? t("hintGsc")
+          : t("hintOwn")
       }
       actions={<SourceToggle source={source} onChange={setSource} gsc={p.gsc} />}
       meta={
@@ -495,29 +499,29 @@ export function TrafficCard(p: TrafficProps) {
         <>
           <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4">
             <Stat
-              label="Est. Visits"
-              hint="Estimated organic sessions in the selected range, modelled from position × search volume. Not measured traffic — switch to Google Data for that."
+              label={t("estVisits")}
+              hint={t("estVisitsHint")}
               value={p.loading ? <Skeleton className="h-6 w-16" /> : nf(p.estTraffic)}
               dim={p.estTraffic === 0}
               className="pr-4"
             />
             <Stat
-              label="Ranking Pages"
-              hint="Distinct URLs on this domain that rank for at least one tracked keyword."
+              label={t("rankingPages")}
+              hint={t("rankingPagesHint")}
               value={p.loading ? <Skeleton className="h-6 w-12" /> : nf(p.pages)}
               dim={p.pages === 0}
               className="px-4 sm:border-l"
             />
             <Stat
-              label="Bounce Rate"
-              hint="Share of sessions that end without a second pageview. On-site behaviour, so it needs Google Analytics — neither rank data nor Search Console can provide it."
+              label={t("bounceRate")}
+              hint={t("bounceRateHint")}
               value="—"
               dim
               className="pr-4 sm:border-l sm:px-4"
             />
             <Stat
-              label="Pages / Visit"
-              hint="Average pageviews per organic session. On-site behaviour, so it needs Google Analytics — neither rank data nor Search Console can provide it."
+              label={t("pagesPerVisit")}
+              hint={t("pagesPerVisitHint")}
               value="—"
               dim
               className="pl-4 sm:border-l"
@@ -544,15 +548,15 @@ export function TrafficCard(p: TrafficProps) {
                     it. The chart says that one itself now. */}
                 {ownChart.length > 1 && (
                   <p className="text-[11px] text-muted-foreground">
-                    {`${ownChart.length} checks in this range. Each dot is one day's measurement.`}
+                    {t("checksInRange", { count: ownChart.length })}
                   </p>
                 )}
               </div>
             </>
           ) : (
             <Notice
-              title="No completed checks in this range"
-              body="Pick a longer range above, or start a check from the Keywords page."
+              title={t("noChecksTitle")}
+              body={t("noChecksBody")}
             />
           )}
         </>
@@ -560,18 +564,18 @@ export function TrafficCard(p: TrafficProps) {
         <Skeleton className="mt-5 h-[248px] w-full rounded-[10px]" />
       ) : !p.gsc.connected ? (
         <Notice
-          title="Google Search Console isn't connected"
-          body="Connect it once and this view fills with the clicks, impressions and average position Google actually recorded for your site."
+          title={t("notConnectedTitle")}
+          body={t("notConnectedBody")}
           action={
             <Button size="sm" className="h-[34px] gap-1.5 text-[13px] font-semibold" onClick={() => router.push(`/dashboard/project/${p.projectId}/search-console`)}>
-              <GoogleMark /> Connect Search Console
+              <GoogleMark /> {t("connectAction")}
             </Button>
           }
         />
       ) : !p.gsc.siteUrl ? (
         <Notice
-          title="No property linked to this project"
-          body="Your Google account is connected, but this project isn't pointed at a Search Console property yet. Pick the one that covers your domain."
+          title={t("noPropertyTitle")}
+          body={t("noPropertyBody")}
           action={
             <Button variant="outline" size="sm" className="h-[34px] text-[13px] font-semibold" onClick={() => router.push(`/dashboard/project/${p.projectId}/search-console`)}>
               Choose a property
@@ -587,7 +591,7 @@ export function TrafficCard(p: TrafficProps) {
         </>
       ) : perfError ? (
         <Notice
-          title="Couldn't load Search Console data"
+          title={t("loadFailedTitle")}
           body={perfError}
           action={
             <Button variant="outline" size="sm" className="h-[34px] text-[13px] font-semibold" onClick={() => router.push(`/dashboard/project/${p.projectId}/search-console`)}>
@@ -604,7 +608,7 @@ export function TrafficCard(p: TrafficProps) {
             <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
               <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="min-w-0 text-[13px] leading-relaxed">
-                <span className="font-semibold">These figures are for a different site.</span>{" "}
+                <span className="font-semibold">{t("mismatch")}</span>{" "}
                 This project tracks <span className="font-medium">{p.domain}</span>, but the linked property is{" "}
                 <span className="font-medium">{perf.siteUrl}</span>.{" "}
                 <button
@@ -620,32 +624,32 @@ export function TrafficCard(p: TrafficProps) {
 
           <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4">
             <Stat
-              label="Total clicks"
-              hint="Times someone clicked through to your site from Google search results. Measured by Google, not modelled."
+              label={t("totalClicks")}
+              hint={t("totalClicksHint")}
               value={nf(perf.totals.clicks)}
               delta={delta(perf.totals.clicks, perf.previous.clicks)}
               dim={perf.totals.clicks === 0}
               className="pr-4"
             />
             <Stat
-              label="Impressions"
-              hint="Times a link to your site appeared in search results, whether or not it was clicked."
+              label={t("impressions")}
+              hint={t("impressionsHint")}
               value={nf(perf.totals.impressions)}
               delta={delta(perf.totals.impressions, perf.previous.impressions)}
               dim={perf.totals.impressions === 0}
               className="px-4 sm:border-l"
             />
             <Stat
-              label="Average CTR"
-              hint="Clicks divided by impressions — how often people who saw you chose you."
+              label={t("averageCtr")}
+              hint={t("averageCtrHint")}
               value={`${(perf.totals.ctr * 100).toFixed(1)}%`}
               delta={delta(perf.totals.ctr * 100, perf.previous.ctr * 100, false, " pp")}
               dim={perf.totals.ctr === 0}
               className="pr-4 sm:border-l sm:px-4"
             />
             <Stat
-              label="Average position"
-              hint="Mean position across every impression in the range. Lower is better, so a fall here is an improvement."
+              label={t("averagePosition")}
+              hint={t("averagePositionHint")}
               value={perf.totals.position ? perf.totals.position.toFixed(1) : "—"}
               delta={delta(perf.totals.position, perf.previous.position, true, "")}
               dim={!perf.totals.position}
@@ -661,7 +665,7 @@ export function TrafficCard(p: TrafficProps) {
                   would flatten onto the baseline and read as zero. */}
               <TimeChart
                 data={gscChart}
-                series={[{ key: "clicks", label: "Clicks", color: "var(--primary)" }]}
+                series={[{ key: "clicks", label: t("seriesClicks"), color: "var(--primary)" }]}
                 domainStart={domainStart}
                 now={now}
                 ticks={ticks}
@@ -674,8 +678,8 @@ export function TrafficCard(p: TrafficProps) {
             </>
           ) : (
             <Notice
-              title="No Search Console data in this range"
-              body="Google reports nothing for these dates. Its data also lags about two days, so a very short range can come back empty."
+              title={t("noGscDataTitle")}
+              body={t("noGscDataBody")}
             />
           )}
 
