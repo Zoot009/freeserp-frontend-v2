@@ -34,12 +34,14 @@ import {
   FREQUENCY_OPTIONS,
   frequencyValue,
   runsPerMonth,
+  SLUG_TO_PLATFORM,
   untilTime,
   type Platform,
   type PromptRow,
   type RunResult,
   type RunSummary,
 } from "@/lib/ai-tracker"
+import { ENGINES, ENGINE_NOTE, ENGINE_ORDER } from "@/lib/ai-engines"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
 // Platform, RunSummary, PromptRow and the status vocabulary live in
@@ -171,13 +173,40 @@ export default function LlmPromptListPage() {
     if (pollTimer.current && !hasActive) stopPolling()
   }, [hasActive, stopPolling])
 
+  /**
+   * ?new=1 opens the add-prompts dialog.
+   *
+   * It used to open only when the brand had NO prompts — written for the one
+   * caller that existed then, "brand just created, don't make them find the
+   * button". Every other caller is now an explicit "Add prompts" click (the
+   * assistant pages' header and board actions, the coverage panel, the empty
+   * states), and for a brand that already tracks something those navigated here
+   * and then did nothing at all. The parameter means what it says: open it.
+   *
+   * The ref guards against reopening on a re-render; `project` gates it until
+   * the page has something to add to.
+   */
   const openedNew = useRef(false)
   useEffect(() => {
     if (searchParams.get("new") === "1" && !openedNew.current && project) {
       openedNew.current = true
-      if (prompts.length === 0) setShowAdd(true)
+      setShowAdd(true)
     }
-  }, [searchParams, project, prompts.length])
+  }, [searchParams, project])
+
+  /**
+   * Close, and drop the ?new= / ?platform= that opened it.
+   *
+   * Cleared on close rather than on open: the modal reads `platform` for its
+   * initial selection as it mounts, so stripping the query in the same tick
+   * would race it and land the user on ChatGPT after they asked for Gemini.
+   */
+  const closeAdd = useCallback(() => {
+    setShowAdd(false)
+    if (searchParams.get("new") === "1") {
+      router.replace(`/dashboard/ai-prompt-tracker/${projectId}`, { scroll: false })
+    }
+  }, [searchParams, router, projectId])
 
   // What "Run all" will cost, as two rates summed. A Claude answer is 3 credits
   // where the others are 1, so a project spanning both cannot be quoted with one
@@ -539,9 +568,10 @@ export default function LlmPromptListPage() {
       {showAdd && (
         <AddPromptsModal
           projectId={projectId}
-          onClose={() => setShowAdd(false)}
+          initialPlatform={SLUG_TO_PLATFORM[searchParams.get("platform") ?? ""]}
+          onClose={closeAdd}
           onAdded={({ runIds }) => {
-            setShowAdd(false)
+            closeAdd()
             setNotice("")
             // Runs already started, so poll from their ids rather than hoping a
             // refetch happens to observe a PENDING row.
@@ -554,25 +584,32 @@ export default function LlmPromptListPage() {
   )
 }
 
-const ALL_PLATFORMS: { key: Platform; label: string; note: string }[] = [
-  { key: "chat_gpt", label: "ChatGPT", note: "Real product output, with sources" },
-  { key: "gemini", label: "Gemini", note: "Real product output; no geo targeting" },
-  { key: "perplexity", label: "Perplexity", note: "API answer; no prominence" },
-  { key: "claude", label: "Claude", note: "API answer; no prominence" },
-]
+// Labels and notes come from lib/ai-engines.ts rather than being restated here.
+// This list used to carry its own copy and drifted: it claimed Perplexity and
+// Claude have "no prominence", which was a capability flag that no longer
+// exists — prominence is derived from where the brand appears in the answer
+// TEXT (llmMetrics.ts scoreSample) and is computed on all four.
+const ALL_PLATFORMS: { key: Platform; label: string; note: string }[] = ENGINE_ORDER.map((key) => ({
+  key,
+  label: ENGINES[key].label,
+  note: ENGINE_NOTE[key],
+}))
 
 function AddPromptsModal({
   projectId,
+  initialPlatform,
   onClose,
   onAdded,
 }: {
   projectId: string
+  /** From ?platform= — the assistant whose page sent the user here. */
+  initialPlatform?: Platform
   onClose: () => void
   /** `runIds` is non-empty when the user chose "Add & run" and runs started. */
   onAdded: (result: { runIds?: string[] }) => void
 }) {
   const [text, setText] = useState("")
-  const [platforms, setPlatforms] = useState<Platform[]>(["chat_gpt"])
+  const [platforms, setPlatforms] = useState<Platform[]>([initialPlatform ?? "chat_gpt"])
   const [samples, setSamples] = useState(3)
   // "off" by default: adding prompts and committing to recurring spend are two
   // different decisions, and the second should be opted into.
