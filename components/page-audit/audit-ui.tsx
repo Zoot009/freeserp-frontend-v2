@@ -1463,7 +1463,27 @@ function HotjarIcon({ className = "h-5 w-5" }: { className?: string }) {
   )
 }
 
+// Facebook brand mark — white "f" on the Facebook blue rounded square. Same
+// shape as the Hotjar mark above, so the two branded squares sit at one weight
+// beside Google's multi-colour glyph.
+function FacebookIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <rect width="24" height="24" rx="6" fill="#1877F2" />
+      <path
+        fill="#fff"
+        d="M15.4 12.8h-2.3v7.7H9.9v-7.7H8.2v-2.7h1.7V8.4C9.9 6.3 11.1 5 13.5 5h2v2.7h-1.4c-.7 0-.9.3-.9.9v1.5h2.4l-.2 2.7z"
+      />
+    </svg>
+  )
+}
+
 // Canonical display label + optional brand icon per detected tool.
+//
+// The four keys here are exactly the four AnalyticsDetectionRule can push, so
+// every detected tool now carries a mark. Facebook Pixel was the one without —
+// it rendered as a bare label in a row of branded chips, which read as a tool
+// we had not finished supporting rather than one we simply had no icon for.
 interface AnalyticsToolMeta {
   label: string
   icon?: React.ReactNode
@@ -1472,7 +1492,7 @@ interface AnalyticsToolMeta {
 const ANALYTICS_TOOL_META: Record<string, AnalyticsToolMeta> = {
   "google analytics":   { label: "Google Analytics",   icon: <GoogleIcon /> },
   "google tag manager": { label: "Google Tag Manager", icon: <GoogleIcon /> },
-  "facebook pixel":     { label: "Facebook Pixel" },
+  "facebook pixel":     { label: "Facebook Pixel",     icon: <FacebookIcon /> },
   hotjar:               { label: "Hotjar", icon: <HotjarIcon /> },
 }
 
@@ -3606,8 +3626,8 @@ function sevToPriority(sev: Issue["severity"]): 1 | 2 | 3 {
 // Module scope, so it cannot call a hook: it holds the message KEY and the
 // component that renders it resolves the label.
 const PRIORITY_META: Record<1 | 2 | 3, { labelKey: string; chip: string }> = {
-  1: { labelKey: "highPriority", chip: "bg-rose-500/10 text-rose-600" },
-  2: { labelKey: "mediumPriority", chip: "bg-amber-500/10 text-amber-600" },
+  1: { labelKey: "highPriority", chip: "bg-rose-500/10 text-rose-600" },
+  2: { labelKey: "mediumPriority", chip: "bg-amber-500/10 text-amber-600" },
   3: { labelKey: "lowPriority", chip: "bg-emerald-500/10 text-emerald-600" },
 }
 
