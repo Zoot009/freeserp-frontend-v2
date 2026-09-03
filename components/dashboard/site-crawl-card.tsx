@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
@@ -85,11 +86,12 @@ function healthColor(score: number): string {
 // ── Site Health gauge ────────────────────────────────────────────────────────
 
 /** Plain-language reading of the score, so the number isn't the whole story. */
+// Returns KEYS. The card resolves them — a plain function cannot call a hook.
 function verdictFor(v: number): { label: string; copy: string } {
-  if (v >= 90) return { label: "Excellent", copy: "Almost every check passed. Skim the notices when you have time." }
-  if (v >= 80) return { label: "Good", copy: "A solid site. Clearing the warnings is what moves it into the 90s." }
-  if (v >= 50) return { label: "Needs work", copy: "Start with the errors below — they cost the most points each." }
-  return { label: "Poor", copy: "Enough is broken to hold rankings back. Fix the errors first." }
+  if (v >= 90) return { label: "gradeExcellent", copy: "gradeExcellentCopy" }
+  if (v >= 80) return { label: "gradeGood", copy: "gradeGoodCopy" }
+  if (v >= 50) return { label: "gradeNeedsWork", copy: "gradeNeedsWorkCopy" }
+  return { label: "gradePoor", copy: "gradePoorCopy" }
 }
 
 const GAUGE = 132
@@ -108,14 +110,15 @@ const CIRC = 2 * Math.PI * RADIUS
  * space, and leaves room beside it for what the score actually means.
  */
 function HealthGauge({ value, grade }: { value: number | null; grade?: string | null }) {
+  const t = useTranslations("dashOverview.audit")
   const v = Math.max(0, Math.min(100, value ?? 0))
   // Render at zero, then animate to the real value on the next frame. The ring
   // filling itself is the cue that this number came from a crawl rather than
   // being a static badge.
   const [drawn, setDrawn] = useState(0)
   useEffect(() => {
-    const t = setTimeout(() => setDrawn(value == null ? 0 : v), 60)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDrawn(value == null ? 0 : v), 60)
+    return () => clearTimeout(timer)
   }, [v, value])
 
   const verdict = verdictFor(v)
@@ -126,7 +129,7 @@ function HealthGauge({ value, grade }: { value: number | null; grade?: string | 
       <div
         className="relative shrink-0"
         style={{ width: GAUGE, height: GAUGE }}
-        title={value != null ? `Site health ${Math.round(v)} of 100` : undefined}
+        title={value != null ? t("siteHealthOf100", { score: Math.round(v) }) : undefined}
       >
         {/* -rotate-90 starts the fill at 12 o'clock instead of 3. */}
         <svg width={GAUGE} height={GAUGE} viewBox={`0 0 ${GAUGE} ${GAUGE}`} className="block -rotate-90" aria-hidden>
@@ -163,7 +166,7 @@ function HealthGauge({ value, grade }: { value: number | null; grade?: string | 
                   {grade}
                 </div>
                 <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Grade
+                  {t("grade")}
                 </div>
               </>
             ) : (
@@ -183,9 +186,9 @@ function HealthGauge({ value, grade }: { value: number | null; grade?: string | 
         <div className="min-w-[9rem] flex-1">
           <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ color }}>
             <span className="size-2 shrink-0 rounded-full" style={{ background: color }} />
-            {verdict.label}
+            {t(verdict.label)}
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{verdict.copy}</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{t(verdict.copy)}</p>
         </div>
       )}
     </div>
@@ -201,6 +204,7 @@ type Segment = { key: string; label: string; count: number; color: string }
  * colour you're pointing at is unambiguous.
  */
 function PagesBar({ segments }: { segments: Segment[] }) {
+  const t = useTranslations("dashOverview.audit")
   const [hover, setHover] = useState<string | null>(null)
   const total = segments.reduce((s, x) => s + x.count, 0)
   if (!total) return null
@@ -229,7 +233,7 @@ function PagesBar({ segments }: { segments: Segment[] }) {
           <button
             key={s.key}
             type="button"
-            aria-label={`${s.label}: ${s.count} page${s.count === 1 ? "" : "s"}`}
+            aria-label={t("statusAria", { label: s.label, count: s.count })}
             onMouseEnter={() => setHover(s.key)}
             onFocus={() => setHover(s.key)}
             onBlur={() => setHover(null)}
@@ -266,8 +270,29 @@ function Metric({ label, hint, value, tone }: { label: string; hint: string; val
 }
 
 // TECHNICAL -> Technical, ON_PAGE -> On page
+/**
+ * Audit category code → the name shown beside its bar.
+ *
+ * The five the backend actually sends are translated. Anything else falls back
+ * to prettifying the code, which is what this did for everything before —
+ * still English-shaped, but it only fires for a category we haven't met, and
+ * printing the raw TECHNICAL_SEO would be worse in every language.
+ */
+const CATEGORY_KEYS: Record<string, string> = {
+  TECHNICAL: "catTechnical",
+  ON_PAGE: "catOnPage",
+  PERFORMANCE: "catPerformance",
+  ACCESSIBILITY: "catAccessibility",
+  LINKS: "catLinks",
+}
+
 const prettyCategory = (c: string) =>
   c.replace(/_/g, " ").toLowerCase().replace(/^\w/, (m) => m.toUpperCase())
+
+const categoryLabel = (c: string, t: (k: string) => string) => {
+  const key = CATEGORY_KEYS[c.toUpperCase()]
+  return key ? t(key) : prettyCategory(c)
+}
 
 /**
  * Per-area scores from the audit. These were being fetched and thrown away,
@@ -275,19 +300,20 @@ const prettyCategory = (c: string) =>
  * report, since they say WHERE the site is losing points.
  */
 function CategoryScores({ categories }: { categories: AuditCategory[] }) {
+  const t = useTranslations("dashOverview.audit")
   const rows = categories.filter((c) => c.score > 0).slice(0, 5)
   if (rows.length === 0) return null
   return (
     <div className="min-w-0">
       <div className="mb-2.5 flex items-center gap-1 text-[13px] text-foreground/70">
-        Scores by area <InfoHint>How the crawled pages scored in each part of the audit, 0–100.</InfoHint>
+        {t("scoresByArea")} <InfoHint>{t("scoresByAreaHint")}</InfoHint>
       </div>
       <div className="flex flex-col gap-2">
         {rows.map((c) => {
           const score = Math.round(c.score)
           return (
             <div key={c.category} className="grid grid-cols-[minmax(0,1fr)_90px_28px] items-center gap-2.5 text-xs">
-              <span className="truncate text-muted-foreground">{prettyCategory(c.category)}</span>
+              <span className="truncate text-muted-foreground">{categoryLabel(c.category, t)}</span>
               <span className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <span className="block h-full rounded-full" style={{ width: `${score}%`, background: healthColor(score) }} />
               </span>
@@ -343,6 +369,7 @@ function RecrawlAction({
   projectId: string
   onQueued: () => void
 }) {
+  const t = useTranslations("dashOverview.audit")
   const [busy, setBusy] = useState(false)
   const cooldownUntil = audit.recrawlAvailableAt
   const cooling = !!cooldownUntil && new Date(cooldownUntil).getTime() > Date.now()
@@ -351,13 +378,13 @@ function RecrawlAction({
     setBusy(true)
     try {
       await api.post(`/api/projects/${projectId}/site-crawl/recrawl`, { mode: "FULL" })
-      toast.success("Re-crawl queued — this takes a few minutes.")
+      toast.success(t("recrawlQueued"))
       onQueued()
     } catch (err) {
       // The backend refuses with a specific reason (already running, cooldown)
       // and each is worth surfacing verbatim — "try again" would be wrong advice
       // for both of them.
-      toast.error(err instanceof ApiError ? err.message : "Couldn't start the crawl — please try again.")
+      toast.error(err instanceof ApiError ? err.message : t("recrawlFailed"))
     } finally {
       setBusy(false)
     }
@@ -371,11 +398,11 @@ function RecrawlAction({
       // The cooldown is the only reason this is ever disabled, and a control
       // greyed out with no explanation reads as broken — so it says so on hover
       // rather than in a line of body copy nobody needed the rest of the time.
-      title={cooling && cooldownUntil ? `Crawled recently — you can run another ${untilLabel(cooldownUntil)}` : undefined}
+      title={cooling && cooldownUntil ? t("cooldown", { when: untilLabel(cooldownUntil) }) : undefined}
       className="inline-flex items-center gap-1.5 font-semibold text-primary transition-opacity hover:underline disabled:pointer-events-none disabled:opacity-40"
     >
       <RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
-      {busy ? "Queueing…" : "Re-crawl"}
+      {busy ? t("queueing") : t("recrawl")}
     </button>
   )
 }
@@ -392,7 +419,8 @@ function RecrawlAction({
  * Nothing here is invented. Each stage is inferred from a real field: the job
  * status, our crawler's page count, and the upstream audit's own progress.
  */
-const CRAWL_STAGES = ["Queued", "Crawling pages", "Running checks", "Building report"] as const
+// Message keys, resolved in CrawlStages.
+const CRAWL_STAGES = ["stageQueued", "stageCrawling", "stageChecks", "stageReport"] as const
 
 function stageIndexFor(status: SiteAudit["status"], pagesFound: number, auditPct: number | null): number {
   if (status === "QUEUED") return 0
@@ -437,6 +465,7 @@ function CrawlStages({
   startedAt: string | null | undefined
   pct: number | null
 }) {
+  const t = useTranslations("dashOverview.audit")
   // Ticks once a second purely to move the elapsed figure. Cheap, and it is the
   // one thing on this card guaranteed to change while the crawl is slow.
   const [now, setNow] = useState(() => Date.now())
@@ -468,7 +497,7 @@ function CrawlStages({
               ) : (
                 <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current opacity-50" />
               )}
-              {label}
+              {t(label)}
             </span>
           </span>
         )
@@ -498,6 +527,7 @@ export function SiteCrawlCard({
    *  answer would be the wasteful way to share it. */
   onStatus?: (status: SiteAudit["status"] | null) => void
 }) {
+  const t = useTranslations("dashOverview.audit")
   const [audit, setAudit] = useState<SiteAudit | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPages, setShowPages] = useState(false)
@@ -557,16 +587,16 @@ export function SiteCrawlCard({
     const pages = audit?.pages ?? []
     const inRange = (lo: number, hi: number) => pages.filter((p) => p.statusCode != null && p.statusCode >= lo && p.statusCode <= hi).length
     return [
-      { key: "healthy", label: "Healthy", count: inRange(200, 299), color: "var(--pos)" },
-      { key: "broken", label: "Broken", count: inRange(400, 599), color: "var(--neg)" },
-      { key: "redirect", label: "Redirect", count: inRange(300, 399), color: "var(--brand)" },
-      { key: "blocked", label: "Blocked", count: pages.filter((p) => p.statusCode == null).length, color: "var(--border-strong)" },
+      { key: "healthy", label: t("statusHealthy"), count: inRange(200, 299), color: "var(--pos)" },
+      { key: "broken", label: t("statusBroken"), count: inRange(400, 599), color: "var(--neg)" },
+      { key: "redirect", label: t("statusRedirect"), count: inRange(300, 399), color: "var(--brand)" },
+      { key: "blocked", label: t("statusBlocked"), count: pages.filter((p) => p.statusCode == null).length, color: "var(--border-strong)" },
     ]
   }, [audit])
 
   if (loading) {
     return (
-      <Widget id="site-crawl" title="Site Audit" className={className}>
+      <Widget id="site-crawl" title={t("title")} className={className}>
         <Skeleton className="h-48 w-full rounded-lg" />
       </Widget>
     )
@@ -594,15 +624,15 @@ export function SiteCrawlCard({
   return (
     <Widget
       id="site-crawl"
-      title="Site Audit"
+      title={t("title")}
       className={className}
-      hint="A crawl of up to 100 pages, checking status codes, titles, meta, headings and internal links."
+      hint={t("hint")}
       meta={
         running ? (
-          <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-[3px] text-xs font-semibold text-primary">Crawling…</span>
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-[3px] text-xs font-semibold text-primary">{t("crawling")}</span>
         ) : (
           <>
-            {updated && <span>Updated: {updated}</span>}
+            {updated && <span>{t("updated", { date: updated })}</span>}
             <RecrawlAction audit={audit} projectId={projectId} onQueued={() => setReloadKey((k) => k + 1)} />
           </>
         )
@@ -688,9 +718,9 @@ export function SiteCrawlCard({
               at "—". Without them the card changes shape when the crawl lands,
               which reads as a different card rather than the same one filled in. */}
           <div className="mt-4 flex flex-col gap-2.5 border-t pt-3.5">
-            {["Errors", "Warnings", "Notices"].map((label) => (
+            {["errors", "warnings", "notices"].map((label) => (
               <div key={label} className="flex items-center justify-between text-[13px]">
-                <span className="text-muted-foreground">{label}</span>
+                <span className="text-muted-foreground">{t(label)}</span>
                 <span className="font-semibold text-muted-foreground/50">—</span>
               </div>
             ))}
@@ -700,7 +730,7 @@ export function SiteCrawlCard({
         // The header's Re-crawl link covers the retry — a failed crawl is exactly
         // when someone wants one, and it's already in view here.
         <p className="py-4 text-xs leading-relaxed text-muted-foreground">
-          {audit.error || "We couldn't crawl your website — it's blocking automated access, or the site is unreachable."}
+          {audit.error || t("crawlBlocked")}
         </p>
       ) : (
         <>
@@ -710,7 +740,7 @@ export function SiteCrawlCard({
           <div className="grid gap-4">
             <div className="min-w-0">
               <div className="mb-2 flex items-center gap-1 text-[13px] text-foreground/70">
-                Site Health <InfoHint>Overall score for the crawled site, 0–100. Based on how many checks passed against how many ran.</InfoHint>
+                {t("siteHealth")} <InfoHint>{t("siteHealthHint")}</InfoHint>
               </div>
               {degraded ? (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
@@ -735,20 +765,20 @@ export function SiteCrawlCard({
                   opposite of the truth — nothing was checked, so nothing was
                   found. A dash says that; a zero lies about it. */}
               <Metric
-                label="Errors"
-                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "High-severity problems — fix these first."}
+                label={t("errors")}
+                hint={degraded ? t("degradedHint") : t("errorsHint")}
                 value={degraded ? "—" : (audit.issuesHigh ?? 0)}
                 tone={!degraded && (audit.issuesHigh ?? 0) > 0 ? "text-red-600 dark:text-red-400" : degraded ? "text-muted-foreground" : undefined}
               />
               <Metric
-                label="Warnings"
-                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "Medium-severity issues worth addressing."}
+                label={t("warnings")}
+                hint={degraded ? t("degradedHint") : t("warningsHint")}
                 value={degraded ? "—" : (audit.issuesMedium ?? 0)}
                 tone={!degraded && (audit.issuesMedium ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : degraded ? "text-muted-foreground" : undefined}
               />
               <Metric
-                label="Notices"
-                hint={degraded ? "No checks ran on this crawl, so nothing was counted." : "Low-severity observations."}
+                label={t("notices")}
+                hint={degraded ? t("degradedHint") : t("noticesHint")}
                 value={degraded ? "—" : (audit.issuesLow ?? 0)}
                 tone={degraded ? "text-muted-foreground" : undefined}
               />
@@ -758,8 +788,8 @@ export function SiteCrawlCard({
               <CategoryScores categories={audit.categories ?? []} />
               {(audit.totalPassing ?? 0) > 0 && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">{audit.totalPassing}</span> checks passed
-                  {(audit.totalIssues ?? 0) > 0 && <> of {(audit.totalPassing ?? 0) + (audit.totalIssues ?? 0)}</>}
+                  {t.rich("checksPassed", { passed: audit.totalPassing ?? 0, n: (c) => <span className="font-medium text-emerald-600 dark:text-emerald-400">{c}</span> })}
+                  {(audit.totalIssues ?? 0) > 0 && t("checksPassedOf", { total: (audit.totalPassing ?? 0) + (audit.totalIssues ?? 0) })}
                 </p>
               )}
             </div>
@@ -771,7 +801,7 @@ export function SiteCrawlCard({
           <div className="mt-5 border-t pt-4">
             <div className="mb-2.5 flex items-baseline gap-2">
               <span className="flex items-center gap-1 text-[13px] text-foreground/70">
-                Crawled Pages <InfoHint>Pages reached in this crawl, split by the status their server returned. These come from our own crawler, so they are recorded even when the scored checks can&apos;t run.</InfoHint>
+                {t("crawledPages")} <InfoHint>{t("crawledPagesHint")}</InfoHint>
               </span>
               <span className="text-[22px] font-bold leading-none tabular-nums text-primary">{audit.pagesFound ?? 0}</span>
             </div>
@@ -783,7 +813,7 @@ export function SiteCrawlCard({
           {(audit.pages?.length ?? 0) > 0 && (
             <>
               <Button variant="outline" size="sm" className="mt-4 h-7 gap-1.5 text-xs" onClick={() => setShowPages((s) => !s)}>
-                {showPages ? "Hide pages" : "View full report"}
+                {showPages ? t("hidePages") : t("viewFullReport")}
                 <ChevronDown className={cn("size-3.5 transition-transform", showPages && "rotate-180")} />
               </Button>
 
