@@ -944,7 +944,39 @@
     "activity": "Aktivität",
     "activityMovedUp": "stieg um {count} → #{pos}",
     "activityDropped": "fiel um {count} → #{pos}",
-    "activityRecent": "kürzlich"
+    "activityRecent": "kürzlich",
+    "stat": {
+      "authorityScore": "Autoritätswert",
+      "authorityHint": "Wie stark diese Domain ist, von 0 bis 100. Unter 30 ist schwach, 30–59 mittel, 60+ stark.",
+      "notMeasured": "noch nicht gemessen",
+      "strongOf100": "stark · von 100",
+      "moderateOf100": "mittel · von 100",
+      "weakOf100": "schwach · von 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "Wie viele Links von anderen Websites auf diese Domain zeigen.",
+      "inboundLinks": "eingehende Links",
+      "trackedKeywords": "Verfolgte Keywords",
+      "trackedHint": "Wie viele Keywords Sie verfolgen. Jedes wird nach dem Zeitplan Ihres Projekts geprüft.",
+      "pctRank": "{pct} % davon ranken",
+      "organicKeywords": "Organische Keywords",
+      "organicKeywordsHint": "Keywords, bei denen diese Website in den Top 100 erscheint.",
+      "rankingTop100": "in den Top 100",
+      "organicTraffic": "Organischer Traffic",
+      "organicTrafficHint": "Wie viele Besuche Ihre Keywords Ihnen monatlich wahrscheinlich bringen.",
+      "visitsPerMonth": "Besuche pro Monat"
+    },
+    "movement": {
+      "title": "Keyword-Bewegung",
+      "hint": "Die erste Prüfung jedes Keywords in diesem Zeitraum verglichen mit der letzten. „Verbessert“ und „Verschlechtert“ sind Bewegungen innerhalb der Top 100; „Neu“ ist hineingekommen, „Verloren“ herausgefallen. Ein nur einmal geprüftes Keyword lässt sich nicht vergleichen und wird daher nicht gezählt.",
+      "improved": "Verbessert",
+      "declined": "Verschlechtert",
+      "new": "Neu",
+      "lost": "Verloren",
+      "noneTracked": "Noch keine Keywords verfolgt. Fügen Sie die Begriffe hinzu, die Sie wirklich gewinnen wollen — fünf reichen für den Anfang.",
+      "addKeywords": "Keywords hinzufügen",
+      "nothingToCompare": "Noch nichts zu vergleichen — Bewegung braucht zwei Prüfungen desselben Keywords in diesem Zeitraum. {count, plural, one {Ihr # verfolgtes Keyword wurde} other {Ihre # verfolgten Keywords wurden}} bisher erst einmal geprüft.",
+      "nothingMoved": "{count, plural, one {Das # zweimal geprüfte Keyword hat} other {Keines der # zweimal geprüften Keywords hat}} in diesem Zeitraum die Position geändert."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "Nicht in den Top-{depth}-Ergebnissen gefunden — die Platzierung liegt tiefer als unser Scan reicht",

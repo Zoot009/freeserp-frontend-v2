@@ -944,7 +944,39 @@
     "activity": "Activité",
     "activityMovedUp": "monté de {count} → #{pos}",
     "activityDropped": "baissé de {count} → #{pos}",
-    "activityRecent": "récent"
+    "activityRecent": "récent",
+    "stat": {
+      "authorityScore": "Score d'autorité",
+      "authorityHint": "La force de ce domaine, de 0 à 100. En dessous de 30 c'est faible, 30–59 moyen, 60+ solide.",
+      "notMeasured": "pas encore mesuré",
+      "strongOf100": "solide · sur 100",
+      "moderateOf100": "moyen · sur 100",
+      "weakOf100": "faible · sur 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "Le nombre de liens provenant d'autres sites qui pointent vers ce domaine.",
+      "inboundLinks": "liens entrants",
+      "trackedKeywords": "Mots-clés suivis",
+      "trackedHint": "Le nombre de mots-clés que vous suivez. Chacun est vérifié selon la planification de votre projet.",
+      "pctRank": "{pct} % d'entre eux sont classés",
+      "organicKeywords": "Mots-clés organiques",
+      "organicKeywordsHint": "Les mots-clés pour lesquels ce site apparaît dans les 100 premiers résultats.",
+      "rankingTop100": "classés dans le top 100",
+      "organicTraffic": "Trafic organique",
+      "organicTrafficHint": "Le nombre de visites que vos mots-clés vous apportent probablement chaque mois.",
+      "visitsPerMonth": "visites par mois"
+    },
+    "movement": {
+      "title": "Évolution des mots-clés",
+      "hint": "La première vérification de chaque mot-clé sur cette période comparée à la dernière. « En hausse » et « En baisse » sont des mouvements à l'intérieur du top 100 ; « Nouveaux » y sont entrés, « Perdus » en sont sortis. Un mot-clé vérifié une seule fois ne peut pas être comparé, il n'est donc pas compté.",
+      "improved": "En hausse",
+      "declined": "En baisse",
+      "new": "Nouveaux",
+      "lost": "Perdus",
+      "noneTracked": "Aucun mot-clé suivi pour l'instant. Ajoutez les termes que vous voulez vraiment gagner — cinq suffisent pour commencer.",
+      "addKeywords": "Ajouter des mots-clés",
+      "nothingToCompare": "Rien à comparer pour l'instant — l'évolution demande deux vérifications du même mot-clé sur cette période. {count, plural, one {Votre # mot-clé suivi n'a été vérifié} other {Vos # mots-clés suivis n'ont été vérifiés}} qu'une seule fois jusqu'ici.",
+      "nothingMoved": "{count, plural, one {Le # mot-clé vérifié deux fois} other {Aucun des # mots-clés vérifiés deux fois}} sur cette période n'a changé de position."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "Introuvable dans les {depth} premiers résultats — le classement est plus profond que notre analyse",

@@ -944,7 +944,39 @@
     "activity": "Activity",
     "activityMovedUp": "moved up {count} → #{pos}",
     "activityDropped": "dropped {count} → #{pos}",
-    "activityRecent": "recent"
+    "activityRecent": "recent",
+    "stat": {
+      "authorityScore": "Authority Score",
+      "authorityHint": "How strong this domain is, from 0 to 100. Under 30 is weak, 30–59 middling, 60+ strong.",
+      "notMeasured": "not measured yet",
+      "strongOf100": "strong · of 100",
+      "moderateOf100": "moderate · of 100",
+      "weakOf100": "weak · of 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "How many links from other sites point at this domain.",
+      "inboundLinks": "inbound links",
+      "trackedKeywords": "Tracked Keywords",
+      "trackedHint": "How many keywords you're tracking. Each is checked on your project's schedule.",
+      "pctRank": "{pct}% of them rank",
+      "organicKeywords": "Organic Keywords",
+      "organicKeywordsHint": "Keywords where this site appears in the top 100 results.",
+      "rankingTop100": "ranking in top 100",
+      "organicTraffic": "Organic Traffic",
+      "organicTrafficHint": "How many visits your keywords are likely bringing you each month.",
+      "visitsPerMonth": "visits per month"
+    },
+    "movement": {
+      "title": "Keyword Movement",
+      "hint": "Each keyword's first check in this range compared against its latest. Improved and Declined are moves within the top 100; New entered it, Lost dropped out. A keyword checked only once can't be compared, so it isn't counted.",
+      "improved": "Improved",
+      "declined": "Declined",
+      "new": "New",
+      "lost": "Lost",
+      "noneTracked": "No keywords tracked yet. Add the terms you actually want to win — five is enough to start.",
+      "addKeywords": "Add keywords",
+      "nothingToCompare": "Nothing to compare yet — movement needs two checks of the same keyword inside this range. Your {count, plural, one {# tracked keyword has} other {# tracked keywords have}} been checked once so far.",
+      "nothingMoved": "None of the {count, plural, one {# keyword} other {# keywords}} checked twice in this range changed position."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "Not found in the top {depth} results — ranking deeper than our scan reaches",

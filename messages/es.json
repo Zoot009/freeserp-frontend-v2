@@ -944,7 +944,39 @@
     "activity": "Actividad",
     "activityMovedUp": "subió {count} → #{pos}",
     "activityDropped": "bajó {count} → #{pos}",
-    "activityRecent": "reciente"
+    "activityRecent": "reciente",
+    "stat": {
+      "authorityScore": "Puntuación de autoridad",
+      "authorityHint": "La fuerza de este dominio, de 0 a 100. Por debajo de 30 es débil, 30–59 medio, 60+ fuerte.",
+      "notMeasured": "aún sin medir",
+      "strongOf100": "fuerte · de 100",
+      "moderateOf100": "medio · de 100",
+      "weakOf100": "débil · de 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "Cuántos enlaces de otros sitios apuntan a este dominio.",
+      "inboundLinks": "enlaces entrantes",
+      "trackedKeywords": "Palabras clave seguidas",
+      "trackedHint": "Cuántas palabras clave estás siguiendo. Cada una se comprueba según la programación de tu proyecto.",
+      "pctRank": "{pct} % de ellas posicionan",
+      "organicKeywords": "Palabras clave orgánicas",
+      "organicKeywordsHint": "Palabras clave en las que este sitio aparece entre los 100 primeros resultados.",
+      "rankingTop100": "en el top 100",
+      "organicTraffic": "Tráfico orgánico",
+      "organicTrafficHint": "Cuántas visitas es probable que tus palabras clave te traigan cada mes.",
+      "visitsPerMonth": "visitas al mes"
+    },
+    "movement": {
+      "title": "Movimiento de palabras clave",
+      "hint": "La primera comprobación de cada palabra clave en este rango comparada con la última. «Mejoraron» y «Bajaron» son movimientos dentro del top 100; «Nuevas» entraron en él, «Perdidas» salieron. Una palabra clave comprobada una sola vez no se puede comparar, así que no se cuenta.",
+      "improved": "Mejoraron",
+      "declined": "Bajaron",
+      "new": "Nuevas",
+      "lost": "Perdidas",
+      "noneTracked": "Aún no sigues ninguna palabra clave. Añade los términos que de verdad quieres ganar: cinco bastan para empezar.",
+      "addKeywords": "Añadir palabras clave",
+      "nothingToCompare": "Todavía no hay nada que comparar: el movimiento necesita dos comprobaciones de la misma palabra clave dentro de este rango. {count, plural, one {Tu # palabra clave seguida se ha comprobado} other {Tus # palabras clave seguidas se han comprobado}} una sola vez hasta ahora.",
+      "nothingMoved": "{count, plural, one {La # palabra clave comprobada dos veces} other {Ninguna de las # palabras clave comprobadas dos veces}} en este rango cambió de posición."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "No encontrado en los {depth} primeros resultados — su posición está más allá del alcance de nuestro análisis",

@@ -14,6 +14,7 @@
  * oddly under a set of movement counters anyway.
  */
 
+import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -36,11 +37,13 @@ export type Movements = {
   comparable: number
 }
 
+// `label` is a message KEY, resolved at render: a module-level constant cannot
+// call a hook, and the four rows are the same four in every language.
 const ROWS = [
-  { key: "improved", label: "Improved", tone: "bg-emerald-500" },
-  { key: "declined", label: "Declined", tone: "bg-red-500" },
-  { key: "added", label: "New", tone: "bg-primary" },
-  { key: "lost", label: "Lost", tone: "bg-amber-500" },
+  { key: "improved", label: "improved", tone: "bg-emerald-500" },
+  { key: "declined", label: "declined", tone: "bg-red-500" },
+  { key: "added", label: "new", tone: "bg-primary" },
+  { key: "lost", label: "lost", tone: "bg-amber-500" },
 ] as const
 
 export type KeywordMovementProps = {
@@ -55,6 +58,7 @@ export type KeywordMovementProps = {
 }
 
 export function KeywordMovementCard(p: KeywordMovementProps) {
+  const t = useTranslations("dashOverview.movement")
   const counts = ROWS.map((r) => p.movements[r.key])
   // `comparable` is what makes the four numbers mean anything, so it's named in
   // the header rather than buried in the note below.
@@ -64,8 +68,8 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
   return (
     <Widget
       id="keyword-movement"
-      title="Keyword Movement"
-      hint="Each keyword's first check in this range compared against its latest. Improved and Declined are moves within the top 100; New entered it, Lost dropped out. A keyword checked only once can't be compared, so it isn't counted."
+      title={t("title")}
+      hint={t("hint")}
       meta={<span>{p.rangeLabel}</span>}
       className={p.className}
       bodyClassName="p-5"
@@ -78,7 +82,7 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
             const n = p.movements[r.key]
             return (
               <div key={r.key} className="flex items-center gap-3">
-                <span className="w-[66px] shrink-0 text-[13px] text-muted-foreground">{r.label}</span>
+                <span className="w-[66px] shrink-0 text-[13px] text-muted-foreground">{t(r.label)}</span>
                 <div className="h-[5px] flex-1 overflow-hidden rounded-[3px] bg-muted">
                   {n > 0 && <div className={cn("h-full rounded-[3px]", r.tone)} style={{ width: `${(n / peak) * 100}%` }} />}
                 </div>
@@ -98,10 +102,10 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
           {p.tracked === 0 ? (
             <>
               <p className="mb-3.5 text-[13px] leading-relaxed text-muted-foreground/80">
-                No keywords tracked yet. Add the terms you actually want to win — five is enough to start.
+                {t("noneTracked")}
               </p>
               <Button asChild variant="outline" size="sm" className="h-[34px] w-full text-[13px] font-semibold">
-                <Link href={`/dashboard/project/${p.projectId}/keywords?add=1`}>Add keywords</Link>
+                <Link href={`/dashboard/project/${p.projectId}/keywords?add=1`}>{t("addKeywords")}</Link>
               </Button>
             </>
           ) : p.movements.comparable === 0 ? (
@@ -111,13 +115,14 @@ export function KeywordMovementCard(p: KeywordMovementProps) {
                compare, and reporting "nothing moved" claims a measurement that
                was never taken. */
             <p className="text-[13px] leading-relaxed text-muted-foreground/80">
-              Nothing to compare yet — movement needs two checks of the same keyword inside this range. Your{" "}
-              {p.tracked} tracked keyword{p.tracked === 1 ? " has" : "s have"} been checked once so far.
+              {/* The count drives the plural inside the message, not a ternary
+                  out here — "1 keyword has / 2 keywords have" is an English
+                  rule, and German and Spanish break the sentence differently. */}
+              {t("nothingToCompare", { count: p.tracked })}
             </p>
           ) : (
             <p className="text-[13px] leading-relaxed text-muted-foreground/80">
-              None of the {p.movements.comparable} keyword{p.movements.comparable === 1 ? "" : "s"} checked twice in
-              this range changed position.
+              {t("nothingMoved", { count: p.movements.comparable })}
             </p>
           )}
         </div>
