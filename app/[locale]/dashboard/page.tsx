@@ -130,12 +130,14 @@ const RANGE_LABEL_KEY: Record<Range, string> = { "24h": "range24h", "7d": "range
 // is fine: it's only ever multiplied by a day in milliseconds.
 const RANGE_DAYS: Record<Range, number> = { "24h": 1, "7d": 7, "30d": 30, "90d": 90 }
 
-/** Exclusive ranking bands, so the counts sum to the keywords tracked. */
+/** Exclusive ranking bands, so the counts sum to the keywords tracked.
+ *  `label` is a message key — only "Unranked" actually differs by language,
+ *  but keeping all five in the catalogue beats four literals and one lookup. */
 const BAND_DEFS = [
-  { label: "Top 3", lo: 1, hi: 3 },
-  { label: "4 – 10", lo: 4, hi: 10 },
-  { label: "11 – 20", lo: 11, hi: 20 },
-  { label: "21 – 100", lo: 21, hi: 100 },
+  { label: "bandTop3", lo: 1, hi: 3 },
+  { label: "band4to10", lo: 4, hi: 10 },
+  { label: "band11to20", lo: 11, hi: 20 },
+  { label: "band21to100", lo: 21, hi: 100 },
 ]
 
 /**
@@ -394,7 +396,7 @@ export default function SeoDashboardPage() {
     // everything the other four rows didn't claim — so its movement cells stay
     // blank rather than printing a zero that means something different.
     const unranked = kws.length - ranked.length
-    bands.push({ label: "Unranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
+    bands.push({ label: "bandUnranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
 
     const kwVis = (k: Keyword) => (totalVol > 0 ? round1((ctr(k.position) * (k.searchVolume ?? 0) / totalVol) * 100) : 0)
     const toTop = (k: Keyword): TopKeyword => ({

@@ -10,6 +10,7 @@
  * project that row is the whole story, and a cumulative table hid it.
  */
 
+import { useTranslations, useLocale } from "next-intl"
 import { useState } from "react"
 import { Area, AreaChart, XAxis, YAxis } from "recharts"
 import { Link, useRouter } from "@/i18n/navigation"
@@ -99,6 +100,8 @@ export type PositionPoint = { t: string; avgPos: number }
  * the item inside is the only place per-keyword market/device can be changed.
  */
 function ScopeLine({ projectId, scope }: { projectId: string; scope: Scope }) {
+  const t = useTranslations("dashOverview.position")
+  const locale = useLocale()
   // router.push in onSelect rather than <Link> inside the item: Radix closes the
   // menu on select, which can cancel an anchor's navigation before it commits.
   // This router is the i18n one, so the locale prefix survives the jump.
@@ -114,6 +117,8 @@ function ScopeLine({ projectId, scope }: { projectId: string; scope: Scope }) {
   const markets = (scope.locations?.length ? scope.locations : [scope.location]).map(countryName)
   // Three is where the pill stops fitting beside "View full report"; the rest
   // are still listed in the menu below.
+  // Intl.ListFormat knows each language own conjunction and comma rules.
+  const marketList = new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(markets)
   const shown = markets.slice(0, 3)
   const hidden = markets.length - shown.length
 
@@ -131,27 +136,31 @@ function ScopeLine({ projectId, scope }: { projectId: string; scope: Scope }) {
             +{hidden}
           </span>
         )}
-        <span className="shrink-0">Google · English</span>
+        <span className="shrink-0">{t("engineLang")}</span>
         <ChevronDown className="size-3.5 shrink-0" strokeWidth={2.25} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 p-1.5">
         <DropdownMenuLabel className="text-xs font-normal leading-relaxed text-muted-foreground">
-          {scope.mixed ? (
-            <>
-              Checked against{" "}
-              <span className="font-medium text-foreground">
-                {markets.length === 2 ? markets.join(" and ") : `${markets.slice(0, -1).join(", ")} and ${markets[markets.length - 1]}`}
-              </span>
-              , mostly <span className="font-medium text-foreground">{country}</span> on{" "}
-              {mobile ? "mobile" : "desktop"}. The figures above pool every market, so they aren&apos;t any
-              single one&apos;s numbers.
-            </>
-          ) : (
-            <>
-              Rank checks run against <span className="font-medium text-foreground">Google {country}</span>, in English,
-              on {mobile ? "mobile" : "desktop"}.
-            </>
-          )}
+          {/* t.rich, because the emphasis sits INSIDE the sentence and every
+              language puts it somewhere different — pulling the bold parts out
+              as separate nodes would fix English word order for all of them.
+
+              The market list is joined by Intl.ListFormat rather than by hand.
+              The old code special-cased two ("A and B") and three-or-more
+              ("A, B and C"), which is an English rule: Spanish switches "y" to
+              "e" before an i- sound, and German uses no serial comma at all. */}
+          {scope.mixed
+            ? t.rich("scopeMixed", {
+                markets: marketList,
+                country,
+                device: mobile ? t("deviceMobile") : t("deviceDesktop"),
+                b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              })
+            : t.rich("scopeSingle", {
+                country,
+                device: mobile ? t("deviceMobile") : t("deviceDesktop"),
+                b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              })}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -163,7 +172,7 @@ function ScopeLine({ projectId, scope }: { projectId: string; scope: Scope }) {
           className="text-[13px] focus:bg-muted focus:text-foreground"
           onSelect={() => router.push(`/dashboard/project/${projectId}/keywords?add=1`)}
         >
-          Set location &amp; device per keyword
+          {t("setPerKeyword")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -216,6 +225,7 @@ const PAGE_SIZE = 10
  * haven't taken yet.
  */
 function RankAction({ projectId, k }: { projectId: string; k: TopKeyword }) {
+  const t = useTranslations("dashOverview.position")
   const router = useRouter()
   if (!k.canRank) return null
 
@@ -242,8 +252,8 @@ function RankAction({ projectId, k }: { projectId: string; k: TopKeyword }) {
       </TooltipTrigger>
       <TooltipContent className="text-xs">
         {k.latestAnalysisId
-          ? "Open the latest competitor analysis for this keyword"
-          : `See what it takes to move this keyword from ${from} to #1`}
+          ? t("openAnalysis")
+          : t("seeWhatItTakes", { from })}
       </TooltipContent>
     </Tooltip>
   )
@@ -257,6 +267,7 @@ function RankAction({ projectId, k }: { projectId: string; k: TopKeyword }) {
  * it's the obvious next step for every row, which is the point of the split.
  */
 function KeywordTabs({ projectId, keywords }: { projectId: string; keywords: TopKeyword[] }) {
+  const t = useTranslations("dashOverview.position")
   const [tab, setTab] = useState<"losers" | "winners">("losers")
   const [page, setPage] = useState(0)
 
@@ -309,8 +320,8 @@ function KeywordTabs({ projectId, keywords }: { projectId: string; keywords: Top
     <div className="mt-5 border-t pt-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
-          <Tab id="winners" label="Winners" count={winners.length} />
-          <Tab id="losers" label="Losers" count={losers.length} />
+          <Tab id="winners" label={t("tabWinners")} count={winners.length} />
+          <Tab id="losers" label={t("tabLosers")} count={losers.length} />
         </div>
         <InfoHint>
           Winners rank in the top {WINNER_MAX_POSITION}, where most of the clicks are. Losers rank below
@@ -333,10 +344,10 @@ function KeywordTabs({ projectId, keywords }: { projectId: string; keywords: Top
       ) : (
         <>
           <div className={cn(GRID, "gap-x-3 border-b pb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground")}>
-            <span>Keyword</span>
-            <span className="text-right">Position</span>
-            <span className="text-right">Volume</span>
-            {tab === "losers" && <span className="text-right">Want to rank?</span>}
+            <span>{t("colKeyword")}</span>
+            <span className="text-right">{t("colPosition")}</span>
+            <span className="text-right">{t("colVolume")}</span>
+            {tab === "losers" && <span className="text-right">{t("colWantToRank")}</span>}
           </div>
           {/* Paged, not scrolled. A scroll area sized for ten rows put a stubby
               little gutter beside every list, and hid the rest behind a gesture
@@ -395,7 +406,7 @@ function KeywordTabs({ projectId, keywords }: { projectId: string; keywords: Top
                   type="button"
                   onClick={() => setPage(current - 1)}
                   disabled={current === 0}
-                  aria-label="Previous page"
+                  aria-label={t("prevPage")}
                   className="grid size-7 place-items-center rounded-md border transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
                 >
                   <ChevronLeft className="size-4" />
@@ -407,7 +418,7 @@ function KeywordTabs({ projectId, keywords }: { projectId: string; keywords: Top
                   type="button"
                   onClick={() => setPage(current + 1)}
                   disabled={current >= pageCount - 1}
-                  aria-label="Next page"
+                  aria-label={t("nextPage")}
                   className="grid size-7 place-items-center rounded-md border transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
                 >
                   <ChevronRight className="size-4" />
@@ -451,6 +462,7 @@ const dayLabel = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 
 export function PositionTrackingCard(p: PositionTrackingProps) {
+  const t = useTranslations("dashOverview.position")
   // Plotted against real timestamps inside the selected window — see the same
   // note on TrafficCard. A category axis spaced samples evenly, so two checks
   // days apart were drawn as though they spanned the whole range.
@@ -462,13 +474,13 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
   return (
     <Widget
       id="position-tracking"
-      title="Position Tracking"
-      hint="Daily rank checks for the keywords you track, in one location and language."
+      title={t("title")}
+      hint={t("hint")}
       meta={
         <>
           <ScopeLine projectId={p.projectId} scope={p.scope} />
           <Link href={`/dashboard/project/${p.projectId}/keywords`} className="font-semibold text-primary hover:underline">
-            View full report
+            {t("viewFullReport")}
           </Link>
         </>
       }
@@ -486,14 +498,14 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
             ) : (
               <>
                 <Figure
-                  label="Visibility"
-                  hint="Share of all your tracked search volume that your rankings actually capture, weighted by position. It's volume-weighted, so ranking #1 on a term with no volume data adds nothing to it, and a handful of wins among high-volume keywords still reads low."
+                  label={t("visibility")}
+                  hint={t("visibilityHint")}
                   value={formatVisibility(p.visibility)}
                   dim={p.visibility <= 0}
                 />
                 <Figure
-                  label="Avg. position"
-                  hint="Your average Google position across the keywords that rank."
+                  label={t("avgPosition")}
+                  hint={t("avgPositionHint")}
                   value={p.avgPos ?? "—"}
                   dim={p.avgPos == null}
                 />
@@ -505,7 +517,7 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
             <Skeleton className="mt-4 h-[158px] w-full rounded-[10px]" />
           ) : chart.length > 1 ? (
             <div className="mt-4 overflow-hidden rounded-[10px] border bg-bg-inset">
-              <ChartContainer config={{ pos: { label: "Avg. position", color: "var(--primary)" } }} className="!aspect-auto h-[158px] w-full">
+              <ChartContainer config={{ pos: { label: t("avgPosition"), color: "var(--primary)" } }} className="!aspect-auto h-[158px] w-full">
                 <AreaChart data={chart} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="pt-vis" x1="0" y1="0" x2="0" y2="1">
@@ -539,7 +551,7 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
                   reads as the card being broken. */}
               <div>
                 <div className="text-[13px] font-medium text-muted-foreground">
-                  {chart.length === 1 ? "Only one day of ranking data" : "Not enough history yet"}
+                  {chart.length === 1 ? t("onlyOneDay") : t("notEnoughHistory")}
                 </div>
                 <div className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground/70">
                   {chart.length === 1 && p.checkDays > 1 ? (
@@ -548,14 +560,14 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
                       the curve needs two.
                     </>
                   ) : chart.length === 1 ? (
-                    <>The curve appears once a second check finds ranking keywords.</>
+                    <>{t("curveAppears")}</>
                   ) : p.checkDays > 0 ? (
                     <>
                       {p.checkDays} check{p.checkDays === 1 ? "" : "s"} ran in this range, but nothing ranked inside
                       the top 100 yet.
                     </>
                   ) : (
-                    <>No completed checks in this range.</>
+                    <>{t("noChecksInRange")}</>
                   )}
                 </div>
               </div>
@@ -575,8 +587,8 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
         {/* ── Where the keywords sit ── */}
         <div className="min-w-0">
           <div className="mb-2.5 flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-            <span>Keywords by position band</span>
-            <InfoHint>Where your tracked keywords currently sit in the results, and how many moved in or out over the last 7 days.</InfoHint>
+            <span>{t("bandsTitle")}</span>
+            <InfoHint>{t("bandsHint")}</InfoHint>
           </div>
 
           {p.loading ? (
@@ -586,17 +598,17 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
               <table className="w-full border-collapse text-[13px]">
                 <thead>
                   <tr>
-                    <th className={cn(TH, "pr-2 text-left")}>Band</th>
-                    <th className={cn(TH, "px-2 text-right")}>Keywords</th>
+                    <th className={cn(TH, "pr-2 text-left")}>{t("colBand")}</th>
+                    <th className={cn(TH, "px-2 text-right")}>{t("colKeywords")}</th>
                     <th className={cn(TH, "w-[30%] px-2")} />
-                    <th className={cn(TH, "px-2 text-right")}>New</th>
-                    <th className={cn(TH, "pl-2 text-right")}>Lost</th>
+                    <th className={cn(TH, "px-2 text-right")}>{t("colNew")}</th>
+                    <th className={cn(TH, "pl-2 text-right")}>{t("colLost")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {p.bands.map((b) => (
                     <tr key={b.label}>
-                      <td className={cn(TD, "pr-2", b.highlight && "font-semibold text-primary")}>{b.label}</td>
+                      <td className={cn(TD, "pr-2", b.highlight && "font-semibold text-primary")}>{t(b.label)}</td>
                       <td className={cn(TD, "px-2 text-right font-semibold tabular-nums", b.highlight && "text-primary")}>{b.count}</td>
                       <td className={cn(TD, "px-2")}>
                         <div className="h-[5px] overflow-hidden rounded-[3px] bg-muted">
@@ -618,10 +630,10 @@ export function PositionTrackingCard(p: PositionTrackingProps) {
 
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80">
                 {p.tracked === 0
-                  ? "No keywords tracked yet. Add the terms you actually want to win — five is enough to start."
+                  ? t("noKeywordsYet")
                   : p.ranked === 0
                     ? `All ${p.tracked} tracked keyword${p.tracked === 1 ? "" : "s"} sit outside the top 100 today. First movement usually shows within two weeks.`
-                    : `${p.ranked} of ${p.tracked} tracked keywords rank inside the top 100.`}
+                    : t("rankSummary", { ranked: p.ranked, tracked: p.tracked })}
               </p>
             </>
           )}
