@@ -1098,6 +1098,596 @@
   text-align: center;
 }
 
+/* ============================================================================
+   AI ENGINE PAGES  —  /dashboard/ai-platforms/<engine>
+   ============================================================================
+   Four routes used to render one component with a swapped label, which is why
+   they read as "the same page". The difference between these assistants is real
+   and measurable — one is scraped from the live product and hands back a link to
+   the answer, one rejects country targeting outright, one always retrieves, one
+   costs three credits an answer — so the page is built from a per-engine profile
+   (lib/ai-engines.ts) that decides the accent, the capability facts AND the
+   order of the sections. Source of truth for the facts is the backend's
+   CAPABILITIES in llmPlatform.adapter.ts; keep them in step.
+
+   Theming is one attribute. `data-engine` on the page root sets --accent /
+   --accent-ink / --accent-soft, and every rule below reads those. No rule
+   anywhere else in this file mentions an engine by name. */
+
+/* --accent      fills, bars, chart strokes, the identity stroke on a board
+   --accent-ink  TEXT and links — a separate role because Claude's #FE883E is
+                 ~2.2:1 on white and fails as text at any size
+   --accent-soft tint ground for badges, board headers, "this is you" rows
+
+   The `-d` values are the dark-mode pair, declared here beside their light
+   counterparts so an engine is one block to read and edit, and remapped by the
+   single dark rule below rather than by four more selectors. */
+.fs-app .llm-eng {
+  --accent: var(--brand);
+  --accent-ink: var(--brand);
+  --accent-soft: var(--brand-soft);
+  --accent-d: var(--brand);
+  --accent-ink-d: var(--brand);
+  --accent-soft-d: var(--brand-soft);
+}
+/* OpenAI's mark is monochrome by their own brand guideline, so ChatGPT gets an
+   ACHROMATIC page rather than an invented brand colour. That is the strongest
+   honest differentiation available here, and it leaves the page to carry its
+   identity through the one thing no other engine has: a link back to the live
+   answer. */
+.fs-app .llm-eng[data-engine="chat_gpt"] {
+  --accent: #343541; --accent-ink: #22262F; --accent-soft: #F1F2F4;
+  --accent-d: #C9CFDA; --accent-ink-d: #E4E8EE; --accent-soft-d: #1B1F27;
+}
+/* The Gemini MARK stays #4a7dfc, but #4a7dfc as a page accent is within a few
+   degrees of --brand #2D5BFF — a Gemini page tinted with it would read as "the
+   normal dashboard", which is the exact complaint this redesign answers. This is
+   the violet stop of Google's own blue→violet→coral gradient: recognisably
+   Gemini, unmistakably not our brand blue. */
+.fs-app .llm-eng[data-engine="gemini"] {
+  --accent: #9168C0; --accent-ink: #7A4FB0; --accent-soft: #F3EEFA;
+  --accent-d: #B18CE0; --accent-ink-d: #C4A5EC; --accent-soft-d: #241B33;
+}
+.fs-app .llm-eng[data-engine="perplexity"] {
+  --accent: #20808D; --accent-ink: #186670; --accent-soft: #E7F3F4;
+  --accent-d: #3FB6C4; --accent-ink-d: #5FCBD8; --accent-soft-d: #10262A;
+}
+.fs-app .llm-eng[data-engine="claude"] {
+  --accent: #FE883E; --accent-ink: #C2410C; --accent-soft: #FDF0E6;
+  --accent-d: #FFA96B; --accent-ink-d: #FFC49A; --accent-soft-d: #2A1A0E;
+}
+/* One rule, not one per engine. */
+.dark .fs-app .llm-eng {
+  --accent: var(--accent-d); --accent-ink: var(--accent-ink-d); --accent-soft: var(--accent-soft-d);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────────
+   Full-bleed out of .page's padding, same trick as .kd-header. The glow is
+   mixed FROM --accent rather than hardcoded per engine, so adding a fifth
+   assistant is one line in the profile and nothing here. */
+.fs-app .llm-hero {
+  position: relative;
+  margin: -28px calc(-1 * var(--page-pad)) 20px;
+  padding: 30px var(--page-pad) 24px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 900px 240px at 10% -20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    var(--bg);
+  overflow: hidden;
+}
+/* The engine's own mark, oversized and faint, bleeding off the right edge. This
+   is what stops the page reading as a generic dashboard at a glance — and it is
+   the mark AS PUBLISHED: no filter, no fill override, the opacity lives on this
+   container. Third-party marks are never recoloured. */
+.fs-app .llm-hero-mark {
+  position: absolute; top: 50%; right: -26px; transform: translateY(-50%);
+  opacity: 0.06; pointer-events: none; line-height: 0;
+}
+.fs-app .llm-hero-in {
+  position: relative; display: flex; align-items: flex-end;
+  justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+.fs-app .llm-hero-id { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
+.fs-app .llm-hero-badge {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: var(--r-md);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-ink);
+}
+.fs-app .llm-hero h1 {
+  font-size: 27px; font-weight: 600; letter-spacing: -0.03em;
+  margin: 3px 0 0; line-height: 1.1;
+}
+.fs-app .llm-hero-tag {
+  margin: 6px 0 0; max-width: 56ch;
+  font-size: 13px; line-height: 1.5; color: var(--text-soft);
+}
+/* Facts a user would otherwise have to infer from an invoice. */
+.fs-app .llm-hero-facts { display: flex; gap: 26px; margin: 0; flex-wrap: wrap; }
+.fs-app .llm-hero-facts > div { min-width: 0; }
+.fs-app .llm-hero-facts dt {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-mute);
+}
+.fs-app .llm-hero-facts dd {
+  margin: 3px 0 0; font-size: 18px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+.fs-app .llm-hero-facts dd small { font-size: 12px; font-weight: 500; color: var(--text-mute); }
+
+/* ── Section heading ───────────────────────────────────────────────────────
+   These pages stack six or seven panels; without a label per panel they read as
+   an undifferentiated pile of cards. */
+.fs-app .llm-sec { display: flex; align-items: baseline; gap: 10px; margin: 22px 0 10px; flex-wrap: wrap; }
+.fs-app .llm-sec h2 { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.fs-app .llm-sec .why { font-size: 12px; color: var(--text-mute); }
+.fs-app .llm-sec .why b { color: var(--accent-ink); font-weight: 600; }
+
+/* ── Capability strip ──────────────────────────────────────────────────────
+   What this assistant can and cannot do, in sentences. Hairline grid, the same
+   construction as .compare. A capability that does not exist gets a SENTENCE,
+   never a dash in a data cell: a dash reads as broken, a sentence reads as a
+   product that knows its own limits. State is never carried by colour alone —
+   the icon and the wording each say it independently. */
+.fs-app .llm-caps {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  overflow: hidden; margin-bottom: 4px;
+}
+.fs-app .llm-cap { background: var(--bg-elev); padding: 13px 15px; display: flex; gap: 10px; }
+.fs-app .llm-cap svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.fs-app .llm-cap b { display: block; font-size: 12.5px; font-weight: 600; }
+.fs-app .llm-cap span { display: block; font-size: 11.5px; line-height: 1.45; color: var(--text-mute); margin-top: 3px; }
+.fs-app .llm-cap.yes svg { color: var(--accent-ink); }
+.fs-app .llm-cap.no { background: var(--bg-sub); }
+.fs-app .llm-cap.no svg { color: var(--text-mute); }
+.fs-app .llm-cap.no b { color: var(--text-soft); }
+.fs-app .llm-cap.note svg { color: var(--warn); }
+
+/* ── Prompt board ──────────────────────────────────────────────────────────
+   One brand's prompts on this engine. Replaces .card + .tbl, which drew a box
+   inside a box and gave the page nothing to look at. */
+.fs-app .llm-board {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);   /* the identity stroke, repeated down the page */
+  border-radius: var(--r-md);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.fs-app .llm-board-h {
+  /* Wraps: the header now carries an action as well as the brand, its average
+     and a count, which is more than a narrow column fits on one line. */
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 15px;
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  border-bottom: 1px solid var(--border);
+}
+.fs-app .llm-board-avatar {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  background: var(--bg-inset); color: var(--text-soft);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+}
+.fs-app .llm-board-h .t { font-size: 13.5px; font-weight: 600; }
+.fs-app .llm-board-h .t a { color: inherit; text-decoration: none; }
+.fs-app .llm-board-h .t a:hover { color: var(--accent-ink); text-decoration: underline; }
+.fs-app .llm-board-h .sp { flex: 1; }
+/* The brand's average on THIS engine, at the top of its own board — the number
+   you came to the page for, without reading the table. */
+.fs-app .llm-board-rate {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+.fs-app .llm-board-rate i { font-size: 10.5px; font-style: normal; font-weight: 600; color: var(--text-mute); letter-spacing: 0.04em; text-transform: uppercase; }
+
+.fs-app .llm-tbl tbody tr { transition: background .12s ease; }
+.fs-app .llm-tbl tbody tr:hover { background: var(--bg-sub); }
+/* The strongest prompt in the board. An inset shadow rather than a border so
+   the row does not shift by a pixel. */
+.fs-app .llm-tbl tbody tr.hot > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* Prominence as a position, not a bare percent. The scale is inverted on
+   purpose: prominence is "how early the mention appears", so a SHORTER bar is
+   better and the number beside it says so in words. */
+.fs-app .llm-pos { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.fs-app .llm-pos .bar { width: 46px; }
+.fs-app .llm-pos .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.fs-app .llm-pos b { font-size: 11.5px; font-weight: 600; color: var(--text-soft); white-space: nowrap; }
+.fs-app .llm-spark { display: inline-block; line-height: 0; vertical-align: middle; }
+/* Stacked favicons for "the AI cited these to answer you". */
+.fs-app .llm-srcs { display: inline-flex; align-items: center; }
+.fs-app .llm-srcs img, .fs-app .llm-srcs .f {
+  width: 17px; height: 17px; border-radius: 4px; background: var(--bg-inset);
+  border: 1.5px solid var(--bg-elev); margin-left: -5px;
+  display: inline-grid; place-items: center;
+  font-size: 8.5px; font-weight: 700; color: var(--text-mute);
+}
+.fs-app .llm-srcs :first-child { margin-left: 0; }
+.fs-app .llm-srcs .more { font-size: 11px; color: var(--text-mute); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.fs-app .llm-cred { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--text-soft); }
+/* Only ChatGPT returns a check_url, so only ChatGPT's board has this column. */
+.fs-app .llm-verify {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 500; color: var(--accent-ink); text-decoration: none;
+}
+.fs-app .llm-verify:hover { text-decoration: underline; }
+.fs-app .llm-verify svg { width: 12px; height: 12px; }
+
+/* ── Sources leaderboard ───────────────────────────────────────────────────
+   Where this assistant reads about your category. On Perplexity this is the
+   headline finding and sits above the board. */
+.fs-app .llm-srcs-list { list-style: none; margin: 0; padding: 0; }
+.fs-app .llm-src {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 15px; border-bottom: 1px solid var(--border);
+}
+.fs-app .llm-src:last-child { border-bottom: none; }
+.fs-app .llm-src .fav { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; background: var(--bg-inset); }
+.fs-app .llm-src .n { min-width: 0; flex: 1; }
+.fs-app .llm-src .n b { display: block; font-size: 12.5px; font-weight: 600; }
+.fs-app .llm-src .n span { display: block; font-size: 11px; color: var(--text-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .llm-src .bar { width: 120px; flex-shrink: 0; }
+.fs-app .llm-src .bar > i { display: block; height: 100%; width: var(--v); background: var(--accent); border-radius: 99px; }
+.fs-app .llm-src .ct { width: 30px; text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* Your own domain, when the assistant reads you directly. */
+.fs-app .llm-src.is-own { background: var(--accent-soft); }
+.fs-app .llm-src.is-own .n b { color: var(--accent-ink); }
+
+/* ── Share of voice ────────────────────────────────────────────────────────
+   Who gets named in the answers where you hoped to be. */
+.fs-app .llm-sov-bar { display: flex; height: 30px; border-radius: var(--r-sm); overflow: hidden; background: var(--bg-inset); }
+.fs-app .llm-sov-bar > span { display: block; min-width: 2px; transition: opacity .12s ease; }
+.fs-app .llm-sov-bar > span.me { background: var(--accent); }
+.fs-app .llm-sov-key { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
+.fs-app .llm-sov-key div { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-soft); }
+.fs-app .llm-sov-key i { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.fs-app .llm-sov-key b { font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* ── Coverage ──────────────────────────────────────────────────────────────
+   "You track 31 prompts, 14 of them here." The gap IS the call to action, so
+   the button lives inside the panel rather than somewhere else on the page. */
+.fs-app .llm-cover { display: flex; align-items: center; gap: 16px; padding: 15px 16px; flex-wrap: wrap; }
+.fs-app .llm-cover .n { flex: 1; min-width: 190px; }
+.fs-app .llm-cover .n b { font-size: 13px; font-weight: 600; }
+.fs-app .llm-cover .n .bar { margin-top: 9px; height: 7px; }
+.fs-app .llm-cover .n .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.fs-app .llm-cover .n .tiny { margin-top: 7px; }
+
+/* ── Cost (Claude) ─────────────────────────────────────────────────────────
+   Claude answers cost three credits, not one. That asymmetry gets its own panel
+   on its own page rather than being averaged into a cross-engine figure where
+   it would quietly overstate what the other three cost. */
+.fs-app .llm-cost { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); }
+.fs-app .llm-cost > div { background: var(--bg-elev); padding: 14px 15px; }
+.fs-app .llm-cost dt { font-size: 11px; color: var(--text-mute); }
+.fs-app .llm-cost dd { margin: 5px 0 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fs-app .llm-cost dd small { font-size: 12px; font-weight: 500; color: var(--text-mute); }
+.fs-app .llm-cost-flag {
+  display: flex; gap: 9px; padding: 11px 15px;
+  background: var(--warn-soft); border-top: 1px solid var(--border);
+  font-size: 12px; line-height: 1.5; color: var(--text-soft);
+}
+.fs-app .llm-cost-flag svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: var(--warn); }
+
+/* ── Fan-out (ChatGPT / Gemini) ────────────────────────────────────────────
+   The searches the assistant ran on its way to the answer. Only the scraped
+   products report these; the two API-answer engines have no such field, and
+   their pages omit the section rather than draw an empty card. */
+.fs-app .llm-fan { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; }
+.fs-app .llm-fan span {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--bg-sub);
+  font-size: 12px; color: var(--text-soft);
+}
+.fs-app .llm-fan span b { font-variant-numeric: tabular-nums; color: var(--accent-ink); font-weight: 600; }
+
+/* ── Cross-engine rail ─────────────────────────────────────────────────────
+   The direct answer to "these four pages are the same page": from any engine
+   you can see you are at 92% on Perplexity and 31% on Gemini, and click across.
+   Each tile carries its OWN data-engine, so it borrows that engine's accent and
+   the rail is four colours at a glance. */
+.fs-app .llm-cross { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.fs-app .llm-cross-item {
+  display: block; padding: 13px 14px; text-decoration: none; color: inherit;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--bg-elev);
+  transition: border-color .14s ease, background .14s ease, transform .14s ease;
+}
+.fs-app a.llm-cross-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.fs-app .llm-cross-item.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  cursor: default;
+}
+.fs-app .llm-cross-item .top { display: flex; align-items: center; gap: 8px; }
+.fs-app .llm-cross-item .top b { font-size: 12.5px; font-weight: 600; }
+.fs-app .llm-cross-item .v {
+  display: block; margin-top: 9px;
+  font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+.fs-app .llm-cross-item .k { display: block; font-size: 11px; color: var(--text-mute); margin-top: 2px; }
+.fs-app .llm-cross-item .here {
+  display: inline-block; margin-left: auto; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent-ink);
+}
+
+/* ── Empty states ──────────────────────────────────────────────────────────
+   Most accounts run one assistant, so for most people three of these four pages
+   are empty — which makes this the state most users see, and the reason the old
+   page felt identical four times over. The hero and the capability strip render
+   HERE TOO: an empty Gemini page should still tell you what Gemini tracking is
+   and how it differs from ChatGPT's. */
+.fs-app .llm-empty.rich {
+  position: relative; overflow: hidden;
+  border-style: solid; border-color: var(--border);
+  background: var(--bg-elev);
+  padding: 34px 24px 30px;
+  text-align: left;
+}
+.fs-app .llm-empty-art {
+  position: absolute; top: 50%; right: 18px; transform: translateY(-50%);
+  opacity: 0.05; pointer-events: none; line-height: 0;
+}
+.fs-app .llm-empty-in { position: relative; max-width: 620px; }
+.fs-app .llm-empty-in .b { font-size: 16px; font-weight: 600; letter-spacing: -0.015em; }
+.fs-app .llm-empty-steps { list-style: none; counter-reset: s; margin: 18px 0 20px; padding: 0; display: grid; gap: 11px; }
+.fs-app .llm-empty-steps li {
+  counter-increment: s; display: flex; gap: 11px; align-items: flex-start;
+  font-size: 13px; color: var(--text-soft); line-height: 1.45;
+}
+.fs-app .llm-empty-steps li::before {
+  content: counter(s);
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.fs-app .llm-empty-cta { display: flex; gap: 9px; flex-wrap: wrap; }
+/* The primary action on an engine page adds prompts ON THAT ENGINE — the old
+   "Open AI Prompt Tracker" sent you back to the page you were trying to leave.
+   Text is --bg, not white: --accent-ink is the DARK step in light mode and the
+   LIGHT step in dark mode, so a fixed white label is unreadable in one of them.
+   Pairing it with the page ground inverts alongside it and stays legible in
+   both. */
+.fs-app .llm-empty-cta .btn.primary {
+  background: var(--accent-ink); border-color: var(--accent-ink); color: var(--bg);
+}
+.fs-app .llm-empty-cta .btn.primary:hover { background: var(--accent-ink); filter: brightness(1.08); }
+.fs-app .llm-empty-cta .btn.primary svg { color: var(--bg); }
+/* The eyebrow defaults to --brand, which would put brand blue on a page whose
+   whole point is that it is not the generic dashboard. */
+.fs-app .llm-empty .eyebrow, .fs-app .llm-empty .eyebrow .spark { color: var(--accent-ink); }
+
+/* ── Adding prompts from an assistant page ─────────────────────────────────
+   The page had no add action once it had any data at all: the rich empty state
+   offered one, and the coverage panel offered one, but coverage only renders
+   when you are missing prompts AND sits below the board — so on a populated
+   page there was nothing, and "track another question on ChatGPT" meant knowing
+   to go back to the tracker, open a brand, and find the button there.
+
+   Adding is BRAND-scoped on the backend while this page spans every brand, so
+   the hero button resolves that: straight through with one brand, a picker with
+   several. Each board also carries its own, which needs no picker at all. */
+.fs-app .llm-hero-side {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
+}
+.fs-app .llm-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* The primary action takes the ASSISTANT's colour, not brand blue — it adds
+   prompts on this assistant, and the page is already saying which one that is.
+   Text is --bg so it inverts with --accent-ink between light and dark. */
+.fs-app .llm-hero-actions .btn.primary,
+.fs-app .llm-board-h .btn.primary {
+  background: var(--accent-ink); border-color: var(--accent-ink); color: var(--bg);
+}
+.fs-app .llm-hero-actions .btn.primary:hover,
+.fs-app .llm-board-h .btn.primary:hover { background: var(--accent-ink); filter: brightness(1.08); }
+
+/* Board-level add: the same action, scoped to the brand you are already reading,
+   so there is nothing to disambiguate. */
+.fs-app .llm-board-h .btn { padding: 5px 10px; font-size: 12px; }
+
+/* Brand picker. Which brand should the new prompts belong to — shown with what
+   each already tracks here, so the choice is informed rather than a list of
+   names. */
+.fs-app .llm-pick { display: flex; flex-direction: column; gap: 8px; }
+.fs-app .llm-pick-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--bg-elev);
+  color: inherit; text-decoration: none; text-align: left; font: inherit; cursor: pointer;
+  transition: border-color .14s ease, background .14s ease;
+}
+.fs-app .llm-pick-row:hover { border-color: var(--accent); background: var(--accent-soft); }
+.fs-app .llm-pick-row .n { flex: 1; min-width: 0; }
+.fs-app .llm-pick-row .n b { display: block; font-size: 13px; font-weight: 600; }
+.fs-app .llm-pick-row .n span { display: block; font-size: 11.5px; color: var(--text-mute); }
+.fs-app .llm-pick-row .ct { font-size: 11.5px; color: var(--text-mute); white-space: nowrap; }
+.fs-app .llm-pick-row svg { color: var(--text-mute); flex-shrink: 0; }
+.fs-app .llm-pick-new {
+  margin-top: 4px; padding-top: 12px; border-top: 1px dashed var(--border);
+  font-size: 12.5px; color: var(--text-mute);
+}
+
+/* ── Prompt detail ─────────────────────────────────────────────────────────
+   /dashboard/ai-prompt-tracker/<brand>/<prompt>
+   One question, one assistant's answers to it. The page carries the SAME
+   data-engine accent as the assistant page you arrived from — before this it
+   was generic brand blue, so clicking a teal Perplexity row landed you on a
+   page with no visible connection to Perplexity. */
+
+/* The question is the subject of the page, so it gets the hero rather than a
+   26px h1 above a stat row. Shares .llm-hero's full-bleed construction. */
+.fs-app .llm-qhero {
+  position: relative;
+  margin: -28px calc(-1 * var(--page-pad)) 18px;
+  padding: 26px var(--page-pad) 22px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 900px 220px at 8% -30%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 70%),
+    var(--bg);
+  overflow: hidden;
+}
+.fs-app .llm-qhero-mark {
+  position: absolute; top: 50%; right: -30px; transform: translateY(-50%);
+  opacity: 0.05; pointer-events: none; line-height: 0;
+}
+.fs-app .llm-qhero-in {
+  position: relative; display: flex; align-items: flex-end;
+  justify-content: space-between; gap: 26px; flex-wrap: wrap;
+}
+/* A prompt is a sentence, not a title — it wraps, and it is capped so a
+   500-character question cannot become the entire first screen. */
+.fs-app .llm-qhero h1 {
+  font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.35;
+  margin: 5px 0 0; max-width: 46ch;
+}
+/* Which assistant's answers you are reading, stated rather than inferred from
+   a highlighted chip. This is what the "Answered by" stat tile used to spend a
+   quarter of the metric row saying. */
+.fs-app .llm-qhero-who {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 13px; border-radius: var(--r-md);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.fs-app .llm-qhero-who .lbl { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-mute); }
+.fs-app .llm-qhero-who .n { font-size: 14px; font-weight: 600; color: var(--accent-ink); }
+.fs-app .llm-qhero-who .m { font-size: 11px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+
+/* ── One question, four assistants ─────────────────────────────────────────
+   Replaces a row of chips. A chip row asked you to pick blind: you could not
+   see that this question scores 100% on Perplexity and 40% on Gemini until you
+   had clicked each one. Here the answer to "who names me for this question" is
+   the control itself. Each tile takes its own accent via data-engine. */
+.fs-app .llm-qswitch { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+.fs-app .llm-qswitch button {
+  display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+  padding: 10px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
+  transition: border-color .14s ease, background .14s ease, transform .14s ease;
+}
+.fs-app .llm-qswitch button:hover:not(.on) {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateY(-1px);
+}
+.fs-app .llm-qswitch button.on {
+  border-color: var(--accent); background: var(--accent-soft);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  cursor: default;
+}
+.fs-app .llm-qswitch .top { display: flex; align-items: center; gap: 7px; }
+.fs-app .llm-qswitch .top b { font-size: 12px; font-weight: 600; }
+.fs-app .llm-qswitch .v {
+  display: block; margin-top: 7px;
+  font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+/* Tracked but never run. A dash here, not 0% — the two are different findings
+   and only one of them is bad news. */
+.fs-app .llm-qswitch button.none .v { color: var(--text-mute); }
+.fs-app .llm-qswitch .k { display: block; font-size: 10.5px; color: var(--text-mute); margin-top: 1px; }
+
+/* ── An answer ─────────────────────────────────────────────────────────────
+   The evidence behind the percentage, and the reason anyone believes it. Every
+   answer used to be a flat .card indistinguishable from the chrome around it. */
+.fs-app .llm-answer {
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--bg-elev); box-shadow: var(--shadow-sm);
+  overflow: hidden; margin-bottom: 12px;
+}
+/* The verdict for THIS answer, on a tinted strip so it reads as a label on the
+   answer rather than another card in the stack. */
+.fs-app .llm-answer-h {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 10px 15px; border-bottom: 1px solid var(--border);
+  background: var(--bg-sub);
+}
+.fs-app .llm-answer-n {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: var(--bg-inset); color: var(--text-soft);
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.fs-app .llm-answer-h .sp { flex: 1; }
+/* Named in this answer — the finding, so it takes the accent. */
+.fs-app .llm-answer.hit .llm-answer-n { background: var(--accent-soft); color: var(--accent-ink); }
+.fs-app .llm-answer.hit .llm-answer-h { background: linear-gradient(90deg, var(--accent-soft), transparent 60%); }
+.fs-app .llm-answer-b { padding: 4px 15px 14px; }
+/* Where the answer's own metadata lives: who else it named, what it searched. */
+.fs-app .llm-answer-f {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 11px 15px; border-top: 1px dashed var(--border); background: var(--bg-sub);
+}
+.fs-app .llm-answer-f .r { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fs-app .llm-answer-f .r > .tiny { min-width: 62px; }
+
+/* The brand, marked up inside the answer. Accent rather than brand blue: the
+   highlight belongs to the assistant whose answer this is. */
+.fs-app .llm-md .llm-hit {
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-weight: 600; border-radius: 3px; padding: 0 3px;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* ── Also named ────────────────────────────────────────────────────────────
+   Aggregated across this run's answers. Per-answer chips already existed, but
+   nothing added them up — so "who is being recommended instead of me, for this
+   question" could only be answered by reading every answer and counting. */
+.fs-app .llm-rivals { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 15px; }
+.fs-app .llm-rivals .chip b { font-variant-numeric: tabular-nums; margin-left: 4px; color: var(--text-mute); }
+
+@media (max-width: 900px) {
+  .fs-app .llm-qswitch { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .fs-app .llm-qhero { padding: 20px var(--page-pad) 18px; }
+  .fs-app .llm-qhero h1 { font-size: 18px; }
+  .fs-app .llm-qhero-mark { display: none; }
+}
+
+/* ── Brand card: per-assistant scores ──────────────────────────────────────
+   Each pill carries its own data-engine, so it inherits that assistant's accent
+   from the block at the top of this section. */
+.fs-app .llm-brand-eng {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border);
+}
+.fs-app .llm-brand-eng .llm-eng {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px 3px 6px; border-radius: 99px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.fs-app .llm-brand-eng .llm-eng b { font-weight: 600; color: var(--accent-ink); }
+/* Not tracked here. Dimmed rather than hidden: an assistant you are missing from
+   is the thing worth noticing on this card. */
+.fs-app .llm-brand-eng .llm-eng.off { background: transparent; border-color: var(--border); opacity: .55; }
+.fs-app .llm-brand-eng .llm-eng.off b { color: var(--text-mute); }
+.fs-app a.llm-brand:hover { border-color: var(--border-strong); }
+
+@media (max-width: 900px) {
+  .fs-app .llm-cost { grid-template-columns: repeat(2, 1fr); }
+  .fs-app .llm-cross { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .fs-app .llm-hero { padding: 22px var(--page-pad) 20px; }
+  .fs-app .llm-hero h1 { font-size: 23px; }
+  .fs-app .llm-hero-mark { display: none; }
+  .fs-app .llm-hero-facts { gap: 18px; }
+  .fs-app .llm-src .bar { width: 60px; }
+}
+
 /* AI Overview verdict. Reads as information, not an alarm: an outline chip with
    a status dot, rather than a filled amber warning badge. "Cited" keeps a filled
    treatment because it's the one state worth celebrating. */
