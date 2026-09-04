@@ -229,6 +229,9 @@ export default function SeoDashboardPage() {
   // null until the request settles — the setup card distinguishes "not
   // connected" from "we don't know yet" and shouldn't claim either early.
   const [gscConnected, setGscConnected] = useState<boolean | null>(null)
+  // Bumped to re-run both GSC reads after the Traffic card connects an account.
+  const [gscKey, setGscKey] = useState(0)
+  const refreshGsc = useCallback(() => setGscKey((k) => k + 1), [])
   // The Search Console GRANT is account-wide, but the property is linked per
   // project — so "connected" alone said nothing about whether THIS project has
   // data behind it, and every project claimed to be set up off one connection.
@@ -281,7 +284,7 @@ export default function SeoDashboardPage() {
       .then((r) => { if (!cancelled) setGscConnected(!!r?.connected) })
       .catch(() => undefined)
     return () => { cancelled = true }
-  }, [])
+  }, [gscKey])
 
   // Which Search Console property this project is pointed at, if any. Scoped to
   // the project, so switching projects re-asks rather than carrying the last
@@ -294,7 +297,7 @@ export default function SeoDashboardPage() {
       .then((r) => { if (!cancelled && r) setGscSite(r) })
       .catch(() => undefined)
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, gscKey])
 
   useEffect(() => {
     if (projectId === null && projects.length > 0) setProjectId(projects[0]!.id)
@@ -763,6 +766,10 @@ export default function SeoDashboardPage() {
               rangeLabel={t(RANGE_LABEL_KEY[range])}
               rangeDays={RANGE_DAYS[range]}
               gsc={gscState}
+              /* The card can connect Google itself now, so it has to be able to
+                 tell the page the answer changed — otherwise it keeps rendering
+                 the invitation the user just accepted. */
+              onGscChanged={refreshGsc}
             />
 
             <DashboardFooter refreshed={refreshed} />

@@ -17,10 +17,12 @@
  */
 
 import { useTranslations } from "next-intl"
+import { useGoogleLogin } from "@react-oauth/google"
+import { toast } from "sonner"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { ArrowUpRight, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react"
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, TriangleAlert } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -50,6 +52,10 @@ type GscPerformance = {
 type Source = "freeserp" | "google"
 
 const nf = (n: number) => n.toLocaleString()
+
+/** Read-only Search Console. Same scope the Search Console page requests, so
+ *  connecting from either place grants exactly the same thing. */
+const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 
 /**
  * Y-axis ticks, short enough to fit the gutter they are drawn in.
@@ -404,11 +410,46 @@ export type TrafficProps = {
   /** Account grant + this project's linked property. `connected` is null while
    *  the check is in flight — unknown, not disconnected. */
   gsc: GscState
+  /**
+   * Re-read the GSC state after this card connects an account itself.
+   *
+   * The card can start the OAuth popup now, so it can change the very thing it
+   * was handed as a prop. Without telling the page it would sit on "not
+   * connected" until a reload — having just watched the user connect.
+   */
+  onGscChanged?: () => void
 }
 
 export function TrafficCard(p: TrafficProps) {
   const t = useTranslations("dashOverview.traffic")
   const router = useRouter()
+  const [connecting, setConnecting] = useState(false)
+
+  /**
+   * The same auth-code popup the Search Console page runs. `flow: "auth-code"`
+   * hands back a one-time code that the server exchanges for the refresh token
+   * — the browser never holds one.
+   */
+  const connectGsc = useGoogleLogin({
+    flow: "auth-code",
+    scope: GSC_SCOPE,
+    onSuccess: async ({ code }) => {
+      setConnecting(true)
+      try {
+        await api.post("/api/gsc/connect", { code })
+        toast.success(t("connectedToast"))
+        // Connected, but this project still has no property. Refresh so the
+        // card moves to the "pick a property" state rather than staying on the
+        // invitation the user has just accepted.
+        p.onGscChanged?.()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("connectError"))
+      } finally {
+        setConnecting(false)
+      }
+    },
+    onError: () => toast.error(t("connectError")),
+  })
   const [source, setSource] = useState<Source>("freeserp")
   const [perf, setPerf] = useState<GscPerformance | null>(null)
   const [perfLoading, setPerfLoading] = useState(false)
@@ -567,8 +608,26 @@ export function TrafficCard(p: TrafficProps) {
           title={t("notConnectedTitle")}
           body={t("notConnectedBody")}
           action={
-            <Button size="sm" className="h-[34px] gap-1.5 text-[13px] font-semibold" onClick={() => router.push(`/dashboard/project/${p.projectId}/search-console`)}>
-              <GoogleMark /> {t("connectAction")}
+            /*
+              Opens Google straight away.
+
+              This used to route to the Search Console page, which then showed
+              the same button and only THEN opened the popup — two clicks and a
+              page change to reach a dialog that could have opened on the first
+              one. The consent popup is where the decision actually happens, so
+              nothing in between was earning its place.
+
+              Same hook the Search Console page uses, so the flow, the scope and
+              the token exchange are identical; only the starting point moved.
+            */
+            <Button
+              size="sm"
+              className="h-[34px] gap-1.5 text-[13px] font-semibold"
+              disabled={connecting}
+              onClick={() => connectGsc()}
+            >
+              {connecting ? <Loader2 className="size-4 animate-spin" /> : <GoogleMark />}
+              {t("connectAction")}
             </Button>
           }
         />
