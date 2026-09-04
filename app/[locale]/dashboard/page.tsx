@@ -588,6 +588,109 @@ export default function SeoDashboardPage() {
               estTraffic={m.estTraffic}
             />
 
+            {/* ── The tools worth interrupting for ──
+
+                These lived at the foot of the wide column, below Position
+                Tracking's keyword table, which on a project with a full table
+                put them most of a scroll down the page — far enough that the
+                dashboard's own tools were the last thing anyone reached.
+
+                Full width, directly under the headline figures. The numbers
+                still land first, which is the rule; going full width also makes
+                each card wider, so the same six occupy LESS vertical space here
+                than they did stacked in a 65% column.
+
+                The Google rank tracker is deliberately not among them. It is
+                the tool whose numbers fill this entire page — the table below
+                is its output — so a card offering to introduce it talks past
+                the reader. The Maps tracker goes here instead: same idea, on a
+                surface this project genuinely has not been pointed at yet.
+
+                Each is its own widget with its own ✕, so someone who never
+                wants the AI prompt nudge can drop just that one and keep the
+                rest. "Your tools" at the foot of the page is the full list;
+                these six are the ones worth interrupting for. */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ToolCard
+                id="tool-maps-tracker"
+                title={tTool("mapsTitle")}
+                description={tTool("mapsDesc")}
+                href="/dashboard/google-maps-tracker"
+                hint={tTool("mapsHint")}
+                points={[
+                  tTool("mapsP1"),
+                  tTool("mapsP2"),
+                  tTool("mapsP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-keyword-magic"
+                title={tTool("magicTitle")}
+                description={tTool("magicDesc")}
+                href="/dashboard/keyword-magic"
+                hint={tTool("magicHint")}
+                points={[
+                  tTool("magicP1"),
+                  tTool("magicP2"),
+                  tTool("magicP3"),
+                ]}
+                // Nothing to set up: it answers a query the moment you type
+                // one, so "Set up" would be a promise of work that is not
+                // there.
+                cta={tTool("open")}
+              />
+              <ToolCard
+                id="tool-ai-prompts"
+                title={tTool("aiTitle")}
+                description={tTool("aiDesc")}
+                href="/dashboard/ai-prompt-tracker"
+                hint={tTool("aiHint")}
+                points={[
+                  tTool("aiP1"),
+                  tTool("aiP2"),
+                  tTool("aiP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-competitor-spy"
+                title={tTool("spyTitle")}
+                description={tTool("spyDesc")}
+                href={`/dashboard/project/${projectId}/competitor-spy`}
+                hint={tTool("spyHint")}
+                points={[
+                  tTool("spyP1"),
+                  tTool("spyP2"),
+                  tTool("spyP3"),
+                ]}
+                cta={tTool("open")}
+              />
+              <ToolCard
+                id="tool-youtube-tracker"
+                title={tTool("ytTitle")}
+                description={tTool("ytDesc")}
+                href="/dashboard/youtube"
+                hint={tTool("ytHint")}
+                points={[
+                  tTool("ytP1"),
+                  tTool("ytP2"),
+                  tTool("ytP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-quick-serp"
+                title={tTool("serpTitle")}
+                description={tTool("serpDesc")}
+                href="/dashboard/serp-checker"
+                hint={tTool("serpHint")}
+                points={[
+                  tTool("serpP1"),
+                  tTool("serpP2"),
+                  tTool("serpP3"),
+                ]}
+                cta={tTool("open")}
+              />
+            </div>
+
             {/*
               ── The four main cards, in two independently-flowing columns ──
 
@@ -626,111 +729,6 @@ export default function SeoDashboardPage() {
                   scope={m.scope}
                   keywords={m.topKeywords}
                 />
-
-                {/* Tool prompts, filling the hole this column leaves.
-                    Position Tracking is the only card in the wide column and
-                    the narrow one stacks two, so the left side ran out of
-                    content while the right side was still going — several
-                    hundred pixels of blank page in the middle of the
-                    dashboard.
-
-                    Six, not three, and each one says what it gives you rather
-                    than only what it is: three short cards left most of that
-                    hole exactly as it was, sitting in a pool of their own
-                    whitespace. Two rows of substantial card fill the column
-                    and read as part of the dashboard.
-
-                    The Google rank tracker is deliberately NOT among them. It
-                    is the tool whose numbers fill this entire page — the table
-                    directly above these cards is its output — so a card
-                    offering to introduce it is talking past the reader. The
-                    Maps tracker is the one that goes here: same idea, a
-                    surface this project genuinely has not been pointed at yet.
-
-                    Each is its own widget with its own ✕, so someone who never
-                    wants the AI prompt nudge can drop just that one and keep
-                    the rest. "Your tools" at the foot of the page is the full
-                    list; these six are the ones worth interrupting for. */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <ToolCard
-                    id="tool-maps-tracker"
-                    title={tTool("mapsTitle")}
-                    description={tTool("mapsDesc")}
-                    href="/dashboard/google-maps-tracker"
-                    hint={tTool("mapsHint")}
-                    points={[
-                      tTool("mapsP1"),
-                      tTool("mapsP2"),
-                      tTool("mapsP3"),
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-keyword-magic"
-                    title={tTool("magicTitle")}
-                    description={tTool("magicDesc")}
-                    href="/dashboard/keyword-magic"
-                    hint={tTool("magicHint")}
-                    points={[
-                      tTool("magicP1"),
-                      tTool("magicP2"),
-                      tTool("magicP3"),
-                    ]}
-                    // Nothing to set up: it answers a query the moment you type
-                    // one, so "Set up" would be a promise of work that is not
-                    // there.
-                    cta={tTool("open")}
-                  />
-                  <ToolCard
-                    id="tool-ai-prompts"
-                    title={tTool("aiTitle")}
-                    description={tTool("aiDesc")}
-                    href="/dashboard/ai-prompt-tracker"
-                    hint={tTool("aiHint")}
-                    points={[
-                      tTool("aiP1"),
-                      tTool("aiP2"),
-                      tTool("aiP3"),
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-competitor-spy"
-                    title={tTool("spyTitle")}
-                    description={tTool("spyDesc")}
-                    href={`/dashboard/project/${projectId}/competitor-spy`}
-                    hint={tTool("spyHint")}
-                    points={[
-                      tTool("spyP1"),
-                      tTool("spyP2"),
-                      tTool("spyP3"),
-                    ]}
-                    cta={tTool("open")}
-                  />
-                  <ToolCard
-                    id="tool-youtube-tracker"
-                    title={tTool("ytTitle")}
-                    description={tTool("ytDesc")}
-                    href="/dashboard/youtube"
-                    hint={tTool("ytHint")}
-                    points={[
-                      tTool("ytP1"),
-                      tTool("ytP2"),
-                      tTool("ytP3"),
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-quick-serp"
-                    title={tTool("serpTitle")}
-                    description={tTool("serpDesc")}
-                    href="/dashboard/serp-checker"
-                    hint={tTool("serpHint")}
-                    points={[
-                      tTool("serpP1"),
-                      tTool("serpP2"),
-                      tTool("serpP3"),
-                    ]}
-                    cta={tTool("open")}
-                  />
-                </div>
               </div>
 
               {/* Narrow column. Both cards render their own <Widget>, so hiding
