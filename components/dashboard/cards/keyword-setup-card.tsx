@@ -72,6 +72,28 @@ type Run = {
  *  the head of the list. */
 const PRESELECT_COUNT = 10
 
+/**
+ * Start tracking a set of keywords. One place, because two callers now reach
+ * it — the picker, and the card's one-click "track the shortlist" button —
+ * and the two must create identical rows.
+ *
+ * The same shape the Add keywords modal posts: one row per keyword per engine.
+ */
+async function trackKeywords(projectId: string, keywords: string[], location: string): Promise<number> {
+  const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
+    keywords: keywords.map((k) => ({ keyword: k, location, device: "desktop", engines: [DEFAULT_ENGINE] })),
+  })
+  // skipDuplicates server-side, so `added` can legitimately come back lower
+  // than asked. Say which happened — silence is indistinguishable from failure.
+  const added = res?.added ?? keywords.length
+  toast.success(
+    added === 0
+      ? "Those keywords are already tracked."
+      : `Now tracking ${added} keyword${added === 1 ? "" : "s"} — the first check is queued.`,
+  )
+  return added
+}
+
 function formatVolume(v: number): string {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
   if (v >= 1000) return `${(v / 1000).toFixed(1).replace(/\.0$/, "")}k`
@@ -290,20 +312,7 @@ function KeywordPicker({
     setSaving(true)
     setError(null)
     try {
-      // The same shape the Add keywords modal posts, so both paths create
-      // identical rows: one per keyword per engine.
-      const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
-        keywords: picks.map((k) => ({ keyword: k, location, device: "desktop", engines: [DEFAULT_ENGINE] })),
-      })
-      // The insert is skipDuplicates server-side, so "added" can legitimately
-      // come back lower than asked. Say which happened — silence there is
-      // indistinguishable from a failure.
-      const added = res?.added ?? picks.length
-      toast.success(
-        added === 0
-          ? "Those keywords are already tracked."
-          : `Now tracking ${added} keyword${added === 1 ? "" : "s"} — the first check is queued.`,
-      )
+      await trackKeywords(projectId, picks, location)
       onAdded()
     } catch (err: unknown) {
       // Stay open. The picks are the user's work, and closing throws them away
@@ -436,6 +445,7 @@ export function KeywordSetupCard({
   const [askDismissed, setAskDismissed] = useState<boolean | null>(null)
   // The shortlist picker, open on the dashboard — see KeywordPicker above.
   const [picking, setPicking] = useState(false)
+  const [autoAdding, setAutoAdding] = useState(false)
   const [graceOver, setGraceOver] = useState(false)
   const graceOverRef = useRef(false)
   const onStatusRef = useRef(onStatus)
@@ -607,6 +617,28 @@ export function KeywordSetupCard({
   const shortlist = run?.suggestions?.suggestions ?? []
   const shortlistLocation = run?.suggestions?.location ?? "in"
 
+  /**
+   * Track the shortlist head and go where the keywords now live.
+   *
+   * Same call and same destination the picker used, minus the dialog that
+   * arrived pre-answered.
+   */
+  const autoTrack = async () => {
+    if (autoAdding) return
+    const picks = shortlist.slice(0, PRESELECT_COUNT).map((s) => s.keyword)
+    if (!picks.length) return
+    setAutoAdding(true)
+    try {
+      await trackKeywords(projectId, picks, shortlistLocation)
+      router.push(`/dashboard/project/${projectId}/keywords`)
+    } catch (err) {
+      // Stay put and say so. Navigating away from a failure would leave the
+      // user on a tracker with no keywords and no reason given.
+      setAutoAdding(false)
+      toast.error(err instanceof Error ? err.message : "Couldn't add those keywords.")
+    }
+  }
+
   if (loading) return <Skeleton className="h-24 w-full rounded-lg" />
 
 
@@ -658,11 +690,46 @@ export function KeywordSetupCard({
             </p>
           </div>
           {shortlist.length > 0 ? (
-            // Opens the list right here. This was a link to the rank tracker —
-            // a page for keywords you already track — so the button that
-            // promised a choice spent the click on a page change and then asked
-            // for the same choice again.
-            <Button size="sm" className="h-8 text-xs" onClick={() => setPicking(true)}>Choose keywords</Button>
+            /**
+             * One click: track the shortlist and go to the tracker.
+             *
+             * This opened a dialog whose top ten arrived already ticked, whose
+             * primary button said "Track 10 keywords", and which then sent you
+             * to the tracker anyway. Everyone pressed the same two buttons in
+             * the same order, so the dialog was asking a question it had
+             * already answered.
+             *
+             * The choosing lives on the rank tracker, where the keywords are:
+             * every row can be removed there, and the shortlist's remainder is
+             * a click away in Add keywords. So nothing is lost by not asking —
+             * the alternative to these ten is on the page this lands you on.
+             */
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                disabled={autoAdding}
+                onClick={() => void autoTrack()}
+              >
+                {autoAdding ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" /> Adding…
+                  </>
+                ) : (
+                  `Track top ${Math.min(PRESELECT_COUNT, shortlist.length)}`
+                )}
+              </Button>
+              {/* Kept, quietly. Tracking spends quota, so somebody who wants to
+                  see the ten before committing to them still can. */}
+              <button
+                type="button"
+                className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => setPicking(true)}
+                disabled={autoAdding}
+              >
+                Choose instead
+              </button>
+            </div>
           ) : (
             // The run finished with nothing to offer. There is no choice to
             // make, so this is honestly a link to the manual box.
