@@ -1129,7 +1129,10 @@
       "catAccessibility": "Barrierefreiheit",
       "catLinks": "Links",
       "grade": "Note",
-      "onePageOnly": "Es konnte nur diese Seite gelesen werden. Hat Ihre Website mehr, blockiert sie wahrscheinlich automatisierte Zugriffe — die Werte oben gelten nur für diese eine Seite."
+      "onePageOnly": "Es konnte nur diese Seite gelesen werden. Hat Ihre Website mehr, blockiert sie wahrscheinlich automatisierte Zugriffe — die Werte oben gelten nur für diese eine Seite.",
+      "noScoreTitle": "Ohne Bewertung beendet",
+      "noScoreMapped": "Wir haben {count} Seiten erfolgreich erfasst, aber der Bewertungsdurchlauf konnte nicht abgeschlossen werden — daher gibt es diesmal keinen Gesundheitswert. Die Seitenliste unten ist vollständig. Starten Sie einen erneuten Crawl, um die Bewertung noch einmal zu versuchen.",
+      "noScoreBlocked": "Wir haben nur {count, plural, one {# Seite} other {# Seiten}} erreicht, und die Prüfungen konnten nicht laufen — offenbar werden automatisierte Zugriffe blockiert. Erlauben Sie unseren Crawler, oder starten Sie einen erneuten Crawl."
     },
     "traffic": {
       "title": "Traffic-Analyse",

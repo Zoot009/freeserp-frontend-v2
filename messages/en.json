@@ -1129,7 +1129,10 @@
       "catAccessibility": "Accessibility",
       "catLinks": "Links",
       "grade": "Grade",
-      "onePageOnly": "Only this page could be read. If your site has more, it is likely blocking automated access — the scores above cover this page alone."
+      "onePageOnly": "Only this page could be read. If your site has more, it is likely blocking automated access — the scores above cover this page alone.",
+      "noScoreTitle": "Finished without a score",
+      "noScoreMapped": "We mapped {count} pages successfully, but the scoring pass could not complete — so there is no health score this time. The page list below is complete. Re-crawl to try scoring again.",
+      "noScoreBlocked": "We only reached {count, plural, one {# page} other {# pages}}, and the checks could not run — it looks like automated access is being blocked. Allow our crawler, or re-crawl to try again."
     },
     "traffic": {
       "title": "Traffic Analytics",

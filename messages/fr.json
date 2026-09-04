@@ -1129,7 +1129,10 @@
       "catAccessibility": "Accessibilité",
       "catLinks": "Liens",
       "grade": "Note",
-      "onePageOnly": "Seule cette page a pu être lue. Si votre site en compte davantage, il bloque probablement les accès automatisés — les scores ci-dessus ne portent que sur cette page."
+      "onePageOnly": "Seule cette page a pu être lue. Si votre site en compte davantage, il bloque probablement les accès automatisés — les scores ci-dessus ne portent que sur cette page.",
+      "noScoreTitle": "Terminé sans score",
+      "noScoreMapped": "Nous avons cartographié {count} pages avec succès, mais la phase de notation n’a pas pu aboutir — il n’y a donc pas de score de santé cette fois. La liste des pages ci-dessous est complète. Relancez l’exploration pour réessayer.",
+      "noScoreBlocked": "Nous n’avons atteint que {count, plural, one {# page} other {# pages}}, et les vérifications n’ont pas pu s’exécuter — l’accès automatisé semble bloqué. Autorisez notre robot, ou relancez l’exploration."
     },
     "traffic": {
       "title": "Analyse du trafic",

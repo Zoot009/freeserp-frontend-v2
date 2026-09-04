@@ -617,6 +617,12 @@ export function SiteCrawlCard({
   // Degraded: the audit couldn't score the site (blocked or timed out) and we
   // fell back to crawling for structure only.
   const degraded = audit.status === "COMPLETED" && health == null
+  // Pages the crawler actually READ, not pages it knows about. A page recorded
+  // with a 4xx or a null status was seen and refused; counting those as reached
+  // is what let the card claim it had mapped a site it had been shut out of.
+  const reachedPages = (audit.pages ?? []).filter(
+    (p) => p.statusCode != null && p.statusCode < 400,
+  ).length
   const updated = audit.finishedAt
     ? new Date(audit.finishedAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
     : null
@@ -745,11 +751,25 @@ export function SiteCrawlCard({
               {degraded ? (
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
                   <div className="flex items-center gap-1.5 text-[13px] font-semibold text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.5} /> Finished without a score
+                    <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.5} /> {t("noScoreTitle")}
                   </div>
+                  {/*
+                    Two different failures wore the same sentence.
+
+                    This always blamed blocked access, and then the card listed
+                    100 pages every one of which returned 200 — the message
+                    contradicting the evidence directly beneath it. Blocking is
+                    only one reason the scores are missing; the other is that we
+                    fell back to our own crawler, which maps structure and does
+                    not score, so a site it read perfectly still has no grade.
+
+                    Told apart by what was actually reached. A crawl that came
+                    back with pages is not a crawl that was refused.
+                  */}
                   <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                    We reached your site and mapped {audit.pagesFound ?? 0} pages, but the checks couldn&apos;t run
-                    — it looks like automated access is being blocked. Allow our crawler, or re-crawl to try again.
+                    {reachedPages >= 5
+                      ? t("noScoreMapped", { count: reachedPages })
+                      : t("noScoreBlocked", { count: audit.pagesFound ?? 0 })}
                   </p>
                 </div>
               ) : (
