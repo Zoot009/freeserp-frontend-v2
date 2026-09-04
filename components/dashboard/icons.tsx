@@ -211,9 +211,21 @@ export const Icon = {
       <path d="M12 8.5C11.27 8.81 10.46 9 9.6 9C6.51 9 4 6.49 4 3.4C4 2.54 4.19 1.73 4.5 1C2.45 1.85 1 3.85 1 6.2C1 9.4 3.6 12 6.8 12C9.15 12 11.15 10.55 12 8.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     </svg>
   ),
-  ai: () => (
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-      <path d="M5.5 1L6.5 4L9.5 5L6.5 6L5.5 9L4.5 6L1.5 5L4.5 4L5.5 1Z" fill="currentColor" />
+  /**
+   * Four-pointed sparkle. Sizeable, and with concave sides.
+   *
+   * It was locked to 11px with straight edges between the points, which at that
+   * size draws four thin spokes — a plus sign. The AI Overview panel's heading
+   * read "+ AI Overview". Quadratic curves pinch the waist so it reads as a
+   * sparkle even small, and the size prop lets a heading ask for one big enough
+   * to see.
+   */
+  ai: ({ size = 14, ...p }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" {...p}>
+      <path
+        d="M8 0.75 Q9 6.2 15.25 8 Q9 9.8 8 15.25 Q7 9.8 0.75 8 Q7 6.2 8 0.75Z"
+        fill="currentColor"
+      />
     </svg>
   ),
   star: ({ size = 16, ...p }: IconProps) => (
