@@ -808,6 +808,28 @@ export function SiteCrawlCard({
             <div className="max-w-xl">
               <PagesBar segments={segments} />
             </div>
+
+            {/*
+              One page is ambiguous, and the ambiguity is the whole problem.
+
+              "Crawled Pages 1" reads as "your site has one page" when what it
+              usually means is "the site refused us after the homepage" — a
+              crawler that gets a 403 on every internal link finishes with
+              exactly this number. britannica.com does it: the homepage comes
+              back, every link off it returns 403, and the card reported a
+              graded one-page site with nothing saying why.
+
+              The scores above are real, they were simply computed from that one
+              page — so the report stays, and this says what it covers. Hedged
+              deliberately: a genuinely single-page site produces the same
+              number, and we cannot tell the two apart from here.
+            */}
+            {(audit.pagesFound ?? 0) <= 1 && (
+              <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-snug text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="mt-px size-3.5 shrink-0" strokeWidth={2.5} />
+                <span>{t("onePageOnly")}</span>
+              </p>
+            )}
           </div>
 
           {(audit.pages?.length ?? 0) > 0 && (

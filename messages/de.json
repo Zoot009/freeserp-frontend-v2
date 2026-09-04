@@ -1128,7 +1128,8 @@
       "catPerformance": "Performance",
       "catAccessibility": "Barrierefreiheit",
       "catLinks": "Links",
-      "grade": "Note"
+      "grade": "Note",
+      "onePageOnly": "Es konnte nur diese Seite gelesen werden. Hat Ihre Website mehr, blockiert sie wahrscheinlich automatisierte Zugriffe — die Werte oben gelten nur für diese eine Seite."
     },
     "traffic": {
       "title": "Traffic-Analyse",

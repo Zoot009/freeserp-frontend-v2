@@ -1128,7 +1128,8 @@
       "catPerformance": "Performance",
       "catAccessibility": "Accessibility",
       "catLinks": "Links",
-      "grade": "Grade"
+      "grade": "Grade",
+      "onePageOnly": "Only this page could be read. If your site has more, it is likely blocking automated access — the scores above cover this page alone."
     },
     "traffic": {
       "title": "Traffic Analytics",

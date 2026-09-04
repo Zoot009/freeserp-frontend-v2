@@ -1128,7 +1128,8 @@
       "catPerformance": "Rendimiento",
       "catAccessibility": "Accesibilidad",
       "catLinks": "Enlaces",
-      "grade": "Nota"
+      "grade": "Nota",
+      "onePageOnly": "Solo se pudo leer esta página. Si tu sitio tiene más, es probable que esté bloqueando el acceso automatizado: las puntuaciones de arriba se refieren solo a esta página."
     },
     "traffic": {
       "title": "Analítica de tráfico",
