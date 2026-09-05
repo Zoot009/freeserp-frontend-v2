@@ -3,25 +3,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { APIProvider } from "@vis.gl/react-google-maps"
 import { api, ApiError } from "@/lib/api"
-import { Icon } from "@/components/dashboard/icons"
-import { PlatformDropdown } from "@/components/maps-tracker/platform-dropdown"
-import { LocationPicker } from "@/components/maps-tracker/location-picker"
-import { KeywordPicker } from "@/components/maps-tracker/keyword-picker"
-import { GridSizeDropdown, RadiusDropdown, UnitToggle, spacingCaption } from "@/components/maps-tracker/grid-controls"
-import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
-import { ScanResults, PointDrawer } from "@/components/maps-tracker/scan-results"
-import { ScanHistoryTable, flattenHistoryRows } from "@/components/maps-tracker/scan-history-table"
-import { Tooltip } from "@/components/maps-tracker/tooltip"
-import { totalPoints, RECOMMENDED_GRID_SIZE, type DistanceUnit } from "@/components/maps-tracker/grid"
-import type { MapLocation, Scan, ScanHistoryItem, CreateScanResponse } from "@/components/maps-tracker/types"
 import { ToolContext } from "@/components/dashboard/tool-context"
-import { CreditCost, CreditCostConfirm } from "@/components/dashboard/credit-cost"
+import { CreditCostConfirm } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { RailStep, SetupRail, type StepState } from "@/components/maps-tracker/rail"
+import { BusinessStep } from "@/components/maps-tracker/step-business"
+import { KeywordsStep } from "@/components/maps-tracker/step-keywords"
+import { AreaStep } from "@/components/maps-tracker/step-area"
+import { MapCard, MapEmptyState } from "@/components/maps-tracker/map-card"
+import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
+import { KeywordTabs } from "@/components/maps-tracker/keyword-tabs"
+import { SolvHero, MetricTiles } from "@/components/maps-tracker/results-summary"
+import { RankDistributionCard } from "@/components/maps-tracker/rank-distribution"
+import { WhereYouStand } from "@/components/maps-tracker/where-you-stand"
+import { AiAnalysis } from "@/components/maps-tracker/ai-analysis"
+import { ScanProgress, MetricSkeletons } from "@/components/maps-tracker/scan-progress"
+import { ScanHistory, flattenHistoryRows } from "@/components/maps-tracker/scan-history"
+import { PointDrawer } from "@/components/maps-tracker/point-drawer"
+import { spacingCaption } from "@/components/maps-tracker/grid-controls"
+import {
+  KM_TO_METERS,
+  MILES_TO_METERS,
+  nearestRadiusStep,
+  totalPoints,
+  validateArea,
+  type DistanceUnit,
+  type RankBandKey,
+} from "@/components/maps-tracker/grid"
+import { useCompetitors } from "@/components/maps-tracker/use-competitors"
+import type { MapLocation, Scan, ScanHistoryItem, CreateScanResponse } from "@/components/maps-tracker/types"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
-const DEFAULT_GRID_SIZE = 3 // matches LocalFalcon's own default; 11 is marked "Recommended" for real use
-const DEFAULT_RADIUS = 0.1
+// A 3 x 3 over 0.1 miles — the old defaults — is nine searches inside one
+// block, which tells nobody anything. These are the settings the redesign
+// previews, and the ones a first scan should actually be run at.
+const DEFAULT_GRID_SIZE = 7
+const DEFAULT_RADIUS = 1.5
 const POLL_MS = 2000
 // Geographic center of the continental US — just a reasonable starting view
 // before any location is picked; the map re-centers via fitBounds once one is.
@@ -34,91 +52,76 @@ function isTerminal(status: string): boolean {
 export default function GoogleMapsTrackerPage() {
   const [locations, setLocations] = useState<MapLocation[]>([])
   const [currentLocation, setCurrentLocation] = useState<MapLocation | null>(null)
-  // Lets the user drag the red center pin to preview ranking from a spot
-  // other than the business's stored address (matches LocalFalcon). Reset
-  // whenever the location itself changes, so switching businesses doesn't
-  // carry over a stale drag offset.
+  // Lets the user drag the centre pin to preview ranking from a spot other
+  // than the business's stored address. Reset whenever the location itself
+  // changes, so switching businesses doesn't carry over a stale drag offset.
   const [centerOverride, setCenterOverride] = useState<{ lat: number; lng: number } | null>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE)
   const [radius, setRadius] = useState(DEFAULT_RADIUS)
   const [unit, setUnit] = useState<DistanceUnit>("IMPERIAL")
-  const [aiRequested, setAiRequested] = useState(false)
+  const [aiRequested, setAiRequested] = useState(true)
 
   const [scan, setScan] = useState<Scan | null>(null)
   const [history, setHistory] = useState<ScanHistoryItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Shared between the map pins and the results grid — either can open it,
-  // and it works while a scan is still RUNNING (points succeed one at a time,
-  // well before the scan reaches a terminal status).
+
+  // Which step is open. Explicit state, not derived from what's been answered:
+  // deriving it collapsed the keyword step the instant the first keyword
+  // landed, so you couldn't type a second one without reopening it.
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | null>(1)
+  const [activeBand, setActiveBand] = useState<RankBandKey | null>(null)
+  const [activeKeywordId, setActiveKeywordId] = useState<string | null>(null)
   const [openPointId, setOpenPointId] = useState<string | null>(null)
-  // Controls the detail modal opened by clicking a row in the history table —
-  // separate from `scan` itself, since `scan` also drives the live map and
-  // shouldn't force the modal open just because a scan is in flight.
-  const [detailOpen, setDetailOpen] = useState(false)
+  const [confirmScan, setConfirmScan] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const points = totalPoints(gridSize, keywords.length || 1)
-  // A grid scan is the most expensive thing in the product — 16 credits at the
-  // default 11×11, 56 at the maximum. That is worth confirming rather than
-  // spending on one click.
-  const [confirmScan, setConfirmScan] = useState(false)
   const running = scan != null && !isTerminal(scan.status)
+  const showResults = scan != null && isTerminal(scan.status)
+  const searches = totalPoints(gridSize, keywords.length || 1)
 
-  // Table rows = history, with the live/just-run `scan` spliced in over its
-  // own (possibly stale) history entry — so a running scan shows up
-  // immediately as "Scanning…" and a just-finished one reflects fresh
-  // metrics without waiting on the next history refresh.
-  const historyRows = useMemo(() => {
-    const rows = flattenHistoryRows(history)
-    if (!scan) return rows
-    const scanAsHistoryItem: ScanHistoryItem = {
-      id: scan.id,
-      status: scan.status,
-      totalPoints: scan.totalPoints,
-      pointsDone: scan.pointsDone,
-      gridSize: scan.gridSize,
-      radiusMeters: scan.radiusMeters,
-      displayUnit: scan.displayUnit,
-      createdAt: scan.createdAt,
-      location: { name: scan.location.name, address: scan.location.address },
-      keywords: scan.keywords.map((k) => ({
-        id: k.id,
-        keyword: k.keyword,
-        status: k.status,
-        arp: k.arp,
-        atrp: k.atrp,
-        solv: k.solv,
-        scoredPoints: k.scoredPoints,
-        points: k.points.map((p) => ({ row: p.row, col: p.col, status: p.status, rank: p.rank })),
-      })),
-    }
-    const liveRows = flattenHistoryRows([scanAsHistoryItem])
-    return [...liveRows, ...rows.filter((r) => r.scanId !== scan.id)]
-  }, [history, scan])
+  const activeKeyword = useMemo(
+    () => scan?.keywords.find((k) => k.id === activeKeywordId) ?? scan?.keywords[0] ?? null,
+    [scan, activeKeywordId],
+  )
 
-  function openScanDetail(scanId: string) {
-    pollScan(scanId)
-    setDetailOpen(true)
-  }
+  const { leaderboard, loading: leaderboardLoading } = useCompetitors(
+    scan?.id ?? null,
+    activeKeyword?.id ?? null,
+    showResults,
+  )
 
   useEffect(() => {
     setCenterOverride(null)
   }, [currentLocation?.id])
 
-  const effectiveCenter = centerOverride ?? (currentLocation ? { lat: currentLocation.latitude, lng: currentLocation.longitude } : null)
+  // Move to keywords as soon as there's a business, and back to step 1 if the
+  // business goes away. Anything else the user drives with the Edit links.
+  useEffect(() => {
+    setActiveStep((cur) => (currentLocation == null ? 1 : cur === 1 ? 2 : cur))
+  }, [currentLocation])
+
+  // A new scan is a new set of keywords and a new heatmap; carrying over the
+  // previous selection would show the wrong tab and a stale filter.
+  useEffect(() => {
+    setActiveKeywordId(scan?.keywords[0]?.id ?? null)
+    setActiveBand(null)
+    setOpenPointId(null)
+  }, [scan?.id])
+
+  const effectiveCenter =
+    centerOverride ?? (currentLocation ? { lat: currentLocation.latitude, lng: currentLocation.longitude } : null)
 
   const loadLocations = useCallback(async () => {
     try {
       const { locations } = await api.get<{ locations: MapLocation[] }>("/api/maps-tracker/locations")
       setLocations(locations)
-      if (!currentLocation && locations[0]) setCurrentLocation(locations[0])
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setCurrentLocation((cur) => cur ?? locations[0] ?? null)
     } catch {
       /* non-fatal — location list stays empty */
     }
-  }, [currentLocation])
+  }, [])
 
   const loadHistory = useCallback(async () => {
     try {
@@ -148,8 +151,7 @@ export default function GoogleMapsTrackerPage() {
           // itself finishes, so a terminal scan status alone doesn't mean
           // there's nothing left to wait for — keep polling until the AI
           // report (if one was requested) also reaches a terminal status,
-          // otherwise a "Generating…" spinner opened right after the scan
-          // completes never notices the report finish behind it.
+          // otherwise the "writing up…" state never notices it finish.
           const aiSettled =
             !updated.aiAnalysisRequested ||
             !updated.aiReport ||
@@ -181,9 +183,11 @@ export default function GoogleMapsTrackerPage() {
     return () => {
       cancelled = true
       stopPolling()
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const historyRows = useMemo(() => flattenHistoryRows(history), [history])
 
   async function runScan() {
     if (!currentLocation || keywords.length === 0 || running) return
@@ -198,32 +202,31 @@ export default function GoogleMapsTrackerPage() {
         radius,
         unit,
         generateAiAnalysis: aiRequested,
-        // Dragging the red pin previews ranking from a spot other than the
+        // Dragging the centre pin previews ranking from a spot other than the
         // business's stored address — omit entirely when it hasn't moved, so
         // the backend just uses the location's own coordinates as before.
         ...(centerOverride ? { centerLat: centerOverride.lat, centerLng: centerOverride.lng } : {}),
       })
       pollScan(result.scanId)
     } catch (err) {
+      // Covers the 5-per-minute create limit as well as validation and quota
+      // refusals — the message the server sends is the useful one.
       setError(err instanceof ApiError ? err.message : "Couldn't start the scan.")
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Wraps setCurrentLocation for USER-initiated picks (search, Place ID,
-  // switching in the dropdown) only — not the mount-time auto-select of the
-  // first saved location, and not the mount-time resume of an in-flight scan.
-  // Without clearing `scan` here, the map and results stayed locked onto the
-  // previous business's scan (its centerLat/Lng take priority whenever `scan`
-  // is set), so picking a different business silently did nothing until a
-  // full page reload.
+  // Wraps setCurrentLocation for USER-initiated picks only — not the
+  // mount-time auto-select of the first saved location, and not the
+  // mount-time resume of an in-flight scan. Without clearing `scan` here, the
+  // map and results stayed locked onto the previous business's scan.
   function selectLocation(loc: MapLocation) {
     setCurrentLocation(loc)
     stopPolling()
     setScan(null)
-    setOpenPointId(null)
     setError(null)
+    setActiveStep(null)
   }
 
   function removeLocation(locationId: string) {
@@ -232,7 +235,6 @@ export default function GoogleMapsTrackerPage() {
       setCurrentLocation(null)
       stopPolling()
       setScan(null)
-      setOpenPointId(null)
     }
   }
 
@@ -249,11 +251,42 @@ export default function GoogleMapsTrackerPage() {
     }
   }
 
-  const previewPins: MapPinData[] | null = scan
-    ? scan.keywords[0]?.points.map((p) => ({ row: p.row, col: p.col, lat: p.latitude, lng: p.longitude, status: p.status, rank: p.rank, pointId: p.id })) ?? null
-    : null
+  async function openScan(scanId: string) {
+    setError(null)
+    try {
+      const { scan: opened } = await api.get<{ scan: Scan }>(`/api/maps-tracker/scans/${scanId}`)
+      setScan(opened)
+      // Adopt the opened scan's settings into the rail. Without this, "Re-scan"
+      // and "Change setup" would silently act on whatever was last typed rather
+      // than on the scan being looked at — the two buttons name the scan on
+      // screen, so they have to mean it.
+      const openedUnit = opened.displayUnit
+      setUnit(openedUnit)
+      setGridSize(opened.gridSize)
+      setRadius(
+        nearestRadiusStep(opened.radiusMeters / (openedUnit === "IMPERIAL" ? MILES_TO_METERS : KM_TO_METERS), openedUnit),
+      )
+      setKeywords(opened.keywords.map((k) => k.keyword))
+      setCurrentLocation((cur) => (cur?.id === opened.location.id ? cur : locations.find((l) => l.id === opened.location.id) ?? cur))
+      setActiveStep(null)
+      if (!isTerminal(opened.status)) pollScan(scanId)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't open that scan.")
+    }
+  }
 
-  const canRun = currentLocation != null && keywords.length > 0 && !running && !submitting
+  // Esc unwinds one layer at a time: the drawer, then the band filter. The
+  // confirm dialog is a Radix Dialog and handles its own Esc.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || confirmScan) return
+      if (openPointId) setOpenPointId(null)
+      else if (activeBand) setActiveBand(null)
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [openPointId, activeBand, confirmScan])
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
@@ -268,197 +301,305 @@ export default function GoogleMapsTrackerPage() {
     )
   }
 
+  // ── Rail ────────────────────────────────────────────────────────────────
+  // A step is reachable once the ones before it have an answer. Reachable but
+  // not open means it shows its summary; unreachable means it's visible and
+  // dimmed, so the shape of what's left is legible without being clickable.
+  const unlocked: Record<1 | 2 | 3, boolean> = {
+    1: true,
+    2: currentLocation != null,
+    3: currentLocation != null && keywords.length > 0,
+  }
+  const stepState = (n: 1 | 2 | 3): StepState =>
+    activeStep === n ? "active" : unlocked[n] ? "done" : "locked"
+
+  const areaProblem = validateArea(gridSize, radius, unit, keywords.length || 1)
+  const disabledReason =
+    !currentLocation ? "Pick a business to continue"
+    : keywords.length === 0 ? "Add at least one keyword"
+    : areaProblem ?? null
+
+  const rail = (
+    <SetupRail
+      showAi={currentLocation != null}
+      aiRequested={aiRequested}
+      onAiChange={setAiRequested}
+      searches={searches}
+      disabledReason={disabledReason}
+      submitting={submitting}
+      onRun={() => setConfirmScan(true)}
+      steps={
+        <>
+          <RailStep
+            n={1}
+            title="Pick your business"
+            state={stepState(1)}
+            summaryKey="Business"
+            summaryValue={currentLocation?.name}
+            summarySub={currentLocation?.address}
+            onEdit={() => setActiveStep(1)}
+          >
+            <BusinessStep
+              locations={locations}
+              current={currentLocation}
+              onSelect={selectLocation}
+              onCreated={(loc) => setLocations((prev) => [loc, ...prev.filter((l) => l.id !== loc.id)])}
+              onDeleted={removeLocation}
+            />
+          </RailStep>
+
+          <RailStep
+            n={2}
+            title="Add keywords"
+            state={stepState(2)}
+            hint={stepState(2) === "locked" ? "What people type when they look for you. Up to 10." : undefined}
+            summaryKey={keywords.length > 0 ? `Keywords · ${keywords.length}` : undefined}
+            summaryValue={
+              <span className="row" style={{ gap: 5, marginTop: 6 }}>
+                {keywords.map((k) => <span className="chip" key={k}>{k}</span>)}
+              </span>
+            }
+            onEdit={() => setActiveStep(2)}
+          >
+            <KeywordsStep keywords={keywords} onChange={setKeywords} />
+          </RailStep>
+
+          <RailStep
+            n={3}
+            title="Set the area"
+            state={stepState(3)}
+            hint={stepState(3) === "locked" ? "How wide to look, and how fine the grid." : undefined}
+            summaryKey="Area"
+            summaryValue={`${radius} ${unit === "IMPERIAL" ? "mi" : "km"} radius · ${gridSize} × ${gridSize} grid`}
+            summarySub={spacingCaption(gridSize, radius, unit)}
+            onEdit={() => setActiveStep(3)}
+          >
+            <AreaStep
+              gridSize={gridSize}
+              radius={radius}
+              unit={unit}
+              keywordCount={keywords.length}
+              onGridSize={setGridSize}
+              onRadius={setRadius}
+              onUnit={setUnit}
+            />
+          </RailStep>
+        </>
+      }
+    />
+  )
+
+  const pins: MapPinData[] | null = activeKeyword
+    ? activeKeyword.points.map((p) => ({
+        row: p.row, col: p.col, lat: p.latitude, lng: p.longitude,
+        status: p.status, rank: p.rank, pointId: p.id,
+      }))
+    : null
+
+  const theMap = (
+    <ScanMap
+      centerLat={scan ? scan.centerLat : effectiveCenter?.lat ?? DEFAULT_MAP_CENTER.lat}
+      centerLng={scan ? scan.centerLng : effectiveCenter?.lng ?? DEFAULT_MAP_CENTER.lng}
+      gridSize={scan ? scan.gridSize : gridSize}
+      radiusMeters={
+        scan ? scan.radiusMeters : effectiveCenter ? (unit === "IMPERIAL" ? radius * 1609.344 : radius * 1000) : 0
+      }
+      pins={pins}
+      unit={scan?.displayUnit ?? unit}
+      defaultZoom={currentLocation ? 14 : 4}
+      // Dropped once results are in: the centre point has a scored pin of its
+      // own by then, and the marker sat on top of it — hiding the rank at the
+      // business's own address, which is the one point people look for first.
+      showCenterMarker={!showResults && (currentLocation != null || scan != null)}
+      dimBand={activeBand}
+      openPointId={openPointId}
+      // Locked once a scan exists — its centre is a fixed record of what was
+      // actually scanned, not something to nudge after the fact.
+      onCenterChange={!scan ? (lat, lng) => setCenterOverride({ lat, lng }) : undefined}
+      onPinClick={(pin) => {
+        if (pin.status === "SUCCEEDED" && pin.pointId) setOpenPointId(pin.pointId)
+      }}
+    />
+  )
+
+  const banner =
+    scan?.status === "PARTIAL" ? (
+      <div className="tiny" style={{ padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--warn-soft)", color: "var(--warn)" }}>
+        Finished with {scan.pointsDone} of {scan.totalPoints} points. The points that failed were refunded.
+      </div>
+    ) : scan?.status === "FAILED" ? (
+      <div className="tiny" style={{ padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--neg-soft)", color: "var(--neg)" }}>
+        This scan couldn&apos;t run. {scan.errorMessage ?? "Your credits were returned."}
+      </div>
+    ) : scan?.status === "CANCELLED" ? (
+      <div className="tiny" style={{ padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--bg-inset)", color: "var(--text-soft)" }}>
+        Cancelled after {scan.pointsDone} of {scan.totalPoints} points. Unused credits were returned.
+      </div>
+    ) : null
+
   return (
-    // One shared Maps JS context for the whole page — both the location
-    // picker's search/Place-ID lookup and the map itself need to be
-    // descendants of the SAME <APIProvider>, not each load their own.
+    // One shared Maps JS context for the whole page — both the business step's
+    // search/Place-ID lookup and the map itself need to be descendants of the
+    // SAME <APIProvider>, not each load their own.
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={["places"]}>
-    <div className="page">
-      <div className="page-h" style={{ marginBottom: 12 }}>
-        <div>
-          <h1>Quick Scan</h1>
-          <div className="sub">See where your business ranks on Google Maps, block by block.</div>
-        </div>
-      </div>
-
-      <ToolContext id="maps-tracker" />
-
-      {/* Scan builder — toolbar, map preview and grid controls all live inside
-          one elevated card, matching every other tool page's input surface
-          (e.g. the SERP Checker's form.card) instead of sitting loose on the
-          page background. */}
-      <div className="card" style={{ marginBottom: 16 }}>
-      {/* Top bar — what to scan */}
-      <div className="row" style={{ gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        <PlatformDropdown />
-        <LocationPicker
-          locations={locations}
-          current={currentLocation}
-          onSelect={selectLocation}
-          onCreated={(loc) => setLocations((prev) => [loc, ...prev])}
-          onDeleted={removeLocation}
-        />
-        <KeywordPicker keywords={keywords} onChange={setKeywords} />
-        <Tooltip label={aiRequested ? "AI analysis will run automatically once the scan finishes." : "Generate an AI analysis of the results after this scan finishes."}>
-          <button
-            type="button"
-            className={"icon-btn" + (aiRequested ? " active" : "")}
-            onClick={() => setAiRequested((v) => !v)}
-            aria-label={aiRequested ? "AI analysis enabled — click to disable" : "Enable AI analysis"}
-            style={{
-              background: aiRequested ? "var(--brand)" : undefined,
-              color: aiRequested ? "#fff" : undefined,
-              borderRadius: "var(--r-md)",
-              padding: "8px 10px",
-            }}
-          >
-            <Icon.ai />
-          </button>
-        </Tooltip>
-      </div>
-
-      {/* Map canvas — always rendered, even with no location picked yet, so the
-          map itself is the surface for finding/adding a business rather than
-          a placeholder blocking it. */}
-      <div style={{ height: "min(60vh, 560px)", minHeight: 320, borderRadius: "var(--r-lg)", overflow: "hidden", position: "relative", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
-        <ScanMap
-          centerLat={scan ? scan.centerLat : effectiveCenter ? effectiveCenter.lat : DEFAULT_MAP_CENTER.lat}
-          centerLng={scan ? scan.centerLng : effectiveCenter ? effectiveCenter.lng : DEFAULT_MAP_CENTER.lng}
-          gridSize={scan ? scan.gridSize : gridSize}
-          radiusMeters={scan ? scan.radiusMeters : effectiveCenter ? (unit === "IMPERIAL" ? radius * 1609.344 : radius * 1000) : 0}
-          pins={previewPins}
-          defaultZoom={currentLocation ? 14 : 4}
-          showCenterMarker={currentLocation != null}
-          // Locked once a scan exists — its center is a fixed record of what
-          // was actually scanned, not something to nudge after the fact.
-          onCenterChange={!scan ? (lat, lng) => setCenterOverride({ lat, lng }) : undefined}
-          onPinClick={(pin) => {
-            // Only SUCCEEDED points have a top-results payload to show.
-            if (pin.status === "SUCCEEDED" && pin.pointId) setOpenPointId(pin.pointId)
-          }}
-        />
-        {!currentLocation && (
-          <div
-            className="card"
-            style={{
-              position: "absolute",
-              top: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "10px 16px",
-              pointerEvents: "none",
-              textAlign: "center",
-              boxShadow: "var(--shadow-md)",
-            }}
-          >
-            <div className="tiny">Search or paste a Place ID above to add your business — the grid will preview here.</div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom bar — how to scan it */}
-      <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-        <div className="row" style={{ gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-          <GridSizeDropdown value={gridSize} onChange={setGridSize} />
-          <RadiusDropdown value={radius} unit={unit} onChange={setRadius} />
-          <UnitToggle value={unit} onChange={setUnit} />
-        </div>
-        <div className="tiny muted" style={{ textAlign: "center", marginTop: 8 }}>
-          {spacingCaption(gridSize, radius, unit)} · {points} points
-          {aiRequested && " + AI analysis"}
-        </div>
-        {(unit === "IMPERIAL" ? radius * 1609.344 : radius * 1000) / ((gridSize - 1) / 2 || 1) > 8000 && (
-          <div className="tiny" style={{ textAlign: "center", marginTop: 4, color: "var(--warn)" }}>
-            Points are far apart. Consider a larger grid for usable detail.
-          </div>
+      <div className="page mt-page">
+        {running && scan && (
+          <ScanProgress pointsDone={scan.pointsDone} totalPoints={scan.totalPoints} onCancel={() => void cancelScan()} />
         )}
 
-        {running ? (
-          <div style={{ marginTop: 12 }}>
-            <div className="row" style={{ justifyContent: "center", gap: 10, alignItems: "center" }}>
-              <span className="spin"><Icon.refresh /></span>
-              <span className="tiny">{scan!.pointsDone} of {scan!.totalPoints} points</span>
-              <button type="button" className="btn sm" onClick={() => void cancelScan()}>Cancel</button>
+        {!showResults && !running && (
+          <>
+            <div className="mt-intro">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1>{currentLocation && keywords.length > 0 ? "Ready when you are." : "Where do you rank on the map?"}</h1>
+                <p className="mt-lede">
+                  Local rank changes street by street. This runs one real Google Maps search from every point on a
+                  grid around your business, then shows the shape of your visibility.
+                </p>
+              </div>
+            </div>
+            <ToolContext id="maps-tracker" />
+          </>
+        )}
+
+        {showResults && scan && activeKeyword && (
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{scan.location.name}</div>
+              <div className="tiny muted">
+                {scan.gridSize} × {scan.gridSize} grid · {(scan.radiusMeters / (scan.displayUnit === "IMPERIAL" ? 1609.344 : 1000)).toFixed(2)}{" "}
+                {scan.displayUnit === "IMPERIAL" ? "mi" : "km"} radius · scanned{" "}
+                {new Date(scan.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+              </div>
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button type="button" className="btn" onClick={() => { stopPolling(); setScan(null); setActiveStep(3) }}>
+                Change setup
+              </button>
+              <button type="button" className="btn primary" onClick={() => setConfirmScan(true)} disabled={disabledReason != null}>
+                Re-scan
+              </button>
             </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            className="btn primary"
-            style={{ width: "100%", justifyContent: "center", marginTop: 12 }}
-            disabled={!canRun}
-            onClick={() => setConfirmScan(true)}
-          >
-            {submitting ? <><Icon.refresh /> Starting…</> : <><Icon.zap /> Run scan</>}
-          </button>
         )}
 
-        {/* The price, before the click. Rendered under the button rather than in
-            it, so the number is readable while the grid size is being chosen. */}
-        <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
-          <CreditCost action={CREDIT_ACTION_KEYS.mapsScanPoint} units={points} />
+        {error && (
+          <div className="tiny" style={{ marginBottom: 14, padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--neg-soft)", color: "var(--neg)" }} role="alert">
+            {error}
+          </div>
+        )}
+
+        {/* Setup and running share one two-column shape: choices on the left,
+            the grid they describe on the right. */}
+        {!showResults && (
+          <div className="mt-setup">
+            {running && scan ? (
+              <div className="mt-stack">
+                <div className="card" style={{ padding: 20 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{scan.location.name}</div>
+                  <div className="tiny muted">
+                    {/* Naming only the first of several keywords would misstate
+                        what is actually being searched. */}
+                    {scan.keywords.length === 1
+                      ? `“${scan.keywords[0]!.keyword}”`
+                      : `${scan.keywords.length} keywords`}
+                    {" · "}{scan.gridSize} × {scan.gridSize}
+                    {" · "}{(scan.radiusMeters / (scan.displayUnit === "IMPERIAL" ? MILES_TO_METERS : KM_TO_METERS)).toFixed(2)}
+                    {scan.displayUnit === "IMPERIAL" ? " mi" : " km"}
+                  </div>
+                </div>
+                <MetricSkeletons />
+              </div>
+            ) : (
+              rail
+            )}
+            <MapCard
+              minHeight={running ? 392 : 380}
+              emptyState={!currentLocation && !scan ? <MapEmptyState /> : undefined}
+              badge={
+                running && scan
+                  // The promise on this screen is "points appear as they land",
+                  // so the map should say how many have.
+                  ? `${scan.pointsDone} of ${scan.totalPoints} points searched`
+                  : currentLocation
+                    ? `${searches} points will be searched`
+                    : undefined
+              }
+            >
+              {theMap}
+            </MapCard>
+          </div>
+        )}
+
+        {showResults && scan && activeKeyword && (
+          <div className="mt-stack" style={{ gap: 18 }}>
+            {banner}
+            <KeywordTabs keywords={scan.keywords} activeId={activeKeyword.id} onChange={setActiveKeywordId} />
+
+            <div className="mt-results">
+              <MapCard
+                minHeight={404}
+                note="Each pin is one real search run from that coordinate — click one to see the results it returned."
+              >
+                {theMap}
+              </MapCard>
+              <div className="mt-stack">
+                <SolvHero
+                  solv={activeKeyword.solv}
+                  scoredPoints={activeKeyword.scoredPoints}
+                  leaderSolv={leaderboard?.insights.topSolv ?? null}
+                />
+                <MetricTiles arp={activeKeyword.arp} atrp={activeKeyword.atrp} />
+                <RankDistributionCard
+                  points={activeKeyword.points}
+                  bestRank={activeKeyword.bestRank}
+                  worstRank={activeKeyword.worstRank}
+                  activeBand={activeBand}
+                  onBandToggle={(k) => setActiveBand((cur) => (cur === k ? null : k))}
+                />
+                <WhereYouStand
+                  leaderboard={leaderboard}
+                  loading={leaderboardLoading}
+                  bestRank={activeKeyword.bestRank}
+                  worstRank={activeKeyword.worstRank}
+                  unit={scan.displayUnit}
+                />
+              </div>
+            </div>
+
+            <AiAnalysis scan={scan} />
+          </div>
+        )}
+
+        <div style={{ marginTop: 24 }}>
+          <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600 }}>Earlier scans</div>
+            <div className="tiny muted">One row per keyword</div>
+          </div>
+          <ScanHistory rows={historyRows} onOpenScan={(id) => void openScan(id)} />
         </div>
 
         <CreditCostConfirm
           action={CREDIT_ACTION_KEYS.mapsScanPoint}
-          units={points}
+          units={searches}
           open={confirmScan}
           onOpenChange={setConfirmScan}
           onConfirm={() => void runScan()}
-          title="Run this grid scan?"
-          description={`${points} points across a ${gridSize}×${gridSize} grid${keywords.length > 1 ? ` for ${keywords.length} keywords` : ""}.`}
+          title="Run this scan?"
+          description={`${searches} ${searches === 1 ? "search" : "searches"} — ${gridSize} × ${gridSize} points for each of your ${keywords.length} keyword${keywords.length === 1 ? "" : "s"}${aiRequested ? ", plus an AI analysis when it finishes" : ""}.`}
           confirmLabel="Run scan"
         />
 
-        {error && (
-          <div className="tiny" style={{ marginTop: 10, padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--neg-soft)", color: "var(--neg)", textAlign: "center" }}>
-            {error}
-          </div>
+        {scan && openPointId && activeKeyword && (
+          <PointDrawer
+            scanId={scan.id}
+            pointId={openPointId}
+            keyword={activeKeyword.keyword}
+            unit={scan.displayUnit}
+            onClose={() => setOpenPointId(null)}
+          />
         )}
       </div>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <ScanHistoryTable rows={historyRows} onOpenScan={openScanDetail} />
-      </div>
-
-      {detailOpen && scan && (
-        <div className="modal-bg" onClick={() => setDetailOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900, maxHeight: "85vh", overflowY: "auto" }}>
-            <div className="modal-h">
-              <div>
-                <div className="b" style={{ fontSize: 16 }}>{scan.location.name}</div>
-                <div className="tiny muted">{new Date(scan.createdAt).toLocaleString()}</div>
-              </div>
-              <button onClick={() => setDetailOpen(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
-            </div>
-            <div className="modal-b">
-              {scan.status === "PARTIAL" && (
-                <div className="tiny" style={{ marginBottom: 12, padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--warn-soft, rgba(234,179,8,0.12))", color: "var(--warn)" }}>
-                  Scan finished with {scan.pointsDone} of {scan.totalPoints} points. Some points failed and their daily-quota points were refunded.
-                </div>
-              )}
-              {scan.status === "FAILED" && (
-                <div className="tiny" style={{ marginBottom: 12, padding: "10px 12px", borderRadius: "var(--r-md)", background: "var(--neg-soft)", color: "var(--neg)" }}>
-                  Scan couldn&apos;t run. {scan.errorMessage ?? "Your daily-quota points were refunded."}
-                </div>
-              )}
-              {isTerminal(scan.status) ? (
-                <ScanResults scan={scan} onOpenPoint={setOpenPointId} />
-              ) : (
-                <div className="tiny muted" style={{ textAlign: "center", padding: 24 }}>
-                  Still scanning — {scan.pointsDone} of {scan.totalPoints} points.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {scan && openPointId && (
-        <PointDrawer scanId={scan.id} pointId={openPointId} onClose={() => setOpenPointId(null)} />
-      )}
-    </div>
     </APIProvider>
   )
 }

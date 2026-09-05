@@ -45,6 +45,13 @@ interface LocationPickerProps {
    * add-keyword flow needs nothing.
    */
   valueLabel?: string | null
+  /**
+   * Trigger text when `value` is empty — i.e. nothing is selected yet. The
+   * add-keyword flow uses this: when we can't place the visitor by IP there is
+   * no fallback market, so the picker asks for one outright rather than
+   * pretending a country was chosen.
+   */
+  placeholder?: string
 }
 
 export function LocationPicker(props: LocationPickerProps) {
@@ -74,24 +81,29 @@ function TriggerContents({
   showFlags,
   label,
   countryIso,
+  placeholder,
 }: {
   value: string
   showFlags: boolean
   label?: string | null
   countryIso?: string | null
+  placeholder?: string
 }) {
+  // Nothing selected: show the prompt, and no flag — a globe next to "Select a
+  // location" reads as a chosen "worldwide" market, which is not a thing here.
+  const empty = !value
   // A numeric value is a sub-country code, which has no name of its own here —
   // fall back to the code rather than upper-casing digits into nonsense.
   const selectedName = label ?? LOCATION_NAMES[value] ?? value.toUpperCase()
   return (
     <>
-      <span className="truncate">
-        {showFlags && (
+      <span className={cn("truncate", empty && "opacity-60")}>
+        {showFlags && !empty && (
           <span className="mr-2 inline-flex align-middle">
             <Flag code={countryIso ?? value} size={15} />
           </span>
         )}
-        {selectedName}
+        {empty ? placeholder ?? "Select a location" : selectedName}
       </span>
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
     </>
@@ -239,7 +251,7 @@ function LocationCommand({
   )
 }
 /** Desktop / tablet (≥768px) — anchored popover under the trigger. */
-function LocationPickerPopover({ value, onChange, showFlags = false, variant = "mono", className, valueLabel }: LocationPickerProps) {
+function LocationPickerPopover({ value, onChange, showFlags = false, variant = "mono", className, valueLabel, placeholder }: LocationPickerProps) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<Location | null>(null)
   // Forward a marker class to the portaled popover when we're in the dashboard
@@ -258,6 +270,7 @@ function LocationPickerPopover({ value, onChange, showFlags = false, variant = "
             showFlags={showFlags}
             label={valueLabel ?? (picked?.code === value ? picked.name : null)}
             countryIso={picked?.code === value ? picked.countryIso : null}
+            placeholder={placeholder}
           />
         </button>
       </PopoverTrigger>
@@ -285,7 +298,7 @@ function LocationPickerPopover({ value, onChange, showFlags = false, variant = "
 }
 
 /** Mobile (<768px) — full-width bottom drawer with big tap targets. */
-function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "mono", className, valueLabel }: LocationPickerProps) {
+function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "mono", className, valueLabel, placeholder }: LocationPickerProps) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<Location | null>(null)
   return (
@@ -297,6 +310,7 @@ function LocationPickerDrawer({ value, onChange, showFlags = false, variant = "m
             showFlags={showFlags}
             label={valueLabel ?? (picked?.code === value ? picked.name : null)}
             countryIso={picked?.code === value ? picked.countryIso : null}
+            placeholder={placeholder}
           />
         </button>
       </DrawerTrigger>

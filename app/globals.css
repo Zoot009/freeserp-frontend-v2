@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./dashboard.css";
 @import "./pricing.css";
+@import "./maps-tracker.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

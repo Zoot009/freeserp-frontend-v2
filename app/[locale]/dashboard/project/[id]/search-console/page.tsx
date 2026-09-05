@@ -11,6 +11,9 @@ import { api, ApiError } from "@/lib/api"
 import { LineChart } from "@/components/dashboard/primitives"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { propertyCoversDomain } from "@/components/dashboard/gsc"
+import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
+import { DEFAULT_ENGINE } from "@/hooks/use-engines"
+import { fetchTrackedKeywords, isFullyTracked } from "@/lib/tracked-keywords"
 import { downloadCSV } from "@/lib/csv"
 
 const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
@@ -39,6 +42,18 @@ type DetailResp = {
   value: string
   returnDim: "page" | "query"
   rows: ({ key: string } & Metrics)[]
+}
+
+/**
+ * Row selection for the query tables. Present only where the rows ARE keywords
+ * (the Queries tab, and a page's drill-down into its queries) — a country or a
+ * device is not something the rank tracker can track.
+ */
+type QuerySelect = {
+  selected: Set<string>
+  isTracked: (query: string) => boolean
+  onToggle: (query: string) => void
+  onToggleAll: (queries: string[]) => void
 }
 
 type RangeState = { mode: "preset"; days: 7 | 28 | 90 } | { mode: "custom"; start: string; end: string }
@@ -78,6 +93,13 @@ export default function SearchConsolePage() {
   const [tab, setTab] = useState<TabKey>("queries")
   const [drill, setDrill] = useState<DetailResp | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
+
+  // Queries ticked for the rank tracker, and what the project already tracks.
+  // Selection is keyed by the raw query text so it survives a tab switch and the
+  // drill-down (where the same query can appear under a page).
+  const [selectedQueries, setSelectedQueries] = useState<Set<string>>(new Set())
+  const [tracked, setTracked] = useState<Set<string> | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -177,6 +199,60 @@ export default function SearchConsolePage() {
   useEffect(() => {
     if (user && siteUrl) loadPerformance()
   }, [user, siteUrl, loadPerformance])
+
+  // What this project already tracks, so a query that is already in the rank
+  // tracker reads as such instead of being offered again. Refreshed after an add.
+  const loadTracked = useCallback(() => {
+    if (!user) return
+    fetchTrackedKeywords(projectId)
+      .then(setTracked)
+      // Non-fatal — nothing is marked, and the backend still refuses duplicates.
+      .catch(() => setTracked(new Set()))
+  }, [user, projectId])
+
+  useEffect(() => {
+    loadTracked()
+  }, [loadTracked])
+
+  // Marking is done against Google alone: this is the Google rank tracker, and
+  // the engine the modal defaults to. A keyword tracked only on Bing is still a
+  // real add here, and the modal re-evaluates once engines are picked.
+  const isQueryTracked = useCallback(
+    (query: string) => tracked != null && isFullyTracked(tracked, query, [DEFAULT_ENGINE]),
+    [tracked],
+  )
+
+  const toggleQuery = useCallback((query: string) => {
+    setSelectedQueries((prev) => {
+      const next = new Set(prev)
+      if (next.has(query)) next.delete(query)
+      else next.add(query)
+      return next
+    })
+  }, [])
+
+  // Header checkbox: ticks every selectable row on screen, or clears them when
+  // they are all already ticked.
+  const toggleAllQueries = useCallback(
+    (queries: string[]) => {
+      const selectable = queries.filter((q) => !isQueryTracked(q))
+      setSelectedQueries((prev) => {
+        const allOn = selectable.length > 0 && selectable.every((q) => prev.has(q))
+        const next = new Set(prev)
+        for (const q of selectable) {
+          if (allOn) next.delete(q)
+          else next.add(q)
+        }
+        return next
+      })
+    },
+    [isQueryTracked],
+  )
+
+  const querySelect: QuerySelect = useMemo(
+    () => ({ selected: selectedQueries, isTracked: isQueryTracked, onToggle: toggleQuery, onToggleAll: toggleAllQueries }),
+    [selectedQueries, isQueryTracked, toggleQuery, toggleAllQueries],
+  )
 
   const connectGsc = useGoogleLogin({
     flow: "auth-code",
@@ -528,11 +604,29 @@ export default function SearchConsolePage() {
                   </button>
                 ))}
               </div>
-              {perf && (
-                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => exportTab(tab, perf, t)}>
-                  {t("exportCsv")}
-                </button>
-              )}
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                {/* Shown on the Queries tab, and anywhere a selection is still
+                    held — switching to Pages to drill into one keeps whatever
+                    was ticked, and hiding the button there would strand it. */}
+                {(tab === "queries" || selectedQueries.size > 0) && (
+                  <button
+                    type="button"
+                    className="btn primary"
+                    style={{ fontSize: 12 }}
+                    disabled={selectedQueries.size === 0}
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    {selectedQueries.size > 0
+                      ? t("addSelectedToTracker", { count: selectedQueries.size })
+                      : t("addToTracker")}
+                  </button>
+                )}
+                {perf && (
+                  <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => exportTab(tab, perf, t)}>
+                    {t("exportCsv")}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ marginTop: 12 }}>
@@ -541,7 +635,7 @@ export default function SearchConsolePage() {
                   {perfLoading ? t("loading") : t("noData")}
                 </div>
               ) : (
-                <DimTable tab={tab} perf={perf} t={t} onDrill={openDrill} />
+                <DimTable tab={tab} perf={perf} t={t} onDrill={openDrill} select={querySelect} />
               )}
             </div>
 
@@ -566,12 +660,31 @@ export default function SearchConsolePage() {
                     head={t(drill.returnDim === "page" ? "page" : "query")}
                     rows={drill.rows.map((r) => ({ label: r.key, m: r, mono: drill.returnDim === "page" }))}
                     t={t}
+                    // The queries a given page ranks for are the most useful
+                    // rows on this screen to hand to the tracker.
+                    select={drill.returnDim === "query" ? querySelect : undefined}
                   />
                 )}
               </div>
             )}
           </div>
         </>
+      )}
+
+      {showAddModal && (
+        <AddToTrackerModal
+          keywords={[...selectedQueries]}
+          projectId={projectId}
+          projectLabel={projectDomain || (siteUrl ? siteHost(siteUrl) : undefined)}
+          source="search-console"
+          onClose={() => setShowAddModal(false)}
+          onAdded={() => {
+            // Clear the ticks and re-read what the project tracks, so the rows
+            // that just landed come back marked rather than offered again.
+            setSelectedQueries(new Set())
+            loadTracked()
+          }}
+        />
       )}
     </div>
   )
@@ -637,11 +750,13 @@ function DimTable({
   perf,
   t,
   onDrill,
+  select,
 }: {
   tab: TabKey
   perf: Performance
   t: (k: string) => string
   onDrill: (forDim: "page" | "query", value: string) => void
+  select?: QuerySelect
 }) {
   if (tab === "queries") {
     return (
@@ -649,6 +764,7 @@ function DimTable({
         head={t("query")}
         rows={perf.topQueries.map((r) => ({ label: r.query, m: r, onClick: () => onDrill("query", r.query) }))}
         t={t}
+        select={select}
       />
     )
   }
@@ -679,18 +795,36 @@ function MetricsTable({
   head,
   rows,
   t,
+  select,
 }: {
   head: string
   rows: { label: string; m: Metrics; mono?: boolean; onClick?: () => void }[]
   t: (k: string) => string
+  /** Supplied only for keyword rows — see QuerySelect. */
+  select?: QuerySelect
 }) {
   if (rows.length === 0) {
     return <div className="muted" style={{ fontSize: 13, padding: "20px 0", textAlign: "center" }}>{t("noData")}</div>
   }
+  const labels = rows.map((r) => r.label)
+  const selectable = select ? labels.filter((l) => !select.isTracked(l)) : []
+  const allSelected = select != null && selectable.length > 0 && selectable.every((l) => select.selected.has(l))
   return (
     <table className="tbl">
       <thead>
         <tr>
+          {select && (
+            <th style={{ width: 32 }}>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                disabled={selectable.length === 0}
+                onChange={() => select.onToggleAll(labels)}
+                aria-label={t("selectAll")}
+                title={t("selectAll")}
+              />
+            </th>
+          )}
           <th>{head}</th>
           <th style={{ textAlign: "right" }}>{t("clicks")}</th>
           <th style={{ textAlign: "right" }}>{t("impressions")}</th>
@@ -699,21 +833,41 @@ function MetricsTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, i) => (
+        {rows.map((r, i) => {
+          const isTracked = select?.isTracked(r.label) ?? false
+          return (
           <tr key={i} onClick={r.onClick} style={{ cursor: r.onClick ? "pointer" : "default" }}>
+            {select && (
+              // stopPropagation: the row itself opens the drill-down, and ticking
+              // a box must not also navigate away from the list being ticked.
+              <td onClick={(e) => e.stopPropagation()} style={{ width: 32 }}>
+                <input
+                  type="checkbox"
+                  checked={select.selected.has(r.label)}
+                  disabled={isTracked}
+                  onChange={() => select.onToggle(r.label)}
+                  aria-label={isTracked ? t("alreadyTracked") : r.label}
+                  title={isTracked ? t("alreadyTracked") : undefined}
+                />
+              </td>
+            )}
             <td
               className={r.mono ? "mono tiny" : ""}
               style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
               title={r.label}
             >
               {r.mono ? siteHost(r.label) || r.label : r.label}
+              {isTracked && (
+                <span className="tag" style={{ marginLeft: 8 }}>{t("tracked")}</span>
+              )}
             </td>
             <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.clicks)}</td>
             <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.impressions)}</td>
             <td className="tabular" style={{ textAlign: "right" }}>{fmtPct(r.m.ctr)}</td>
             <td className="tabular" style={{ textAlign: "right" }}>{fmtPos(r.m.position)}</td>
           </tr>
-        ))}
+          )
+        })}
       </tbody>
     </table>
   )

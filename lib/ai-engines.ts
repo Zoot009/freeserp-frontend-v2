@@ -38,10 +38,15 @@
 
 import type { Platform } from "@/lib/ai-tracker"
 
-/** A capability, as the customer experiences it — not as the API expresses it. */
+/**
+ * A capability, as the customer experiences it — not as the API expresses it.
+ *
+ * These no longer get a card each. HowItWorks renders the ones that are NOT a
+ * plain "yes" as the caveat line under its four steps, which is where a limit
+ * belongs once the panel is about our method rather than about the assistant.
+ * The `icon` field went with the cards — nothing read it afterwards.
+ */
 export type Capability = {
-  /** lucide-react icon name, resolved by the component that renders the strip. */
-  icon: "globe" | "map-pin" | "external-link" | "coins" | "search" | "link"
   label: string
   /**
    * `no` is a first-class state, not an error. An assistant that cannot do
@@ -55,7 +60,10 @@ export type Capability = {
 /** Which panel, in which order. The page maps this through a section registry. */
 export type SectionKey =
   | "metrics"
-  | "caps"
+  /** The "how the tracker works" panel — formerly the capability strip. The
+   *  per-assistant `caps` still feed its caveat line, so that data is not
+   *  orphaned by the rename. */
+  | "how"
   | "board"
   | "sources"
   | "competitors"
@@ -103,32 +111,29 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     creditsPerAnswer: 1,
     caps: [
       {
-        icon: "globe",
         state: "yes",
         label: "Live web search",
         detail:
           "Forced on every answer, so you measure what the product serves today rather than what it memorised.",
       },
       {
-        icon: "map-pin",
         state: "no",
         label: "Per-country answers",
         detail: "Answers are collected from a US location. Country targeting is not applied on this assistant.",
       },
       {
-        icon: "external-link",
         state: "yes",
         label: "Reproduce any answer",
         detail: "Every sample links back to the live page it came from. No other assistant returns one.",
       },
-      { icon: "coins", state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
+      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
     ],
     // Position leads: ChatGPT is the assistant where being named early is both
     // measurable and verifiable, and position is the figure this audience
     // already reads as a rank.
     metrics: ["tracked", "appear", "rate", "position"],
     columns: ["prompt", "trend", "status", "rate", "position", "verify"],
-    sections: ["metrics", "board", "fanout", "coverage", "caps", "cross"],
+    sections: ["metrics", "board", "fanout", "coverage", "how", "cross"],
   },
 
   gemini: {
@@ -140,33 +145,32 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     creditsPerAnswer: 1,
     caps: [
       {
-        icon: "map-pin",
         state: "no",
         label: "Per-country answers",
         detail:
           "Gemini rejects the country parameter outright, so per-country visibility cannot be measured here at all.",
       },
       {
-        icon: "globe",
         state: "no",
         label: "Forced web search",
         detail:
           "Cannot be forced. You get whatever the product chose to retrieve — which is also what a real user sees.",
       },
       {
-        icon: "search",
         state: "yes",
         label: "Reads Google's index",
         detail:
           "Scraped from the live product, so its sources are the pages Google is surfacing about you right now.",
       },
-      { icon: "coins", state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
+      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
     ],
     metrics: ["tracked", "appear", "rate", "cited"],
     columns: ["prompt", "trend", "status", "rate", "cited"],
-    // Caps ABOVE the board, which no other assistant does. Gemini's limits are
-    // the first honest thing to say about it; the sources panel is the payoff.
-    sections: ["metrics", "caps", "board", "sources", "coverage", "cross"],
+    // The method panel sits ABOVE the board here, which no other assistant does.
+    // Gemini is the one that cannot be forced to retrieve and refuses country
+    // targeting, so how a number gets made — and the caveats at the foot of it —
+    // is the first honest thing to say about it; the sources panel is the payoff.
+    sections: ["metrics", "how", "board", "sources", "coverage", "cross"],
   },
 
   perplexity: {
@@ -178,31 +182,28 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     creditsPerAnswer: 1,
     caps: [
       {
-        icon: "link",
         state: "yes",
         label: "Always retrieves",
         detail:
           "A search product by construction: there is no retrieval to force because it never stops. A mention with no link is the anomaly here.",
       },
       {
-        icon: "map-pin",
         state: "yes",
         label: "Per-country answers",
         detail: "Country targeting is applied, so visibility can be measured market by market.",
       },
       {
-        icon: "external-link",
         state: "no",
         label: "Reproduce the answer",
         detail: "An API answer has no shareable page. The full answer text is stored with the run instead.",
       },
-      { icon: "coins", state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
+      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
     ],
     // The same four numbers as everyone else, reordered to make a different
     // claim about which one matters.
     metrics: ["cited", "rate", "appear", "tracked"],
     columns: ["prompt", "trend", "status", "rate", "cited", "sources"],
-    sections: ["metrics", "sources", "board", "competitors", "caps", "cross"],
+    sections: ["metrics", "sources", "board", "competitors", "how", "cross"],
   },
 
   claude: {
@@ -214,26 +215,22 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     creditsPerAnswer: 3,
     caps: [
       {
-        icon: "coins",
         state: "note",
         label: "3 credits an answer",
         detail:
           "Roughly six times what a ChatGPT answer costs to collect, so it is priced on its own rather than folded into an average.",
       },
       {
-        icon: "globe",
         state: "yes",
         label: "Live web search",
         detail: "Forced on every answer. Without it the model answers from training memory and cites nothing.",
       },
       {
-        icon: "map-pin",
         state: "yes",
         label: "Per-country answers",
         detail: "Country targeting is applied, so visibility can be measured market by market.",
       },
       {
-        icon: "external-link",
         state: "no",
         label: "Reproduce the answer",
         detail: "An API answer has no shareable page. The full answer text is stored with the run instead.",
@@ -241,7 +238,7 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     ],
     metrics: ["tracked", "appear", "rate", "cited"],
     columns: ["prompt", "trend", "status", "rate", "cited", "credits"],
-    sections: ["metrics", "cost", "board", "competitors", "caps", "cross"],
+    sections: ["metrics", "cost", "board", "competitors", "how", "cross"],
   },
 }
 

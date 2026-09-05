@@ -1462,7 +1462,12 @@
     "device": "Gerät",
     "appearance": "Darstellung",
     "date": "Datum",
-    "reconnectCta": "Google erneut verbinden"
+    "reconnectCta": "Google erneut verbinden",
+    "addToTracker": "Zum Rank-Tracker hinzufügen",
+    "addSelectedToTracker": "{count} zum Rank-Tracker hinzufügen",
+    "tracked": "Verfolgt",
+    "alreadyTracked": "Wird in diesem Projekt bereits verfolgt",
+    "selectAll": "Alle auswählen"
   },
   "quotaUpsell": {
     "eyebrow": "Upgrade",

@@ -1462,7 +1462,12 @@
     "device": "Dispositivo",
     "appearance": "Aspecto",
     "date": "Fecha",
-    "reconnectCta": "Reconectar Google"
+    "reconnectCta": "Reconectar Google",
+    "addToTracker": "Añadir al rank tracker",
+    "addSelectedToTracker": "Añadir {count} al rank tracker",
+    "tracked": "Rastreada",
+    "alreadyTracked": "Ya se rastrea en este proyecto",
+    "selectAll": "Seleccionar todo"
   },
   "quotaUpsell": {
     "eyebrow": "Mejorar plan",

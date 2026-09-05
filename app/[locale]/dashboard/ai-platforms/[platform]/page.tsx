@@ -27,7 +27,7 @@ import { RefreshCw } from "lucide-react"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { StatTile } from "@/components/dashboard/primitives"
-import { EngineCaps, EngineHero, SectionHead } from "@/components/dashboard/ai-tracker/engine-hero"
+import { EngineHero, HowItWorks, SectionHead } from "@/components/dashboard/ai-tracker/engine-hero"
 import { EngineTrend } from "@/components/dashboard/ai-tracker/engine-charts"
 import { PromptBoard } from "@/components/dashboard/ai-tracker/prompt-board"
 import {
@@ -114,6 +114,30 @@ export default function PlatformPage() {
    * average over the last N rounds of checking" is the honest reading, and it is
    * the one the axis label claims.
    */
+  /**
+   * How many times a run asks this assistant, for the "how it works" panel.
+   *
+   * The real figure, not the documented default: a user who set 5 samples is
+   * owed "we ask ChatGPT 5 times", and being told "3" while their runs cost five
+   * credits apiece is being told something false about their own account. The
+   * mode rather than the mean, because the number has to be a whole count of
+   * questions — and 3 when there is nothing to read it from, which is both the
+   * schema default and what the add-prompts modal preselects.
+   *
+   * Up here with the other memos rather than beside the values it feeds, because
+   * everything below the early returns is hook-free: three of those returns fire
+   * before it (unknown slug, loading, error), and a hook after them changes the
+   * hook count between renders.
+   */
+  const samplesPerRun = useMemo(() => {
+    const counts = new Map<number, number>()
+    for (const p of data?.prompts ?? []) counts.set(p.samplesPerRun, (counts.get(p.samplesPerRun) ?? 0) + 1)
+    let best = 3
+    let seen = 0
+    for (const [n, c] of counts) if (c > seen) [best, seen] = [n, c]
+    return best
+  }, [data])
+
   const trend = useMemo(() => {
     const series = (data?.prompts ?? []).map((p) => rateHistory(p.runs)).filter((h) => h.length > 1)
     if (series.length === 0) return []
@@ -200,6 +224,7 @@ export default function PlatformPage() {
 
   const summary = data?.summary ?? null
   const totalPrompts = index?.totalPrompts ?? 0
+
   // Every brand, not just the ones already tracking here — the add flow exists
   // precisely for the brands that do not.
   const allProjects = data?.availableProjects ?? data?.projects ?? []
@@ -281,8 +306,8 @@ export default function PlatformPage() {
             )}
           </div>
         )
-      case "caps":
-        return <EngineCaps engine={engine} key={k} />
+      case "how":
+        return <HowItWorks engine={engine} samples={samplesPerRun} key={k} />
       case "board":
         return (
           <div key={k}>
@@ -350,10 +375,12 @@ export default function PlatformPage() {
 
       {empty ? (
         <>
-          {/* The capability strip renders here too. It is what the page is
-              ABOUT, and it is what makes an empty ChatGPT page and an empty
+          {/* The panel renders here too, and matters most here: an account with
+              nothing on this assistant has no numbers to explain, so "what this
+              does and what it costs" is the whole page. Its per-assistant
+              caveats are also what keep an empty ChatGPT page and an empty
               Gemini page two different pages rather than two dashed boxes. */}
-          <EngineCaps engine={engine} />
+          <HowItWorks engine={engine} samples={samplesPerRun} />
           <div style={{ height: 14 }} />
           <EngineEmpty
             engine={engine}

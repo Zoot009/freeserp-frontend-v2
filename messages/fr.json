@@ -1462,7 +1462,12 @@
     "device": "Appareil",
     "appearance": "Apparence",
     "date": "Date",
-    "reconnectCta": "Reconnecter Google"
+    "reconnectCta": "Reconnecter Google",
+    "addToTracker": "Ajouter au suivi de position",
+    "addSelectedToTracker": "Ajouter {count} au suivi de position",
+    "tracked": "Suivi",
+    "alreadyTracked": "Déjà suivi dans ce projet",
+    "selectAll": "Tout sélectionner"
   },
   "quotaUpsell": {
     "eyebrow": "Passer au niveau supérieur",

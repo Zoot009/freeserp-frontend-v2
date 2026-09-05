@@ -494,6 +494,10 @@
   background: var(--bg);
   color: var(--text);
   font-size: 13px; font-weight: 500;
+  /* Half the buttons in this app are <Link>s (Add prompts, View, the empty-state
+     CTAs), and an anchor keeps the browser's underline unless told otherwise —
+     so those rendered as underlined buttons while the <button> ones did not. */
+  text-decoration: none;
 }
 .fs-app .btn:hover { background: var(--bg-inset); }
 .fs-app .btn.primary {
@@ -1067,6 +1071,29 @@
 .fs-app .llm-plat { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .fs-app .llm-plat svg { flex-shrink: 0; }
 
+/* "Add AI" under the last assistant of a prompt's group. Quiet at rest — it sits
+   in every group, so a button-weight control here would out-shout the data — and
+   it only has to be findable at the moment someone wonders whether the same
+   question can be put to another assistant. */
+.fs-app .llm-plat-add {
+  /* Block-level flex, width-shrunk: it has to start its own line under the
+     assistant name rather than trailing it, but must not stretch the column. */
+  display: flex; width: fit-content; align-items: center; gap: 3px;
+  margin-top: 4px; padding: 2px 6px 2px 4px;
+  background: none; border: 1px dashed var(--border-strong); border-radius: 6px;
+  font: inherit; font-size: 11.5px; font-weight: 500;
+  color: var(--text-mute); cursor: pointer; white-space: nowrap;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.fs-app .llm-plat-add:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+.fs-app .llm-plat-add svg { width: 11px; height: 11px; }
+
+/* The prompt cell's link. `.kw` gives it the one-line ellipsis; this drops the
+   browser's default underline, which the other .kw cells never had because they
+   are plain divs rather than links. */
+.fs-app .tbl a.llm-prompt-link { text-decoration: none; }
+.fs-app .tbl a.llm-prompt-link:hover { color: var(--brand); }
+
 /* Platform choice as a card rather than a chip: a chip row asked people to pick
    between four things whose per-answer price differs 3x, with nowhere to say so. */
 .fs-app .llm-plat-card {
@@ -1078,6 +1105,10 @@
 }
 .fs-app .llm-plat-card:hover { border-color: var(--border-strong); }
 .fs-app .llm-plat-card.on { border-color: var(--brand); background: var(--brand-soft); }
+/* The assistant's mark leads the card. flex-shrink guards it against a long
+   note, and the nudge lines it up with the name rather than with the middle of
+   the two-line block. */
+.fs-app .llm-plat-card > svg { flex-shrink: 0; margin-top: 1px; }
 .fs-app .llm-plat-card .n { display: block; font-size: 13px; font-weight: 600; }
 .fs-app .llm-plat-card .d { display: block; font-size: 11px; color: var(--text-mute); margin-top: 2px; }
 
@@ -1224,27 +1255,46 @@
 .fs-app .llm-sec .why { font-size: 12px; color: var(--text-mute); }
 .fs-app .llm-sec .why b { color: var(--accent-ink); font-weight: 600; }
 
-/* ── Capability strip ──────────────────────────────────────────────────────
-   What this assistant can and cannot do, in sentences. Hairline grid, the same
-   construction as .compare. A capability that does not exist gets a SENTENCE,
-   never a dash in a data cell: a dash reads as broken, a sentence reads as a
-   product that knows its own limits. State is never carried by colour alone —
-   the icon and the wording each say it independently. */
-.fs-app .llm-caps {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+/* ── How the tracker works ─────────────────────────────────────────────────
+   Four steps, question to number. Hairline grid, the same construction as
+   .compare and the capability strip this replaced.
+
+   The step numbers carry a connecting rule between them, because the panel is a
+   SEQUENCE and four equal cards read as four unrelated facts — which is most of
+   what made the strip before it feel like filler. The rule is drawn on the
+   numeral, not between cards, so it survives the grid rewrapping to one or two
+   columns and never points off the end of a row. */
+.fs-app .llm-how {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
   gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: var(--r-md);
-  overflow: hidden; margin-bottom: 4px;
+  overflow: hidden; margin: 0 0 4px;
+  padding: 0; list-style: none;
 }
-.fs-app .llm-cap { background: var(--bg-elev); padding: 13px 15px; display: flex; gap: 10px; }
-.fs-app .llm-cap svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
-.fs-app .llm-cap b { display: block; font-size: 12.5px; font-weight: 600; }
-.fs-app .llm-cap span { display: block; font-size: 11.5px; line-height: 1.45; color: var(--text-mute); margin-top: 3px; }
-.fs-app .llm-cap.yes svg { color: var(--accent-ink); }
-.fs-app .llm-cap.no { background: var(--bg-sub); }
-.fs-app .llm-cap.no svg { color: var(--text-mute); }
-.fs-app .llm-cap.no b { color: var(--text-soft); }
-.fs-app .llm-cap.note svg { color: var(--warn); }
+.fs-app .llm-step { background: var(--bg-elev); padding: 14px 15px; display: flex; gap: 11px; }
+.fs-app .llm-step .n {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 21px; height: 21px; margin-top: 1px;
+  border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.fs-app .llm-step b { display: block; font-size: 12.5px; font-weight: 600; }
+.fs-app .llm-step > div > span {
+  display: block; font-size: 11.5px; line-height: 1.5; color: var(--text-mute); margin-top: 3px;
+}
+
+/* The assistant's own caveats, demoted from four cards to one line. They are
+   still worth stating — this is the only place the page admits Gemini refuses
+   country targeting — but they are a footnote to the method, not the headline. */
+.fs-app .llm-how-note {
+  margin: 8px 2px 4px;
+  font-size: 11.5px; line-height: 1.55; color: var(--text-mute);
+}
+.fs-app .llm-how-note b { color: var(--text-soft); font-weight: 600; }
+/* The caveat's own label. <i> for the markup slot, not for italics — it leads
+   the sentence so the line can be scanned for the limit you came to check. */
+.fs-app .llm-how-note i { font-style: normal; font-weight: 600; color: var(--text-soft); }
 
 /* ── Prompt board ──────────────────────────────────────────────────────────
    One brand's prompts on this engine. Replaces .card + .tbl, which drew a box

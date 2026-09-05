@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
+import { knownGeoCountry, prefetchGeoCountry, useGeoCountry } from "@/hooks/use-geo-country"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
@@ -484,12 +485,33 @@ function AddKeywordsModal({
   // popping into the middle of the form when the fetch lands.
   const { engines: availableEngines, loading: enginesLoading } = useEngines()
   const [raw, setRaw] = useState("")
-  const [location, setLocation] = useState("in")
+  // Default market = wherever the visitor is, resolved from their IP. This used
+  // to be hardcoded to India for everyone. `knownGeoCountry()` is the answer if
+  // a previous open (or the page's warm-up below) already fetched it, so the
+  // common case seeds the picker on first paint rather than visibly changing
+  // under the user.
+  //
+  // Empty when we can't place them, and deliberately so: there is no fallback
+  // market. A keyword carries its location for life and is checked against that
+  // SERP, so quietly picking a country the user never saw is worse than making
+  // them choose — the field below asks, and submit is blocked until they do.
+  const { country: geoCountry, pending: geoPending } = useGeoCountry()
+  const [location, setLocation] = useState(() => knownGeoCountry() ?? "")
   // The CONTAINING country of `location`. Same value for a country selection;
   // for a city it is the parent. Google autocomplete's `gl` only accepts a
   // 2-letter code, so without this a city selection silently fell back to
   // global suggestions.
-  const [locationCountry, setLocationCountry] = useState("in")
+  const [locationCountry, setLocationCountry] = useState(() => knownGeoCountry() ?? "")
+  // A manual pick is final: once the user has touched the picker, a geo lookup
+  // that lands late must not overwrite what they chose.
+  const locationTouchedRef = useRef(false)
+
+  // Late arrival — the lookup finished after the modal opened.
+  useEffect(() => {
+    if (!geoCountry || locationTouchedRef.current) return
+    setLocation(geoCountry)
+    setLocationCountry(geoCountry)
+  }, [geoCountry])
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   // Google is pre-selected, not mandatory — tracking a keyword on Bing alone is
   // a legitimate choice. The empty array is reachable only inside the
@@ -659,6 +681,9 @@ function AddKeywordsModal({
     e.preventDefault()
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
+    // No fallback market exists, so an unset location has to stop the submit
+    // rather than send "" and have the backend reject it with something vaguer.
+    if (!location) { setError("Pick a search location — we couldn't detect yours."); return }
     setError(""); setLoading(true)
     try {
       // `engines` is sent per keyword. The backend expands it to one row per
@@ -828,16 +853,33 @@ function AddKeywordsModal({
                 )}
               </div>
               <div className="field">
-                <label>Search location</label>
+                <label>Search location{!location && " *"}</label>
                 <LocationPicker
                   value={location}
                   onChange={(code, loc) => {
+                    locationTouchedRef.current = true
                     setLocation(code)
                     setLocationCountry(loc?.countryIso ?? code)
                   }}
                   variant="dashboard"
                   showFlags
+                  placeholder={geoPending ? "Detecting your location…" : "Select a location"}
                 />
+                {/* Only once the lookup has given up — while it's still running
+                    the placeholder already says what's happening, and flashing a
+                    "we couldn't detect it" note at everyone would be a lie. */}
+                {!location && !geoPending && (
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      fontSize: 12,
+                      color: "var(--text-mute)",
+                    }}
+                  >
+                    We couldn&rsquo;t detect your location — choose the country or city
+                    whose results you want to track.
+                  </p>
+                )}
               </div>
               <div className="field">
                 <label>Device</label>
@@ -875,7 +917,12 @@ function AddKeywordsModal({
             )}
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={loading || selectedEngines.length === 0}>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={loading || selectedEngines.length === 0 || !location}
+                title={!location ? "Pick a search location first" : undefined}
+              >
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
@@ -1039,6 +1086,14 @@ export default function ProjectKeywordsPage() {
   const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAddKw, setShowAddKw] = useState(false)
+
+  // Resolve the visitor's country now, not when the modal opens. The modal
+  // mounts on open and seeds its location picker synchronously from this
+  // cache — warming it here is what makes that seed a hit, so the picker opens
+  // already showing their market instead of "Detecting your location…".
+  useEffect(() => {
+    void prefetchGeoCountry()
+  }, [])
 
   // `?add=1` opens the add-keyword panel on arrival — that panel owns the
   // location picker and the desktop/mobile toggle, so links elsewhere that

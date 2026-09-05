@@ -31,6 +31,7 @@ import {
   clockTime,
   pct,
   PLATFORM_LABEL,
+  PLATFORMS,
   FREQUENCY_OPTIONS,
   frequencyValue,
   runsPerMonth,
@@ -91,6 +92,9 @@ export default function LlmPromptListPage() {
   /** Prompt ids with a run POST in flight — the visible half of duplicate prevention. */
   const inflight = useRef<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
+  /** Prompt id whose platform editor is open — the "also ask Claude this one"
+   *  path, which did not exist while platforms were fixed at creation. */
+  const [editPlatforms, setEditPlatforms] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -327,6 +331,38 @@ export default function LlmPromptListPage() {
     }
   }
 
+  /**
+   * Change which assistants a prompt runs on.
+   *
+   * The add endpoint uses skipDuplicates, so re-submitting the same question
+   * with Claude ticked silently kept the original platforms — the prompt was
+   * "already tracked" and nothing changed. This is the path that was missing:
+   * it widens the existing prompt rather than making a second one, so the
+   * ChatGPT history stays attached to the question it belongs to.
+   *
+   * Optimistic like updateSchedule, and for the same reason — the table's rows
+   * ARE the platform list, so a new row has to appear on the click rather than
+   * a round-trip later. On failure the previous set is put back rather than
+   * leaving the table claiming an assistant the server never accepted.
+   */
+  const updatePlatforms = async (promptId: string, platforms: Platform[]) => {
+    const before = prompts.find((p) => p.id === promptId)?.platforms
+    setPrompts((prev) => prev.map((p) => (p.id === promptId ? { ...p, platforms } : p)))
+    try {
+      const updated = await api.patch<PromptRow>(
+        `/api/llm-tracker/projects/${projectId}/prompts/${promptId}`,
+        { platforms },
+      )
+      setPrompts((prev) => prev.map((p) => (p.id === promptId ? { ...p, ...updated } : p)))
+    } catch (err: unknown) {
+      if (before) {
+        setPrompts((prev) => prev.map((p) => (p.id === promptId ? { ...p, platforms: before } : p)))
+      }
+      toast.error(err instanceof ApiError ? err.message : "Couldn't change the platforms.")
+      throw err
+    }
+  }
+
   const deletePrompt = async (promptId: string) => {
     setPrompts((prev) => prev.filter((p) => p.id !== promptId))
     try {
@@ -335,6 +371,13 @@ export default function LlmPromptListPage() {
       void load(true)
     }
   }
+
+  // Looked up rather than held in state, so the editor closes by itself if the
+  // prompt is deleted (or vanishes on a poll) while it is open.
+  const editing = useMemo(
+    () => prompts.find((p) => p.id === editPlatforms) ?? null,
+    [prompts, editPlatforms],
+  )
 
   const summary = useMemo(() => {
     const latest = prompts
@@ -433,7 +476,13 @@ export default function LlmPromptListPage() {
           </div>
         ) : (
           <div className="tbl-scroll">
-            <table className="tbl" style={{ minWidth: 900 }}>
+            {/* `flush` because this table fills a padding:0 card. Without it the
+                table draws its own frame just inside the card's — and, worse, the
+                first/last-child side borders land on the CONTINUATION rows of a
+                rowSpan'd group, boxing the second platform of a prompt in a
+                stray rectangle mid-table. Invisible until a prompt tracked more
+                than one assistant, which is now the point of the page. */}
+            <table className="tbl flush" style={{ minWidth: 900 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -453,23 +502,41 @@ export default function LlmPromptListPage() {
                   <th style={{ textAlign: "right" }}>Cited</th>
                   <th style={{ textAlign: "right" }}>Prominence</th>
                   <th style={{ width: 150 }}>Schedule</th>
-                  <th style={{ width: 80 }} />
+                  <th style={{ width: 150 }} />
                 </tr>
               </thead>
               <tbody>
-                {prompts.flatMap((p) =>
-                  (p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])).map((platform, idx) => {
+                {prompts.flatMap((p) => {
+                  const tracked = p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])
+                  // "Run now" is one button per PROMPT, but the hour bucket the
+                  // server dedupes on is per (prompt, platform). Gating it on the
+                  // first platform's run — which is what it did — left an
+                  // assistant added minutes ago unrunnable for up to an hour,
+                  // because ChatGPT happened to have answered already. Blocked
+                  // only when there is nothing left to run.
+                  const runNowIn = tracked.filter((pl) => {
+                    const r = p.runs.find((x) => x.platform === pl)
+                    return !(r && ACTIVE_STATUSES.has(r.status)) && !isWithinRunWindow(r)
+                  })
+                  const groupActive = tracked.some((pl) => {
+                    const r = p.runs.find((x) => x.platform === pl)
+                    return !!r && ACTIVE_STATUSES.has(r.status)
+                  })
+                  // The earliest moment any tracked assistant opens up again —
+                  // what the disabled button should promise.
+                  const opensAt = tracked
+                    .map((pl) => p.runs.find((x) => x.platform === pl))
+                    .filter((r): r is RunSummary => !!r && isWithinRunWindow(r))
+                    .map((r) => nextRunAllowedAt(r.runAt).getTime())
+                    .sort((a, b) => a - b)[0]
+
+                  return tracked.map((platform, idx) => {
                     const run = p.runs.find((r) => r.platform === platform)
-                    const active = run && ACTIVE_STATUSES.has(run.status)
                     const state = deriveRunState(run)
-                    // A completed run inside the current calendar hour cannot be
-                    // re-run: the server dedupes it and reports "skipped". Saying
-                    // so on the button beats letting the click look like it failed.
-                    const blocked = isWithinRunWindow(run)
                     return (
                       <tr key={`${p.id}-${platform}`} className={idx === 0 ? "llm-grp" : undefined}>
                         {idx === 0 ? (
-                          <td rowSpan={p.platforms.length || 1}>
+                          <td rowSpan={tracked.length}>
                             <input
                               type="checkbox"
                               checked={selected.has(p.id)}
@@ -486,8 +553,19 @@ export default function LlmPromptListPage() {
                           </td>
                         ) : null}
                         {idx === 0 ? (
-                          <td rowSpan={p.platforms.length || 1} className="kw">
-                            <Link href={`/dashboard/ai-prompt-tracker/${projectId}/${p.id}`}>{p.prompt}</Link>
+                          // `.kw` goes on the link, not on the <td>. It carries
+                          // `display: block`, and a table-cell forced to block is
+                          // pulled out of the row by CSS table fixup — which is
+                          // what drew that stray rule under the prompt column,
+                          // sized to the cell rather than to the row.
+                          <td rowSpan={tracked.length}>
+                            <Link
+                              className="kw llm-prompt-link"
+                              href={`/dashboard/ai-prompt-tracker/${projectId}/${p.id}`}
+                              title={p.prompt}
+                            >
+                              {p.prompt}
+                            </Link>
                           </td>
                         ) : null}
                         <td>
@@ -495,6 +573,26 @@ export default function LlmPromptListPage() {
                             <PlatformMark id={platform} size={15} />
                             {PLATFORM_LABEL[platform]}
                           </span>
+                          {/* Under the LAST assistant of the group, because that
+                              is where the list of them visibly ends — and the
+                              list was previously a dead end: a prompt created
+                              against ChatGPT could never be asked of Claude. */}
+                          {idx === tracked.length - 1 && (
+                            <button
+                              type="button"
+                              className="llm-plat-add"
+                              onClick={() => setEditPlatforms(p.id)}
+                              title={`Choose which AI assistants answer "${p.prompt}"`}
+                            >
+                              {p.platforms.length >= PLATFORMS.length ? (
+                                "Edit AIs"
+                              ) : (
+                                <>
+                                  <Icon.plus /> Add AI
+                                </>
+                              )}
+                            </button>
+                          )}
                         </td>
                         <td>
                           <RunStateCell
@@ -515,7 +613,7 @@ export default function LlmPromptListPage() {
                             other per-prompt cells in the rowSpan'd group — not
                             repeated once per platform row. */}
                         {idx === 0 ? (
-                          <td rowSpan={p.platforms.length || 1}>
+                          <td rowSpan={tracked.length}>
                             <Dropdown
                               ariaLabel={`Run frequency for "${p.prompt}"`}
                               value={frequencyValue(p)}
@@ -533,18 +631,30 @@ export default function LlmPromptListPage() {
                           </td>
                         ) : null}
                         {idx === 0 ? (
-                          <td rowSpan={p.platforms.length || 1}>
+                          <td rowSpan={tracked.length}>
                             <div className="row" style={{ gap: 4 }}>
+                              {/* The prompt text has always linked here, but a
+                                  link that looks like body copy is not an
+                                  affordance — the row now says where it goes. */}
+                              <Link
+                                className="btn sm"
+                                href={`/dashboard/ai-prompt-tracker/${projectId}/${p.id}`}
+                                title={`Open "${p.prompt}" — every answer, run by run`}
+                              >
+                                View
+                              </Link>
                               <button
                                 className="icon-btn"
                                 title={
-                                  active
+                                  groupActive && runNowIn.length === 0
                                     ? "Already running"
-                                    : blocked && run
-                                      ? `Already run at ${clockTime(new Date(run.runAt))} — re-runs open at ${clockTime(nextRunAllowedAt(run.runAt))}`
-                                      : "Run now"
+                                    : runNowIn.length === 0 && opensAt
+                                      ? `Already run on every assistant this hour — re-runs open at ${clockTime(new Date(opensAt))}`
+                                      : runNowIn.length < tracked.length
+                                        ? `Run now on ${runNowIn.map((pl) => PLATFORM_LABEL[pl]).join(", ")}`
+                                        : "Run now"
                                 }
-                                disabled={busy || !!active || blocked}
+                                disabled={busy || runNowIn.length === 0}
                                 onClick={() => void runNow([p.id])}
                               >
                                 <Icon.refresh />
@@ -557,13 +667,24 @@ export default function LlmPromptListPage() {
                         ) : null}
                       </tr>
                     )
-                  }),
-                )}
+                  })
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {editing && (
+        <PlatformsModal
+          prompt={editing}
+          onClose={() => setEditPlatforms(null)}
+          onSave={async (next) => {
+            await updatePlatforms(editing.id, next)
+            setEditPlatforms(null)
+          }}
+        />
+      )}
 
       {showAdd && (
         <AddPromptsModal
@@ -594,6 +715,145 @@ const ALL_PLATFORMS: { key: Platform; label: string; note: string }[] = ENGINE_O
   label: ENGINES[key].label,
   note: ENGINE_NOTE[key],
 }))
+
+/**
+ * Which assistants answer one prompt.
+ *
+ * The gap this fills: platforms were chosen once, when the prompt was created,
+ * and POST /prompts skips duplicates — so a user who later wanted the same
+ * question asked of Claude had no move except deleting the prompt and losing
+ * its ChatGPT history. Runs are keyed by (prompt, platform), so widening the
+ * set starts a fresh history beside the existing one and disturbs nothing.
+ *
+ * Removing is deliberately allowed too, and deliberately explained: the runs
+ * are NOT deleted, they stop being shown, and putting the assistant back brings
+ * them straight back. That is worth a sentence — "remove" next to a number the
+ * user paid for otherwise reads as destroying it.
+ */
+function PlatformsModal({
+  prompt,
+  onClose,
+  onSave,
+}: {
+  prompt: PromptRow
+  onClose: () => void
+  onSave: (platforms: Platform[]) => Promise<void>
+}) {
+  // Kept in PLATFORMS order rather than click order, matching what the server
+  // stores — otherwise the table's rows reshuffle after a save.
+  const [chosen, setChosen] = useState<Platform[]>(prompt.platforms)
+  const [saving, setSaving] = useState(false)
+
+  const toggle = (k: Platform) =>
+    setChosen((prev) =>
+      prev.includes(k) ? prev.filter((x) => x !== k) : PLATFORMS.filter((x) => prev.includes(x) || x === k),
+    )
+
+  const added = chosen.filter((k) => !prompt.platforms.includes(k))
+  const removed = prompt.platforms.filter((k) => !chosen.includes(k))
+  /** Assistants this prompt has actually been run on — what "remove" hides. */
+  const measured = new Set(prompt.runs.map((r) => r.platform))
+
+  // Only what is being ADDED has a price: the assistants already tracked are
+  // already in the "Run all" quote at the top of the page.
+  const addBase = added.filter((k) => k !== "claude").length * prompt.samplesPerRun
+  const addClaude = added.includes("claude") ? prompt.samplesPerRun : 0
+
+  const submit = async () => {
+    setSaving(true)
+    try {
+      await onSave(chosen)
+    } catch {
+      // updatePlatforms has already rolled the table back and raised a toast.
+      // Staying open leaves the user's selection intact to try again.
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-h">
+          <div className="t">Track on other AI</div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <Icon.close />
+          </button>
+        </div>
+        <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="llm-q" style={{ fontSize: 15 }}>
+            {prompt.prompt}
+          </div>
+          <div className="tiny muted">
+            Each assistant answers this question separately and keeps its own history, so the same
+            prompt can be compared across them.
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {ALL_PLATFORMS.map((pl) => {
+              const on = chosen.includes(pl.key)
+              return (
+                <button
+                  key={pl.key}
+                  type="button"
+                  className={`llm-plat-card ${on ? "on" : ""}`}
+                  aria-pressed={on}
+                  onClick={() => toggle(pl.key)}
+                >
+                  <PlatformMark id={pl.key} size={17} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="n">{pl.label}</span>
+                    <span className="d">{pl.note}</span>
+                  </span>
+                  {/* "Already has results" is the fact that decides whether
+                      un-ticking this box is cheap or throws a chart away. */}
+                  {measured.has(pl.key) && !on && (
+                    <span className="tiny" style={{ color: "var(--warn)", whiteSpace: "nowrap" }}>
+                      hides history
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {chosen.length === 0 && (
+            <div className="tiny" style={{ color: "var(--warn)" }}>
+              A prompt has to run on at least one assistant. Delete it from the table instead.
+            </div>
+          )}
+          {removed.length > 0 && chosen.length > 0 && (
+            <div className="tiny muted">
+              {removed.map((k) => PLATFORM_LABEL[k]).join(", ")} will stop running. Past runs are
+              kept — turn the assistant back on and its history reappears.
+            </div>
+          )}
+          {added.length > 0 && (
+            <div className="tiny muted">
+              {added.map((k) => PLATFORM_LABEL[k]).join(", ")} starts empty. Hit Run now on the row
+              to get the first answers.
+            </div>
+          )}
+        </div>
+        <div className="modal-f split">
+          <RunCost base={addBase} claude={addClaude} />
+          <div className="row" style={{ gap: 8 }}>
+            <button type="button" className="btn" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={saving || chosen.length === 0 || (added.length === 0 && removed.length === 0)}
+              onClick={() => void submit()}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AddPromptsModal({
   projectId,
@@ -646,13 +906,35 @@ function AddPromptsModal({
     setError("")
     setBusyMode(mode)
     try {
-      const res = await api.post<{ added: number; requested: number; prompts?: { id: string }[] }>(
+      const res = await api.post<{
+        added: number
+        requested: number
+        /** Prompts that already existed and gained one of the chosen assistants. */
+        widened?: number
+        prompts?: { id: string }[]
+      }>(
         `/api/llm-tracker/projects/${projectId}/prompts`,
         { prompts, platforms, samplesPerRun: samples, checkFrequency: freq === "off" ? null : Number(freq) },
       )
-      const dupes = res.requested - res.added
+      const widened = res.widened ?? 0
+      // "Already tracked" used to be the whole story for a duplicate, which was
+      // wrong the moment re-submitting one started adding assistants to it —
+      // that is a real change and reporting it as nothing is how the feature
+      // reads as broken.
+      if (widened > 0) {
+        toast.success(
+          `${widened} ${widened === 1 ? "prompt is" : "prompts are"} now tracked on ${platforms
+            .map((x) => PLATFORM_LABEL[x])
+            .join(" and ")} too.`,
+        )
+      }
+      const dupes = res.requested - res.added - widened
       if (dupes > 0) {
-        toast.info(`${dupes} ${dupes === 1 ? "prompt was" : "prompts were"} already tracked.`)
+        toast.info(
+          `${dupes} ${dupes === 1 ? "prompt was" : "prompts were"} already tracked on ${
+            platforms.length === 1 ? "that assistant" : "those assistants"
+          }.`,
+        )
       }
 
       const ids = (res.prompts ?? []).map((x) => x.id)

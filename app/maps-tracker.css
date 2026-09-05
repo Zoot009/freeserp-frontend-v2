@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Maps Rank Tracker — the guided-rail redesign.
+
+   Ported from maps-rank-tracker-guided-rail.html at the repo root, which is
+   the approved visual spec. Scoped under .fs-app so it draws from the same
+   tokens as dashboard.css, the same way app/pricing.css does — this feature
+   was the only one in the app with no class family of its own, which is why
+   it was ~2000 lines of inline style objects and hard to restyle.
+
+   Reuse before adding: .card, .btn, .input, .chip, .icon-btn, .skeleton and
+   .spin already exist in dashboard.css and are used as-is. Everything here is
+   structure the app did not already have.
+
+   Colours are tokens, with three deliberate exceptions that must NOT be
+   "fixed" into tokens by a later reader:
+     · the six rank colours never appear here at all — they live only in
+       rankColor() in components/maps-tracker/grid.ts and reach the DOM via
+       inline style, because they encode a measurement scale, not a theme;
+     · the pin ring is a literal #fff and the idle/live pin greys are literal,
+       because pins sit on Google's map tiles, which do not follow our theme;
+     · the report sheet is literal white, because it is printed.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.fs-app .mt-page {
+  /* The rail/results columns collapse on the width of the CONTENT, not the
+     viewport. The dashboard sidebar eats ~240px and can expand on hover, so a
+     viewport media query fires late and misses the sidebar changing width
+     with no viewport change at all. */
+  container-type: inline-size;
+  container-name: mt;
+
+  /* No token is this soft: --border is the line BETWEEN cards, and these are
+     hairlines INSIDE one. Derived so they track light/dark on their own. */
+  --mt-line-soft: color-mix(in srgb, var(--border) 55%, transparent);
+  --mt-brand-line: color-mix(in srgb, var(--brand) 22%, var(--bg-elev));
+}
+
+/* ── Intro ──────────────────────────────────────────────────────────────── */
+.fs-app .mt-intro { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+.fs-app .mt-intro h1 { font-size: 23px; letter-spacing: -0.025em; margin: 0 0 4px; }
+.fs-app .mt-lede { font-size: 14px; line-height: 1.55; color: var(--text-soft); max-width: 620px; margin: 0; text-wrap: pretty; }
+
+/* ── Setup: numbered rail beside a live preview ─────────────────────────── */
+.fs-app .mt-setup { display: grid; grid-template-columns: 352px minmax(0, 1fr); gap: 20px; align-items: stretch; }
+
+.fs-app .mt-rail {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 8px; align-self: start;
+}
+.fs-app .mt-step { padding: 14px; border-radius: var(--r-md); }
+.fs-app .mt-step + .mt-step { border-top: 1px solid var(--mt-line-soft); }
+.fs-app .mt-step[data-state="active"] { background: var(--brand-soft); border: 1px solid var(--mt-brand-line); }
+/* Locked steps stay visible — the point is to show what is coming, not to
+   hide it — but they are not reachable by pointer or keyboard. */
+.fs-app .mt-step[data-state="locked"] { opacity: .5; pointer-events: none; }
+
+.fs-app .mt-step-h { display: flex; align-items: center; gap: 10px; }
+.fs-app .mt-step-h.top { align-items: flex-start; }
+.fs-app .mt-step-n {
+  width: 22px; height: 22px; border-radius: 999px; flex-shrink: 0;
+  background: var(--bg-inset); color: var(--text-mute);
+  display: grid; place-items: center; font-size: 12px; font-weight: 600;
+}
+.fs-app .mt-step[data-state="active"] .mt-step-n { background: var(--brand); color: #fff; }
+.fs-app .mt-step[data-state="done"] .mt-step-n { background: var(--pos-soft); color: var(--pos); }
+.fs-app .mt-step-t { font-size: 14px; font-weight: 600; }
+.fs-app .mt-step-hint { font-size: 12px; color: var(--text-soft); line-height: 1.5; margin-top: 8px; }
+.fs-app .mt-step-hint.indent { padding-left: 32px; margin-top: 0; }
+.fs-app .mt-step-body { margin-top: 10px; }
+
+.fs-app .mt-summary { flex: 1; min-width: 0; }
+.fs-app .mt-summary-k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-mute); }
+.fs-app .mt-summary-v { font-size: 13.5px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+
+.fs-app .mt-link { border: none; background: none; padding: 0; color: var(--brand); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.fs-app .mt-link:hover { color: var(--brand-deep); text-decoration: underline; }
+
+.fs-app .mt-rail-foot { padding: 14px; border-top: 1px solid var(--border); }
+.fs-app .mt-rail-note { font-size: 12px; color: var(--text-mute); text-align: center; margin-top: 8px; }
+
+/* The one primary action. dashboard.css has no .btn:disabled rule at all, so
+   without this a disabled Run scan still paints as fully clickable — and this
+   button is disabled on the very first screen every new account sees. */
+.fs-app .mt-run { width: 100%; padding: 12px 20px; font-size: 14px; }
+.fs-app .mt-run:disabled { opacity: .38; cursor: default; }
+.fs-app .mt-run:disabled:hover { background: var(--brand); }
+
+.fs-app .mt-toggle {
+  width: 38px; height: 22px; border-radius: 999px; border: none;
+  background: var(--bg-inset); position: relative; flex-shrink: 0; cursor: pointer;
+}
+.fs-app .mt-toggle i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .16s ease; }
+.fs-app .mt-toggle[aria-pressed="true"] { background: var(--brand); }
+.fs-app .mt-toggle[aria-pressed="true"] i { left: 19px; }
+
+/* ── Map ────────────────────────────────────────────────────────────────── */
+.fs-app .mt-mapcard {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 12px; display: flex; flex-direction: column;
+}
+.fs-app .mt-map { position: relative; flex: 1; min-height: 400px; border-radius: var(--r-md); overflow: hidden; background: var(--bg-inset); }
+.fs-app .mt-map-badge {
+  position: absolute; left: 12px; bottom: 12px; z-index: 2;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 11px; font-size: 12px; color: var(--text-soft);
+}
+.fs-app .mt-mapnote { font-size: 11.5px; color: var(--text-mute); padding: 12px 4px 2px; }
+
+/* Shown INSTEAD of the map before a business exists — rendering it as a veil
+   over a live map would pay for a map load, and show the cooperative-scroll
+   hint, on a map nobody can use yet. */
+.fs-app .mt-map-empty { display: grid; place-items: center; text-align: center; padding: 24px; height: 100%; }
+.fs-app .mt-map-empty .ring { width: 38px; height: 38px; border-radius: 999px; border: 1.5px dashed var(--border-strong); margin: 0 auto 12px; }
+
+/* Pins. The marker library puts our className on its content element and sets
+   that element's transform itself to apply the anchor offset — so the hover
+   scale has to live on an inner node, or the pin leaps off its coordinate on
+   hover. */
+.fs-app .mt-pin {
+  display: grid; place-items: center; padding: 0; border: none; background: none;
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+  box-sizing: border-box; transition: transform .12s ease, opacity .12s ease;
+}
+/* Bigger and darker-edged than the reference's 9px / #A9B0BE dot, which was
+   drawn against a flat beige mock basemap. Google's real tiles are mostly
+   white and near-white grey, so a white dot with a pale grey ring disappears
+   into them completely — the preview looked like it was rendering nothing.
+   12px with a slate ring and a shadow reads on white, buildings, parks and
+   water, while staying far lighter than the 20px pin this replaced (121 of
+   those at 11x11 is a wall of circles).
+
+   All three colours are literal on purpose: these sit on Google's tiles,
+   which do not follow our theme, so a token would flip them in dark mode and
+   put us straight back to an invisible dot. */
+.fs-app .mt-pin--idle {
+  width: 12px; height: 12px; border-radius: 999px;
+  background: #fff; border: 2px solid #4B5563;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.fs-app .mt-pin--live { width: 16px; height: 16px; border-radius: 999px; background: #9CA3AF; border: 2px solid #fff; }
+.fs-app .mt-pin--scored { width: 26px; height: 26px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(11,13,18,.22); cursor: pointer; }
+.fs-app .mt-pin--scored:hover { transform: scale(1.18); }
+.fs-app .mt-pin--centre { width: 16px; height: 16px; border-radius: 999px; background: var(--brand); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(11,13,18,.3); }
+.fs-app .mt-pin--open { box-shadow: 0 0 0 3px var(--brand), 0 1px 3px rgba(11,13,18,.22); }
+.fs-app .mt-pin--dim { opacity: .16; pointer-events: none; }
+
+/* ── Results ────────────────────────────────────────────────────────────── */
+.fs-app .mt-results { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: stretch; }
+.fs-app .mt-stack { display: flex; flex-direction: column; gap: 14px; }
+
+.fs-app .mt-kwtabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.fs-app .mt-kwtab {
+  padding: 8px 13px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg-elev); color: var(--text-soft); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.fs-app .mt-kwtab .pct { font-family: var(--font-mono); font-size: 11.5px; opacity: .65; }
+.fs-app .mt-kwtab[aria-selected="true"] { background: var(--brand); border-color: transparent; color: #fff; font-weight: 600; }
+
+.fs-app .mt-hero { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.fs-app .mt-hero-big { font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.fs-app .mt-bar { height: 8px; border-radius: 999px; background: var(--bg-inset); overflow: hidden; }
+.fs-app .mt-bar > i { display: block; height: 8px; border-radius: 999px; background: var(--pos); }
+
+.fs-app .mt-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.fs-app .mt-tile { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; }
+.fs-app .mt-tile .lbl { font-size: 12.5px; color: var(--text-soft); line-height: 1.4; }
+.fs-app .mt-tile .val { font-family: var(--font-mono); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 8px; }
+/* The acronym is a caption under the plain-English label, never the label. */
+.fs-app .mt-tile .acr { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--text-mute); margin-top: 2px; }
+
+.fs-app .mt-distbar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; }
+.fs-app .mt-distbar i { display: block; }
+.fs-app .mt-bandrow {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 0; border: none; border-top: 1px solid var(--mt-line-soft);
+  background: none; text-align: left; cursor: pointer; color: inherit;
+}
+.fs-app .mt-bandrow .sw { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.fs-app .mt-bandrow .nm { font-size: 12.5px; flex: 1; }
+.fs-app .mt-bandrow .ct { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-mute); }
+.fs-app .mt-bandrow .pc { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; width: 40px; text-align: right; }
+.fs-app .mt-bandrow:hover .nm { color: var(--brand); }
+.fs-app .mt-bandrow[aria-pressed="true"] .nm { font-weight: 600; color: var(--brand); }
+
+.fs-app .mt-standrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--mt-line-soft); }
+.fs-app .mt-standrow .nm { font-size: 12.5px; color: var(--text-soft); flex: 1; }
+.fs-app .mt-standrow .v { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; }
+
+/* ── AI analysis ────────────────────────────────────────────────────────── */
+.fs-app .mt-ai { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.fs-app .mt-ai p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.65; color: var(--text-soft); max-width: 900px; text-wrap: pretty; }
+.fs-app .mt-recs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fs-app .mt-rec { background: var(--bg-sub); border-radius: var(--r-md); padding: 14px; }
+.fs-app .mt-rec .t { font-size: 13px; font-weight: 600; line-height: 1.4; margin-bottom: 4px; }
+.fs-app .mt-rec .d { font-size: 12px; color: var(--text-soft); line-height: 1.5; }
+.fs-app .mt-prio { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; }
+.fs-app .mt-prio--high { background: var(--neg-soft); color: var(--neg); }
+/* The reference styles only HIGH and LOW. Rendering MEDIUM as neutral would
+   quietly downgrade what the model actually said. */
+.fs-app .mt-prio--medium { background: var(--warn-soft); color: var(--warn); }
+.fs-app .mt-prio--low { background: var(--bg-inset); color: var(--text-soft); }
+
+/* ── Progress ───────────────────────────────────────────────────────────── */
+.fs-app .mt-progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 0; }
+.fs-app .mt-progress-track { height: 3px; background: var(--mt-line-soft); }
+.fs-app .mt-progress-track > i { display: block; height: 3px; background: var(--brand); transition: width .4s ease; }
+.fs-app .mt-spinner { width: 14px; height: 14px; border-radius: 999px; border: 2px solid var(--border); border-top-color: var(--brand); animation: fs-spin 1s linear infinite; flex-shrink: 0; }
+
+/* ── History ────────────────────────────────────────────────────────────── */
+.fs-app .mt-hist { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.fs-app .mt-histrow {
+  display: grid; grid-template-columns: 118px minmax(0, 1fr) auto 220px 40px;
+  gap: 16px; align-items: center; width: 100%;
+  padding: 14px 18px; border: none; border-top: 1px solid var(--mt-line-soft);
+  background: none; text-align: left; color: inherit; cursor: pointer;
+}
+.fs-app .mt-histrow:first-child { border-top: none; }
+.fs-app .mt-histrow:hover { background: var(--bg-sub); }
+.fs-app .mt-mini { display: grid; gap: 2px; }
+.fs-app .mt-mini span { aspect-ratio: 1; border-radius: 2px; }
+
+/* ── Point drawer ───────────────────────────────────────────────────────── */
+.fs-app .mt-scrim { position: fixed; inset: 0; background: rgba(11,13,18,.34); z-index: 60; border: none; width: 100%; cursor: default; }
+.fs-app .mt-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 400px; z-index: 70;
+  background: var(--bg-elev); border-left: 1px solid var(--border);
+  box-shadow: -24px 0 60px -30px rgba(11,13,18,.35);
+  display: flex; flex-direction: column;
+}
+.fs-app .mt-drawer-h { padding: 18px 20px; border-bottom: 1px solid var(--mt-line-soft); display: flex; align-items: flex-start; gap: 10px; }
+.fs-app .mt-drawer-facts { padding: 16px 20px; display: flex; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--mt-line-soft); }
+.fs-app .mt-drawer-k { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--text-mute); }
+.fs-app .mt-drawer-b { padding: 8px 12px 20px; overflow-y: auto; overscroll-behavior: contain; }
+.fs-app .mt-packrow { display: flex; gap: 11px; align-items: flex-start; padding: 9px 8px; border-radius: 10px; }
+.fs-app .mt-packrow.you { background: var(--brand-soft); }
+.fs-app .mt-pos { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; background: var(--bg-inset); color: var(--text-soft); flex-shrink: 0; }
+
+/* ── Report ─────────────────────────────────────────────────────────────── */
+.fs-app .mt-report { background: #fff; }
+.fs-app .mt-sheet { max-width: 1040px; margin: 0 auto; padding: 48px 88px 64px; }
+.fs-app .mt-sheet h2 { font-size: 34px; line-height: 1.12; letter-spacing: -0.035em; margin: 0 0 12px; }
+.fs-app .mt-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-mute); }
+.fs-app .mt-mark { width: 26px; height: 26px; border-radius: 8px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.fs-app .mt-rstats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.fs-app .mt-rstats > div { padding: 22px 24px; }
+.fs-app .mt-rstats > div + div { border-left: 1px solid var(--border); }
+.fs-app .mt-rstats .val { font-family: var(--font-mono); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
+.fs-app .mt-cmprow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 130px 110px 110px; gap: 12px; padding: 14px 0; border-top: 1px solid var(--mt-line-soft); align-items: center; }
+.fs-app .mt-cmprow.you { background: var(--brand-soft); }
+.fs-app .mt-cmprow .num { width: 26px; height: 26px; border-radius: 999px; background: var(--bg-inset); color: var(--text-soft); display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.fs-app .mt-cmprow.you .num { background: var(--brand); color: #fff; }
+.fs-app .mt-legend { display: flex; gap: 14px; flex-wrap: wrap; }
+.fs-app .mt-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-soft); }
+.fs-app .mt-legend i { width: 9px; height: 9px; border-radius: 3px; }
+
+@media print {
+  .fs-app .mt-sheet { padding: 0; max-width: none; }
+  .fs-app .mt-report { background: #fff; }
+}
+
+/* ── Narrow ─────────────────────────────────────────────────────────────── */
+@container mt (max-width: 1180px) {
+  .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
+  .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
+  .fs-app .mt-histrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+@media (max-width: 640px) {
+  .fs-app .mt-drawer { width: 100%; }
+  .fs-app .mt-sheet { padding: 32px 20px 48px; }
+  .fs-app .mt-tiles, .fs-app .mt-rstats { grid-template-columns: 1fr; }
+}
