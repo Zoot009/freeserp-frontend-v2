@@ -250,177 +250,6 @@ function KeywordAiPrompt({
   )
 }
 
-/**
- * Pick from the shortlist, on the dashboard, without going anywhere.
- *
- * "Choose keywords" used to be a link. It read as an offer to choose and
- * behaved as a redirect: you arrived on the rank tracker — a page about
- * keywords you already track — to do the thing you had just asked to do, and
- * the shortlist was another click away behind a second button.
- *
- * So the choosing happens here. The top few arrive ticked, because the whole
- * point of running an analysis is that it already worked out what is worth
- * tracking: the common path is one click, and disagreeing is possible rather
- * than required.
- */
-function KeywordPicker({
-  projectId,
-  domain,
-  suggestions,
-  location,
-  onClose,
-  onAdded,
-}: {
-  projectId: string
-  domain: string
-  suggestions: Suggestion[]
-  /** The locale the analysis ran in. The keywords are tracked in the same one,
-   *  so the picks mean what the volumes beside them said. */
-  location: string
-  onClose: () => void
-  onAdded: () => void
-}) {
-  const [picked, setPicked] = useState<Set<string>>(
-    () => new Set(suggestions.slice(0, PRESELECT_COUNT).map((s) => s.keyword)),
-  )
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // Not while the POST is in flight — escaping then hides work that is
-      // still going to land.
-      if (e.key === "Escape" && !saving) onClose()
-    }
-    document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
-  }, [onClose, saving])
-
-  const toggle = (kw: string) =>
-    setPicked((prev) => {
-      const next = new Set(prev)
-      if (next.has(kw)) next.delete(kw)
-      else next.add(kw)
-      return next
-    })
-
-  const allPicked = suggestions.length > 0 && picked.size === suggestions.length
-
-  const submit = async () => {
-    const picks = suggestions.filter((s) => picked.has(s.keyword)).map((s) => s.keyword)
-    if (!picks.length) return
-    setSaving(true)
-    setError(null)
-    try {
-      await trackKeywords(projectId, picks, location)
-      onAdded()
-    } catch (err: unknown) {
-      // Stay open. The picks are the user's work, and closing throws them away
-      // along with the error that explains why.
-      setSaving(false)
-      setError(err instanceof Error ? err.message : "Couldn't add those keywords.")
-    }
-  }
-
-  return (
-    <div className="fs-app">
-      <div className="modal-bg" onClick={() => { if (!saving) onClose() }}>
-        <div
-          className="modal"
-          onClick={(e) => e.stopPropagation()}
-          style={{ maxWidth: 520 }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose keywords to track"
-        >
-          <div className="modal-h">
-            <div>
-              <div className="b" style={{ fontSize: 17, letterSpacing: "-0.01em" }}>Choose your keywords</div>
-              <p className="tiny muted" style={{ marginTop: 4 }}>
-                {`From our analysis of ${domain}. The top ${Math.min(PRESELECT_COUNT, suggestions.length)} are ticked — untick anything you don't want.`}
-              </p>
-            </div>
-          </div>
-
-          <div
-            className="modal-b"
-            style={{ maxHeight: 320, display: "flex", flexDirection: "column", gap: 2, padding: "12px 14px" }}
-          >
-            {suggestions.map((s) => {
-              const on = picked.has(s.keyword)
-              return (
-                <label
-                  key={s.keyword}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "7px 8px", borderRadius: 8,
-                    cursor: saving ? "default" : "pointer",
-                    background: on ? "var(--brand-soft)" : "transparent",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={saving}
-                    onChange={() => toggle(s.keyword)}
-                    style={{ width: 15, height: 15, accentColor: "var(--brand)", flexShrink: 0 }}
-                  />
-                  <span
-                    title={s.rationale ?? s.keyword}
-                    style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  >
-                    {s.keyword}
-                  </span>
-                  {s.volume != null && (
-                    <span className="tiny muted" style={{ fontFamily: "var(--font-mono)", flexShrink: 0 }}>
-                      {formatVolume(s.volume)}/mo
-                    </span>
-                  )}
-                </label>
-              )
-            })}
-          </div>
-
-          {error && (
-            <p className="tiny" style={{ margin: 0, padding: "0 22px 10px", color: "var(--neg)" }}>{error}</p>
-          )}
-
-          <div className="modal-f" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => setPicked(allPicked ? new Set() : new Set(suggestions.map((s) => s.keyword)))}
-              style={{ background: "none", border: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 500, fontSize: 12 }}
-            >
-              {allPicked ? "Clear all" : `Select all ${suggestions.length}`}
-            </button>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9 text-[13px] hover:bg-muted hover:text-foreground"
-                disabled={saving}
-                onClick={onClose}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="h-9 gap-1.5 text-[13px]"
-                disabled={saving || picked.size === 0}
-                onClick={() => void submit()}
-              >
-                {saving && <Loader2 className="size-3.5 animate-spin" />}
-                {saving ? "Adding…" : `Track ${picked.size} keyword${picked.size === 1 ? "" : "s"}`}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function KeywordSetupCard({
   projectId, domain, onStatus,
 }: {
@@ -443,8 +272,6 @@ export function KeywordSetupCard({
   // null until the stored preference is read, so a dismissed prompt never
   // flashes on its way to being hidden.
   const [askDismissed, setAskDismissed] = useState<boolean | null>(null)
-  // The shortlist picker, open on the dashboard — see KeywordPicker above.
-  const [picking, setPicking] = useState(false)
   const [autoAdding, setAutoAdding] = useState(false)
   const [graceOver, setGraceOver] = useState(false)
   const graceOverRef = useRef(false)
@@ -682,10 +509,12 @@ export function KeywordSetupCard({
       ) : run?.status === "COMPLETED" ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[13px] font-semibold">Your keywords are ready to pick</div>
+            {/* Not "ready to pick": there is nothing to pick any more. The
+                card does one thing, and the heading should say which. */}
+            <div className="text-[13px] font-semibold">Your keywords are ready</div>
             <p className="mt-1 text-xs text-muted-foreground">
               {shortlist.length > 0
-                ? `We analysed ${domain} and shortlisted ${shortlist.length} keyword${shortlist.length === 1 ? "" : "s"} worth tracking. Pick the ones you want and we'll start checking their rank.`
+                ? `We analysed ${domain} and found ${shortlist.length} keyword${shortlist.length === 1 ? "" : "s"} worth tracking. We'll start with the strongest ${Math.min(PRESELECT_COUNT, shortlist.length)} and check their rank every day.`
                 : `We analysed ${domain}. Add the keywords you want and we'll start checking their rank.`}
             </p>
           </div>
@@ -704,32 +533,31 @@ export function KeywordSetupCard({
              * a click away in Add keywords. So nothing is lost by not asking —
              * the alternative to these ten is on the page this lands you on.
              */
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                className="h-8 text-xs"
-                disabled={autoAdding}
-                onClick={() => void autoTrack()}
-              >
-                {autoAdding ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin" /> Adding…
-                  </>
-                ) : (
-                  `Track top ${Math.min(PRESELECT_COUNT, shortlist.length)}`
-                )}
-              </Button>
-              {/* Kept, quietly. Tracking spends quota, so somebody who wants to
-                  see the ten before committing to them still can. */}
-              <button
-                type="button"
-                className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
-                onClick={() => setPicking(true)}
-                disabled={autoAdding}
-              >
-                Choose instead
-              </button>
-            </div>
+            /*
+             * One button, and it does the whole thing.
+             *
+             * "Choose instead" sat beside this and opened the picker — a third
+             * route to the same place, offered at the moment someone has said
+             * they want the automatic one. The choosing already lives on the
+             * rank tracker this lands you on: every keyword can be removed
+             * there, and the rest of the shortlist is one click away under Add
+             * keywords. So the link was not protecting anything, it was just
+             * one more decision in front of the thing being asked for.
+             */
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={autoAdding}
+              onClick={() => void autoTrack()}
+            >
+              {autoAdding ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" /> Adding…
+                </>
+              ) : (
+                `Start tracking ${Math.min(PRESELECT_COUNT, shortlist.length)} keywords`
+              )}
+            </Button>
           ) : (
             // The run finished with nothing to offer. There is no choice to
             // make, so this is honestly a link to the manual box.
@@ -753,20 +581,6 @@ export function KeywordSetupCard({
         </div>
       ) : null}
 
-      {picking && shortlist.length > 0 && (
-        <KeywordPicker
-          projectId={projectId}
-          domain={domain}
-          suggestions={shortlist}
-          location={shortlistLocation}
-          onClose={() => setPicking(false)}
-          // Straight to the tracker. The keywords just picked are rows on that
-          // page, and this card exists because the project had none — leaving
-          // the user on a dashboard that is still redrawing itself, to go and
-          // find them, is a worse answer than showing them.
-          onAdded={() => { setPicking(false); router.push(`/dashboard/project/${projectId}/keywords`) }}
-        />
-      )}
     </section>
   )
 }
