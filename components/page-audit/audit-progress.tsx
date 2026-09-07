@@ -114,6 +114,7 @@ export function AuditProgressOverlay({
   progress,
   pagesDone,
   tally,
+  inline = false,
   pagesKnown,
   recent,
   onHide,
@@ -129,6 +130,15 @@ export function AuditProgressOverlay({
   recent?: CrawledPage[] | null
   /** Running counts from the pages read so far. */
   tally?: LiveTally | null
+  /**
+   * Render in the page instead of over it.
+   *
+   * The full-screen version is a modal that has to be dismissed before anything
+   * else on the page can be used, which on a fifteen-minute crawl is a long
+   * time to hold someone hostage to a progress bar. Inline, the same content
+   * reads as the report assembling itself.
+   */
+  inline?: boolean
   onHide: () => void
 }) {
   const [tip, setTip] = useState(0)
@@ -151,7 +161,13 @@ export function AuditProgressOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/95 p-6 backdrop-blur-sm">
+    <div
+      className={
+        inline
+          ? "w-full"
+          : "fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/95 p-6 backdrop-blur-sm"
+      }
+    >
       {/* Keyframes travel with the component so it stays self-contained; the
           names are prefixed to avoid colliding with anything global. */}
       <style>{`
@@ -168,18 +184,20 @@ export function AuditProgressOverlay({
         }
       `}</style>
 
-      {/* Leaving is allowed and non-destructive: the audit is a queued job on
-          the server, so it finishes whether or not this screen is open. */}
-      <button
-        type="button"
-        onClick={onHide}
-        aria-label="Continue in the background"
-        className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <X className="size-4" />
-      </button>
+{/* Only the modal needs dismissing. Inline there is nothing covering the
+          page, so an X would just hide the one thing the page is for. */}
+      {!inline && (
+        <button
+          type="button"
+          onClick={onHide}
+          aria-label="Continue in the background"
+          className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
 
-      <div className="w-full max-w-md">
+      <div className={inline ? "w-full" : "w-full max-w-md"}>
         <div className="text-center">
           {/* Just the spinner. The tile-plus-ping it replaced pulsed a square
               halo out past a rounded box, which read as a rendering glitch

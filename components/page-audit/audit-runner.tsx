@@ -118,7 +118,6 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
   const [report, setReport] = useState<AuditReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
-  const [hideProgress, setHideProgress] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const startedAt = useRef(0)
@@ -189,7 +188,6 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
     setReport(null)
     setJob(null)
     // A new run gets the full screen back, even if the last one was dismissed.
-    setHideProgress(false)
     try {
       const res = await api.post<{ jobId: string; reportId?: string | null }>("/api/page-audit", {
         url: url.trim(),
@@ -312,37 +310,32 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
         )}
       </div>
 
-      {/* Full-screen while it runs, unless the user dismissed it. Dismissing
-          only hides the screen: the audit is a queued job, so it finishes and
-          lands in the history either way. */}
-      {running && !hideProgress && (
-        <AuditProgressOverlay
-          url={url.trim()}
-          mode={mode}
-          progress={job.progress}
-          pagesDone={job.pagesDone}
-          pagesKnown={job.pagesKnown}
-          recent={job.recent}
-          tally={job.tally}
-          onHide={() => setHideProgress(true)}
-        />
-      )}
+{/*
+        The run, in the page rather than over it.
 
-      {/* The compact form, for when the overlay has been dismissed. */}
-      {running && hideProgress && (
-        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 shadow-sm">
-          <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
-          <span className="text-[13px] font-medium">Auditing {url}</span>
-          <span className="text-[13px] tabular-nums text-muted-foreground">
-            {Math.round(job.progress)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setHideProgress(false)}
-            className="ml-auto text-[13px] font-semibold text-primary hover:underline"
-          >
-            Show progress
-          </button>
+        This was a full-screen modal. On a 500-page crawl that is a quarter of
+        an hour during which the only thing the app will let you look at is a
+        progress bar, and the only way out was an X that hid the findings
+        entirely. Inline, the same content reads as the report assembling
+        itself: the stages tick over, the findings accumulate, the page list
+        grows, and when the crawl ends the finished report takes its place.
+
+        Nothing is hidden behind a dismiss any more, so hideProgress is gone
+        with it — there is nothing left to dismiss.
+      */}
+      {running && (
+        <div className="rounded-xl border bg-card px-5 py-6 shadow-sm">
+          <AuditProgressOverlay
+            inline
+            url={url.trim()}
+            mode={mode}
+            progress={job.progress}
+            pagesDone={job.pagesDone}
+            pagesKnown={job.pagesKnown}
+            recent={job.recent}
+            tally={job.tally}
+            onHide={() => {}}
+          />
         </div>
       )}
 
