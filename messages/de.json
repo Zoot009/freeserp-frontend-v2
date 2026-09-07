@@ -1275,7 +1275,7 @@
     "admin": "Administration",
     "startLabel": "Wie sollen wir mit dem Keyword-Tracking starten?",
     "autoTitle": "Für mich finden",
-    "autoDesc": "Wir scannen deine Startseite mit KI und schlagen Keywords vor, für die sie schon ranken sollte — du wählst aus, welche getrackt werden.",
+    "autoDesc": "Wir analysieren Ihre Startseite mit KI und verfolgen die 10 stärksten Keywords, für die sie ranken sollte.",
     "manualTitle": "Ich trage eigene ein",
     "manualDesc": "Ohne Analyse. Starte mit einer leeren Liste und tippe die gewünschten Keywords selbst ein — kein Guthaben wird verbraucht."
   },

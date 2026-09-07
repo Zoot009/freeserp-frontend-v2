@@ -1275,7 +1275,7 @@
     "admin": "Administración",
     "startLabel": "¿Cómo quieres empezar a rastrear palabras clave?",
     "autoTitle": "Búscalas por mí",
-    "autoDesc": "Analizaremos tu página de inicio con IA y sugeriremos palabras clave para las que ya debería posicionar — tú eliges cuáles rastrear.",
+    "autoDesc": "Analizaremos tu página de inicio con IA y empezaremos a seguir las 10 palabras clave más fuertes para las que debería posicionarse.",
     "manualTitle": "Las añado yo",
     "manualDesc": "Sin análisis. Empieza con una lista vacía y escribe tú mismo las palabras clave que quieras rastrear — no consume créditos."
   },

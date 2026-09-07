@@ -1275,7 +1275,7 @@
     "admin": "Admin",
     "startLabel": "How should we start tracking keywords?",
     "autoTitle": "Find them for me",
-    "autoDesc": "We'll scan your homepage with AI and suggest keywords it should already rank for — you just pick the ones worth tracking.",
+    "autoDesc": "We'll scan your homepage with AI and start tracking the 10 strongest keywords it should rank for.",
     "manualTitle": "I'll add my own",
     "manualDesc": "Skip the analysis. Start with an empty list and type in the exact keywords you want to track — nothing spent."
   },

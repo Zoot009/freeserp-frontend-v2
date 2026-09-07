@@ -1275,7 +1275,7 @@
     "admin": "Administration",
     "startLabel": "Comment voulez-vous commencer à suivre des mots-clés ?",
     "autoTitle": "Trouvez-les pour moi",
-    "autoDesc": "Nous analysons votre page d'accueil avec l'IA et suggérons des mots-clés sur lesquels elle devrait déjà se positionner — vous choisissez ceux à suivre.",
+    "autoDesc": "Nous analyserons votre page d'accueil avec l'IA et commencerons à suivre les 10 mots-clés les plus forts sur lesquels elle devrait se positionner.",
     "manualTitle": "Je saisis les miens",
     "manualDesc": "Sans analyse. Commencez avec une liste vide et saisissez vous-même les mots-clés à suivre — aucun crédit utilisé."
   },
