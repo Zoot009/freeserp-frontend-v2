@@ -49,7 +49,12 @@
 }
 .fs-app .mt-step { padding: 14px; border-radius: var(--r-md); }
 .fs-app .mt-step + .mt-step { border-top: 1px solid var(--mt-line-soft); }
-.fs-app .mt-step[data-state="active"] { background: var(--brand-soft); border: 1px solid var(--mt-brand-line); }
+/* Several steps are open at once, so the tint can't just mean "expanded" or
+   the rail becomes a stack of blue panels. It marks the one still waiting on
+   an answer — the thing to do next. */
+.fs-app .mt-step[data-state="active"]:not([data-answered]) {
+  background: var(--brand-soft); border: 1px solid var(--mt-brand-line);
+}
 /* Locked steps stay visible — the point is to show what is coming, not to
    hide it — but they are not reachable by pointer or keyboard. */
 .fs-app .mt-step[data-state="locked"] { opacity: .5; pointer-events: none; }
@@ -61,8 +66,13 @@
   background: var(--bg-inset); color: var(--text-mute);
   display: grid; place-items: center; font-size: 12px; font-weight: 600;
 }
-.fs-app .mt-step[data-state="active"] .mt-step-n { background: var(--brand); color: #fff; }
+.fs-app .mt-step[data-state="active"]:not([data-answered]) .mt-step-n { background: var(--brand); color: #fff; }
 .fs-app .mt-step[data-state="done"] .mt-step-n { background: var(--pos-soft); color: var(--pos); }
+/* Collapsed but with nothing in it yet — keeps its number, so it must not also
+   wear the green of a finished step. */
+.fs-app .mt-step[data-state="done"]:not([data-answered]) .mt-step-n {
+  background: var(--bg-inset); color: var(--text-mute);
+}
 .fs-app .mt-step-t { font-size: 14px; font-weight: 600; }
 .fs-app .mt-step-hint { font-size: 12px; color: var(--text-soft); line-height: 1.5; margin-top: 8px; }
 .fs-app .mt-step-hint.indent { padding-left: 32px; margin-top: 0; }
@@ -206,18 +216,61 @@
 .fs-app .mt-progress-track > i { display: block; height: 3px; background: var(--brand); transition: width .4s ease; }
 .fs-app .mt-spinner { width: 14px; height: 14px; border-radius: 999px; border: 2px solid var(--border); border-top-color: var(--brand); animation: fs-spin 1s linear infinite; flex-shrink: 0; }
 
-/* ── History ────────────────────────────────────────────────────────────── */
+/* ── History ──────────────────────────────────────────────────────────────
+   Grouped by the run that produced the readings: the scan states its date,
+   business and settings once in a header, and its keywords are rows beneath.
+   The header strip and the keyword rows share one column template so the
+   labels sit over the values they name. */
 .fs-app .mt-hist { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
-.fs-app .mt-histrow {
-  display: grid; grid-template-columns: 118px minmax(0, 1fr) auto 220px 40px;
-  gap: 16px; align-items: center; width: 100%;
-  padding: 14px 18px; border: none; border-top: 1px solid var(--mt-line-soft);
-  background: none; text-align: left; color: inherit; cursor: pointer;
+
+.fs-app .mt-hist-head,
+.fs-app .mt-kwrow {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 76px 76px 34px;
+  gap: 14px; align-items: center;
 }
-.fs-app .mt-histrow:first-child { border-top: none; }
-.fs-app .mt-histrow:hover { background: var(--bg-sub); }
-.fs-app .mt-mini { display: grid; gap: 2px; }
-.fs-app .mt-mini span { aspect-ratio: 1; border-radius: 2px; }
+.fs-app .mt-hist-head {
+  padding: 9px 18px; background: var(--bg-sub); border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-mute);
+}
+
+.fs-app .mt-scan + .mt-scan { border-top: 1px solid var(--border); }
+.fs-app .mt-scan-h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; padding: 14px 18px 6px;
+}
+.fs-app .mt-scan-date { font-size: 12.5px; font-weight: 600; }
+.fs-app .mt-scan-biz { font-size: 12.5px; color: var(--text-soft); margin-left: 8px; }
+
+.fs-app .mt-kwrow-wrap { position: relative; }
+.fs-app .mt-kwrow {
+  width: 100%; padding: 7px 18px; border: none; background: none;
+  text-align: left; color: inherit; cursor: pointer;
+}
+.fs-app .mt-kwrow:hover { background: var(--bg-sub); }
+.fs-app .mt-scan > .mt-kwrow-wrap:last-child .mt-kwrow { padding-bottom: 14px; }
+.fs-app .mt-kwrow-name { display: block; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Carries the run's date, business and settings for a single-keyword scan,
+   which would otherwise need a header line of its own. */
+.fs-app .mt-kwrow-meta {
+  display: block; margin-top: 2px; font-size: 11.5px; color: var(--text-mute);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fs-app .mt-kwrow-v { font-size: 13px; font-weight: 600; text-align: right; }
+.fs-app .mt-kwrow-report { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); }
+
+/* Same footprint whatever the grid size — the cells divide the box rather
+   than each being a fixed size, so the column never goes ragged. */
+.fs-app .mt-mini { display: grid; gap: 1px; width: 52px; }
+.fs-app .mt-mini span { aspect-ratio: 1; border-radius: 1px; }
+/* Holds the column open for a scan with no heatmap to show, without drawing
+   a grid of grey cells that reads as a result. */
+.fs-app .mt-mini-none {
+  display: block; width: 52px; height: 52px; border-radius: 4px;
+  border: 1px dashed var(--border-strong);
+}
+
 
 /* ── Point drawer ───────────────────────────────────────────────────────── */
 .fs-app .mt-scrim { position: fixed; inset: 0; background: rgba(11,13,18,.34); z-index: 60; border: none; width: 100%; cursor: default; }
@@ -262,7 +315,9 @@
 @container mt (max-width: 1180px) {
   .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
   .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
-  .fs-app .mt-histrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .fs-app .mt-hist-head { display: none; }
+  .fs-app .mt-kwrow { grid-template-columns: 52px minmax(0, 1fr) 64px; }
+  .fs-app .mt-kwrow > :nth-child(4) { display: none; }
 }
 @media (max-width: 640px) {
   .fs-app .mt-drawer { width: 100%; }

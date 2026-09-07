@@ -1,47 +1,33 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
 import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
 import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
 
-// One row per (scan, keyword) — a scan of three keywords is three results, and
-// they are read one at a time.
-export interface ScanHistoryRow {
-  scanId: string
-  scanStatus: ScanStatus
-  keyword: ScanHistoryKeyword
-  locationName: string
-  gridSize: number
-  radiusMeters: number
-  displayUnit: ScanHistoryItem["displayUnit"]
-  createdAt: string
-}
+const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === "PARTIAL"
+const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUNNING"
 
-export function flattenHistoryRows(history: ScanHistoryItem[]): ScanHistoryRow[] {
-  return history.flatMap((h) =>
-    h.keywords.map((k) => ({
-      scanId: h.id,
-      scanStatus: h.status,
-      keyword: k,
-      locationName: h.location.name,
-      gridSize: h.gridSize,
-      radiusMeters: h.radiusMeters,
-      displayUnit: h.displayUnit,
-      createdAt: h.createdAt,
-    })),
+/**
+ * A scan's heatmap thumbnail, always the same footprint.
+ *
+ * The cells divide a fixed box rather than being a fixed size each, so a 3 × 3
+ * and a 21 × 21 occupy identical space — the column stays aligned and rows keep
+ * the same height. A big grid just renders at finer resolution, which is the
+ * honest thing for a thumbnail whose job is the shape, not the values.
+ */
+function MiniHeatmap({ keyword, gridSize }: { keyword: ScanHistoryKeyword; gridSize: number }) {
+  const byPos = new Map(keyword.points.map((p) => [`${p.row}:${p.col}`, p]))
+  const cells = Array.from({ length: gridSize * gridSize }, (_, i) =>
+    byPos.get(`${Math.floor(i / gridSize)}:${i % gridSize}`) ?? null,
   )
-}
-
-function MiniHeatmap({ row }: { row: ScanHistoryRow }) {
-  const size = row.gridSize
-  const byPos = new Map(row.keyword.points.map((p) => [`${p.row}:${p.col}`, p]))
-  const dot = size > 9 ? 4 : size > 5 ? 6 : 8
-  const cells = Array.from({ length: size * size }, (_, i) => byPos.get(`${Math.floor(i / size)}:${i % size}`) ?? null)
   return (
     <div
       className="mt-mini"
-      style={{ gridTemplateColumns: `repeat(${size}, ${dot}px)`, width: size * (dot + 2) }}
+      // A 1px gutter is nothing at 3 × 3 and over a third of the width at
+      // 21 × 21, where it turns the thumbnail into speckle. Big grids close up.
+      style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: gridSize > 11 ? 0 : 1 }}
       aria-hidden
     >
       {cells.map((p, i) => (
@@ -51,89 +37,165 @@ function MiniHeatmap({ row }: { row: ScanHistoryRow }) {
   )
 }
 
-function statusLabel(status: ScanStatus): { label: string; color: string } {
-  if (status === "QUEUED" || status === "RUNNING") return { label: "Scanning…", color: "var(--brand)" }
-  if (status === "FAILED") return { label: "Failed", color: "var(--neg)" }
+/** Only states worth reacting to get a colour. "Complete" is the norm, and
+ *  colouring the norm is what stops the exceptions standing out. */
+function statusNote(scan: ScanHistoryItem): { label: string; color: string } | null {
+  const { status } = scan
+  if (isRunning(status)) return { label: "Scanning…", color: "var(--brand)" }
+  if (status === "PARTIAL") {
+    return { label: `${scan.totalPoints - scan.pointsDone} points failed`, color: "var(--warn)" }
+  }
+  if (status === "FAILED") {
+    // The reason beats the word. "Failed" alone leaves someone staring at two
+    // dashes with nothing to do about it.
+    return { label: scan.errorMessage ?? "Failed — credits were returned", color: "var(--neg)" }
+  }
   if (status === "CANCELLED") return { label: "Cancelled", color: "var(--text-mute)" }
-  if (status === "PARTIAL") return { label: "Some points failed", color: "var(--warn)" }
-  return { label: "Complete", color: "var(--pos)" }
+  return null
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+const solvColor = (solv: number | null) =>
+  solv == null ? undefined : solv >= 30 ? "var(--pos)" : solv >= 12 ? "var(--warn)" : "var(--neg)"
+
+const radiusOf = (scan: ScanHistoryItem) =>
+  scan.displayUnit === "IMPERIAL"
+    ? `${(scan.radiusMeters / MILES_TO_METERS).toFixed(2)} mi`
+    : `${(scan.radiusMeters / KM_TO_METERS).toFixed(2)} km`
+
+const settingsOf = (scan: ScanHistoryItem) =>
+  `${scan.gridSize} × ${scan.gridSize} · ${radiusOf(scan)} · ${scan.totalPoints} points`
+
+const stampOf = (scan: ScanHistoryItem) =>
+  `${new Date(scan.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ` +
+  `${new Date(scan.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
+
+/** The five cells every row shares, so the header labels sit over their values. */
+function Row({
+  scan,
+  keyword,
+  meta,
+  onOpen,
+}: {
+  scan: ScanHistoryItem
+  keyword: ScanHistoryKeyword
+  meta?: ReactNode
+  onOpen: () => void
+}) {
+  const scored = hasResults(scan.status)
   return (
-    <div>
-      <div className="tiny muted tabular" style={{ fontSize: 10.5 }}>{label}</div>
-      <div className="tabular" style={{ fontSize: 14, fontWeight: 600, color }}>{value}</div>
+    <div className="mt-kwrow-wrap">
+      <button type="button" className="mt-kwrow" onClick={onOpen}>
+        {/* A scan that never ran has no shape to show. A grey grid in its place
+            looks like a result, which is worse than an empty cell. */}
+        {scored ? <MiniHeatmap keyword={keyword} gridSize={scan.gridSize} /> : <span className="mt-mini-none" aria-hidden />}
+        <span style={{ minWidth: 0 }}>
+          <span className="mt-kwrow-name">{keyword.keyword}</span>
+          {meta && <span className="mt-kwrow-meta">{meta}</span>}
+        </span>
+        <span className="tabular mt-kwrow-v" style={{ color: solvColor(keyword.solv) }}>
+          {keyword.solv != null ? `${keyword.solv.toFixed(0)}%` : "—"}
+        </span>
+        <span className="tabular mt-kwrow-v">{keyword.arp != null ? keyword.arp.toFixed(1) : "—"}</span>
+        <span />
+      </button>
+      {/* No report for a scan with no results — it would open an empty one. */}
+      {scored && (
+        <Link
+          href={`/reports/maps-tracker/${scan.id}/${keyword.id}`}
+          target="_blank"
+          className="icon-btn mt-kwrow-report"
+          title="Open the shareable report"
+          aria-label={`Open the shareable report for "${keyword.keyword}"`}
+        >
+          <FileText size={13} />
+        </Link>
+      )}
     </div>
   )
 }
 
-export function ScanHistory({ rows, onOpenScan }: { rows: ScanHistoryRow[]; onOpenScan: (scanId: string) => void }) {
-  if (rows.length === 0) {
+/**
+ * Past scans.
+ *
+ * A run of several keywords states its date, business and settings once and
+ * lists its readings beneath — repeating all of that per keyword was noise.
+ * But most runs have a single keyword, and for those a group header plus one
+ * row is two lines to say what fits on one, so they collapse: the settings
+ * ride along under the keyword instead.
+ */
+export function ScanHistory({
+  scans,
+  onOpen,
+  emptyLabel = "No scans yet.",
+}: {
+  scans: ScanHistoryItem[]
+  onOpen: (scanId: string, keywordId: string) => void
+  emptyLabel?: string
+}) {
+  if (scans.length === 0) {
     return (
       <div className="card" style={{ padding: 32, textAlign: "center" }}>
-        <div className="tiny muted">No earlier scans yet.</div>
+        <div className="tiny muted">{emptyLabel}</div>
       </div>
     )
   }
 
   return (
     <div className="mt-hist">
-      {rows.map((row) => {
-        const live = row.scanStatus === "QUEUED" || row.scanStatus === "RUNNING"
-        const status = statusLabel(row.scanStatus)
-        const solv = row.keyword.solv
-        const radius =
-          row.displayUnit === "IMPERIAL"
-            ? `${(row.radiusMeters / MILES_TO_METERS).toFixed(2)} mi`
-            : `${(row.radiusMeters / KM_TO_METERS).toFixed(2)} km`
+      {/* Said once, rather than reprinted on every row. */}
+      <div className="mt-hist-head">
+        <span />
+        <span>Keyword</span>
+        <span style={{ textAlign: "right" }}>Top 3</span>
+        <span style={{ textAlign: "right" }}>Avg rank</span>
+        <span />
+      </div>
+
+      {scans.map((scan) => {
+        const note = statusNote(scan)
+        const single = scan.keywords.length === 1
+
+        if (single && scan.keywords[0]) {
+          const k = scan.keywords[0]
+          return (
+            <section className="mt-scan" key={scan.id}>
+              <Row
+                scan={scan}
+                keyword={k}
+                onOpen={() => onOpen(scan.id, k.id)}
+                meta={
+                  <>
+                    {stampOf(scan)} · {scan.location.name} · {settingsOf(scan)}
+                    {note && <span style={{ color: note.color }}> · {note.label}</span>}
+                  </>
+                }
+              />
+            </section>
+          )
+        }
+
         return (
-          <div key={`${row.scanId}-${row.keyword.id}`} style={{ position: "relative" }}>
-            <button type="button" className="mt-histrow" onClick={() => onOpenScan(row.scanId)}>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500 }}>
-                  {new Date(row.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </div>
-                <div className="tiny muted">
-                  {new Date(row.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-                </div>
-              </div>
+          <section className="mt-scan" key={scan.id}>
+            <header className="mt-scan-h">
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>&ldquo;{row.keyword.keyword}&rdquo;</div>
-                <div className="tiny muted">
-                  {row.locationName} · {row.gridSize} × {row.gridSize} · {radius} · {row.keyword.scoredPoints} points
-                </div>
+                <span className="mt-scan-date">{stampOf(scan)}</span>
+                <span className="mt-scan-biz">{scan.location.name}</span>
               </div>
-              <div>
-                {live ? <span className="tiny muted">Scanning…</span> : <MiniHeatmap row={row} />}
+              <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                <span className="chip outline">{scan.gridSize} × {scan.gridSize}</span>
+                <span className="chip outline">{radiusOf(scan)}</span>
+                <span className="chip outline">
+                  {hasResults(scan.status) || !isRunning(scan.status)
+                    ? `${scan.totalPoints} points`
+                    : `${scan.pointsDone} of ${scan.totalPoints} points`}
+                </span>
+                {note && <span className="tiny" style={{ color: note.color }}>{note.label}</span>}
               </div>
-              <div className="row" style={{ gap: 18 }}>
-                <Stat
-                  label="TOP 3"
-                  value={solv != null ? `${solv.toFixed(0)}%` : "—"}
-                  color={solv == null ? undefined : solv >= 30 ? "var(--pos)" : solv >= 12 ? "var(--warn)" : "var(--neg)"}
-                />
-                <Stat label="AVG RANK" value={row.keyword.arp != null ? row.keyword.arp.toFixed(1) : "—"} />
-                <div>
-                  <div className="tiny muted tabular" style={{ fontSize: 10.5 }}>STATUS</div>
-                  <div className="tiny" style={{ color: status.color }}>{status.label}</div>
-                </div>
-              </div>
-              <span />
-            </button>
-            {!live && (
-              <Link
-                href={`/reports/maps-tracker/${row.scanId}/${row.keyword.id}`}
-                target="_blank"
-                className="icon-btn"
-                title="Open the shareable report"
-                aria-label={`Open the report for "${row.keyword.keyword}"`}
-                style={{ position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)" }}
-              >
-                <FileText size={14} />
-              </Link>
-            )}
-          </div>
+            </header>
+            {scan.keywords.map((k) => (
+              <Row key={k.id} scan={scan} keyword={k} onOpen={() => onOpen(scan.id, k.id)} />
+            ))}
+          </section>
         )
       })}
     </div>

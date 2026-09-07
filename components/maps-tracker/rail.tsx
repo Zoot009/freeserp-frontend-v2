@@ -35,25 +35,35 @@ export function RailStep({
   children?: ReactNode
 }) {
   const done = state === "done"
+  // Whether the step holds an answer, independent of whether it's expanded.
+  // A summary key is only passed once there's something to summarise, so the
+  // two travel together. Conflating "collapsed" with "answered" is what once
+  // put a green tick on an empty step.
+  const answered = summaryKey != null
   return (
-    <div className="mt-step" data-state={state} aria-disabled={state === "locked" || undefined}>
+    <div
+      className="mt-step"
+      data-state={state}
+      data-answered={answered || undefined}
+      aria-disabled={state === "locked" || undefined}
+    >
       <div className={"mt-step-h" + (done ? " top" : "")}>
-        <span className="mt-step-n" aria-hidden>{done ? "✓" : n}</span>
-        {done && summaryKey ? (
-          <>
-            <span className="mt-summary">
-              <span className="mt-summary-k">{summaryKey}</span>
-              <span className="mt-summary-v" style={{ display: "block" }}>{summaryValue}</span>
-              {summarySub && <span className="tiny muted" style={{ display: "block" }}>{summarySub}</span>}
-            </span>
-            {onEdit && (
-              <button type="button" className="mt-link" onClick={onEdit}>
-                Edit<span className="sr-only"> {title}</span>
-              </button>
-            )}
-          </>
+        <span className="mt-step-n" aria-hidden>{answered ? "✓" : n}</span>
+        {done && answered ? (
+          <span className="mt-summary">
+            <span className="mt-summary-k">{summaryKey}</span>
+            <span className="mt-summary-v" style={{ display: "block" }}>{summaryValue}</span>
+            {summarySub && <span className="tiny muted" style={{ display: "block" }}>{summarySub}</span>}
+          </span>
         ) : (
-          <span className="mt-step-t">{title}</span>
+          <span className="mt-step-t" style={{ flex: 1, minWidth: 0 }}>{title}</span>
+        )}
+        {/* Only a collapsed step needs a way back in. An expanded one is
+            already showing its controls. */}
+        {done && onEdit && (
+          <button type="button" className="mt-link" onClick={onEdit}>
+            {answered ? "Edit" : "Add"}<span className="sr-only"> {title}</span>
+          </button>
         )}
       </div>
 
