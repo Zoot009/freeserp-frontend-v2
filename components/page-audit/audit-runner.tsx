@@ -109,6 +109,55 @@ const COPY = {
   },
 } as const
 
+/**
+ * The audit in flight, remembered across a reload.
+ *
+ * The job lived only in React state, so refreshing the page — or following a
+ * link and coming back — left a crawl running on the server with nothing on
+ * screen saying so. The audit still finished and still landed in the history,
+ * which made it look like the run had been silently dropped.
+ *
+ * Per mode, because a single-page audit and a site crawl are separate runs on
+ * separate routes and each should find its own.
+ *
+ * localStorage rather than the server: the jobId is all that is needed, it is
+ * meaningless to anyone else, and the alternative is a new endpoint that scans
+ * the queue on every page load. The cost is that it does not follow you to
+ * another browser — where the audit still completes and still appears in the
+ * history, which is the same outcome as before.
+ */
+const RUNNING_KEY = (mode: AuditMode) => `fs.audit.running.${mode}`
+
+type RunningRun = { jobId: string; url: string; startedAt: number; timeoutMs: number }
+
+function readRunning(mode: AuditMode): RunningRun | null {
+  try {
+    const raw = localStorage.getItem(RUNNING_KEY(mode))
+    if (!raw) return null
+    const run = JSON.parse(raw) as RunningRun
+    if (!run?.jobId || typeof run.startedAt !== "number") return null
+    // Past its own deadline: the job is finished, failed, or gone. Resuming
+    // would poll a jobId BullMQ has already retired and show a spinner forever.
+    if (Date.now() - run.startedAt > run.timeoutMs) {
+      localStorage.removeItem(RUNNING_KEY(mode))
+      return null
+    }
+    return run
+  } catch {
+    // Private mode, disabled storage, or a value from an older shape.
+    return null
+  }
+}
+
+function writeRunning(mode: AuditMode, run: RunningRun | null): void {
+  try {
+    if (run) localStorage.setItem(RUNNING_KEY(mode), JSON.stringify(run))
+    else localStorage.removeItem(RUNNING_KEY(mode))
+  } catch {
+    /* storage unavailable — the run simply won't survive a reload */
+  }
+}
+
 export function AuditRunner({
   mode,
   initialUrl = "",
@@ -130,6 +179,12 @@ export function AuditRunner({
   const [starting, setStarting] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Set once the mount-time resume has decided; gates the auto-fresh start. */
+  const resumed = useRef(false)
+  /** Set once a run has been started or adopted, so neither happens twice. */
+  const autoStarted = useRef(false)
+  /** stopPolling is defined below; the resume effect needs it by reference. */
+  const stopPollingRef = useRef<(() => void) | null>(null)
   const startedAt = useRef(0)
   // Held in a ref rather than read from `limits` inside poll: poll is a
   // useCallback the interval closes over, and adding a dependency that arrives
@@ -151,9 +206,13 @@ export function AuditRunner({
   const stopPolling = useCallback(() => {
     if (timer.current) clearInterval(timer.current)
     timer.current = null
-  }, [])
+    // Every path into here is an end state — completed, failed, or timed out —
+    // so this is the one place that has to forget the run.
+    writeRunning(mode, null)
+  }, [mode])
 
   useEffect(() => stopPolling, [stopPolling])
+  stopPollingRef.current = stopPolling
 
   const loadReport = useCallback(async (reportId: string) => {
     try {
@@ -192,19 +251,55 @@ export function AuditRunner({
   )
 
   /**
+   * Pick the run back up after a reload.
+   *
+   * Runs before the auto-fresh effect can fire and guards it, so landing on
+   * ?fresh=1 and then refreshing reattaches to the crawl already running rather
+   * than starting a second one and spending the credits twice.
+   *
+   * No deps but the ones that make it possible: this is a mount-time recovery,
+   * not something to redo when state changes.
+   */
+  useEffect(() => {
+    if (resumed.current) return
+    const run = readRunning(mode)
+    if (!run) {
+      // Nothing to resume — release the auto-start.
+      resumed.current = true
+      return
+    }
+    resumed.current = true
+    autoStarted.current = true // never auto-start over a run already in flight
+    setUrl(run.url)
+    startedAt.current = run.startedAt
+    pollTimeout.current = run.timeoutMs
+    setJob({
+      jobId: run.jobId,
+      state: "active",
+      progress: 0,
+      reportId: null,
+      status: "PROCESSING",
+      error: null,
+    })
+    stopPollingRef.current?.()
+    timer.current = setInterval(() => void poll(run.jobId), POLL_MS)
+    void poll(run.jobId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  /**
    * Arrived from "Run fresh" on a report: start immediately, past the cache.
    *
    * Once only, and only with a URL to run — a re-render or a back-navigation
    * must not spend another 500 credits. Waits for `limits`, because the
    * progress poll's timeout is derived from the page budget.
    */
-  const autoStarted = useRef(false)
   useEffect(() => {
-    if (!autoFresh || autoStarted.current || !initialUrl.trim() || !limits) return
+    if (!resumed.current || !autoFresh || autoStarted.current || !initialUrl.trim() || !limits) return
     autoStarted.current = true
     void start({ forceRecrawl: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoFresh, initialUrl, limits])
+  }, [autoFresh, initialUrl, limits, job])
 
   const start = async (opts: { forceRecrawl?: boolean } = {}) => {
     if (!url.trim() || starting) return
@@ -232,6 +327,12 @@ export function AuditRunner({
       pollTimeout.current = pollTimeoutFor(mode === "site" ? limits?.maxPages : 1)
       setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
       stopPolling()
+      writeRunning(mode, {
+        jobId: res.jobId,
+        url: url.trim(),
+        startedAt: startedAt.current,
+        timeoutMs: pollTimeout.current,
+      })
       timer.current = setInterval(() => void poll(res.jobId), POLL_MS)
       void poll(res.jobId)
     } catch (err) {
