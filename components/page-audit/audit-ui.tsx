@@ -3949,6 +3949,7 @@ function QuickLinks({ items }: { items: NavItem[] }) {
 export function AuditReportResults({
   report,
   onNewAudit,
+  onRunFresh,
   isAuthenticated = false,
   shared = false,
   hiddenSections,
@@ -3956,6 +3957,15 @@ export function AuditReportResults({
 }: {
   report: AuditReport
   onNewAudit: () => void
+  /**
+   * Re-crawl this exact URL, ignoring the cached report.
+   *
+   * Reports are reused for two weeks, so "New Audit" on the same URL returns
+   * this same report — correct almost always, and baffling on the one occasion
+   * you have just changed the site and want to see it. Absent on the shared
+   * public view, which has no credits to spend.
+   */
+  onRunFresh?: () => void
   isAuthenticated?: boolean
   /** Public shared view — hides the AI assistant and share controls. */
   shared?: boolean
@@ -4245,6 +4255,23 @@ export function AuditReportResults({
                 <RefreshCw className="h-3 w-3" />
                 {t("newAudit")}
               </Button>
+              {/* Separate from "New Audit" on purpose: that one takes you back
+                  to the form, this one re-crawls the site you are looking at.
+                  Titled rather than labelled with the cost, because the button
+                  beside it is not, and a bare price on one of two adjacent
+                  actions reads as a warning about that action specifically. */}
+              {onRunFresh && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={onRunFresh}
+                  title="Ignore the saved report and crawl this site again now"
+                >
+                  <Zap className="h-3 w-3" />
+                  Run fresh
+                </Button>
+              )}
             </div>
           </div>
 

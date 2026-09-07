@@ -109,11 +109,21 @@ const COPY = {
   },
 } as const
 
-export function AuditRunner({ mode }: { mode: AuditMode }) {
+export function AuditRunner({
+  mode,
+  initialUrl = "",
+  autoFresh = false,
+}: {
+  mode: AuditMode
+  /** Prefilled target, from ?url= — used by "Run fresh" on a report. */
+  initialUrl?: string
+  /** Start immediately, past the two-week cache. From ?fresh=1. */
+  autoFresh?: boolean
+}) {
   const router = useRouter()
   const copy = COPY[mode]
   const [historyKey, setHistoryKey] = useState(0)
-  const [url, setUrl] = useState("")
+  const [url, setUrl] = useState(initialUrl)
   const [job, setJob] = useState<JobState | null>(null)
   const [report, setReport] = useState<AuditReport | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -181,7 +191,22 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
     [loadReport, stopPolling],
   )
 
-  const start = async () => {
+  /**
+   * Arrived from "Run fresh" on a report: start immediately, past the cache.
+   *
+   * Once only, and only with a URL to run — a re-render or a back-navigation
+   * must not spend another 500 credits. Waits for `limits`, because the
+   * progress poll's timeout is derived from the page budget.
+   */
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!autoFresh || autoStarted.current || !initialUrl.trim() || !limits) return
+    autoStarted.current = true
+    void start({ forceRecrawl: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFresh, initialUrl, limits])
+
+  const start = async (opts: { forceRecrawl?: boolean } = {}) => {
     if (!url.trim() || starting) return
     setStarting(true)
     setError(null)
@@ -192,6 +217,9 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
       const res = await api.post<{ jobId: string; reportId?: string | null }>("/api/page-audit", {
         url: url.trim(),
         mode,
+        // Past the two-week reuse window. Only ever set by "Run fresh" on a
+        // report — a plain submit should keep returning the saved one.
+        ...(opts.forceRecrawl ? { forceRecrawl: true } : {}),
       })
       // An existing recent report — go straight to it. No spinner, no polling,
       // no mention of why: from here it is simply the audit for that URL.

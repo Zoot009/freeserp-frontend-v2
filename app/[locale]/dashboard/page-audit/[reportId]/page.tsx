@@ -33,6 +33,9 @@ export default function AuditReportPage() {
   const [report, setReport] = useState<AuditReport | null>(null)
   const [totals, setTotals] = useState({ pages: 0, issues: 0 })
   const [isSite, setIsSite] = useState(false)
+  // Kept so "Run fresh" can re-crawl the same target. The transformed report is
+  // the UI's shape, not the API's, so this is read off the raw response.
+  const [sourceUrl, setSourceUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,6 +48,7 @@ export default function AuditReportPage() {
       const t = data.totals as { pages?: number; issues?: number } | undefined
       setTotals({ pages: t?.pages ?? 0, issues: t?.issues ?? 0 })
       setIsSite((data.mode as string) === "SITE")
+      setSourceUrl(String(data.url ?? ""))
       setError(null)
     } catch (err) {
       setError(
@@ -129,6 +133,20 @@ export default function AuditReportPage() {
       <AuditReportResults
         report={report}
         onNewAudit={() => router.push(backHref)}
+        /**
+         * Re-crawl this exact target, past the cache.
+         *
+         * Reports are reused for two weeks, so going back to the form and
+         * re-entering the same URL returns this same report. That is right
+         * almost always — and useless on the one occasion someone has just
+         * changed their site and wants to see whether it helped. forceRecrawl
+         * is the API's existing escape hatch; it simply had no button.
+         */
+        onRunFresh={
+          sourceUrl
+            ? () => router.push(`${backHref}?url=${encodeURIComponent(sourceUrl)}&fresh=1`)
+            : undefined
+        }
         isAuthenticated
         /* Site audits replace the Recommendations section with the rollup. Same
            slot — first thing after the scores — and the list it displaces is
