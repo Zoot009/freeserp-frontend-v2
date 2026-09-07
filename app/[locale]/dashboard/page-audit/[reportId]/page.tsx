@@ -18,6 +18,7 @@ import { ArrowLeft, RefreshCw, XCircle } from "lucide-react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { CreditBalance } from "@/components/dashboard/credit-balance"
 import {
   AuditReportResults,
   transformReport,
@@ -104,11 +105,27 @@ export default function AuditReportPage() {
 
   return (
     <div className="px-6 pb-10 pt-5">
-      <Button asChild variant="ghost" size="sm" className="mb-3 gap-1.5 text-[13px]">
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" /> All audits
-        </Link>
-      </Button>
+      {/*
+        The balance rides on the back-link row.
+
+        This route runs in the shell's focus mode, which drops the whole chrome —
+        sidebar and header — so the report reads as a document. The credit
+        counter lives in that header, so it disappeared exactly where people care
+        about it most: this page is what a run of credits was just spent ON, and
+        re-running an audit from here spends 500 more.
+
+        Put back here rather than by re-enabling the header, because the rest of
+        the chrome is deliberately gone and the back-link row was already half
+        empty.
+      */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-[13px]">
+          <Link href={backHref}>
+            <ArrowLeft className="size-4" /> All audits
+          </Link>
+        </Button>
+        <CreditBalance />
+      </div>
       <AuditReportResults
         report={report}
         onNewAudit={() => router.push(backHref)}
