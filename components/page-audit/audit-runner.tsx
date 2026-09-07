@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
 import { AuditHistory } from "@/components/page-audit/audit-history"
-import { AuditProgressOverlay } from "@/components/page-audit/audit-progress"
+import { AuditProgressOverlay, type LiveTally } from "@/components/page-audit/audit-progress"
 import { ToolContext } from "@/components/dashboard/tool-context"
 
 export type AuditMode = "single" | "site"
@@ -41,6 +41,7 @@ type JobState = {
   pagesDone?: number | null
   pagesKnown?: number | null
   recent?: { url: string; ok: boolean }[] | null
+  tally?: LiveTally | null
   reportId: string | null
   status: "PROCESSING" | "COMPLETED" | "FAILED"
   error: string | null
@@ -322,6 +323,7 @@ export function AuditRunner({ mode }: { mode: AuditMode }) {
           pagesDone={job.pagesDone}
           pagesKnown={job.pagesKnown}
           recent={job.recent}
+          tally={job.tally}
           onHide={() => setHideProgress(true)}
         />
       )}

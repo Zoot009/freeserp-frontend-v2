@@ -72,11 +72,48 @@ function pagePath(raw: string): string {
   }
 }
 
+export type LiveTally = {
+  ok: number
+  failed: number
+  noTitle: number
+  noDescription: number
+  noH1: number
+  multipleH1: number
+  thin: number
+  broken: number
+  imagesNoAlt: number
+  avgWords: number
+}
+
+/**
+ * The tally as display rows, worst first, zeroes dropped.
+ *
+ * Order is by how much each costs the site rather than by count — a broken page
+ * outranks a hundred missing alt attributes. Amber rather than red throughout:
+ * these are provisional counts on a crawl still running, and red would promise
+ * a severity the final report has not yet assigned.
+ */
+function findings(t: LiveTally): { label: string; count: number; tone: string }[] {
+  const AMBER = "var(--warn, #d97706)"
+  const MUTED = "var(--muted-foreground)"
+  return [
+    { label: "Pages that failed to load", count: t.failed, tone: AMBER },
+    { label: "Broken pages (4xx/5xx)", count: t.broken, tone: AMBER },
+    { label: "Missing page title", count: t.noTitle, tone: AMBER },
+    { label: "Missing meta description", count: t.noDescription, tone: AMBER },
+    { label: "Missing H1", count: t.noH1, tone: AMBER },
+    { label: "More than one H1", count: t.multipleH1, tone: MUTED },
+    { label: "Thin pages (under 300 words)", count: t.thin, tone: MUTED },
+    { label: "Images without alt text", count: t.imagesNoAlt, tone: MUTED },
+  ].filter((r) => r.count > 0)
+}
+
 export function AuditProgressOverlay({
   url,
   mode,
   progress,
   pagesDone,
+  tally,
   pagesKnown,
   recent,
   onHide,
@@ -90,6 +127,8 @@ export function AuditProgressOverlay({
   pagesKnown?: number | null
   /** Most recent pages, newest first. Null once the crawl has finished. */
   recent?: CrawledPage[] | null
+  /** Running counts from the pages read so far. */
+  tally?: LiveTally | null
   onHide: () => void
 }) {
   const [tip, setTip] = useState(0)
@@ -217,6 +256,51 @@ export function AuditProgressOverlay({
           stay in the server log — they are why it is slow, and narrating them
           to someone already waiting reads as an excuse rather than progress.
         */}
+        {/*
+          What the crawl has found, while it is still crawling.
+
+          A 500-page audit is about a quarter of an hour, and everything on this
+          overlay used to answer "how long" — a bar, a count, a list of URLs.
+          None of it answers the question that made someone start an audit,
+          which is whether their site is any good. These counts are read off
+          pages already parsed, so they cost nothing and they are true the
+          moment they appear.
+
+          Only non-zero rows, and only once a few pages are in: "0 missing
+          titles" after one page is noise, and a row that appears at page 40
+          reads as a discovery rather than a counter that was sitting at zero.
+        */}
+        {tally && tally.ok >= 3 && findings(tally).length > 0 && (
+          <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-3.5">
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Found so far
+              </span>
+              {tally.avgWords > 0 && (
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {tally.avgWords.toLocaleString()} words/page avg
+                </span>
+              )}
+            </div>
+            <ul className="space-y-1.5">
+              {findings(tally).map((row) => (
+                <li key={row.label} className="flex items-center justify-between gap-3 text-[12.5px]">
+                  <span className="truncate text-muted-foreground">{row.label}</span>
+                  <span className="shrink-0 font-semibold tabular-nums" style={{ color: row.tone }}>
+                    {row.count.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* Said plainly, because these numbers move and the final grade is
+                computed from 63 rules over the whole site — several of them
+                cross-page, so they cannot exist until the crawl ends. */}
+            <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground/80">
+              Counted as pages are read. The full report adds checks that need the whole site.
+            </p>
+          </div>
+        )}
+
         {recent && recent.length > 0 && (
           <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-3.5">
             <div className="mb-2.5 flex items-baseline justify-between">
