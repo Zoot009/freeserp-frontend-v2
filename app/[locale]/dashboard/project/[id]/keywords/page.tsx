@@ -1533,6 +1533,46 @@ export default function ProjectKeywordsPage() {
     return () => { cancelled = true }
   }, [isNewProject, token, user?.emailVerified, projectId])
 
+  /**
+   * An empty tracker on a brand-new project is usually not empty — it is early.
+   *
+   * "Find them for me" tracks the shortlist server-side once the homepage crawl
+   * and the model call finish, which takes long enough that arriving here first
+   * is normal. This page loads its keywords once, so without this it showed an
+   * empty table until a manual refresh — and the modal used to paper over that
+   * by holding the user on "Finding your keywords…" with nothing to look at.
+   *
+   * Only while the project has NO keywords and a run is actually in flight, so
+   * a genuinely empty project polls twice and stops rather than forever.
+   */
+  useEffect(() => {
+    if (!project || project.keywords.length > 0) return
+    let stop = false
+    const tick = async () => {
+      if (stop) return
+      try {
+        const { run } = await api.get<{ run: { status?: string } | null }>(
+          `/api/projects/${projectId}/keyword-suggestions`,
+        )
+        const inFlight = run?.status === "PENDING" || run?.status === "PROCESSING" || run?.status === "RUNNING"
+        if (run?.status === "COMPLETED") {
+          // The keywords land with the run, so one reload is enough.
+          await load(true)
+          stop = true
+          return
+        }
+        // No run, or it failed: nothing is coming, and the empty state is
+        // honest. Stop rather than poll a project that simply has no keywords.
+        if (!inFlight) stop = true
+      } catch {
+        stop = true
+      }
+      if (!stop) setTimeout(() => void tick(), 3000)
+    }
+    void tick()
+    return () => { stop = true }
+  }, [project, projectId, load])
+
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
   // transitions without a manual refresh. Stops once everything is terminal.
   useEffect(() => {

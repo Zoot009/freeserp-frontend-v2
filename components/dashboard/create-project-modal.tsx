@@ -31,38 +31,6 @@ const PLAN_LIMIT_CODES = new Set(["project_limit_reached", "project_create_limit
  * Generic in the created project so each caller keeps its own row type; the API
  * response is passed through untouched.
  */
-/** How long to wait for the analysis before opening the tracker anyway. */
-const KEYWORD_WAIT_TIMEOUT_MS = 90_000
-const KEYWORD_POLL_MS = 2_000
-
-/**
- * Wait for the keyword analysis to finish, or give up quietly.
- *
- * Polls the run rather than the keyword list because the run is what ends: a
- * domain analysed before completes almost at once from cache, and a fresh one
- * takes a crawl plus a model call. FAILED ends the wait too — there will be no
- * keywords, and the tracker's own empty state explains that better than a
- * spinner that never stops.
- *
- * On timeout it resolves anyway. Ninety seconds of a modal is already generous,
- * the server finishes the tracking regardless, and the alternative is holding
- * someone on a dialog they cannot leave.
- */
-async function waitForKeywords(projectId: string): Promise<void> {
-  const deadline = Date.now() + KEYWORD_WAIT_TIMEOUT_MS
-  while (Date.now() < deadline) {
-    try {
-      const { run } = await api.get<{ run: { status?: string } | null }>(
-        `/api/projects/${projectId}/keyword-suggestions`,
-      )
-      if (run?.status === "COMPLETED" || run?.status === "FAILED") return
-    } catch {
-      // A failed poll is not a failed run; the deadline is what ends this.
-    }
-    await new Promise((r) => setTimeout(r, KEYWORD_POLL_MS))
-  }
-}
-
 export function CreateProjectModal<T>({
   onClose,
   onCreated,
@@ -96,8 +64,6 @@ export function CreateProjectModal<T>({
   const [autoKeywords, setAutoKeywords] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  /** Set once the project exists and we are waiting for its keywords. */
-  const [findingKeywords, setFindingKeywords] = useState(false)
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -157,10 +123,21 @@ export function CreateProjectModal<T>({
        * "I'll add my own" skips all of it: there is nothing to wait for, and the
        * empty tracker is exactly what was asked for.
        */
+      /**
+       * Straight to the tracker. No waiting.
+       *
+       * This used to hold the modal on "Finding your keywords…" until the run
+       * finished. On a fresh account that is a homepage crawl plus a model call
+       * — long enough that the dialog read as frozen, and it was: there was
+       * nothing to look at and no way out of it.
+       *
+       * The server tracks the shortlist itself, so nothing is lost by leaving
+       * early. The tracker knows a run is in flight and fills itself in when it
+       * lands, which is a page that is doing something rather than a dialog
+       * that is not.
+       */
       const id = (created as { id?: string } | null)?.id
       if (autoKeywords && id) {
-        setFindingKeywords(true)
-        await waitForKeywords(id)
         onCreated(created)
         router.push(`/dashboard/project/${id}/keywords`)
         return
@@ -305,17 +282,11 @@ export function CreateProjectModal<T>({
               {/* Nothing to cancel once the project exists — the run is server
                   side and the keywords are coming either way. Closing here would
                   only strand the user on a dashboard mid-redraw. */}
-              <button type="button" className="btn" onClick={onClose} disabled={findingKeywords}>
+              <button type="button" className="btn" onClick={onClose}>
                 {t("cancel")}
               </button>
               <button type="submit" className="btn primary" disabled={loading}>
-                {/* Three states, because they are three different waits and a
-                    single "Creating…" through all of them reads as a stall. */}
-                {findingKeywords
-                  ? "Finding your keywords…"
-                  : loading
-                    ? t("creating")
-                    : t("createProject")}
+                {loading ? t("creating") : t("createProject")}
               </button>
             </div>
           </form>
