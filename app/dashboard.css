@@ -3950,3 +3950,33 @@
     transition-duration: 0ms !important;
   }
 }
+
+/*
+  The "finding your keywords" bar.
+
+  Indeterminate on purpose: the run is a homepage crawl plus a model call, and
+  neither reports progress. A percentage would have to be invented, and an
+  invented one that sticks at 80% is worse than an honest sweep.
+*/
+.fs-app .kd-finding-bar {
+  width: 220px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.fs-app .kd-finding-bar > span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  animation: kd-finding-sweep 1.4s ease-in-out infinite;
+}
+@keyframes kd-finding-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fs-app .kd-finding-bar > span { animation: none; width: 100%; opacity: 0.5; }
+}

@@ -1073,6 +1073,8 @@ export default function ProjectKeywordsPage() {
   // Keywords today's plan budget couldn't cover on the last run — shown locked
   // with an upgrade prompt rather than silently left unchecked.
   const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
+  /** A keyword run is in flight for a project that has none yet. */
+  const [findingKeywords, setFindingKeywords] = useState(false)
   // Keyword IDs with a per-keyword refresh in flight (drives the ↻ spinner).
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -1546,7 +1548,10 @@ export default function ProjectKeywordsPage() {
    * a genuinely empty project polls twice and stops rather than forever.
    */
   useEffect(() => {
-    if (!project || project.keywords.length > 0) return
+    if (!project || project.keywords.length > 0) {
+      setFindingKeywords(false)
+      return
+    }
     let stop = false
     const tick = async () => {
       if (stop) return
@@ -1555,6 +1560,9 @@ export default function ProjectKeywordsPage() {
           `/api/projects/${projectId}/keyword-suggestions`,
         )
         const inFlight = run?.status === "PENDING" || run?.status === "PROCESSING" || run?.status === "RUNNING"
+        // Drives the empty state: "we are finding them" rather than "there are
+        // none", which are the same screen and opposite meanings.
+        setFindingKeywords(inFlight)
         if (run?.status === "COMPLETED") {
           // The keywords land with the run, so one reload is enough.
           await load(true)
@@ -1566,6 +1574,7 @@ export default function ProjectKeywordsPage() {
         if (!inFlight) stop = true
       } catch {
         stop = true
+        setFindingKeywords(false)
       }
       if (!stop) setTimeout(() => void tick(), 3000)
     }
@@ -2308,12 +2317,19 @@ export default function ProjectKeywordsPage() {
               </Hint>
               {/* A check is a credit per keyword, and this button runs either
                   the selection or the whole list — so the quote has to follow
-                  whichever it is about to do, not a fixed number. */}
-              <CreditCost
-                action={CREDIT_ACTION_KEYS.rankCheck}
-                units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
-                showBalance={false}
-              />
+                  whichever it is about to do, not a fixed number.
+
+                  Hidden while one is already running. A price is an offer, and
+                  there is nothing on offer here — the button is disabled and the
+                  credits are spent. "Check in progress… Uses 3 credits" reads
+                  as a charge about to happen for a second time. */}
+              {!checking && pendingCount === 0 && (
+                <CreditCost
+                  action={CREDIT_ACTION_KEYS.rankCheck}
+                  units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
+                  showBalance={false}
+                />
+              )}
               </>
             )}
             {selectedKeywords.size > 0 && (
@@ -2681,16 +2697,48 @@ export default function ProjectKeywordsPage() {
                 minHeight: 300,
               }}
             >
-              <div className="eyebrow" style={{ justifyContent: "center" }}>
-                <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
-              </div>
-              <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
-              <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
-                {t("startTrackingDesc")}
-              </div>
-              <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-                <Icon.plus /> {t("addKeywords")}
-              </button>
+              {/*
+                Two states, one screen. "No keywords yet" and "we are fetching
+                your keywords" look identical and mean opposite things — and
+                arriving here straight from "Find them for me" lands in the
+                second while reading the first, which says the thing you just
+                paid for did not happen.
+              */}
+              {findingKeywords ? (
+                <>
+                  <div className="eyebrow" style={{ justifyContent: "center" }}>
+                    <span className="spark"><Icon.spark /></span> FINDING YOUR KEYWORDS
+                  </div>
+                  <div className="b" style={{ fontSize: 16, marginTop: 4 }}>
+                    Reading your site…
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 340 }}>
+                    We&apos;re analysing your homepage and picking the keywords worth tracking.
+                    They&apos;ll appear here on their own — this usually takes under a minute.
+                  </div>
+                  <div className="kd-finding-bar" style={{ marginTop: 18 }} aria-hidden="true">
+                    <span />
+                  </div>
+                  {/* Still offered: someone who knows their keywords should not
+                      have to wait for ours. */}
+                  <button className="btn" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                    <Icon.plus /> {t("addKeywords")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="eyebrow" style={{ justifyContent: "center" }}>
+                    <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
+                  </div>
+                  <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
+                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
+                    {t("startTrackingDesc")}
+                  </div>
+                  <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                    <Icon.plus /> {t("addKeywords")}
+                  </button>
+                </>
+              )}
               {outOfChecks && (
                 <span className="kd-checks-reset" style={{ marginTop: 12 }} title={t("outOfChecksTip")}>
                   <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
