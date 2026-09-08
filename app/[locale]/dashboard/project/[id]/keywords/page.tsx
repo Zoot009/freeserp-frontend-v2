@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { hasDeclinedKeywordAi } from "@/lib/keywordAiChoice"
-import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
@@ -1079,6 +1077,8 @@ export default function ProjectKeywordsPage() {
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Cost confirmation before a rank check spends credits. */
+  const [confirmCheck, setConfirmCheck] = useState(false)
   // Inline project-name rename (click the pencil next to the title).
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
@@ -1605,8 +1605,19 @@ export default function ProjectKeywordsPage() {
     return () => clearInterval(timer)
   }, [project, load])
 
+  /**
+   * Ask before spending.
+   *
+   * A rank check is a credit per keyword and the button can mean "the selection"
+   * or "all of them" depending on what is ticked — so the number is worth
+   * stating at the moment of deciding rather than as a standing label beside the
+   * button, which is exactly where it stopped being read.
+   */
+  const runCheckCost = selectedKeywords.size > 0 ? selectedKeywords.size : project?.keywords.length ?? 0
+
   const handleRunCheck = async () => {
     if (!project) return
+    setConfirmCheck(false)
     // First rank check ever for this project (no keyword has been checked yet)
     // = the "first rank check" milestone. Captured before the post.
     const isFirstCheck = project.keywords.length > 0 && project.keywords.every((k) => !k.checkedAt)
@@ -2300,7 +2311,7 @@ export default function ProjectKeywordsPage() {
               <button
                 data-tutorial="run-check-btn"
                 type="button"
-                onClick={handleRunCheck}
+                onClick={() => setConfirmCheck(true)}
                 // Block while a check is already running for this project — each
                 // check costs us money, so don't let the button be spammed.
                 disabled={checking || project.keywords.length === 0 || pendingCount > 0}
@@ -2315,21 +2326,11 @@ export default function ProjectKeywordsPage() {
                       : t("runCheck")}
               </button>
               </Hint>
-              {/* A check is a credit per keyword, and this button runs either
-                  the selection or the whole list — so the quote has to follow
-                  whichever it is about to do, not a fixed number.
-
-                  Hidden while one is already running. A price is an offer, and
-                  there is nothing on offer here — the button is disabled and the
-                  credits are spent. "Check in progress… Uses 3 credits" reads
-                  as a charge about to happen for a second time. */}
-              {!checking && pendingCount === 0 && (
-                <CreditCost
-                  action={CREDIT_ACTION_KEYS.rankCheck}
-                  units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
-                  showBalance={false}
-                />
-              )}
+              {/* The price used to sit here, permanently, beside the button.
+                  It is asked and answered in the confirm dialog now: a cost is
+                  worth reading at the moment you decide, not as a label you stop
+                  seeing, and it sat there reading "Uses 1 credit" even while a
+                  check was already running and paid for. */}
               </>
             )}
             {selectedKeywords.size > 0 && (
@@ -3450,6 +3451,46 @@ export default function ProjectKeywordsPage() {
           </div>
         )
       })()}
+
+      {confirmCheck && project && (
+        <div className="modal-bg" onClick={() => setConfirmCheck(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>RANK CHECK</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
+                  {runCheckCost === 1 ? "Check 1 keyword?" : `Check ${runCheckCost} keywords?`}
+                </div>
+              </div>
+              <button onClick={() => setConfirmCheck(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+            </div>
+            <div className="modal-b">
+              {/* The number, said once, where the decision is made. */}
+              <div className="b" style={{ fontSize: 16 }}>
+                {runCheckCost === 1 ? "This will use 1 credit" : `This will use ${runCheckCost} credits`}
+              </div>
+              <div className="tiny muted" style={{ marginTop: 6 }}>
+                One credit per keyword. We fetch each one&apos;s live Google position now,
+                {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
+              </div>
+              {/* Said here rather than after the fact: on a free plan the run is
+                  trimmed to the day's allowance, and finding that out from a row
+                  that quietly locked is worse than being told first. */}
+              {outOfChecks && (
+                <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                  You&apos;ve used today&apos;s free checks — this run will be trimmed to what&apos;s left.
+                </div>
+              )}
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setConfirmCheck(false)}>Cancel</button>
+              <button className="btn primary" onClick={handleRunCheck} disabled={checking}>
+                {checking ? t("checking") : "Run check"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div className="modal-bg" onClick={() => setConfirmDelete(false)}>
