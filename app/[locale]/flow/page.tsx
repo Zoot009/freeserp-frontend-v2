@@ -292,9 +292,11 @@ export default function FlowPage() {
             )}
             {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
+            {/* The free plan is the primary call to action — a paid tier stays one
+                click away as the secondary action below it. */}
             <div className="mt-4 space-y-2.5">
-              <Button size="lg" className="w-full" onClick={() => startCheckout()} disabled={busy || !selectedPlan}>{busy ? "Starting…" : selectedPlan ? `Continue with ${PLAN_COPY[selectedPlan.key].name}` : "Continue"}</Button>
-              <Button size="lg" variant="secondary" className="w-full" onClick={goToDashboard} disabled={busy}>Start free with {formatCredits(freeMonthly)} credits/month</Button>
+              <Button size="lg" className="w-full" onClick={goToDashboard} disabled={busy}>Start free with {formatCredits(freeMonthly)} credits/month</Button>
+              <Button size="lg" variant="outline" className="w-full" onClick={() => startCheckout()} disabled={busy || !selectedPlan}>{busy ? "Starting…" : selectedPlan ? `Continue with ${PLAN_COPY[selectedPlan.key].name}` : "Continue"}</Button>
             </div>
             <p className="mt-3 text-center text-xs text-muted-foreground">No commitment — cancel anytime. The free plan keeps working, and you can upgrade whenever you need more credits.</p>
           </>
