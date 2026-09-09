@@ -1600,7 +1600,7 @@
     "toolScoreWhat": "One page scored against one keyword",
     "toolQuickWhat": "A live lookup without tracking anything",
     "toolConsoleWhat": "Real clicks beside your tracked positions",
-    "costPerKeyword": "1 / keyword",
+    "costPerKeyword": "1–2 / keyword",
     "costPerScan": "3–57 / scan",
     "costPerSearch": "3–15 / search",
     "costPerPages": "1 / 20 pages",
@@ -1608,7 +1608,8 @@
     "costPerCrawl": "2 / crawl",
     "costPerPage": "3 / page",
     "costPerLookup": "1 / lookup",
-    "costFree": "Free"
+    "costFree": "Free",
+    "costPerKeywordNote": "Scheduled and bulk checks cost 1. A small manual check jumps the queue for faster results and costs 2."
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",

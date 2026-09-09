@@ -161,7 +161,21 @@ interface ProjectDetail {
   keywords: Keyword[]
 }
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
+type UsageInfo = {
+  plan: string
+  dailyUsed: number
+  dailyLimit: number
+  dailyRemaining: number
+  isAdmin?: boolean
+  /**
+   * What a manual check really costs per keyword.
+   *
+   * Interactive checks go to a priority queue at 2x, but only when enabled
+   * and only under a batch threshold — server settings the client cannot
+   * guess. Absent on older backends, where 1/keyword is the honest fallback.
+   */
+  rankCheck?: { standardCredits: number; priorityCredits: number; priorityMaxKeywords: number }
+}
 
 // "added" is insertion order — the order the keywords were typed into the Add
 // keywords modal — and it is the table's resting state. It has no header of its
@@ -1623,6 +1637,18 @@ export default function ProjectKeywordsPage() {
   const checksLeft = usage && usage.plan !== "paid" ? Math.max(0, usage.dailyRemaining) : null
   /** How many of the requested checks will actually run. */
   const willRun = checksLeft === null ? runCheckCost : Math.min(runCheckCost, checksLeft)
+  /**
+   * Credits per keyword for THIS batch.
+   *
+   * Small batches jump the queue at 2x; a bulk check-all falls back to
+   * standard so nobody pays double across a whole project. Quoting the flat
+   * catalog rate said "2 credits" for a run the ledger recorded as -4.
+   */
+  const perKeyword =
+    usage?.rankCheck && willRun > 0 && willRun <= usage.rankCheck.priorityMaxKeywords
+      ? usage.rankCheck.priorityCredits
+      : usage?.rankCheck?.standardCredits ?? 1
+  const creditsToSpend = willRun * perKeyword
 
   const handleRunCheck = async () => {
     if (!project) return
@@ -3504,10 +3530,13 @@ export default function ProjectKeywordsPage() {
               ) : (
                 <>
                   <div className="b" style={{ fontSize: 16 }}>
-                    {willRun === 1 ? "This will use 1 credit" : `This will use ${willRun} credits`}
+                    {creditsToSpend === 1 ? "This will use 1 credit" : `This will use ${creditsToSpend} credits`}
                   </div>
                   <div className="tiny muted" style={{ marginTop: 6 }}>
-                    One credit per keyword. We fetch each one&apos;s live Google position now,
+                    {perKeyword === 1
+                      ? `${perKeyword} credit per keyword.`
+                      : `${perKeyword} credits per keyword — small checks jump the queue so results come back in seconds.`}{" "}
+                    We fetch each one&apos;s live Google position now,
                     {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
                   </div>
                   {/* Named, not hinted. "Trimmed" does not say how many survive. */}
