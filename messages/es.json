@@ -1600,7 +1600,7 @@
     "toolScoreWhat": "Una página puntuada frente a una palabra clave",
     "toolQuickWhat": "Una consulta en vivo sin hacer seguimiento",
     "toolConsoleWhat": "Clics reales junto a tus posiciones seguidas",
-    "costPerKeyword": "1 / palabra clave",
+    "costPerKeyword": "1–2 / palabra clave",
     "costPerScan": "3–57 / escaneo",
     "costPerSearch": "3–15 / búsqueda",
     "costPerPages": "1 / 20 páginas",
@@ -1608,7 +1608,8 @@
     "costPerCrawl": "2 / rastreo",
     "costPerPage": "3 / página",
     "costPerLookup": "1 / consulta",
-    "costFree": "Gratis"
+    "costFree": "Gratis",
+    "costPerKeywordNote": "Las comprobaciones programadas y masivas cuestan 1. Una comprobación manual pequeña salta la cola para dar resultados más rápidos y cuesta 2."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

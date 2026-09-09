@@ -161,7 +161,21 @@ interface ProjectDetail {
   keywords: Keyword[]
 }
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
+type UsageInfo = {
+  plan: string
+  dailyUsed: number
+  dailyLimit: number
+  dailyRemaining: number
+  isAdmin?: boolean
+  /**
+   * What a manual check really costs per keyword.
+   *
+   * Interactive checks go to a priority queue at 2x, but only when enabled
+   * and only under a batch threshold — server settings the client cannot
+   * guess. Absent on older backends, where 1/keyword is the honest fallback.
+   */
+  rankCheck?: { standardCredits: number; priorityCredits: number; priorityMaxKeywords: number }
+}
 
 // "added" is insertion order — the order the keywords were typed into the Add
 // keywords modal — and it is the table's resting state. It has no header of its
@@ -1614,6 +1628,27 @@ export default function ProjectKeywordsPage() {
    * button, which is exactly where it stopped being read.
    */
   const runCheckCost = selectedKeywords.size > 0 ? selectedKeywords.size : project?.keywords.length ?? 0
+  /**
+   * Checks left today, or null when the plan has no daily ceiling.
+   *
+   * Null is not zero: a paid account is bounded by its credit balance, and
+   * treating "no limit" as "none left" would refuse every check it has paid for.
+   */
+  const checksLeft = usage && usage.plan !== "paid" ? Math.max(0, usage.dailyRemaining) : null
+  /** How many of the requested checks will actually run. */
+  const willRun = checksLeft === null ? runCheckCost : Math.min(runCheckCost, checksLeft)
+  /**
+   * Credits per keyword for THIS batch.
+   *
+   * Small batches jump the queue at 2x; a bulk check-all falls back to
+   * standard so nobody pays double across a whole project. Quoting the flat
+   * catalog rate said "2 credits" for a run the ledger recorded as -4.
+   */
+  const perKeyword =
+    usage?.rankCheck && willRun > 0 && willRun <= usage.rankCheck.priorityMaxKeywords
+      ? usage.rankCheck.priorityCredits
+      : usage?.rankCheck?.standardCredits ?? 1
+  const creditsToSpend = willRun * perKeyword
 
   const handleRunCheck = async () => {
     if (!project) return
@@ -3465,28 +3500,66 @@ export default function ProjectKeywordsPage() {
               <button onClick={() => setConfirmCheck(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
             </div>
             <div className="modal-b">
-              {/* The number, said once, where the decision is made. */}
-              <div className="b" style={{ fontSize: 16 }}>
-                {runCheckCost === 1 ? "This will use 1 credit" : `This will use ${runCheckCost} credits`}
-              </div>
-              <div className="tiny muted" style={{ marginTop: 6 }}>
-                One credit per keyword. We fetch each one&apos;s live Google position now,
-                {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
-              </div>
-              {/* Said here rather than after the fact: on a free plan the run is
-                  trimmed to the day's allowance, and finding that out from a row
-                  that quietly locked is worse than being told first. */}
-              {outOfChecks && (
-                <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
-                  You&apos;ve used today&apos;s free checks — this run will be trimmed to what&apos;s left.
-                </div>
+              {/*
+                Three states, because there are three different situations and
+                only one of them is an offer.
+
+                Out of checks: the run cannot happen at all — the backend refuses
+                it — so offering "Run check" is a button that does nothing, and
+                "this will be trimmed to what's left" describes trimming to zero.
+                Say what actually happened and when it changes.
+
+                Partly covered: name the real number rather than the word
+                "trimmed", which does not say how much survives.
+
+                Otherwise: the plain price.
+              */}
+              {checksLeft === 0 ? (
+                <>
+                  <div className="b" style={{ fontSize: 16 }}>
+                    You&apos;ve used today&apos;s free checks
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6 }}>
+                    A free plan runs {usage?.dailyLimit ?? 3} rank checks a day. Nothing will run
+                    until they reset — this costs you nothing now.
+                  </div>
+                  <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                    <Icon.lock /> Resets in <CountdownTimer targetDate={nextUtcMidnightIso} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="b" style={{ fontSize: 16 }}>
+                    {creditsToSpend === 1 ? "This will use 1 credit" : `This will use ${creditsToSpend} credits`}
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6 }}>
+                    {perKeyword === 1
+                      ? `${perKeyword} credit per keyword.`
+                      : `${perKeyword} credits per keyword — small checks jump the queue so results come back in seconds.`}{" "}
+                    We fetch each one&apos;s live Google position now,
+                    {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
+                  </div>
+                  {/* Named, not hinted. "Trimmed" does not say how many survive. */}
+                  {willRun < runCheckCost && (
+                    <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                      You have {checksLeft} check{checksLeft === 1 ? "" : "s"} left today, so only{" "}
+                      {willRun} of your {runCheckCost} will run. The rest stay unchecked until the reset.
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="modal-f">
-              <button className="btn" onClick={() => setConfirmCheck(false)}>Cancel</button>
-              <button className="btn primary" onClick={handleRunCheck} disabled={checking}>
-                {checking ? t("checking") : "Run check"}
+              <button className="btn" onClick={() => setConfirmCheck(false)}>
+                {checksLeft === 0 ? "Close" : "Cancel"}
               </button>
+              {/* No Run button when nothing can run. A disabled one still reads
+                  as "almost"; absent reads as "not today". */}
+              {checksLeft !== 0 && (
+                <button className="btn primary" onClick={handleRunCheck} disabled={checking}>
+                  {checking ? t("checking") : "Run check"}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -1600,7 +1600,7 @@
     "toolScoreWhat": "Une page notée face à un mot-clé",
     "toolQuickWhat": "Une recherche en direct sans rien suivre",
     "toolConsoleWhat": "Les clics réels à côté de vos positions suivies",
-    "costPerKeyword": "1 / mot-clé",
+    "costPerKeyword": "1–2 / mot-clé",
     "costPerScan": "3–57 / scan",
     "costPerSearch": "3–15 / recherche",
     "costPerPages": "1 / 20 pages",
@@ -1608,7 +1608,8 @@
     "costPerCrawl": "2 / exploration",
     "costPerPage": "3 / page",
     "costPerLookup": "1 / recherche",
-    "costFree": "Gratuit"
+    "costFree": "Gratuit",
+    "costPerKeywordNote": "Les vérifications planifiées et groupées coûtent 1. Une petite vérification manuelle passe devant la file pour un résultat plus rapide et coûte 2."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

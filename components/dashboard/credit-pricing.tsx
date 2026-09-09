@@ -220,9 +220,14 @@ function PlanCard({
 
 // Tool NAMES stay in English: they are product names, and a translated row
 // that renames the tool no longer matches the sidebar the user clicks.
-const TOOLS: { name: string; whatKey: string; costKey: string }[] = [
-  { name: "Keyword Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword" },
-  { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword" },
+const TOOLS: { name: string; whatKey: string; costKey: string; noteKey?: string }[] = [
+  // The rank trackers are the one row where the headline number is a range.
+  // A manual check of a few keywords goes to the priority queue at 2x so the
+  // answer comes back in seconds; scheduled and bulk checks are 1. Printing a
+  // flat "1 / keyword" made the ledger's -2 look like a bug — which is exactly
+  // how it was reported.
+  { name: "Keyword Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword", noteKey: "costPerKeywordNote" },
+  { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword", noteKey: "costPerKeywordNote" },
   { name: "Google Maps Tracker", whatKey: "toolMapsWhat", costKey: "costPerScan" },
   { name: "Keyword Magic Tool", whatKey: "toolMagicWhat", costKey: "costPerSearch" },
   { name: "Website Audit", whatKey: "toolAuditWhat", costKey: "costPerPages" },
@@ -256,6 +261,11 @@ function EveryTool() {
                 {tool.name}
               </div>
               <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{t(tool.whatKey)}</p>
+              {tool.noteKey && (
+                <p className="mt-1 pl-5 text-[11px] leading-snug text-muted-foreground/80">
+                  {t(tool.noteKey)}
+                </p>
+              )}
             </div>
             <span className="shrink-0 text-xs font-semibold tabular-nums text-brand">{t(tool.costKey)}</span>
           </div>

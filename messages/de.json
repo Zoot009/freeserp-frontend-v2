@@ -1600,7 +1600,7 @@
     "toolScoreWhat": "Eine Seite, bewertet gegen ein Keyword",
     "toolQuickWhat": "Eine Live-Abfrage, ohne etwas zu verfolgen",
     "toolConsoleWhat": "Echte Klicks neben Ihren verfolgten Positionen",
-    "costPerKeyword": "1 / Keyword",
+    "costPerKeyword": "1–2 / Keyword",
     "costPerScan": "3–57 / Scan",
     "costPerSearch": "3–15 / Suche",
     "costPerPages": "1 / 20 Seiten",
@@ -1608,7 +1608,8 @@
     "costPerCrawl": "2 / Crawl",
     "costPerPage": "3 / Seite",
     "costPerLookup": "1 / Abfrage",
-    "costFree": "Kostenlos"
+    "costFree": "Kostenlos",
+    "costPerKeywordNote": "Geplante und Sammelprüfungen kosten 1. Eine kleine manuelle Prüfung überspringt die Warteschlange für schnellere Ergebnisse und kostet 2."
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",
