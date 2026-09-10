@@ -372,10 +372,13 @@ export function AuditRunner({
       <div className="rounded-lg border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px]">
           <span className="text-muted-foreground">
+            {/* "Up to", because the number is a ceiling and not a price. The
+                charge is one credit per page we actually find, so the sentence
+                has to carry both or it reads as a flat fee. */}
             {mode === "site"
               ? limits
-                ? `Crawls up to ${limits.maxPages.toLocaleString()} pages on your plan`
-                : "Crawls outward from the URL you enter"
+                ? `Crawls up to ${limits.maxPages.toLocaleString()} pages on your plan · 1 page = 1 credit`
+                : "Crawls outward from the URL you enter · 1 page = 1 credit"
               : "Audits the single URL you enter"}
           </span>
           {/* The other audit is one click away, and named — the two used to be
@@ -438,8 +441,8 @@ export function AuditRunner({
         />
         {mode === "site" && (
           <p className="mt-1 text-xs text-muted-foreground">
-            1 credit per page crawled — you&apos;re only charged for the pages we find.
-            A {limits?.maxPages ?? 500}-page budget on a 20-page site costs 20.
+            You&apos;re only charged for the pages we find — a 20-page site costs 20 credits,
+            whatever your plan allows.
           </p>
         )}
 
