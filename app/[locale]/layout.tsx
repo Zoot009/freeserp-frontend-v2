@@ -17,6 +17,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollProgress } from "@/components/scroll-progress"
 import { CookieConsent } from "@/components/cookie-consent"
 import { ClarityAnalytics } from "@/components/clarity-analytics"
+import { MetaPixel } from "@/components/meta-pixel"
 import { UtmCapture } from "@/components/utm-capture"
 import { SessionReplay } from "@/components/session-replay"
 import { routing } from "@/i18n/routing"
@@ -161,6 +162,7 @@ export default async function LocaleLayout({
         </NextIntlClientProvider>
         <Analytics />
         <ClarityAnalytics />
+        <MetaPixel />
         {/* First-party UTM/attribution capture (useSearchParams ⇒ Suspense). */}
         <Suspense fallback={null}>
           <UtmCapture />
