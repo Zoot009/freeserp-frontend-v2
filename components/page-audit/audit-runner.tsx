@@ -422,18 +422,26 @@ export function AuditRunner({
             {running ? copy.running : starting ? "Starting…" : copy.submit}
           </Button>
         </form>
-        {/* Priced per 20 pages, so a whole-site crawl is not a single-page
-            price. Units are the plan's clamped page budget — the same number
-            the server charges against, not the number typed into the box. */}
-        {/* Two actions, two prices. A single URL is one audit at one credit;
-            a site crawl is priced per TWENTY pages, so 100 pages is 5 credits.
-            Quoting page_audit.run for both said "Uses 500 credits" for a crawl
-            the price list puts at 25 — and the server was charging that too. */}
+        {/*
+          One page, one credit — for a single URL and for a crawl alike.
+
+          The units here are the plan's page BUDGET, which is a ceiling and not
+          a bill: the server charges for the pages actually crawled, so a
+          twenty-page site on a five-hundred-page plan pays twenty. Quoting the
+          ceiling as a flat price would say "500 credits" to somebody who is
+          about to be charged twenty, so the site line says up to.
+        */}
         <CreditCost
           className="mt-2"
           action={mode === "site" ? CREDIT_ACTION_KEYS.siteCrawlPage : CREDIT_ACTION_KEYS.pageAudit}
           units={mode === "site" ? (limits?.maxPages ?? 1) : 1}
         />
+        {mode === "site" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            1 credit per page crawled — you&apos;re only charged for the pages we find.
+            A {limits?.maxPages ?? 500}-page budget on a 20-page site costs 20.
+          </p>
+        )}
 
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
