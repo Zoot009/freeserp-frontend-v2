@@ -191,14 +191,51 @@ export function AiOverviewPanel({
         <div style={{ fontSize: 15, color: "var(--text)", marginBottom: 4 }}>{copy.head}</div>
         <div className="tiny muted" style={{ lineHeight: 1.5 }}>{copy.sub}</div>
 
+        {/*
+          The citation position, as a figure rather than a sentence.
+
+          "Citation #1 of 5" sat in the same 11px grey as everything around it,
+          so the one number on the panel that answers "how did we do" was the
+          hardest thing on it to find. It gets its own tile, and the link beside
+          it becomes a button — `Cited page ↗` was inline text whose arrow wrapped
+          onto a second line.
+        */}
         {data.state === "cited" && data.citedPosition != null && (
-          <div className="row" style={{ gap: 14, marginTop: 12, flexWrap: "wrap" }}>
-            <span className="tiny muted">
-              Citation <span className="b tabular" style={{ color: "var(--brand)" }}>#{data.citedPosition}</span>
-              {data.refCount > 0 && <span> of {data.refCount}</span>}
-            </span>
+          <div className="row" style={{ gap: 10, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "baseline",
+                gap: 6,
+                padding: "6px 12px",
+                borderRadius: 10,
+                background: "var(--brand-soft)",
+                color: "var(--brand)",
+              }}
+            >
+              <span className="b tabular" style={{ fontSize: 20, lineHeight: 1 }}>#{data.citedPosition}</span>
+              {data.refCount > 0 && (
+                <span className="tiny" style={{ opacity: 0.8 }}>of {data.refCount} citations</span>
+              )}
+            </div>
             {data.citedUrl && (
-              <a href={data.citedUrl} target="_blank" rel="noreferrer" className="tiny" style={{ color: "var(--brand)" }}>
+              <a
+                href={data.citedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="tiny"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  whiteSpace: "nowrap",
+                  padding: "7px 11px",
+                  borderRadius: 9,
+                  border: "1px solid var(--border)",
+                  color: "var(--brand)",
+                  textDecoration: "none",
+                }}
+              >
                 Cited page <Icon.external size={11} />
               </a>
             )}
@@ -288,13 +325,31 @@ export function AiOverviewPanel({
                       {(() => {
                         const pos = organicPosition(r.domain)
                         if (pos == null) return null
+                        /**
+                         * "site ranks", not "ranks".
+                         *
+                         * The lookup is by DOMAIN — the organic list carries no
+                         * URLs — so this is where youtube.com ranks, not where
+                         * this particular video does. Two different YouTube
+                         * citations therefore both showed "ranks #100", which
+                         * as a claim about two separate pages is impossible and
+                         * reads as a bug. Naming the site makes the same number
+                         * true.
+                         */
                         return (
                           <span
                             className="tiny muted"
-                            style={{ marginLeft: "auto", whiteSpace: "nowrap", paddingLeft: 8 }}
-                            title={`Also ranks #${pos} in the organic results for this keyword`}
+                            style={{
+                              marginLeft: "auto",
+                              whiteSpace: "nowrap",
+                              paddingLeft: 8,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                            title={`${host} ranks #${pos} organically for this keyword. Position is per site — the organic list has no per-URL data to match against.`}
                           >
-                            ranks <span className="b tabular">#{pos}</span>
+                            site ranks <span className="b tabular">#{pos}</span>
                           </span>
                         )
                       })()}

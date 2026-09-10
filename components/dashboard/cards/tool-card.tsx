@@ -6,6 +6,7 @@
  * Competitor Spy prompt can remove just that card.
  */
 
+import { useTranslations } from "next-intl"
 import { Check } from "lucide-react"
 import { Link } from "@/i18n/navigation"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,11 @@ export type ToolCardProps = {
   status?: React.ReactNode
 }
 
-export function ToolCard({ id, title, description, href, cta = "Set up", hint, points, status }: ToolCardProps) {
+export function ToolCard({ id, title, description, href, cta, hint, points, status }: ToolCardProps) {
+  const t = useTranslations("dashOverview.tools")
+  // Default lives here rather than in the signature: a default parameter is
+  // evaluated before the hook can run, so "Set up" would be English for all.
+  const label = status ? t("open") : (cta ?? t("setUp"))
   return (
     // Type and padding a step down from a full widget's: these are prompts
     // sharing a row, not cards competing with the panels around them.
@@ -60,7 +65,7 @@ export function ToolCard({ id, title, description, href, cta = "Set up", hint, p
       )}
 
       <div className="mt-auto flex items-center gap-2">
-        <Button asChild size="sm" className="h-7.5 px-3 text-xs"><Link href={href}>{status ? "Open" : cta}</Link></Button>
+        <Button asChild size="sm" className="h-7.5 px-3 text-xs"><Link href={href}>{label}</Link></Button>
         {status && <span className="truncate text-xs text-muted-foreground">{status}</span>}
       </div>
     </Widget>

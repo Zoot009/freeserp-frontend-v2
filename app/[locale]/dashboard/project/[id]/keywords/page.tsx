@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { hasDeclinedKeywordAi } from "@/lib/keywordAiChoice"
-import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
@@ -14,6 +12,7 @@ import { toast } from "sonner"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
+import { knownGeoCountry, prefetchGeoCountry, useGeoCountry } from "@/hooks/use-geo-country"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
@@ -162,7 +161,21 @@ interface ProjectDetail {
   keywords: Keyword[]
 }
 
-type UsageInfo = { plan: string; dailyUsed: number; dailyLimit: number; dailyRemaining: number; isAdmin?: boolean }
+type UsageInfo = {
+  plan: string
+  dailyUsed: number
+  dailyLimit: number
+  dailyRemaining: number
+  isAdmin?: boolean
+  /**
+   * What a manual check really costs per keyword.
+   *
+   * Interactive checks go to a priority queue at 2x, but only when enabled
+   * and only under a batch threshold — server settings the client cannot
+   * guess. Absent on older backends, where 1/keyword is the honest fallback.
+   */
+  rankCheck?: { standardCredits: number; priorityCredits: number; priorityMaxKeywords: number }
+}
 
 // "added" is insertion order — the order the keywords were typed into the Add
 // keywords modal — and it is the table's resting state. It has no header of its
@@ -484,12 +497,33 @@ function AddKeywordsModal({
   // popping into the middle of the form when the fetch lands.
   const { engines: availableEngines, loading: enginesLoading } = useEngines()
   const [raw, setRaw] = useState("")
-  const [location, setLocation] = useState("in")
+  // Default market = wherever the visitor is, resolved from their IP. This used
+  // to be hardcoded to India for everyone. `knownGeoCountry()` is the answer if
+  // a previous open (or the page's warm-up below) already fetched it, so the
+  // common case seeds the picker on first paint rather than visibly changing
+  // under the user.
+  //
+  // Empty when we can't place them, and deliberately so: there is no fallback
+  // market. A keyword carries its location for life and is checked against that
+  // SERP, so quietly picking a country the user never saw is worse than making
+  // them choose — the field below asks, and submit is blocked until they do.
+  const { country: geoCountry, pending: geoPending } = useGeoCountry()
+  const [location, setLocation] = useState(() => knownGeoCountry() ?? "")
   // The CONTAINING country of `location`. Same value for a country selection;
   // for a city it is the parent. Google autocomplete's `gl` only accepts a
   // 2-letter code, so without this a city selection silently fell back to
   // global suggestions.
-  const [locationCountry, setLocationCountry] = useState("in")
+  const [locationCountry, setLocationCountry] = useState(() => knownGeoCountry() ?? "")
+  // A manual pick is final: once the user has touched the picker, a geo lookup
+  // that lands late must not overwrite what they chose.
+  const locationTouchedRef = useRef(false)
+
+  // Late arrival — the lookup finished after the modal opened.
+  useEffect(() => {
+    if (!geoCountry || locationTouchedRef.current) return
+    setLocation(geoCountry)
+    setLocationCountry(geoCountry)
+  }, [geoCountry])
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   // Google is pre-selected, not mandatory — tracking a keyword on Bing alone is
   // a legitimate choice. The empty array is reachable only inside the
@@ -659,6 +693,9 @@ function AddKeywordsModal({
     e.preventDefault()
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
+    // No fallback market exists, so an unset location has to stop the submit
+    // rather than send "" and have the backend reject it with something vaguer.
+    if (!location) { setError("Pick a search location — we couldn't detect yours."); return }
     setError(""); setLoading(true)
     try {
       // `engines` is sent per keyword. The backend expands it to one row per
@@ -828,16 +865,33 @@ function AddKeywordsModal({
                 )}
               </div>
               <div className="field">
-                <label>Search location</label>
+                <label>Search location{!location && " *"}</label>
                 <LocationPicker
                   value={location}
                   onChange={(code, loc) => {
+                    locationTouchedRef.current = true
                     setLocation(code)
                     setLocationCountry(loc?.countryIso ?? code)
                   }}
                   variant="dashboard"
                   showFlags
+                  placeholder={geoPending ? "Detecting your location…" : "Select a location"}
                 />
+                {/* Only once the lookup has given up — while it's still running
+                    the placeholder already says what's happening, and flashing a
+                    "we couldn't detect it" note at everyone would be a lie. */}
+                {!location && !geoPending && (
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      fontSize: 12,
+                      color: "var(--text-mute)",
+                    }}
+                  >
+                    We couldn&rsquo;t detect your location — choose the country or city
+                    whose results you want to track.
+                  </p>
+                )}
               </div>
               <div className="field">
                 <label>Device</label>
@@ -875,7 +929,12 @@ function AddKeywordsModal({
             )}
             <div className="modal-f">
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn primary" disabled={loading || selectedEngines.length === 0}>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={loading || selectedEngines.length === 0 || !location}
+                title={!location ? "Pick a search location first" : undefined}
+              >
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
@@ -1026,10 +1085,14 @@ export default function ProjectKeywordsPage() {
   // Keywords today's plan budget couldn't cover on the last run — shown locked
   // with an upgrade prompt rather than silently left unchecked.
   const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
+  /** A keyword run is in flight for a project that has none yet. */
+  const [findingKeywords, setFindingKeywords] = useState(false)
   // Keyword IDs with a per-keyword refresh in flight (drives the ↻ spinner).
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Cost confirmation before a rank check spends credits. */
+  const [confirmCheck, setConfirmCheck] = useState(false)
   // Inline project-name rename (click the pencil next to the title).
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
@@ -1039,6 +1102,14 @@ export default function ProjectKeywordsPage() {
   const [confirmDeleteKwIds, setConfirmDeleteKwIds] = useState<string[] | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAddKw, setShowAddKw] = useState(false)
+
+  // Resolve the visitor's country now, not when the modal opens. The modal
+  // mounts on open and seeds its location picker synchronously from this
+  // cache — warming it here is what makes that seed a hit, so the picker opens
+  // already showing their market instead of "Detecting your location…".
+  useEffect(() => {
+    void prefetchGeoCountry()
+  }, [])
 
   // `?add=1` opens the add-keyword panel on arrival — that panel owns the
   // location picker and the desktop/mobile toggle, so links elsewhere that
@@ -1478,6 +1549,53 @@ export default function ProjectKeywordsPage() {
     return () => { cancelled = true }
   }, [isNewProject, token, user?.emailVerified, projectId])
 
+  /**
+   * An empty tracker on a brand-new project is usually not empty — it is early.
+   *
+   * "Find them for me" tracks the shortlist server-side once the homepage crawl
+   * and the model call finish, which takes long enough that arriving here first
+   * is normal. This page loads its keywords once, so without this it showed an
+   * empty table until a manual refresh — and the modal used to paper over that
+   * by holding the user on "Finding your keywords…" with nothing to look at.
+   *
+   * Only while the project has NO keywords and a run is actually in flight, so
+   * a genuinely empty project polls twice and stops rather than forever.
+   */
+  useEffect(() => {
+    if (!project || project.keywords.length > 0) {
+      setFindingKeywords(false)
+      return
+    }
+    let stop = false
+    const tick = async () => {
+      if (stop) return
+      try {
+        const { run } = await api.get<{ run: { status?: string } | null }>(
+          `/api/projects/${projectId}/keyword-suggestions`,
+        )
+        const inFlight = run?.status === "PENDING" || run?.status === "PROCESSING" || run?.status === "RUNNING"
+        // Drives the empty state: "we are finding them" rather than "there are
+        // none", which are the same screen and opposite meanings.
+        setFindingKeywords(inFlight)
+        if (run?.status === "COMPLETED") {
+          // The keywords land with the run, so one reload is enough.
+          await load(true)
+          stop = true
+          return
+        }
+        // No run, or it failed: nothing is coming, and the empty state is
+        // honest. Stop rather than poll a project that simply has no keywords.
+        if (!inFlight) stop = true
+      } catch {
+        stop = true
+        setFindingKeywords(false)
+      }
+      if (!stop) setTimeout(() => void tick(), 3000)
+    }
+    void tick()
+    return () => { stop = true }
+  }, [project, projectId, load])
+
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
   // transitions without a manual refresh. Stops once everything is terminal.
   useEffect(() => {
@@ -1501,8 +1619,40 @@ export default function ProjectKeywordsPage() {
     return () => clearInterval(timer)
   }, [project, load])
 
+  /**
+   * Ask before spending.
+   *
+   * A rank check is a credit per keyword and the button can mean "the selection"
+   * or "all of them" depending on what is ticked — so the number is worth
+   * stating at the moment of deciding rather than as a standing label beside the
+   * button, which is exactly where it stopped being read.
+   */
+  const runCheckCost = selectedKeywords.size > 0 ? selectedKeywords.size : project?.keywords.length ?? 0
+  /**
+   * Checks left today, or null when the plan has no daily ceiling.
+   *
+   * Null is not zero: a paid account is bounded by its credit balance, and
+   * treating "no limit" as "none left" would refuse every check it has paid for.
+   */
+  const checksLeft = usage && usage.plan !== "paid" ? Math.max(0, usage.dailyRemaining) : null
+  /** How many of the requested checks will actually run. */
+  const willRun = checksLeft === null ? runCheckCost : Math.min(runCheckCost, checksLeft)
+  /**
+   * Credits per keyword for THIS batch.
+   *
+   * Small batches jump the queue at 2x; a bulk check-all falls back to
+   * standard so nobody pays double across a whole project. Quoting the flat
+   * catalog rate said "2 credits" for a run the ledger recorded as -4.
+   */
+  const perKeyword =
+    usage?.rankCheck && willRun > 0 && willRun <= usage.rankCheck.priorityMaxKeywords
+      ? usage.rankCheck.priorityCredits
+      : usage?.rankCheck?.standardCredits ?? 1
+  const creditsToSpend = willRun * perKeyword
+
   const handleRunCheck = async () => {
     if (!project) return
+    setConfirmCheck(false)
     // First rank check ever for this project (no keyword has been checked yet)
     // = the "first rank check" milestone. Captured before the post.
     const isFirstCheck = project.keywords.length > 0 && project.keywords.every((k) => !k.checkedAt)
@@ -1946,6 +2096,16 @@ export default function ProjectKeywordsPage() {
    * So a row only locks when it genuinely has no result. Once a check lands,
    * the data is the user's, whichever side of the allowance it arrived on.
    */
+  /**
+   * Whether the row whose ⋯ menu is open has no result yet.
+   *
+   * The menu still OPENS on a locked row — closing it off would look broken,
+   * and Delete has to stay reachable: somebody who cannot use a keyword must
+   * always be able to remove it. What it cannot do is offer the three actions
+   * that need a position to act on.
+   */
+  const LOCKED_REASON = "Not available until this keyword has been checked"
+
   const isLocked = (kw: Keyword) => {
     const hasResult = kw.checkedAt != null || kw.position != null
     if (hasResult) return false
@@ -2196,7 +2356,7 @@ export default function ProjectKeywordsPage() {
               <button
                 data-tutorial="run-check-btn"
                 type="button"
-                onClick={handleRunCheck}
+                onClick={() => setConfirmCheck(true)}
                 // Block while a check is already running for this project — each
                 // check costs us money, so don't let the button be spammed.
                 disabled={checking || project.keywords.length === 0 || pendingCount > 0}
@@ -2211,14 +2371,11 @@ export default function ProjectKeywordsPage() {
                       : t("runCheck")}
               </button>
               </Hint>
-              {/* A check is a credit per keyword, and this button runs either
-                  the selection or the whole list — so the quote has to follow
-                  whichever it is about to do, not a fixed number. */}
-              <CreditCost
-                action={CREDIT_ACTION_KEYS.rankCheck}
-                units={selectedKeywords.size > 0 ? selectedKeywords.size : project.keywords.length}
-                showBalance={false}
-              />
+              {/* The price used to sit here, permanently, beside the button.
+                  It is asked and answered in the confirm dialog now: a cost is
+                  worth reading at the moment you decide, not as a label you stop
+                  seeing, and it sat there reading "Uses 1 credit" even while a
+                  check was already running and paid for. */}
               </>
             )}
             {selectedKeywords.size > 0 && (
@@ -2586,16 +2743,48 @@ export default function ProjectKeywordsPage() {
                 minHeight: 300,
               }}
             >
-              <div className="eyebrow" style={{ justifyContent: "center" }}>
-                <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
-              </div>
-              <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
-              <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
-                {t("startTrackingDesc")}
-              </div>
-              <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-                <Icon.plus /> {t("addKeywords")}
-              </button>
+              {/*
+                Two states, one screen. "No keywords yet" and "we are fetching
+                your keywords" look identical and mean opposite things — and
+                arriving here straight from "Find them for me" lands in the
+                second while reading the first, which says the thing you just
+                paid for did not happen.
+              */}
+              {findingKeywords ? (
+                <>
+                  <div className="eyebrow" style={{ justifyContent: "center" }}>
+                    <span className="spark"><Icon.spark /></span> FINDING YOUR KEYWORDS
+                  </div>
+                  <div className="b" style={{ fontSize: 16, marginTop: 4 }}>
+                    Reading your site…
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 340 }}>
+                    We&apos;re analysing your homepage and picking the keywords worth tracking.
+                    They&apos;ll appear here on their own — this usually takes under a minute.
+                  </div>
+                  <div className="kd-finding-bar" style={{ marginTop: 18 }} aria-hidden="true">
+                    <span />
+                  </div>
+                  {/* Still offered: someone who knows their keywords should not
+                      have to wait for ours. */}
+                  <button className="btn" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                    <Icon.plus /> {t("addKeywords")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="eyebrow" style={{ justifyContent: "center" }}>
+                    <span className="spark"><Icon.spark /></span> {t("noKeywordsEyebrow")}
+                  </div>
+                  <div className="b" style={{ fontSize: 16, marginTop: 4 }}>{t("startTracking")}</div>
+                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
+                    {t("startTrackingDesc")}
+                  </div>
+                  <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                    <Icon.plus /> {t("addKeywords")}
+                  </button>
+                </>
+              )}
               {outOfChecks && (
                 <span className="kd-checks-reset" style={{ marginTop: 12 }} title={t("outOfChecksTip")}>
                   <Icon.lock /> {t("checksResetIn")} <CountdownTimer targetDate={nextUtcMidnightIso} />
@@ -3001,7 +3190,10 @@ export default function ProjectKeywordsPage() {
           overflow:hidden and float on top). Closed by the outside-pointerdown
           listener below rather than a click-blocking overlay, so dismissing it
           doesn't swallow the user's click. */}
-      {openMenuId && menuPosition && (
+      {openMenuId && menuPosition && (() => {
+        const menuKw = project.keywords.find((k) => k.id === openMenuId)
+        const menuLocked = menuKw ? isLocked(menuKw) : false
+        return (
         <>
           <div
             data-kw-row-menu
@@ -3025,6 +3217,8 @@ export default function ProjectKeywordsPage() {
                 setOpenMenuId(null)
                 setMenuPosition(null)
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3032,9 +3226,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("viewDetails")}
@@ -3051,6 +3248,8 @@ export default function ProjectKeywordsPage() {
                   )
                 }
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3058,9 +3257,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("newAnalysis")}
@@ -3088,6 +3290,8 @@ export default function ProjectKeywordsPage() {
                   setHistoryLoading(false)
                 }
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3095,9 +3299,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("analysisHistory")}
@@ -3124,9 +3331,28 @@ export default function ProjectKeywordsPage() {
             >
               {t("delete")}
             </button>
+
+            {/* Says why the three above are grey. Without it a disabled item
+                reads as a bug rather than as a state — and the fix is one the
+                user can actually carry out. */}
+            {menuLocked && (
+              <div
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  marginTop: 4,
+                  padding: "8px 10px 6px",
+                  color: "var(--text-subtle)",
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                Check this keyword to unlock the rest.
+              </div>
+            )}
           </div>
         </>
-      )}
+        )
+      })()}
 
       {/* Modals */}
       {showAddKw && typeof window !== "undefined" && createPortal(
@@ -3307,6 +3533,84 @@ export default function ProjectKeywordsPage() {
           </div>
         )
       })()}
+
+      {confirmCheck && project && (
+        <div className="modal-bg" onClick={() => setConfirmCheck(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-h">
+              <div>
+                <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>RANK CHECK</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
+                  {runCheckCost === 1 ? "Check 1 keyword?" : `Check ${runCheckCost} keywords?`}
+                </div>
+              </div>
+              <button onClick={() => setConfirmCheck(false)} className="icon-btn" aria-label="Close"><Icon.close /></button>
+            </div>
+            <div className="modal-b">
+              {/*
+                Three states, because there are three different situations and
+                only one of them is an offer.
+
+                Out of checks: the run cannot happen at all — the backend refuses
+                it — so offering "Run check" is a button that does nothing, and
+                "this will be trimmed to what's left" describes trimming to zero.
+                Say what actually happened and when it changes.
+
+                Partly covered: name the real number rather than the word
+                "trimmed", which does not say how much survives.
+
+                Otherwise: the plain price.
+              */}
+              {checksLeft === 0 ? (
+                <>
+                  <div className="b" style={{ fontSize: 16 }}>
+                    You&apos;ve used today&apos;s free checks
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6 }}>
+                    A free plan runs {usage?.dailyLimit ?? 3} rank checks a day. Nothing will run
+                    until they reset — this costs you nothing now.
+                  </div>
+                  <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                    <Icon.lock /> Resets in <CountdownTimer targetDate={nextUtcMidnightIso} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="b" style={{ fontSize: 16 }}>
+                    {creditsToSpend === 1 ? "This will use 1 credit" : `This will use ${creditsToSpend} credits`}
+                  </div>
+                  <div className="tiny muted" style={{ marginTop: 6 }}>
+                    {perKeyword === 1
+                      ? `${perKeyword} credit per keyword.`
+                      : `${perKeyword} credits per keyword — small checks jump the queue so results come back in seconds.`}{" "}
+                    We fetch each one&apos;s live Google position now,
+                    {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
+                  </div>
+                  {/* Named, not hinted. "Trimmed" does not say how many survive. */}
+                  {willRun < runCheckCost && (
+                    <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                      You have {checksLeft} check{checksLeft === 1 ? "" : "s"} left today, so only{" "}
+                      {willRun} of your {runCheckCost} will run. The rest stay unchecked until the reset.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setConfirmCheck(false)}>
+                {checksLeft === 0 ? "Close" : "Cancel"}
+              </button>
+              {/* No Run button when nothing can run. A disabled one still reads
+                  as "almost"; absent reads as "not today". */}
+              {checksLeft !== 0 && (
+                <button className="btn primary" onClick={handleRunCheck} disabled={checking}>
+                  {checking ? t("checking") : "Run check"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div className="modal-bg" onClick={() => setConfirmDelete(false)}>

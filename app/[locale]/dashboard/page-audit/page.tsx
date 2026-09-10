@@ -14,16 +14,18 @@ export default async function PageAuditPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>
-  searchParams: Promise<{ mode?: string }>
+  searchParams: Promise<{ mode?: string; url?: string; fresh?: string }>
 }) {
   // ?mode=site used to be how the sidebar's "Full Website Audit" entry landed on
   // the site tab of this page, so old links and bookmarks carry it. Send them to
   // the route that tab became rather than quietly showing them the wrong tool.
-  const { mode } = await searchParams
+  const { mode, url, fresh } = await searchParams
   if (mode === "site") {
     const { locale } = await params
     redirect({ href: "/dashboard/site-audit", locale })
   }
 
-  return <AuditRunner mode="single" />
+  // ?url=&fresh=1 comes from "Run fresh" on a report: prefill the target and
+  // start it immediately, past the two-week reuse window.
+  return <AuditRunner mode="single" initialUrl={url ?? ""} autoFresh={fresh === "1"} />
 }

@@ -58,15 +58,87 @@ const TIPS = [
 
 const TIP_INTERVAL_MS = 5_000
 
+/** One page the crawler has just been through. */
+export type CrawledPage = { url: string; ok: boolean }
+
+/** Just the path, which is what identifies a page inside one site. */
+function pagePath(raw: string): string {
+  try {
+    const u = new URL(raw)
+    const p = u.pathname === "/" ? "/" : u.pathname.replace(/\/$/, "")
+    return (p + u.search).slice(0, 64)
+  } catch {
+    return raw.slice(0, 64)
+  }
+}
+
+export type LiveTally = {
+  ok: number
+  failed: number
+  noTitle: number
+  noDescription: number
+  noH1: number
+  multipleH1: number
+  thin: number
+  broken: number
+  imagesNoAlt: number
+  avgWords: number
+}
+
+/**
+ * The tally as display rows, worst first, zeroes dropped.
+ *
+ * Order is by how much each costs the site rather than by count — a broken page
+ * outranks a hundred missing alt attributes. Amber rather than red throughout:
+ * these are provisional counts on a crawl still running, and red would promise
+ * a severity the final report has not yet assigned.
+ */
+function findings(t: LiveTally): { label: string; count: number; tone: string }[] {
+  const AMBER = "var(--warn, #d97706)"
+  const MUTED = "var(--muted-foreground)"
+  return [
+    { label: "Pages that failed to load", count: t.failed, tone: AMBER },
+    { label: "Broken pages (4xx/5xx)", count: t.broken, tone: AMBER },
+    { label: "Missing page title", count: t.noTitle, tone: AMBER },
+    { label: "Missing meta description", count: t.noDescription, tone: AMBER },
+    { label: "Missing H1", count: t.noH1, tone: AMBER },
+    { label: "More than one H1", count: t.multipleH1, tone: MUTED },
+    { label: "Thin pages (under 300 words)", count: t.thin, tone: MUTED },
+    { label: "Images without alt text", count: t.imagesNoAlt, tone: MUTED },
+  ].filter((r) => r.count > 0)
+}
+
 export function AuditProgressOverlay({
   url,
   mode,
   progress,
+  pagesDone,
+  tally,
+  inline = false,
+  pagesKnown,
+  recent,
   onHide,
 }: {
   url: string
   mode: "single" | "site"
   progress: number
+  /** Pages crawled so far, while the crawl is running. Null outside it. */
+  pagesDone?: number | null
+  /** Best current estimate of the total. Grows as links are discovered. */
+  pagesKnown?: number | null
+  /** Most recent pages, newest first. Null once the crawl has finished. */
+  recent?: CrawledPage[] | null
+  /** Running counts from the pages read so far. */
+  tally?: LiveTally | null
+  /**
+   * Render in the page instead of over it.
+   *
+   * The full-screen version is a modal that has to be dismissed before anything
+   * else on the page can be used, which on a fifteen-minute crawl is a long
+   * time to hold someone hostage to a progress bar. Inline, the same content
+   * reads as the report assembling itself.
+   */
+  inline?: boolean
   onHide: () => void
 }) {
   const [tip, setTip] = useState(0)
@@ -89,7 +161,13 @@ export function AuditProgressOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/95 p-6 backdrop-blur-sm">
+    <div
+      className={
+        inline
+          ? "w-full"
+          : "fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/95 p-6 backdrop-blur-sm"
+      }
+    >
       {/* Keyframes travel with the component so it stays self-contained; the
           names are prefixed to avoid colliding with anything global. */}
       <style>{`
@@ -106,18 +184,20 @@ export function AuditProgressOverlay({
         }
       `}</style>
 
-      {/* Leaving is allowed and non-destructive: the audit is a queued job on
-          the server, so it finishes whether or not this screen is open. */}
-      <button
-        type="button"
-        onClick={onHide}
-        aria-label="Continue in the background"
-        className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <X className="size-4" />
-      </button>
+{/* Only the modal needs dismissing. Inline there is nothing covering the
+          page, so an X would just hide the one thing the page is for. */}
+      {!inline && (
+        <button
+          type="button"
+          onClick={onHide}
+          aria-label="Continue in the background"
+          className="absolute right-5 top-5 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
 
-      <div className="w-full max-w-md">
+      <div className={inline ? "w-full" : "w-full max-w-md"}>
         <div className="text-center">
           {/* Just the spinner. The tile-plus-ping it replaced pulsed a square
               halo out past a rounded box, which read as a rendering glitch
@@ -181,6 +261,98 @@ export function AuditProgressOverlay({
             )
           })}
         </ol>
+
+        {/*
+          The pages themselves, while the crawl is running.
+
+          A site crawl takes minutes and the bar only creeps through the
+          twenties in that time, which reads as stuck. Naming the pages as they
+          land turns the same wait into something legible: not "is this
+          broken?" but "it is working through my blog".
+
+          Only outcomes. The rate-limit waits and the human-behaviour pacing
+          stay in the server log — they are why it is slow, and narrating them
+          to someone already waiting reads as an excuse rather than progress.
+        */}
+        {/*
+          What the crawl has found, while it is still crawling.
+
+          A 500-page audit is about a quarter of an hour, and everything on this
+          overlay used to answer "how long" — a bar, a count, a list of URLs.
+          None of it answers the question that made someone start an audit,
+          which is whether their site is any good. These counts are read off
+          pages already parsed, so they cost nothing and they are true the
+          moment they appear.
+
+          Only non-zero rows, and only once a few pages are in: "0 missing
+          titles" after one page is noise, and a row that appears at page 40
+          reads as a discovery rather than a counter that was sitting at zero.
+        */}
+        {tally && tally.ok >= 3 && findings(tally).length > 0 && (
+          <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-3.5">
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Found so far
+              </span>
+              {tally.avgWords > 0 && (
+                <span className="text-[11px] tabular-nums text-muted-foreground">
+                  {tally.avgWords.toLocaleString()} words/page avg
+                </span>
+              )}
+            </div>
+            <ul className="space-y-1.5">
+              {findings(tally).map((row) => (
+                <li key={row.label} className="flex items-center justify-between gap-3 text-[12.5px]">
+                  <span className="truncate text-muted-foreground">{row.label}</span>
+                  <span className="shrink-0 font-semibold tabular-nums" style={{ color: row.tone }}>
+                    {row.count.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* Said plainly, because these numbers move and the final grade is
+                computed from 63 rules over the whole site — several of them
+                cross-page, so they cannot exist until the crawl ends. */}
+            <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground/80">
+              Counted as pages are read. The full report adds checks that need the whole site.
+            </p>
+          </div>
+        )}
+
+        {recent && recent.length > 0 && (
+          <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-3.5">
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Pages found
+              </span>
+              {typeof pagesDone === "number" && (
+                <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {/* "of" only once the estimate is worth showing. Early on the
+                      denominator is a handful of URLs and climbing, so "3 of 4"
+                      would be a promise the next second breaks. */}
+                  {pagesKnown && pagesKnown > pagesDone
+                    ? `${pagesDone} of ~${pagesKnown}`
+                    : `${pagesDone}`}
+                </span>
+              )}
+            </div>
+            <ul className="space-y-1.5">
+              {recent.map((p) => (
+                <li
+                  key={p.url}
+                  className="fsa-fade flex items-center gap-2 text-[12.5px] text-muted-foreground"
+                >
+                  {p.ok ? (
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                  ) : (
+                    <X className="size-3 shrink-0 text-amber-500" />
+                  )}
+                  <span className="truncate font-mono text-[11.5px]">{pagePath(p.url)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Keyed on the index so React remounts it and the fade replays. */}
         <div

@@ -944,7 +944,249 @@
     "activity": "Activité",
     "activityMovedUp": "monté de {count} → #{pos}",
     "activityDropped": "baissé de {count} → #{pos}",
-    "activityRecent": "récent"
+    "activityRecent": "récent",
+    "stat": {
+      "authorityScore": "Score d'autorité",
+      "authorityHint": "La force de ce domaine, de 0 à 100. En dessous de 30 c'est faible, 30–59 moyen, 60+ solide.",
+      "notMeasured": "pas encore mesuré",
+      "strongOf100": "solide · sur 100",
+      "moderateOf100": "moyen · sur 100",
+      "weakOf100": "faible · sur 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "Le nombre de liens provenant d'autres sites qui pointent vers ce domaine.",
+      "inboundLinks": "liens entrants",
+      "trackedKeywords": "Mots-clés suivis",
+      "trackedHint": "Le nombre de mots-clés que vous suivez. Chacun est vérifié selon la planification de votre projet.",
+      "pctRank": "{pct} % d'entre eux sont classés",
+      "organicKeywords": "Mots-clés organiques",
+      "organicKeywordsHint": "Les mots-clés pour lesquels ce site apparaît dans les 100 premiers résultats.",
+      "rankingTop100": "classés dans le top 100",
+      "organicTraffic": "Trafic organique",
+      "organicTrafficHint": "Le nombre de visites que vos mots-clés vous apportent probablement chaque mois.",
+      "visitsPerMonth": "visites par mois"
+    },
+    "movement": {
+      "title": "Évolution des mots-clés",
+      "hint": "La première vérification de chaque mot-clé sur cette période comparée à la dernière. « En hausse » et « En baisse » sont des mouvements à l'intérieur du top 100 ; « Nouveaux » y sont entrés, « Perdus » en sont sortis. Un mot-clé vérifié une seule fois ne peut pas être comparé, il n'est donc pas compté.",
+      "improved": "En hausse",
+      "declined": "En baisse",
+      "new": "Nouveaux",
+      "lost": "Perdus",
+      "noneTracked": "Aucun mot-clé suivi pour l'instant. Ajoutez les termes que vous voulez vraiment gagner — cinq suffisent pour commencer.",
+      "addKeywords": "Ajouter des mots-clés",
+      "nothingToCompare": "Rien à comparer pour l'instant — l'évolution demande deux vérifications du même mot-clé sur cette période. {count, plural, one {Votre # mot-clé suivi n'a été vérifié} other {Vos # mots-clés suivis n'ont été vérifiés}} qu'une seule fois jusqu'ici.",
+      "nothingMoved": "{count, plural, one {Le # mot-clé vérifié deux fois} other {Aucun des # mots-clés vérifiés deux fois}} sur cette période n'a changé de position."
+    },
+    "page": {
+      "title": "Tableau de bord SEO",
+      "createProject": "Créer un projet SEO",
+      "range24h": "Dernières 24 heures",
+      "range7d": "7 derniers jours",
+      "range30d": "30 derniers jours",
+      "range90d": "90 derniers jours",
+      "loadFailed": "Impossible de charger vos projets",
+      "tryAgain": "Réessayer",
+      "addFirstTitle": "Ajoutez votre premier site",
+      "addFirstBody": "Créez un projet et FreeSERP commence à suivre ses mots-clés, à explorer ses pages et à surveiller sa visibilité dans la recherche IA.",
+      "lastRefresh": "Dernière actualisation complète {when}",
+      "showAllHidden": "Afficher {count, plural, one {le # widget masqué} other {les # widgets masqués}}",
+      "widgetPositionTracking": "Suivi de position",
+      "widgetSiteAudit": "Audit du site",
+      "widgetTraffic": "Analyse du trafic",
+      "widgetKeywordMovement": "Évolution des mots-clés"
+    },
+    "tools": {
+      "open": "Ouvrir",
+      "setUp": "Configurer",
+      "mapsTitle": "Google Maps Tracker",
+      "mapsDesc": "Suivez un établissement sur une grille de points dans sa ville et voyez où il sort du pack local.",
+      "mapsHint": "Vérifie la position de votre fiche depuis de nombreux points de la ville, et non un seul, car les résultats locaux changent d'une rue à l'autre.",
+      "mapsP1": "Le classement à chaque point d'une grille urbaine",
+      "mapsP2": "Les rivaux qui occupent le pack que vous visez",
+      "mapsP3": "Re-vérifié selon la planification que vous définissez",
+      "magicTitle": "Keyword Magic Tool",
+      "magicDesc": "Transformez un mot-clé de départ en des centaines d'idées réelles, avec volume, difficulté et intention.",
+      "magicHint": "Recherche de mots-clés sur toute la base — filtrez par volume, difficulté et intention, puis suivez ceux qui en valent la peine.",
+      "magicP1": "Volume, difficulté et intention par idée",
+      "magicP2": "Filtrez jusqu'à ce que vous pouvez gagner",
+      "magicP3": "Envoyez les bons directement au suivi",
+      "aiTitle": "AI Prompt Tracker",
+      "aiDesc": "Voyez si ChatGPT, Claude, Gemini et Perplexity citent votre marque sur les requêtes qui comptent.",
+      "aiHint": "Exécute vos requêtes sur les quatre plateformes IA selon une planification et enregistre si votre marque a été citée, et où.",
+      "aiP1": "Quatre plateformes, les mêmes requêtes",
+      "aiP2": "À quelle fréquence vous êtes cité, et à côté de qui",
+      "aiP3": "S'exécute seul à la cadence que vous choisissez",
+      "spyTitle": "Competitor Spy",
+      "spyDesc": "Voyez les domaines placés devant vous sur vos propres mots-clés, et les recherches qu'ils détiennent et pas vous.",
+      "spyHint": "Construit à partir des mots-clés de ce projet : les concurrents nommés sont donc ceux qui vous devancent réellement sur ces termes.",
+      "spyP1": "Qui vous devance, mot-clé par mot-clé",
+      "spyP2": "Les recherches qu'ils tiennent et qui vous manquent",
+      "spyP3": "Leur autorité à côté de la vôtre",
+      "ytTitle": "YouTube Rank Tracker",
+      "ytDesc": "Suivez des vidéos dans la recherche YouTube et voyez la chaîne, les vues et la durée de tout ce qui vous devance.",
+      "ytHint": "Une liste de projets distincte de celle du web, parce qu'une chaîne et un domaine ne se classent pas de la même façon.",
+      "ytP1": "Les positions dans la recherche YouTube elle-même",
+      "ytP2": "À quoi ressemblent les vidéos qui vous battent",
+      "ytP3": "Vérifié automatiquement, comme vos mots-clés",
+      "serpTitle": "Vérificateur SERP rapide",
+      "serpDesc": "Consultez une SERP en direct pour n'importe quelle requête et n'importe quel pays, sans l'ajouter à un projet.",
+      "serpHint": "Un coup d'œil ponctuel sur une page de résultats en direct — utile avant d'engager un mot-clé dans le suivi.",
+      "serpP1": "N'importe quelle requête, n'importe quel pays, tout de suite",
+      "serpP2": "La page entière, fonctionnalités comprises",
+      "serpP3": "Aucun projet ni configuration nécessaire"
+    },
+    "position": {
+      "title": "Suivi de position",
+      "hint": "Vérifications quotidiennes du classement des mots-clés que vous suivez, dans un seul lieu et une seule langue.",
+      "viewFullReport": "Voir le rapport complet",
+      "engineLang": "Google · Anglais",
+      "visibility": "Visibilité",
+      "visibilityHint": "La part de tout le volume de recherche que vous suivez que vos classements captent réellement, pondérée par la position. Comme elle est pondérée par le volume, être premier sur un terme sans données de volume n'y ajoute rien, et quelques victoires sur des mots-clés à fort volume restent basses.",
+      "avgPosition": "Position moyenne",
+      "avgPositionHint": "Votre position moyenne sur Google pour les mots-clés qui se classent.",
+      "onlyOneDay": "Une seule journée de données de classement",
+      "notEnoughHistory": "Pas encore assez d'historique",
+      "curveAppears": "La courbe apparaît dès qu'une deuxième vérification trouve des mots-clés classés.",
+      "noChecksInRange": "Aucune vérification terminée sur cette période.",
+      "bandsTitle": "Mots-clés par tranche de position",
+      "bandsHint": "Où se situent actuellement vos mots-clés suivis dans les résultats, et combien sont entrés ou sortis au cours des 7 derniers jours.",
+      "colBand": "Tranche",
+      "colKeywords": "Mots-clés",
+      "colNew": "Nouveaux",
+      "colLost": "Perdus",
+      "noKeywordsYet": "Aucun mot-clé suivi pour l'instant. Ajoutez les termes que vous voulez vraiment gagner — cinq suffisent pour commencer.",
+      "rankSummary": "{ranked} des {tracked} mots-clés suivis se classent dans le top 100.",
+      "tabWinners": "Gagnants",
+      "tabLosers": "Perdants",
+      "colKeyword": "Mot-clé",
+      "colPosition": "Position",
+      "colVolume": "Volume",
+      "colWantToRank": "Envie de vous classer ?",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "openAnalysis": "Ouvrir la dernière analyse concurrentielle pour ce mot-clé",
+      "seeWhatItTakes": "Voyez ce qu'il faut pour faire passer ce mot-clé de {from} à la 1re place",
+      "bandTop3": "Top 3",
+      "band4to10": "4 – 10",
+      "band11to20": "11 – 20",
+      "band21to100": "21 – 100",
+      "bandUnranked": "Non classés",
+      "deviceMobile": "mobile",
+      "deviceDesktop": "ordinateur",
+      "scopeMixed": "Vérifié sur <b>{markets}</b>, principalement <b>{country}</b> sur {device}. Les chiffres ci-dessus regroupent tous les marchés : ce ne sont donc les chiffres d'aucun marché en particulier.",
+      "scopeSingle": "Les vérifications de classement s'exécutent sur <b>Google {country}</b>, en anglais, sur {device}.",
+      "setPerKeyword": "Définir le lieu et l'appareil par mot-clé"
+    },
+    "audit": {
+      "title": "Audit du site",
+      "hint": "Une exploration de 100 pages au maximum, vérifiant les codes de statut, les titres, les métadonnées, les en-têtes et les liens internes.",
+      "crawling": "Exploration…",
+      "updated": "Mis à jour : {date}",
+      "gradeExcellent": "Excellent",
+      "gradeExcellentCopy": "Presque toutes les vérifications sont passées. Parcourez les remarques quand vous aurez le temps.",
+      "gradeGood": "Bon",
+      "gradeGoodCopy": "Un site solide. C'est en réglant les avertissements qu'il passera au-dessus de 90.",
+      "gradeNeedsWork": "À améliorer",
+      "gradeNeedsWorkCopy": "Commencez par les erreurs ci-dessous — ce sont elles qui coûtent le plus de points.",
+      "gradePoor": "Faible",
+      "gradePoorCopy": "Assez de choses sont cassées pour freiner le classement. Corrigez d'abord les erreurs.",
+      "siteHealth": "Santé du site",
+      "siteHealthHint": "Score global du site exploré, de 0 à 100. Basé sur le nombre de vérifications réussies par rapport au nombre exécuté.",
+      "siteHealthOf100": "Santé du site {score} sur 100",
+      "errors": "Erreurs",
+      "errorsHint": "Problèmes de gravité élevée — à corriger en premier.",
+      "warnings": "Avertissements",
+      "warningsHint": "Problèmes de gravité moyenne qui méritent d'être traités.",
+      "notices": "Remarques",
+      "noticesHint": "Observations de faible gravité.",
+      "degradedHint": "Aucune vérification n'a été exécutée lors de cette exploration, rien n'a donc été compté.",
+      "scoresByArea": "Scores par domaine",
+      "scoresByAreaHint": "Le score des pages explorées dans chaque partie de l'audit, de 0 à 100.",
+      "checksPassed": "<n>{passed}</n> vérifications réussies",
+      "checksPassedOf": " sur {total}",
+      "crawledPages": "Pages explorées",
+      "crawledPagesHint": "Les pages atteintes lors de cette exploration, réparties selon le statut renvoyé par leur serveur. Elles viennent de notre propre robot : elles sont donc enregistrées même quand les vérifications notées ne peuvent pas s'exécuter.",
+      "statusHealthy": "Saines",
+      "statusBroken": "Cassées",
+      "statusRedirect": "Redirection",
+      "statusBlocked": "Bloquées",
+      "statusAria": "{label} : {count, plural, one {# page} other {# pages}}",
+      "hidePages": "Masquer les pages",
+      "viewFullReport": "Voir le rapport complet",
+      "recrawl": "Ré-explorer",
+      "queueing": "Mise en file…",
+      "recrawlQueued": "Ré-exploration mise en file — cela prend quelques minutes.",
+      "recrawlFailed": "Impossible de lancer l'exploration — veuillez réessayer.",
+      "cooldown": "Exploré récemment — vous pourrez en relancer une {when}",
+      "stageQueued": "En file",
+      "stageCrawling": "Exploration des pages",
+      "stageChecks": "Exécution des vérifications",
+      "stageReport": "Création du rapport",
+      "crawlBlocked": "Nous n'avons pas pu explorer votre site — il bloque les accès automatisés, ou il est injoignable.",
+      "catTechnical": "Technique",
+      "catOnPage": "On-page",
+      "catPerformance": "Performance",
+      "catAccessibility": "Accessibilité",
+      "catLinks": "Liens",
+      "grade": "Note",
+      "onePageOnly": "Seule cette page a pu être lue. Si votre site en compte davantage, il bloque probablement les accès automatisés — les scores ci-dessus ne portent que sur cette page.",
+      "noScoreTitle": "Terminé sans score",
+      "noScoreMapped": "Nous avons cartographié {count} pages avec succès, mais la phase de notation n’a pas pu aboutir — il n’y a donc pas de score de santé cette fois. La liste des pages ci-dessous est complète. Relancez l’exploration pour réessayer.",
+      "noScoreBlocked": "Nous n’avons atteint que {count, plural, one {# page} other {# pages}}, et les vérifications n’ont pas pu s’exécuter — l’accès automatisé semble bloqué. Autorisez notre robot, ou relancez l’exploration."
+    },
+    "traffic": {
+      "title": "Analyse du trafic",
+      "hintOwn": "Trafic modélisé pour l'ensemble du domaine, mis à jour après chaque vérification terminée.",
+      "hintGsc": "Clics, impressions, CTR et position moyenne mesurés sur la propriété Search Console liée à ce projet.",
+      "tabOwn": "Données FreeSERP",
+      "tabGsc": "Données Google",
+      "gscConnected": "Clics et impressions réels issus de Google Search Console.",
+      "gscSignIn": "Connectez-vous avec Google pour voir ici les clics et impressions réels de Search Console.",
+      "gscPickProperty": "Google est connecté — choisissez la propriété Search Console qui couvre ce projet.",
+      "estVisits": "Visites est.",
+      "estVisitsHint": "Sessions organiques estimées sur la période sélectionnée, modélisées à partir de la position × le volume de recherche. Ce n'est pas du trafic mesuré — passez aux données Google pour cela.",
+      "rankingPages": "Pages classées",
+      "rankingPagesHint": "URL distinctes de ce domaine qui se classent sur au moins un mot-clé suivi.",
+      "bounceRate": "Taux de rebond",
+      "bounceRateHint": "Part des sessions qui se terminent sans deuxième page vue. C'est un comportement sur le site : cela nécessite Google Analytics, ni les données de classement ni Search Console ne peuvent le fournir.",
+      "pagesPerVisit": "Pages / visite",
+      "pagesPerVisitHint": "Pages vues moyennes par session organique. C'est un comportement sur le site : cela nécessite Google Analytics, ni les données de classement ni Search Console ne peuvent le fournir.",
+      "seriesVisits": "Visites est.",
+      "seriesPages": "Pages classées",
+      "seriesClicks": "Clics",
+      "oneCheckOnly": "Une seule vérification pour l'instant. La courbe apparaît à partir de la deuxième — les vérifications suivent la planification de ce projet.",
+      "checksInRange": "{count} vérifications sur cette période. Chaque point correspond à la mesure d'une journée.",
+      "noChecksTitle": "Aucune vérification terminée sur cette période",
+      "noChecksBody": "Choisissez une période plus longue ci-dessus, ou lancez une vérification depuis la page Mots-clés.",
+      "notConnectedTitle": "Google Search Console n'est pas connecté",
+      "notConnectedBody": "Connectez-le une fois et cette vue se remplira avec les clics, les impressions et la position moyenne que Google a réellement enregistrés pour votre site.",
+      "connectAction": "Connecter Search Console",
+      "noPropertyTitle": "Aucune propriété liée à ce projet",
+      "noPropertyBody": "Votre compte Google est connecté, mais ce projet ne pointe encore vers aucune propriété Search Console. Choisissez celle qui couvre votre domaine.",
+      "loadFailedTitle": "Impossible de charger les données Search Console",
+      "loadFailedToast": "Impossible de charger les données Search Console.",
+      "mismatch": "Ces chiffres concernent un autre site.",
+      "totalClicks": "Clics totaux",
+      "totalClicksHint": "Nombre de fois où quelqu'un a cliqué vers votre site depuis les résultats de recherche Google. Mesuré par Google, pas modélisé.",
+      "impressions": "Impressions",
+      "impressionsHint": "Nombre de fois où un lien vers votre site est apparu dans les résultats, qu'il ait été cliqué ou non.",
+      "averageCtr": "CTR moyen",
+      "averageCtrHint": "Les clics divisés par les impressions — à quelle fréquence ceux qui vous ont vu vous ont choisi.",
+      "averagePosition": "Position moyenne",
+      "averagePositionHint": "Position moyenne sur l'ensemble des impressions de la période. Plus bas est mieux : une baisse ici est donc une amélioration.",
+      "noGscDataTitle": "Aucune donnée Search Console sur cette période",
+      "noGscDataBody": "Google ne signale rien pour ces dates. Ses données accusent aussi environ deux jours de retard, une période très courte peut donc revenir vide.",
+      "tabTopPages": "Meilleures pages",
+      "tabTopQueries": "Meilleures requêtes",
+      "colPage": "Page",
+      "colQuery": "Requête",
+      "colClicks": "Clics",
+      "colImpressions": "Impressions",
+      "colPosition": "Position",
+      "prevPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "gscConnectedFrom": "Clics et impressions réels issus de {site}."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "Introuvable dans les {depth} premiers résultats — le classement est plus profond que notre analyse",
@@ -1033,7 +1275,7 @@
     "admin": "Administration",
     "startLabel": "Comment voulez-vous commencer à suivre des mots-clés ?",
     "autoTitle": "Trouvez-les pour moi",
-    "autoDesc": "Nous analysons votre page d'accueil avec l'IA et suggérons des mots-clés sur lesquels elle devrait déjà se positionner — vous choisissez ceux à suivre.",
+    "autoDesc": "Nous analyserons votre page d'accueil avec l'IA et commencerons à suivre les 10 mots-clés les plus forts sur lesquels elle devrait se positionner.",
     "manualTitle": "Je saisis les miens",
     "manualDesc": "Sans analyse. Commencez avec une liste vide et saisissez vous-même les mots-clés à suivre — aucun crédit utilisé."
   },
@@ -1220,7 +1462,12 @@
     "device": "Appareil",
     "appearance": "Apparence",
     "date": "Date",
-    "reconnectCta": "Reconnecter Google"
+    "reconnectCta": "Reconnecter Google",
+    "addToTracker": "Ajouter au suivi de position",
+    "addSelectedToTracker": "Ajouter {count} au suivi de position",
+    "tracked": "Suivi",
+    "alreadyTracked": "Déjà suivi dans ce projet",
+    "selectAll": "Tout sélectionner"
   },
   "quotaUpsell": {
     "eyebrow": "Passer au niveau supérieur",
@@ -1353,7 +1600,7 @@
     "toolScoreWhat": "Une page notée face à un mot-clé",
     "toolQuickWhat": "Une recherche en direct sans rien suivre",
     "toolConsoleWhat": "Les clics réels à côté de vos positions suivies",
-    "costPerKeyword": "1 / mot-clé",
+    "costPerKeyword": "1–2 / mot-clé",
     "costPerScan": "3–57 / scan",
     "costPerSearch": "3–15 / recherche",
     "costPerPages": "1 / 20 pages",
@@ -1361,7 +1608,8 @@
     "costPerCrawl": "2 / exploration",
     "costPerPage": "3 / page",
     "costPerLookup": "1 / recherche",
-    "costFree": "Gratuit"
+    "costFree": "Gratuit",
+    "costPerKeywordNote": "Les vérifications planifiées et groupées coûtent 1. Une petite vérification manuelle passe devant la file pour un résultat plus rapide et coûte 2."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",
@@ -1514,5 +1762,179 @@
     "loading": "Chargement…",
     "cancel": "Annuler",
     "close": "Fermer"
+  },
+  "toolContext": {
+    "hide": "Masquer",
+    "show": "À quoi sert cet outil ?",
+    "aria": "À propos de cet outil",
+    "google-tracker": {
+      "lede": "Suit la position de votre domaine dans les résultats de recherche pour les mots-clés que vous choisissez, sur le moteur et dans le pays de votre choix, et conserve cette position dans l'historique.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Une position isolée est anecdotique ; c'est la courbe qu'elle dessine qui est le signal. La tendance vous dit si une page progresse, se fait dépasser ou décroche après une modification que vous avez faite — ce qu'une recherche ponctuelle ne montrera jamais."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Un projet par domaine, les mots-clés en dessous. Chaque vérification enregistre une position réelle par mot-clé : la tendance d'une carte est donc un historique constaté, pas une estimation. Un projet sans vérification n'affiche aucune tendance, et non une ligne plate."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Suit la position des résultats d'une chaîne ou d'une vidéo dans la recherche YouTube pour les mots-clés que vous ajoutez.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "YouTube est le deuxième moteur de recherche au monde, et son classement bouge pour des raisons propres : l'ancienneté, la durée de visionnage et la longueur comptent autant que les mots du titre. Les vues et l'ancienneté figurent à côté de la position parce que ce sont elles qui expliquent un mouvement."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les résultats sont personnalisés et évoluent au fil de la journée : traitez une position comme une tendance, pas comme un rang exact. La profondeur détermine jusqu'où descend la vérification — une vidéo en 34e position est tout simplement invisible pour une vérification Top 20."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Balaie une grille de points autour d'un lieu et indique à chacun d'eux la position d'un établissement dans les résultats Google Maps.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le classement local n'est pas un chiffre unique : il change d'une rue à l'autre. Un établissement peut être premier à sa propre adresse et disparaître trois kilomètres plus loin, ce qu'une vérification en un seul point ne montrerait jamais."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Chaque cellule de la grille correspond à une recherche réelle lancée depuis cette coordonnée. Lisez la forme, pas la moyenne : un centre solide avec des bords faibles n'est pas le même problème qu'une faiblesse partout."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Vérifie si les assistants IA citent votre marque lorsqu'on leur pose les questions que posent vos clients.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "La réponse d'un assistant remplace de plus en plus le clic sur un lien bleu. Si un modèle recommande trois entreprises de votre secteur et qu'aucune n'est la vôtre, c'est la nouvelle page deux — et elle est invisible dans tous vos rapports de positionnement."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Suivez des requêtes qu'un vrai client taperait, pas des mots-clés. Chaque exécution enregistre les marques citées et les sources utilisées : vous voyez qui est recommandé à votre place et où le modèle est allé le chercher."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Tous les mots-clés que vous suivez, tous projets confondus, dans une seule liste.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "La page d'un projet répond à « comment se porte ce site ». Celle-ci répond à « où suis-je fort ou faible globalement » : vos meilleures et vos pires positions, et un même mot-clé sur plusieurs sites, sans ouvrir chaque projet l'un après l'autre."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Triez par position pour repérer ce qui est presque acquis : un mot-clé entre la 11e et la 20e place n'est généralement qu'à une amélioration de la première page, là où se concentrent presque tous les clics."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "Les projets et les mots-clés que vous avez mis en favori, réunis au même endroit.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Quand on suit des centaines de mots-clés, la dizaine qui fait réellement vivre l'activité se perd dans la masse. Voici l'ensemble de travail que vous consultez en premier."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Mettez en favori depuis n'importe quelle ligne ou carte et l'élément apparaît ici. Rien n'est copié ni dupliqué : ce sont les mêmes éléments, simplement rassemblés."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Lance une seule recherche et affiche la page de résultats en direct, sans rien ajouter à un projet.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Pour la question que vous vous posez maintenant — qui se classe sur ce terme, à quoi ressemble la page dans ce pays — quand vous ne voulez pas suivre ce mot-clé indéfiniment."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Rien n'est enregistré dans un projet et aucun historique n'est conservé. Si la réponse compte aussi la semaine prochaine, suivez plutôt le mot-clé."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Transforme un mot-clé de départ en des centaines d'idées réelles, avec volume de recherche, difficulté, CPC et intention.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le mot-clé auquel on pense en premier est presque toujours le plus difficile de son marché. C'est dans les variantes qui l'entourent que se trouve le trafic accessible, et cela ne se devine pas : le volume et la difficulté doivent venir des données."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "L'intention détermine ce qu'il faut produire : un terme informationnel appelle un article, un terme transactionnel une page produit ou service. La difficulté détermine si vous pouvez réellement le prendre avec votre autorité actuelle."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Explore une de vos pages et la note face à un mot-clé cible — on-page et off-page, sans faire intervenir de concurrents.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Quand une page refuse de se classer, cet outil vous dit si le problème vient de la page elle-même, avant de passer un mois sur les liens ou l'analyse des concurrents."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "La note est un résumé ; ce sont les contrôles échoués qui constituent le travail. Ils reviennent par ordre de priorité : commencez par le haut plutôt que de vouloir vider la liste."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Explore un site à partir d'une URL avec un vrai navigateur, applique 63 règles SEO à chaque page atteinte et regroupe les constats à l'échelle du site.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Les défauts techniques n'apparaissent jamais dans un rapport de positionnement. Ils plafonnent silencieusement ce que chaque page du site peut atteindre, aussi bon soit le contenu — et ceux qu'il faut corriger en premier sont généralement ceux qui se répètent sur des centaines de pages, ce que seule une exploration peut révéler."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Le vrai navigateur est essentiel : il voit ce qui s'affiche réellement, y compris ce qu'injecte le JavaScript, et non le HTML brut que renverrait une simple requête. Commencez par la synthèse du site — elle compte combien de pages partagent chaque défaut — puis ouvrez une page pour le voir en contexte. La profondeur de l'exploration dépend de votre offre."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Audite une seule URL avec un vrai navigateur et applique les mêmes 63 règles SEO à ce qui se charge réellement.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Une page à la fois, c'est le bon outil quand vous venez de modifier quelque chose, ou quand une page compte plus que les autres : une page d'atterrissage, une fiche produit, celle que vous cherchez à positionner. Cela coûte une fraction d'une exploration complète et répond en quelques secondes."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les problèmes arrivent par ordre de priorité avec le correctif exact : descendez la liste depuis le haut. Si les défauts semblent relever du gabarit plutôt que de la page, lancez un audit complet du site pour savoir combien d'autres pages les partagent."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Explore votre site et les concurrents que vous désignez pour un mot-clé, puis les compare côte à côte.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Le classement est relatif, pas absolu. Aucun score ne fait se classer une page : il s'agit seulement d'être meilleur que les pages précises qui la devancent aujourd'hui sur cette recherche précise."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Cherchez les écarts qui se répètent chez tous les concurrents placés devant vous. Un seul rival qui fait quelque chose, c'est un choix ; tous qui le font, c'est le niveau exigé pour ce mot-clé."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Explore les liens internes d'un domaine et cartographie la circulation de l'autorité entre ses pages.",
+      "points": [
+        {
+          "head": "Pourquoi c'est important",
+          "body": "Les liens internes sont le seul facteur de classement que vous maîtrisez entièrement : ni démarchage, ni attente. Une page orpheline ne reçoit rien de l'autorité de votre site, aussi bonne soit-elle."
+        },
+        {
+          "head": "Comment la lire",
+          "body": "Les pages orphelines ont besoin d'un lien depuis un endroit pertinent. Les pages pivots sont celles où vous avez de l'autorité à dépenser : un lien ajouté là vaut plus que le même lien ajouté ailleurs."
+        }
+      ]
+    }
   }
 }

@@ -100,8 +100,14 @@ function downloadCSV(filename: string, rows: string[][]) {
 //   > 0 → position NUMBER went DOWN → ranking IMPROVED → green
 //   < 0 → position NUMBER went UP   → ranking DROPPED → red
 function ChangeCell({ change }: { change: number | null }) {
-  if (change == null || !Number.isFinite(change) || change === 0) {
+  if (change == null || !Number.isFinite(change)) {
     return <span className="delta-cell flat" title="No previous check to compare against">—</span>
+  }
+  // Zero is an answer, not an absence: the keyword was measured twice and did
+  // not move. Rendering it as the same dash as "never compared" is what made a
+  // page with real data look like a page with none.
+  if (change === 0) {
+    return <span className="delta-cell flat" title="Held its position since the last check">Held</span>
   }
   const improved = change > 0
   const delta = Math.abs(change)
@@ -308,6 +314,18 @@ export default function KeywordDetailPage() {
   const ownSerpIndex = ownResult ? serpRows.indexOf(ownResult) : -1
   const ownSerpPage = ownSerpIndex >= 0 ? Math.floor(ownSerpIndex / ITEMS_PER_PAGE) + 1 : 1
 
+  /**
+   * The Overview's preview of the result page: the first five, and your own row
+   * appended when it ranks below them, with a marker for what was skipped. A
+   * preview that stopped at five would leave the one row this page exists for
+   * out of it for anything past #5, which is most keywords.
+   */
+  const overviewSerp: (Competitor | "gap")[] = (() => {
+    const top = serpRows.slice(0, 5)
+    if (!ownResult || ownSerpIndex < 5) return top
+    return [...top, "gap", ownResult]
+  })()
+
   const totalSerpPages = Math.ceil(serpRows.length / ITEMS_PER_PAGE)
   const startSerpIndex = (serpPage - 1) * ITEMS_PER_PAGE
   const paginatedCompetitors = serpRows.slice(startSerpIndex, startSerpIndex + ITEMS_PER_PAGE)
@@ -450,20 +468,30 @@ export default function KeywordDetailPage() {
               }
               fill={null}
             />
-            <StatCard
-              label="1-day change"
-              hint="How the position has moved since yesterday. A positive number means it improved."
-              value={<ChangeCell change={d1} />}
-              caption="vs ~24 hours ago"
-              fill={null}
-            />
-            <StatCard
-              label="7-day change"
-              hint="How the position has moved over the past week. Steadier than the daily figure."
-              value={<ChangeCell change={d7} />}
-              caption="vs ~7 days ago"
-              fill={null}
-            />
+            {/* Only once there is an earlier check to compare against.
+                deltaOver returns null when the history has nothing old enough,
+                and a card reading "—" under "1-day change" says nothing except
+                that the keyword is new — which the History tab already says,
+                and which two empty cards say twice at the top of the page.
+                A delta of 0 is a real answer ("held its position") and stays. */}
+            {d1 != null && (
+              <StatCard
+                label="1-day change"
+                hint="How the position has moved since yesterday. A positive number means it improved."
+                value={<ChangeCell change={d1} />}
+                caption="vs ~24 hours ago"
+                fill={null}
+              />
+            )}
+            {d7 != null && (
+              <StatCard
+                label="7-day change"
+                hint="How the position has moved over the past week. Steadier than the daily figure."
+                value={<ChangeCell change={d7} />}
+                caption="vs ~7 days ago"
+                fill={null}
+              />
+            )}
             <StatCard
               label="Search volume"
               hint="How many people search this keyword each month in its country."
@@ -508,16 +536,19 @@ export default function KeywordDetailPage() {
           </div>
 
           {/* Rank chart */}
-          {chartData.length > 1 && (
-            <div className="card" style={{ marginBottom: 14 }}>
-              <div className="card-h">
-                <div>
-                  <div className="t">Rank history</div>
-                  <div className="tiny muted" style={{ marginTop: 2 }}>
-                    {chartData.length} check{chartData.length === 1 ? "" : "s"} · oldest to newest
-                  </div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-h">
+              <div>
+                <div className="t">Rank history</div>
+                <div className="tiny muted" style={{ marginTop: 2 }}>
+                  {chartData.length > 1
+                    ? `${chartData.length} checks · oldest to newest`
+                    : "A line needs two checks to join"}
                 </div>
               </div>
+            </div>
+            {chartData.length > 1 ? (
+              <>
               {/* shadcn's chart container over Recharts, the same components
                   the Overview's position card uses — rather than the
                   hand-rolled SVG that was here, which had no dates on the x
@@ -614,6 +645,106 @@ export default function KeywordDetailPage() {
                   ))}
                 </LineChart>
               </ChartContainer>
+              </>
+            ) : (
+              /* One check is a dot, not a trend. Say what turns it into a line
+                 and when, rather than leaving the page's main graphic missing
+                 with nothing in its place. */
+              <div
+                style={{
+                  height: 200, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center",
+                }}
+              >
+                <Icon.chart />
+                <div className="b" style={{ fontSize: 13 }}>
+                  {latestCheck?.position != null
+                    ? `Measured once, at #${latestCheck.position}`
+                    : "Not measured yet"}
+                </div>
+                <div className="tiny muted" style={{ maxWidth: 320, lineHeight: 1.5 }}>
+                  The next check plots the second point and draws the line. Checks run on
+                  your project&apos;s schedule, or whenever you run one.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Who else is on this result page.
+              The whole SERP is already loaded for the tab next door, and the
+              Overview was showing a count of it ("87 competitor pages ranked")
+              without ever showing one. The first five, plus your own row when it
+              falls outside them, is the answer to "who am I up against" without
+              leaving this tab. */}
+          {serpRows.length > 0 && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="card-h">
+                <div>
+                  <div className="t">Top of the results</div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>
+                    {ownResult
+                      ? `The five pages above the fold, and yours at #${ownResult.position}`
+                      : "The five pages above the fold"}
+                  </div>
+                </div>
+                <button type="button" className="btn sm" onClick={() => setTab("serp")}>
+                  All {serpRows.length} results <Icon.chevR />
+                </button>
+              </div>
+              <div className="col" style={{ gap: 0 }}>
+                {overviewSerp.map((c, i) =>
+                  c === "gap" ? (
+                    <div key="gap" className="tiny muted" style={{ padding: "6px 0 6px 46px" }}>
+                      ⋯ {ownSerpIndex - 5} more result{ownSerpIndex - 5 === 1 ? "" : "s"}
+                    </div>
+                  ) : (
+                    <div
+                      key={c.position + c.url}
+                      className="row"
+                      style={{
+                        gap: 12,
+                        alignItems: "center",
+                        padding: "10px 0",
+                        borderTop: i > 0 ? "1px solid var(--border)" : undefined,
+                        minWidth: 0,
+                      }}
+                    >
+                      <span
+                        className={"cmp-rank" + (c.position <= 3 ? " top" : "")}
+                        style={c === ownResult ? { background: "var(--brand-soft)", color: "var(--brand)" } : undefined}
+                      >
+                        #{c.position}
+                      </span>
+                      <Favicon domain={c.domain} size={20} fallbackColor={c === ownResult ? "var(--brand)" : undefined} />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="row" style={{ gap: 6, alignItems: "center", minWidth: 0 }}>
+                          <span
+                            className="tiny"
+                            style={{ color: "var(--text-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >
+                            {c.domain.replace(/^www\./, "")}
+                          </span>
+                          {c === ownResult && (
+                            <span className="chip brand" style={{ flex: "none", fontSize: 10 }}>Your site</span>
+                          )}
+                        </div>
+                        <a
+                          href={c.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: "block", fontSize: 13.5, color: "var(--text)", textDecoration: "none",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1,
+                          }}
+                          title={c.title || c.url}
+                        >
+                          {c.title || c.url}
+                        </a>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
             </div>
           )}
 

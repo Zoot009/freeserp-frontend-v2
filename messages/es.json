@@ -944,7 +944,249 @@
     "activity": "Actividad",
     "activityMovedUp": "subió {count} → #{pos}",
     "activityDropped": "bajó {count} → #{pos}",
-    "activityRecent": "reciente"
+    "activityRecent": "reciente",
+    "stat": {
+      "authorityScore": "Puntuación de autoridad",
+      "authorityHint": "La fuerza de este dominio, de 0 a 100. Por debajo de 30 es débil, 30–59 medio, 60+ fuerte.",
+      "notMeasured": "aún sin medir",
+      "strongOf100": "fuerte · de 100",
+      "moderateOf100": "medio · de 100",
+      "weakOf100": "débil · de 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "Cuántos enlaces de otros sitios apuntan a este dominio.",
+      "inboundLinks": "enlaces entrantes",
+      "trackedKeywords": "Palabras clave seguidas",
+      "trackedHint": "Cuántas palabras clave estás siguiendo. Cada una se comprueba según la programación de tu proyecto.",
+      "pctRank": "{pct} % de ellas posicionan",
+      "organicKeywords": "Palabras clave orgánicas",
+      "organicKeywordsHint": "Palabras clave en las que este sitio aparece entre los 100 primeros resultados.",
+      "rankingTop100": "en el top 100",
+      "organicTraffic": "Tráfico orgánico",
+      "organicTrafficHint": "Cuántas visitas es probable que tus palabras clave te traigan cada mes.",
+      "visitsPerMonth": "visitas al mes"
+    },
+    "movement": {
+      "title": "Movimiento de palabras clave",
+      "hint": "La primera comprobación de cada palabra clave en este rango comparada con la última. «Mejoraron» y «Bajaron» son movimientos dentro del top 100; «Nuevas» entraron en él, «Perdidas» salieron. Una palabra clave comprobada una sola vez no se puede comparar, así que no se cuenta.",
+      "improved": "Mejoraron",
+      "declined": "Bajaron",
+      "new": "Nuevas",
+      "lost": "Perdidas",
+      "noneTracked": "Aún no sigues ninguna palabra clave. Añade los términos que de verdad quieres ganar: cinco bastan para empezar.",
+      "addKeywords": "Añadir palabras clave",
+      "nothingToCompare": "Todavía no hay nada que comparar: el movimiento necesita dos comprobaciones de la misma palabra clave dentro de este rango. {count, plural, one {Tu # palabra clave seguida se ha comprobado} other {Tus # palabras clave seguidas se han comprobado}} una sola vez hasta ahora.",
+      "nothingMoved": "{count, plural, one {La # palabra clave comprobada dos veces} other {Ninguna de las # palabras clave comprobadas dos veces}} en este rango cambió de posición."
+    },
+    "page": {
+      "title": "Panel SEO",
+      "createProject": "Crear proyecto SEO",
+      "range24h": "Últimas 24 horas",
+      "range7d": "Últimos 7 días",
+      "range30d": "Últimos 30 días",
+      "range90d": "Últimos 90 días",
+      "loadFailed": "No se pudieron cargar tus proyectos",
+      "tryAgain": "Reintentar",
+      "addFirstTitle": "Añade tu primer sitio web",
+      "addFirstBody": "Crea un proyecto y FreeSERP empezará a seguir sus palabras clave, rastrear sus páginas y vigilar su visibilidad en la búsqueda con IA.",
+      "lastRefresh": "Última actualización completa {when}",
+      "showAllHidden": "Mostrar {count, plural, one {el # widget oculto} other {los # widgets ocultos}}",
+      "widgetPositionTracking": "Seguimiento de posiciones",
+      "widgetSiteAudit": "Auditoría del sitio",
+      "widgetTraffic": "Analítica de tráfico",
+      "widgetKeywordMovement": "Movimiento de palabras clave"
+    },
+    "tools": {
+      "open": "Abrir",
+      "setUp": "Configurar",
+      "mapsTitle": "Google Maps Tracker",
+      "mapsDesc": "Sigue un negocio en una cuadrícula de puntos de su ciudad y ve dónde se cae del pack local.",
+      "mapsHint": "Comprueba la posición de tu ficha desde muchos puntos de la ciudad, no desde uno, porque los resultados locales cambian calle a calle.",
+      "mapsP1": "La posición en cada punto de una cuadrícula urbana",
+      "mapsP2": "Los rivales que ocupan el pack que quieres",
+      "mapsP3": "Re-comprobado según la programación que definas",
+      "magicTitle": "Keyword Magic Tool",
+      "magicDesc": "Convierte una palabra clave semilla en cientos de ideas reales, con volumen, dificultad e intención.",
+      "magicHint": "Investigación de palabras clave sobre toda la base de datos: filtra por volumen, dificultad e intención y sigue las que merecen la pena.",
+      "magicP1": "Volumen, dificultad e intención por idea",
+      "magicP2": "Filtra hasta lo que puedes ganar",
+      "magicP3": "Envía las buenas directamente al seguimiento",
+      "aiTitle": "AI Prompt Tracker",
+      "aiDesc": "Comprueba si ChatGPT, Claude, Gemini y Perplexity mencionan tu marca en las preguntas que importan.",
+      "aiHint": "Ejecuta tus preguntas en las cuatro plataformas de IA según una programación y registra si se mencionó tu marca, y dónde.",
+      "aiP1": "Cuatro plataformas, las mismas preguntas",
+      "aiP2": "Con qué frecuencia te nombran, y junto a quién",
+      "aiP3": "Se ejecuta solo con la cadencia que elijas",
+      "spyTitle": "Competitor Spy",
+      "spyDesc": "Ve los dominios que están por encima de ti en tus propias palabras clave, y las búsquedas que tienen ellos y tú no.",
+      "spyHint": "Construido a partir de las palabras clave de este proyecto, así que los competidores que nombra son los que realmente te ganan en ellas.",
+      "spyP1": "Quién te supera, palabra clave a palabra clave",
+      "spyP2": "Búsquedas que ellos tienen y a ti te faltan",
+      "spyP3": "Su autoridad junto a la tuya",
+      "ytTitle": "YouTube Rank Tracker",
+      "ytDesc": "Sigue vídeos en la búsqueda de YouTube y ve el canal, las visitas y la duración de todo lo que está por encima.",
+      "ytHint": "Una lista de proyectos separada de la web, porque un canal y un dominio no se posicionan igual.",
+      "ytP1": "Posiciones en la propia búsqueda de YouTube",
+      "ytP2": "Qué aspecto tienen los vídeos que te ganan",
+      "ytP3": "Comprobado automáticamente, como tus palabras clave",
+      "serpTitle": "Comprobador SERP rápido",
+      "serpDesc": "Consulta una SERP en vivo para cualquier consulta y país sin añadirla antes a un proyecto.",
+      "serpHint": "Un vistazo puntual a una página de resultados en vivo: útil antes de comprometer una palabra clave al seguimiento.",
+      "serpP1": "Cualquier consulta, cualquier país, ahora mismo",
+      "serpP2": "La página completa, funciones incluidas",
+      "serpP3": "Sin proyecto ni configuración"
+    },
+    "position": {
+      "title": "Seguimiento de posiciones",
+      "hint": "Comprobaciones diarias de posición para las palabras clave que sigues, en una sola ubicación e idioma.",
+      "viewFullReport": "Ver informe completo",
+      "engineLang": "Google · Inglés",
+      "visibility": "Visibilidad",
+      "visibilityHint": "La parte de todo el volumen de búsqueda que sigues que tus posiciones captan realmente, ponderada por posición. Al estar ponderada por volumen, ser el primero en un término sin datos de volumen no suma nada, y unas pocas victorias entre palabras clave de alto volumen siguen dando un número bajo.",
+      "avgPosition": "Posición media",
+      "avgPositionHint": "Tu posición media en Google entre las palabras clave que posicionan.",
+      "onlyOneDay": "Solo un día de datos de posición",
+      "notEnoughHistory": "Aún no hay suficiente historial",
+      "curveAppears": "La curva aparece en cuanto una segunda comprobación encuentra palabras clave posicionadas.",
+      "noChecksInRange": "Ninguna comprobación completada en este rango.",
+      "bandsTitle": "Palabras clave por franja de posición",
+      "bandsHint": "Dónde se sitúan ahora mismo tus palabras clave seguidas en los resultados, y cuántas entraron o salieron en los últimos 7 días.",
+      "colBand": "Franja",
+      "colKeywords": "Palabras clave",
+      "colNew": "Nuevas",
+      "colLost": "Perdidas",
+      "noKeywordsYet": "Aún no sigues ninguna palabra clave. Añade los términos que de verdad quieres ganar: cinco bastan para empezar.",
+      "rankSummary": "{ranked} de {tracked} palabras clave seguidas posicionan dentro del top 100.",
+      "tabWinners": "Ganadoras",
+      "tabLosers": "Perdedoras",
+      "colKeyword": "Palabra clave",
+      "colPosition": "Posición",
+      "colVolume": "Volumen",
+      "colWantToRank": "¿Quieres posicionar?",
+      "prevPage": "Página anterior",
+      "nextPage": "Página siguiente",
+      "openAnalysis": "Abrir el último análisis de competencia para esta palabra clave",
+      "seeWhatItTakes": "Mira qué hace falta para llevar esta palabra clave de {from} al puesto 1",
+      "bandTop3": "Top 3",
+      "band4to10": "4 – 10",
+      "band11to20": "11 – 20",
+      "band21to100": "21 – 100",
+      "bandUnranked": "Sin posición",
+      "deviceMobile": "móvil",
+      "deviceDesktop": "ordenador",
+      "scopeMixed": "Comprobado en <b>{markets}</b>, sobre todo <b>{country}</b> en {device}. Las cifras de arriba agrupan todos los mercados, así que no son las de ninguno en concreto.",
+      "scopeSingle": "Las comprobaciones de posición se ejecutan en <b>Google {country}</b>, en inglés, en {device}.",
+      "setPerKeyword": "Definir ubicación y dispositivo por palabra clave"
+    },
+    "audit": {
+      "title": "Auditoría del sitio",
+      "hint": "Un rastreo de hasta 100 páginas que comprueba códigos de estado, títulos, metadatos, encabezados y enlaces internos.",
+      "crawling": "Rastreando…",
+      "updated": "Actualizado: {date}",
+      "gradeExcellent": "Excelente",
+      "gradeExcellentCopy": "Casi todas las comprobaciones pasaron. Repasa los avisos cuando tengas tiempo.",
+      "gradeGood": "Bien",
+      "gradeGoodCopy": "Un sitio sólido. Resolver las advertencias es lo que lo lleva por encima de 90.",
+      "gradeNeedsWork": "Mejorable",
+      "gradeNeedsWorkCopy": "Empieza por los errores de abajo: son los que más puntos cuestan.",
+      "gradePoor": "Deficiente",
+      "gradePoorCopy": "Hay bastante roto como para frenar el posicionamiento. Corrige primero los errores.",
+      "siteHealth": "Salud del sitio",
+      "siteHealthHint": "Puntuación global del sitio rastreado, de 0 a 100. Basada en cuántas comprobaciones pasaron frente a cuántas se ejecutaron.",
+      "siteHealthOf100": "Salud del sitio {score} de 100",
+      "errors": "Errores",
+      "errorsHint": "Problemas de gravedad alta: corrígelos primero.",
+      "warnings": "Advertencias",
+      "warningsHint": "Problemas de gravedad media que conviene atender.",
+      "notices": "Avisos",
+      "noticesHint": "Observaciones de gravedad baja.",
+      "degradedHint": "En este rastreo no se ejecutó ninguna comprobación, así que no se contó nada.",
+      "scoresByArea": "Puntuaciones por área",
+      "scoresByAreaHint": "Cómo puntuaron las páginas rastreadas en cada parte de la auditoría, de 0 a 100.",
+      "checksPassed": "<n>{passed}</n> comprobaciones superadas",
+      "checksPassedOf": " de {total}",
+      "crawledPages": "Páginas rastreadas",
+      "crawledPagesHint": "Las páginas alcanzadas en este rastreo, divididas según el estado que devolvió su servidor. Provienen de nuestro propio rastreador, así que se registran incluso cuando las comprobaciones puntuadas no pueden ejecutarse.",
+      "statusHealthy": "Correctas",
+      "statusBroken": "Rotas",
+      "statusRedirect": "Redirección",
+      "statusBlocked": "Bloqueadas",
+      "statusAria": "{label}: {count, plural, one {# página} other {# páginas}}",
+      "hidePages": "Ocultar páginas",
+      "viewFullReport": "Ver informe completo",
+      "recrawl": "Volver a rastrear",
+      "queueing": "Encolando…",
+      "recrawlQueued": "Rastreo encolado: tarda unos minutos.",
+      "recrawlFailed": "No se pudo iniciar el rastreo. Inténtalo de nuevo.",
+      "cooldown": "Rastreado hace poco: podrás lanzar otro {when}",
+      "stageQueued": "En cola",
+      "stageCrawling": "Rastreando páginas",
+      "stageChecks": "Ejecutando comprobaciones",
+      "stageReport": "Creando el informe",
+      "crawlBlocked": "No pudimos rastrear tu sitio web: está bloqueando el acceso automatizado o no es accesible.",
+      "catTechnical": "Técnico",
+      "catOnPage": "On page",
+      "catPerformance": "Rendimiento",
+      "catAccessibility": "Accesibilidad",
+      "catLinks": "Enlaces",
+      "grade": "Nota",
+      "onePageOnly": "Solo se pudo leer esta página. Si tu sitio tiene más, es probable que esté bloqueando el acceso automatizado: las puntuaciones de arriba se refieren solo a esta página.",
+      "noScoreTitle": "Terminado sin puntuación",
+      "noScoreMapped": "Mapeamos {count} páginas correctamente, pero la fase de puntuación no pudo completarse, así que esta vez no hay puntuación de salud. La lista de páginas de abajo está completa. Vuelve a rastrear para intentar puntuar otra vez.",
+      "noScoreBlocked": "Solo alcanzamos {count, plural, one {# página} other {# páginas}} y las comprobaciones no pudieron ejecutarse: parece que se está bloqueando el acceso automatizado. Permite nuestro rastreador o vuelve a rastrear."
+    },
+    "traffic": {
+      "title": "Analítica de tráfico",
+      "hintOwn": "Tráfico modelado para todo el dominio, actualizado tras cada comprobación completada.",
+      "hintGsc": "Clics, impresiones, CTR y posición media medidos en la propiedad de Search Console vinculada a este proyecto.",
+      "tabOwn": "Datos de FreeSERP",
+      "tabGsc": "Datos de Google",
+      "gscConnected": "Clics e impresiones reales de Google Search Console.",
+      "gscSignIn": "Inicia sesión con Google para ver aquí los clics e impresiones reales de Search Console.",
+      "gscPickProperty": "Google está conectado: elige la propiedad de Search Console que cubre este proyecto.",
+      "estVisits": "Visitas est.",
+      "estVisitsHint": "Sesiones orgánicas estimadas en el rango seleccionado, modeladas a partir de la posición × el volumen de búsqueda. No es tráfico medido: cambia a los datos de Google para eso.",
+      "rankingPages": "Páginas posicionadas",
+      "rankingPagesHint": "URL distintas de este dominio que posicionan para al menos una palabra clave seguida.",
+      "bounceRate": "Tasa de rebote",
+      "bounceRateHint": "Proporción de sesiones que terminan sin una segunda página vista. Es comportamiento en el sitio, así que necesita Google Analytics: ni los datos de posición ni Search Console pueden aportarlo.",
+      "pagesPerVisit": "Páginas / visita",
+      "pagesPerVisitHint": "Páginas vistas medias por sesión orgánica. Es comportamiento en el sitio, así que necesita Google Analytics: ni los datos de posición ni Search Console pueden aportarlo.",
+      "seriesVisits": "Visitas est.",
+      "seriesPages": "Páginas posicionadas",
+      "seriesClicks": "Clics",
+      "oneCheckOnly": "Solo una comprobación por ahora. La línea aparece a partir de la segunda: las comprobaciones siguen la programación de este proyecto.",
+      "checksInRange": "{count} comprobaciones en este rango. Cada punto es la medición de un día.",
+      "noChecksTitle": "Ninguna comprobación completada en este rango",
+      "noChecksBody": "Elige un rango más largo arriba, o lanza una comprobación desde la página de palabras clave.",
+      "notConnectedTitle": "Google Search Console no está conectado",
+      "notConnectedBody": "Conéctalo una vez y esta vista se llenará con los clics, las impresiones y la posición media que Google registró realmente para tu sitio.",
+      "connectAction": "Conectar Search Console",
+      "noPropertyTitle": "Ninguna propiedad vinculada a este proyecto",
+      "noPropertyBody": "Tu cuenta de Google está conectada, pero este proyecto todavía no apunta a ninguna propiedad de Search Console. Elige la que cubre tu dominio.",
+      "loadFailedTitle": "No se pudieron cargar los datos de Search Console",
+      "loadFailedToast": "No se pudieron cargar los datos de Search Console.",
+      "mismatch": "Estas cifras son de otro sitio.",
+      "totalClicks": "Clics totales",
+      "totalClicksHint": "Veces que alguien entró a tu sitio desde los resultados de búsqueda de Google. Medido por Google, no modelado.",
+      "impressions": "Impresiones",
+      "impressionsHint": "Veces que un enlace a tu sitio apareció en los resultados, se hiciera clic o no.",
+      "averageCtr": "CTR medio",
+      "averageCtrHint": "Clics divididos entre impresiones: con qué frecuencia quienes te vieron te eligieron.",
+      "averagePosition": "Posición media",
+      "averagePositionHint": "Posición media en todas las impresiones del rango. Cuanto más baja, mejor: una caída aquí es una mejora.",
+      "noGscDataTitle": "Sin datos de Search Console en este rango",
+      "noGscDataBody": "Google no informa nada para estas fechas. Sus datos también llevan unos dos días de retraso, así que un rango muy corto puede volver vacío.",
+      "tabTopPages": "Páginas principales",
+      "tabTopQueries": "Consultas principales",
+      "colPage": "Página",
+      "colQuery": "Consulta",
+      "colClicks": "Clics",
+      "colImpressions": "Impresiones",
+      "colPosition": "Posición",
+      "prevPage": "Página anterior",
+      "nextPage": "Página siguiente",
+      "gscConnectedFrom": "Clics e impresiones reales de {site}."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "No encontrado en los {depth} primeros resultados — su posición está más allá del alcance de nuestro análisis",
@@ -1033,7 +1275,7 @@
     "admin": "Administración",
     "startLabel": "¿Cómo quieres empezar a rastrear palabras clave?",
     "autoTitle": "Búscalas por mí",
-    "autoDesc": "Analizaremos tu página de inicio con IA y sugeriremos palabras clave para las que ya debería posicionar — tú eliges cuáles rastrear.",
+    "autoDesc": "Analizaremos tu página de inicio con IA y empezaremos a seguir las 10 palabras clave más fuertes para las que debería posicionarse.",
     "manualTitle": "Las añado yo",
     "manualDesc": "Sin análisis. Empieza con una lista vacía y escribe tú mismo las palabras clave que quieras rastrear — no consume créditos."
   },
@@ -1220,7 +1462,12 @@
     "device": "Dispositivo",
     "appearance": "Aspecto",
     "date": "Fecha",
-    "reconnectCta": "Reconectar Google"
+    "reconnectCta": "Reconectar Google",
+    "addToTracker": "Añadir al rank tracker",
+    "addSelectedToTracker": "Añadir {count} al rank tracker",
+    "tracked": "Rastreada",
+    "alreadyTracked": "Ya se rastrea en este proyecto",
+    "selectAll": "Seleccionar todo"
   },
   "quotaUpsell": {
     "eyebrow": "Mejorar plan",
@@ -1353,7 +1600,7 @@
     "toolScoreWhat": "Una página puntuada frente a una palabra clave",
     "toolQuickWhat": "Una consulta en vivo sin hacer seguimiento",
     "toolConsoleWhat": "Clics reales junto a tus posiciones seguidas",
-    "costPerKeyword": "1 / palabra clave",
+    "costPerKeyword": "1–2 / palabra clave",
     "costPerScan": "3–57 / escaneo",
     "costPerSearch": "3–15 / búsqueda",
     "costPerPages": "1 / 20 páginas",
@@ -1361,7 +1608,8 @@
     "costPerCrawl": "2 / rastreo",
     "costPerPage": "3 / página",
     "costPerLookup": "1 / consulta",
-    "costFree": "Gratis"
+    "costFree": "Gratis",
+    "costPerKeywordNote": "Las comprobaciones programadas y masivas cuestan 1. Una comprobación manual pequeña salta la cola para dar resultados más rápidos y cuesta 2."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",
@@ -1514,5 +1762,179 @@
     "loading": "Cargando…",
     "cancel": "Cancelar",
     "close": "Cerrar"
+  },
+  "toolContext": {
+    "hide": "Ocultar",
+    "show": "¿Para qué sirve esta herramienta?",
+    "aria": "Acerca de esta herramienta",
+    "google-tracker": {
+      "lede": "Registra en qué posición aparece tu dominio en las búsquedas para las palabras clave que elijas, en el buscador y el país que elijas, y guarda esa posición como historial.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Una posición aislada es una anécdota; la señal es la línea que dibuja. La tendencia te dice si una página está ganando terreno, si la están adelantando o si cae tras un cambio que hiciste, algo que una búsqueda puntual nunca puede mostrar."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Un proyecto por dominio, con sus palabras clave debajo. Cada comprobación guarda una posición real por palabra clave, así que la tendencia de una tarjeta es historial registrado, no una estimación. Un proyecto sin comprobaciones no muestra ninguna tendencia, no una línea plana."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Registra en qué posición aparecen los resultados de un canal o un vídeo en la búsqueda de YouTube para las palabras clave que añadas.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "YouTube es el segundo buscador más grande, y sus posiciones se mueven por razones que no son las de Google: la antigüedad, el tiempo de visualización y la duración pesan tanto como las palabras del título. Las visitas y la antigüedad aparecen junto a la posición porque son lo que explica un movimiento."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Los resultados están personalizados y cambian a lo largo del día, así que trata la posición como una tendencia, no como un puesto exacto. La profundidad marca hasta dónde mira una comprobación: un vídeo en el puesto 34 es sencillamente invisible para una comprobación de Top 20."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Recorre una cuadrícula de puntos alrededor de una ubicación e indica en cada uno en qué posición aparece un negocio en los resultados de Google Maps.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La posición local no es un único número: cambia calle a calle. Un negocio puede ser el primero en su propia dirección y desaparecer tres kilómetros más allá, y una comprobación en un solo punto nunca lo mostraría."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Cada celda de la cuadrícula es una búsqueda real lanzada desde esa coordenada. Lee la forma, no el promedio: un centro fuerte con bordes débiles es un problema distinto al de ser débil en todas partes."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Comprueba si los asistentes de IA mencionan tu marca cuando les hacen las preguntas que hacen tus clientes.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La respuesta de un asistente sustituye cada vez más al clic en un enlace azul. Si un modelo recomienda tres empresas de tu categoría y ninguna eres tú, esa es la nueva página dos, y es invisible en todos los informes de posiciones que tienes."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Sigue preguntas que escribiría un cliente real, no palabras clave. Cada ejecución registra qué marcas se mencionaron y qué fuentes se citaron, así que ves a quién están recomendando en tu lugar y de dónde lo está sacando el modelo."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Todas las palabras clave que sigues, de todos tus proyectos, en una sola lista.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La página de un proyecto responde a «cómo va este sitio». Esta responde a «dónde soy fuerte o débil en conjunto»: tus mejores y peores posiciones, y una misma palabra clave en varios sitios, sin abrir cada proyecto uno por uno."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Ordena por posición para encontrar lo que está a punto: las palabras clave entre el puesto 11 y el 20 suelen estar a una mejora de la primera página, que es donde se concentran casi todos los clics."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "Los proyectos y las palabras clave que marcaste, reunidos en un solo sitio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Seguir cientos de palabras clave significa que la docena que de verdad paga las facturas se pierde entre ellas. Este es el conjunto de trabajo que consultas primero."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Marca cualquier cosa desde su fila o su tarjeta y aparecerá aquí. Nada se copia ni se duplica: son los mismos elementos, solo que reunidos."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Lanza una sola búsqueda y te muestra la página de resultados en vivo, sin añadir nada a un proyecto.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Para la pregunta que tienes ahora mismo — quién se posiciona por esto, qué aspecto tiene la página en ese país — cuando no quieres seguir esa palabra clave para siempre."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Aquí no se guarda nada en ningún proyecto ni se conserva historial. Si la respuesta también importa la semana que viene, sigue la palabra clave en su lugar."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Convierte una palabra clave semilla en cientos de ideas reales, con volumen de búsqueda, dificultad, CPC e intención.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "La palabra clave que se te ocurre primero suele ser la más difícil de tu mercado. El tráfico que puedes ganar está en las variantes que la rodean, y esas no se adivinan: el volumen y la dificultad tienen que salir de los datos."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "La intención decide qué construir: un término informativo pide un artículo, uno transaccional una página de producto o servicio. La dificultad decide si puedes quedártelo de forma realista con la autoridad que tienes ahora."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Rastrea una de tus propias páginas y la puntúa frente a una palabra clave objetivo — on-page y off-page, sin competidores de por medio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Cuando una página no hay manera de posicionarla, esto te dice si el problema es la página misma antes de que dediques un mes a enlaces o a estudiar competidores."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "La puntuación es un resumen; el trabajo son las comprobaciones que fallan. Vuelven en orden de prioridad, así que empieza por arriba en lugar de intentar vaciar la lista."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Rastrea un sitio a partir de una URL con un navegador real, aplica 63 reglas SEO a cada página que alcanza y agrupa los hallazgos a escala del sitio.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Los fallos técnicos nunca aparecen en un informe de posiciones. Simplemente limitan en silencio lo que puede lograr cada página del sitio, por bueno que sea el contenido; y los que conviene arreglar primero suelen ser los que se repiten en cientos de páginas, algo que solo un rastreo puede mostrarte."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "El navegador real es lo importante: ve lo que se renderiza de verdad, incluido lo que inyecta el JavaScript, y no el HTML en bruto que devolvería una petición simple. Empieza por el resumen del sitio — cuenta cuántas páginas comparten cada fallo — y luego abre una página para verlo en su sitio. Hasta dónde llega el rastreo depende de tu plan."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Audita una sola URL con un navegador real y aplica esas mismas 63 reglas SEO a lo que realmente se carga.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Una página cada vez es la herramienta adecuada cuando acabas de cambiar algo, o cuando una página importa más que el resto: una landing, una ficha de producto, la que intentas posicionar. Cuesta una fracción de un rastreo completo y responde en segundos."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Los problemas llegan por orden de prioridad y con la corrección exacta, así que baja desde arriba. Si los fallos parecen de la plantilla y no de la página, lanza una auditoría completa del sitio para saber cuántas páginas más los comparten."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Rastrea tu sitio y los competidores que indiques para una palabra clave, y luego los compara lado a lado.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Posicionarse es relativo, no absoluto. No hay ninguna puntuación que haga que una página se posicione: solo ser mejor que las páginas concretas que hoy están por encima para esa búsqueda concreta."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Busca las carencias que se repiten en todos los competidores que tienes por delante. Que un rival haga algo es una decisión suya; que lo hagan todos es el listón de esa palabra clave."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Rastrea los enlaces internos de un dominio y traza cómo circula la autoridad entre sus páginas.",
+      "points": [
+        {
+          "head": "Por qué importa",
+          "body": "Los enlaces internos son el único factor de posicionamiento que controlas por completo: sin contactar a nadie y sin esperar. Una página huérfana no recibe nada de la autoridad de tu sitio, por buena que sea."
+        },
+        {
+          "head": "Cómo leerlo",
+          "body": "Las huérfanas necesitan un enlace desde algún sitio relevante. Los concentradores son donde tienes autoridad que gastar, así que un enlace añadido ahí vale más que el mismo enlace añadido en cualquier otro sitio."
+        }
+      ]
+    }
   }
 }

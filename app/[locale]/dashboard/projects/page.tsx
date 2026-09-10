@@ -13,7 +13,7 @@ import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { Sparkline } from "@/components/dashboard/primitives"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
-import { trackEvent, trackMilestone } from "@/lib/track"
+import { trackEvent, trackMilestone, trackOpenAiConversion } from "@/lib/track"
 import { track } from "@/lib/analytics"
 import { clearPendingDomain, projectNameFor, readPendingDomain } from "@/lib/pendingDomain"
 import { ToolContext } from "@/components/dashboard/tool-context"
@@ -368,12 +368,18 @@ export default function ProjectsPage() {
   // Google signup lands here with a sessionStorage marker (the email signup
   // path arrives with ?first-sign-up already in the URL). Fire the GTM signup
   // conversion once, then clear the marker.
+  //
+  // Same moment reports registration_completed to OpenAI, server-side via
+  // /api/openai-event. It rides the same marker rather than getting its own
+  // guard so the two platforms can never disagree about when a signup happened;
+  // the marker is removed first, so a double-mount reports neither one twice.
   useEffect(() => {
     if (typeof window === "undefined") return
     try {
       if (sessionStorage.getItem("fs_just_signed_up")) {
         sessionStorage.removeItem("fs_just_signed_up")
         trackEvent("first-sign-up")
+        trackOpenAiConversion("registration_completed")
       }
     } catch {}
   }, [])

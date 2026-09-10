@@ -7,21 +7,25 @@
 // is evidence.
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
-import { Favicon } from "@/components/favicon"
-import { Icon } from "@/components/dashboard/icons"
 import { LineChart, StatTile } from "@/components/dashboard/primitives"
-import { PlatformMark } from "@/components/dashboard/platform-marks"
+import {
+  AnswerCard,
+  PromptHero,
+  PromptPlatformSwitch,
+  PromptSources,
+  RivalsSummary,
+} from "@/components/dashboard/ai-tracker/prompt-detail"
 import {
   ACTIVE_STATUSES,
   isPlatform,
   pct,
   PLATFORM_LABEL,
+  relTime,
   type Platform,
   type RunSummary,
 } from "@/lib/ai-tracker"
@@ -164,6 +168,25 @@ export default function LlmPromptDetailPage() {
     return () => clearInterval(id)
   }, [latest, load])
 
+  /**
+   * Each assistant's newest COMPLETED mention rate for this prompt.
+   *
+   * The detail route returns runs for every platform, not just the focused one,
+   * so the switcher can compare them without a second request. A platform the
+   * prompt is tracked on but has never completed maps to null — which the
+   * switcher draws as a dash rather than 0%.
+   */
+  const ratesByPlatform = useMemo(() => {
+    const m: Partial<Record<Platform, number | null>> = {}
+    for (const p of data?.prompt.platforms ?? []) m[p] = null
+    for (const r of data?.runs ?? []) {
+      // Runs arrive newest-first, so the first completed one per platform wins.
+      if (r.status !== "COMPLETED" || r.mentionRate == null) continue
+      if (m[r.platform] == null) m[r.platform] = r.mentionRate
+    }
+    return m
+  }, [data])
+
   const chart = useMemo(() => {
     if (!data) return []
     // Oldest → newest, one point per completed run, as a percentage.
@@ -190,16 +213,19 @@ export default function LlmPromptDetailPage() {
   const ok = data.samples.filter((s) => s.status === "COMPLETED")
 
   return (
-    <div className="page">
-      <div className="page-h">
-        <div>
-          <div className="tiny muted">
-            <Link href="/dashboard/ai-prompt-tracker">AI Prompt Tracker</Link> ·{" "}
-            <Link href={`/dashboard/ai-prompt-tracker/${data.project.id}`}>{data.project.name}</Link>
-          </div>
-          <h1 style={{ fontSize: 20 }}>{data.prompt.prompt}</h1>
-        </div>
-      </div>
+    // data-engine themes the whole page in the assistant whose answers it is
+    // showing, so arriving from a teal Perplexity row lands somewhere teal. Off
+    // it (no run yet) .llm-eng falls back to the brand accent.
+    <div className="page llm-eng" data-engine={shown ?? undefined}>
+      <PromptHero
+        projectId={data.project.id}
+        projectName={data.project.name}
+        prompt={data.prompt.prompt}
+        platform={shown}
+        modelName={latest?.modelName}
+        succeeded={latest?.samplesSucceeded}
+        requested={latest?.samplesRequested}
+      />
 
       {error && (
         <div className="card" style={{ padding: 16, marginBottom: 16, color: "var(--neg)", fontSize: 13 }}>
@@ -207,60 +233,54 @@ export default function LlmPromptDetailPage() {
         </div>
       )}
 
-      <div className="grid g-4" style={{ marginBottom: 14 }}>
+      {/* A prompt tracked on several assistants has a separate history on each.
+          This is the one screen where that difference is concrete — the same
+          question, four answers — so the switcher shows each assistant's rate
+          rather than asking you to click through them to find out. */}
+      {hasSwitcher && (
+        <PromptPlatformSwitch
+          platforms={data.prompt.platforms}
+          rates={ratesByPlatform}
+          current={shown}
+          onSelect={selectPlatform}
+        />
+      )}
+
+      <div className="grid g-4" style={{ marginBottom: 16 }}>
         <StatTile
           lbl="Mention rate"
           val={pct(latest?.mentionRate ?? null)}
           delta={latest?.change != null ? `${latest.change > 0 ? "+" : ""}${Math.round(latest.change * 100)} pts` : undefined}
           up={latest?.change != null && latest.change > 0}
           down={latest?.change != null && latest.change < 0}
-          tip={latest ? `${latest.samplesSucceeded} of ${latest.samplesRequested} answers` : undefined}
+          tip={shown ? `on ${PLATFORM_LABEL[shown]}, latest run` : undefined}
         />
-        <StatTile lbl="Cited as a source" val={pct(latest?.citationRate ?? null)} tip="AI linked to you" />
         <StatTile
-          lbl="Prominence"
-          val={latest?.avgProminence != null ? `${Math.round(latest.avgProminence * 100)}%` : "n/a"}
+          lbl="Cited as a source"
+          val={pct(latest?.citationRate ?? null)}
+          tip={shown ? `${PLATFORM_LABEL[shown]} linked to you` : "the assistant linked to you"}
+        />
+        <StatTile
+          lbl="Position in answer"
+          val={latest?.avgProminence != null ? pct(latest.avgProminence) : "n/a"}
           // Prominence is where the BRAND falls in the answer text, so it exists on
           // every platform — it is null only when no sample mentioned you at all.
-          tip={latest?.avgProminence != null ? "how early you appear" : "not mentioned in these answers"}
-        />
-        {/* Whichever of the two is NOT already on screen.
-            With the switcher below, the platform is named and highlighted there,
-            so repeating it wastes the tile — the model is the unnamed half, and on
-            the scraper platforms it moves under us, which is why it is recorded
-            per run at all. With one platform there is no switcher, so the tile
-            goes back to naming it. */}
-        <StatTile
-          lbl={hasSwitcher ? "Answered by" : "Platform"}
-          val={
-            hasSwitcher
-              ? (latest?.modelName ?? "—")
-              : latest
-                ? PLATFORM_LABEL[latest.platform]
-                : "—"
+          tip={
+            latest?.avgProminence != null
+              ? "how far in your first mention lands — lower is better"
+              : "not mentioned in these answers"
           }
-          tip={hasSwitcher ? (latest ? PLATFORM_LABEL[latest.platform] : undefined) : latest?.modelName}
+        />
+        {/* When these answers were collected. An assistant's answer is a
+            snapshot of a product that changes under us, so a rate with no date
+            on it is a claim about an unspecified moment. This replaces the
+            "Answered by" tile, whose model name now sits in the header. */}
+        <StatTile
+          lbl="Last checked"
+          val={latest ? relTime(latest.runAt) : "—"}
+          tip={latest ? `${latest.samplesSucceeded} of ${latest.samplesRequested} answers collected` : undefined}
         />
       </div>
-
-      {/* A prompt tracked on several platforms has a separate history on each.
-          Until now the page fetched prompt.platforms and never rendered it, so
-          there was no way to ask about any platform but one. */}
-      {hasSwitcher && (
-        <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-          {data.prompt.platforms.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`chip ${p === shown ? "brand" : "outline"}`}
-              aria-pressed={p === shown}
-              onClick={() => selectPlatform(p)}
-            >
-              <PlatformMark id={p} size={13} /> {PLATFORM_LABEL[p]}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="tabs" style={{ marginBottom: 12 }}>
         {(
@@ -284,6 +304,9 @@ export default function LlmPromptDetailPage() {
               matched={data.project.brandTerms.matched}
             />
           )}
+          {/* Who was named instead, summed across this run. The per-answer chips
+              were already there; nothing added them up. */}
+          <RivalsSummary samples={data.samples} />
           <AnswersTab
             samples={data.samples}
             // The matched half only. Highlighting a term the rate refuses to count
@@ -303,8 +326,9 @@ export default function LlmPromptDetailPage() {
                 <div className="tiny muted">{chart.length} runs · oldest to newest</div>
               </div>
             </div>
-            {/* No `invert`: unlike a rank, a higher rate is better. */}
-            <LineChart data={chart} yFormat={(v) => `${Math.round(v)}%`} height={240} />
+            {/* No `invert`: unlike a rank, a higher rate is better. The colour
+                is the assistant's, so the chart matches the page it sits on. */}
+            <LineChart data={chart} yFormat={(v) => `${Math.round(v)}%`} height={240} color="var(--accent)" />
           </div>
         ) : (
           <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
@@ -314,7 +338,7 @@ export default function LlmPromptDetailPage() {
           </div>
         ))}
 
-      {tab === "sources" && <SourcesTab samples={data.samples} brandDomain={data.project.brandDomain} />}
+      {tab === "sources" && <PromptSources samples={data.samples} brandDomain={data.project.brandDomain} />}
     </div>
   )
 }
@@ -427,10 +451,8 @@ const MD_STYLES = `
 }
 .llm-md td { white-space: normal; min-width: 90px; }
 .llm-md hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
-.llm-md .llm-hit {
-  background: var(--brand-soft); color: var(--text);
-  font-weight: 600; border-radius: 3px; padding: 0 3px;
-}
+/* .llm-hit is NOT defined here — it lives in dashboard.css under AI ENGINE
+   PAGES, where it takes the accent of the assistant whose answer this is. */
 `
 
 /**
@@ -502,30 +524,19 @@ function AnswersTab({ samples, terms }: { samples: Sample[]; terms: string[] }) 
     )
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div>
       <style>{MD_STYLES}</style>
       {samples.map((s) => (
-        <div className="card" key={s.sampleIndex}>
-          <div className="card-h">
-            <div className="row" style={{ gap: 8 }}>
-              <span className="tiny muted">Answer {s.sampleIndex + 1}</span>
-              {s.status !== "COMPLETED" ? (
-                <span className="chip neg">Failed</span>
-              ) : s.mentioned ? (
-                <span className="chip brand">Mentioned</span>
-              ) : (
-                // A real, reportable finding — not an empty state.
-                <span className="chip">Not mentioned</span>
-              )}
-              {s.cited && <span className="chip pos">Cited</span>}
-            </div>
-            {s.checkUrl && (
-              <a href={s.checkUrl} target="_blank" rel="noopener noreferrer" className="tiny">
-                Reproduce <Icon.external size={11} />
-              </a>
-            )}
-          </div>
-
+        <AnswerCard
+          key={s.sampleIndex}
+          index={s.sampleIndex}
+          mentioned={s.status === "COMPLETED" && s.mentioned}
+          cited={s.cited}
+          failed={s.status !== "COMPLETED"}
+          checkUrl={s.checkUrl}
+          competitors={s.competitorsMentioned}
+          fanOut={s.fanOutQueries}
+        >
           {s.responseText ? (
             <>
               <AnswerMarkdown text={s.responseText} terms={terms} />
@@ -536,97 +547,12 @@ function AnswersTab({ samples, terms }: { samples: Sample[]; terms: string[] }) 
               )}
             </>
           ) : (
-            <div className="tiny muted">
+            <div className="tiny muted" style={{ padding: "10px 0" }}>
               {s.status === "COMPLETED" ? "No answer recorded." : "No answer recorded — this sample failed."}
             </div>
           )}
-
-          {!!s.competitorsMentioned?.length && (
-            <div className="row" style={{ gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-              <span className="tiny muted">Also named:</span>
-              {s.competitorsMentioned.map((c) => (
-                <span key={c} className="chip outline">
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {!!s.fanOutQueries?.length && (
-            <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              <span className="tiny muted">Searched:</span>
-              {s.fanOutQueries.map((q, i) => (
-                <span key={`${q}-${i}`} className="chip">
-                  {q}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        </AnswerCard>
       ))}
-    </div>
-  )
-}
-
-function SourcesTab({ samples, brandDomain }: { samples: Sample[]; brandDomain: string | null }) {
-  // Aggregate citations across the run's answers, counting how often each domain
-  // was used as a source.
-  const rows = useMemo(() => {
-    const byDomain = new Map<string, { domain: string; count: number; title: string; url: string }>()
-    for (const s of samples) {
-      for (const c of s.citations ?? []) {
-        const prev = byDomain.get(c.domain)
-        if (prev) prev.count += 1
-        else byDomain.set(c.domain, { domain: c.domain, count: 1, title: c.title, url: c.url })
-      }
-    }
-    return [...byDomain.values()].sort((a, b) => b.count - a.count)
-  }, [samples])
-
-  const own = (brandDomain ?? "").toLowerCase().replace(/^www\./, "")
-
-  if (rows.length === 0) {
-    return (
-      <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-        No sources cited in these answers.
-      </div>
-    )
-  }
-
-  return (
-    <div className="card" style={{ padding: 0 }}>
-      <div className="tbl-scroll">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th style={{ textAlign: "right" }}>Times cited</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const isOwn = !!own && (r.domain === own || r.domain.endsWith(`.${own}`))
-              return (
-                <tr key={r.domain} style={isOwn ? { background: "var(--brand-soft)", fontWeight: 600 } : undefined}>
-                  <td>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                      <Favicon domain={r.domain} size={18} />
-                      <a href={r.url} target="_blank" rel="noopener noreferrer">
-                        {r.title || r.domain}
-                      </a>
-                      {isOwn && <span className="chip brand">You</span>}
-                    </span>
-                    <div className="tiny muted">{r.domain}</div>
-                  </td>
-                  <td style={{ textAlign: "right" }} className="tabular">
-                    {r.count}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ export function GridSizeDropdown({ value, onChange }: { value: number; onChange:
       value={String(value)}
       onChange={(v) => onChange(Number(v))}
       ariaLabel="Grid size"
+      block
       options={GRID_SIZES.map((n) => ({
         value: String(n),
         label: (
@@ -40,6 +41,7 @@ export function RadiusDropdown({
       value={String(nearestRadiusStep(value, unit))}
       onChange={(v) => onChange(Number(v))}
       ariaLabel="Radius"
+      block
       options={steps.map((s) => ({ value: String(s), label: `${s} ${label} radius` }))}
     />
   )

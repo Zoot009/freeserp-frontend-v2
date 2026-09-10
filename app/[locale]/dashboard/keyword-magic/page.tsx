@@ -19,6 +19,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { StatTile } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
@@ -130,6 +131,12 @@ export default function KeywordMagicPage() {
   const [filter, setFilter] = useState("")
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
 
+  // Keywords ticked for the rank tracker. Keyed by the keyword itself so the
+  // selection survives filtering and group-switching — narrow the list, tick a
+  // few, widen it again, and the earlier ticks are still there.
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showAddModal, setShowAddModal] = useState(false)
+
   // Today's search allowance — fetched on load, then kept fresh from every
   // search response (and from a quota 402's details).
   const [usage, setUsage] = useState<Usage | null>(null)
@@ -156,6 +163,7 @@ export default function KeywordMagicPage() {
         setResult(res)
         setUsage(res.usage)
         setMatchType(match)
+        setSelected(new Set())
       } catch (err) {
         setResult(null)
         if (err instanceof ApiError && err.status === 402) {
@@ -201,6 +209,28 @@ export default function KeywordMagicPage() {
       return true
     })
   }, [result, filter, activeGroup])
+
+  const toggle = (keyword: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(keyword)) next.delete(keyword)
+      else next.add(keyword)
+      return next
+    })
+
+  // The header box acts on the VISIBLE rows only: with a group or a filter
+  // applied, "select all" meaning all 500 fetched keywords would be a trap.
+  const visibleKeywords = rows.map((r) => r.keyword)
+  const allVisibleSelected = visibleKeywords.length > 0 && visibleKeywords.every((k) => selected.has(k))
+  const toggleAllVisible = () =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const k of visibleKeywords) {
+        if (allVisibleSelected) next.delete(k)
+        else next.add(k)
+      }
+      return next
+    })
 
   return (
     <div className="page">
@@ -437,12 +467,32 @@ export default function KeywordMagicPage() {
                   </button>
                 )}
                 <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>{rows.length.toLocaleString()} shown</span>
+                <button
+                  type="button"
+                  className="btn primary"
+                  style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                  disabled={selected.size === 0}
+                  onClick={() => setShowAddModal(true)}
+                  title={selected.size === 0 ? "Tick the keywords you want to track" : undefined}
+                >
+                  {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
+                </button>
               </div>
 
               <div className="tbl-scroll">
                 <table className="tbl">
                   <thead>
                     <tr>
+                      <th style={{ width: 32 }}>
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          disabled={visibleKeywords.length === 0}
+                          onChange={toggleAllVisible}
+                          aria-label="Select all shown keywords"
+                          title="Select all shown keywords"
+                        />
+                      </th>
                       <th>{t("kmKeyword")}</th>
                       <th style={{ width: 60, textAlign: "center" }}>{t("kmIntent")}</th>
                       <th style={{ width: 110, textAlign: "right" }}>{t("kmVolume")}</th>
@@ -458,6 +508,14 @@ export default function KeywordMagicPage() {
                       const extra = r.serpFeatures.length - feats.length
                       return (
                         <tr key={r.keyword}>
+                          <td style={{ width: 32 }}>
+                            <input
+                              type="checkbox"
+                              checked={selected.has(r.keyword)}
+                              onChange={() => toggle(r.keyword)}
+                              aria-label={r.keyword}
+                            />
+                          </td>
                           <td>
                             <a
                               href={`https://www.google.com/search?q=${encodeURIComponent(r.keyword)}`}
@@ -504,7 +562,7 @@ export default function KeywordMagicPage() {
                     })}
                     {rows.length === 0 && (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-mute)" }}>
+                        <td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-mute)" }}>
                           {t("kmNoMatch")}
                         </td>
                       </tr>
@@ -541,6 +599,20 @@ export default function KeywordMagicPage() {
             {t("kmEmptyState")}
           </div>
         )
+      )}
+
+      {showAddModal && result && (
+        <AddToTrackerModal
+          keywords={[...selected]}
+          source="keyword-magic"
+          // The market the search itself ran in — tracking these keywords
+          // anywhere else would measure a different SERP than the volume, KD and
+          // CPC figures on screen.
+          defaultLocation={result.location}
+          plan={usage?.plan}
+          onClose={() => setShowAddModal(false)}
+          onAdded={() => setSelected(new Set())}
+        />
       )}
 
       <style jsx>{`

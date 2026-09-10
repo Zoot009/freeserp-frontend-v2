@@ -10,6 +10,13 @@
 
 import { AuditRunner } from "@/components/page-audit/audit-runner"
 
-export default function SiteAuditPage() {
-  return <AuditRunner mode="site" />
+export default async function SiteAuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ url?: string; fresh?: string }>
+}) {
+  // ?url=&fresh=1 comes from "Run fresh" on a report: prefill the target and
+  // start it immediately, past the two-week reuse window.
+  const { url, fresh } = await searchParams
+  return <AuditRunner mode="site" initialUrl={url ?? ""} autoFresh={fresh === "1"} />
 }

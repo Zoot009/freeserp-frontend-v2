@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
-import { Bell, Check } from "lucide-react"
+import { ArrowDown, ArrowUp, Bell, Check } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
 import { api, getAccessToken } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -29,11 +29,31 @@ interface Notification {
   type: string
   title: string
   body: string
+  /**
+   * The structured facts behind the sentence.
+   *
+   * Already on the wire — the repo does a bare findMany, so every column comes
+   * back — it just was not declared here, so a movement could only ever be
+   * rendered as prose.
+   */
+  data?: { keyword?: string; domain?: string; position?: number | null; previousPos?: number | null; change?: number | null } | null
   readAt: string | null
   createdAt: string
 }
 
 const POLL_MS = 60_000
+
+/**
+ * How far a ranking moved, or null when the notification is not about movement.
+ *
+ * Null rather than 0 for the non-movement kinds — a daily-limit or SERP-feature
+ * alert has no direction, and a grey "0" badge beside it would imply it did and
+ * that nothing happened.
+ */
+function delta(n: { data?: { change?: number | null } | null }): number | null {
+  const change = n.data?.change
+  return typeof change === "number" && change !== 0 ? change : null
+}
 
 function relativeTime(iso: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -205,11 +225,36 @@ export function NotificationBell() {
                   !n.readAt && "bg-brand-soft",
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 text-[12.5px] font-semibold leading-snug">{n.title}</span>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(n.createdAt, t)}</span>
+                <div className="flex items-start gap-2.5">
+                  {/*
+                    The move as a figure, not a phrase.
+
+                    A list of alerts is scanned, not read: the question is "which
+                    way and how far", and a sentence makes you parse a clause to
+                    answer it. The badge answers it at a glance and in colour,
+                    and it frees the title to be nothing but the keyword.
+                  */}
+                  {delta(n) !== null && (
+                    <span
+                      className={cn(
+                        "mt-px inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
+                        delta(n)! > 0
+                          ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                          : "bg-rose-500/12 text-rose-600 dark:text-rose-400",
+                      )}
+                    >
+                      {delta(n)! > 0 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                      {Math.abs(delta(n)!)}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 truncate text-[12.5px] font-semibold leading-snug">{n.title}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(n.createdAt, t)}</span>
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-muted-foreground">{n.body}</p>
+                  </div>
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-muted-foreground">{n.body}</p>
               </button>
             ))
           )}

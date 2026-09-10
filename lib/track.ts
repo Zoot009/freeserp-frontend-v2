@@ -24,6 +24,30 @@ export function trackEvent(flag: string): void {
   window.dataLayer.push({ event: flag })
 }
 
+// Report a conversion to OpenAI's ads platform, server-to-server via our own
+// /api/openai-event route (the API key never reaches the browser). Deliberately
+// separate from trackEvent: that one drives GTM, this one drives OpenAI, and
+// only some milestones are conversions on both.
+//
+// Fire-and-forget and never rejects — every call site sits after a user action
+// that has already succeeded, so a reporting failure must not surface.
+export function trackOpenAiConversion(type: "registration_completed"): void {
+  if (typeof window === "undefined") return
+  void fetch("/api/openai-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type,
+      // Dedupe key. randomUUID needs a secure context; the fallback keeps the
+      // conversion reportable on plain-HTTP dev origins rather than dropping it.
+      id: crypto.randomUUID?.() ?? `${type}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      sourceUrl: window.location.href,
+    }),
+    // The conversion outlives the page when this fires just before a navigation.
+    keepalive: true,
+  }).catch(() => {})
+}
+
 // Fire trackEvent at most once per browser, guarded by localStorage. Use for
 // the "first time" funnel milestones.
 export function trackOnce(flag: string): void {

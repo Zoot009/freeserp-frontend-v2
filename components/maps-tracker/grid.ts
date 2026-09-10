@@ -152,3 +152,130 @@ export function rankColor(rank: number | null, status: PointStatus): RankColor {
   if (rank <= 15) return { bg: "#F97316", fg: "#FFFFFF", label: `${rank}` }
   return { bg: "#DC2626", fg: "#FFFFFF", label: `${rank}` }
 }
+
+// ── Rank bands ────────────────────────────────────────────────────────────
+// The distribution card, the map's band highlight and the report legend all
+// read from this one list, and every colour in it comes back out of
+// rankColor() rather than being retyped — so a band can never be painted a
+// different green from the pins it claims to describe.
+
+export type RankBandKey = "top3" | "r4_7" | "r8_10" | "r11_15" | "r16_20" | "none"
+
+export interface RankBand {
+  key: RankBandKey
+  label: string
+  color: string
+  /** Representative rank, only used to pull the band's colour out of rankColor. */
+  test: (rank: number | null) => boolean
+}
+
+export const RANK_BANDS: RankBand[] = [
+  { key: "top3", label: "Top 3", color: rankColor(1, "SUCCEEDED").bg, test: (r) => r != null && r <= 3 },
+  { key: "r4_7", label: "4–7", color: rankColor(5, "SUCCEEDED").bg, test: (r) => r != null && r > 3 && r <= 7 },
+  { key: "r8_10", label: "8–10", color: rankColor(9, "SUCCEEDED").bg, test: (r) => r != null && r > 7 && r <= 10 },
+  { key: "r11_15", label: "11–15", color: rankColor(13, "SUCCEEDED").bg, test: (r) => r != null && r > 10 && r <= 15 },
+  { key: "r16_20", label: "16–20", color: rankColor(18, "SUCCEEDED").bg, test: (r) => r != null && r > 15 },
+  { key: "none", label: "Not found", color: rankColor(null, "SUCCEEDED").bg, test: (r) => r == null },
+]
+
+/**
+ * Which band a point belongs to, or null if it isn't in any of them.
+ *
+ * Only SUCCEEDED points are banded. A FAILED point has no rank because the
+ * search never ran, which is a different thing from "searched, and you weren't
+ * there" — counting it as Not found would overstate how invisible a business
+ * is, using the tool's own error as evidence against the user.
+ */
+export function bandKeyFor(rank: number | null, status: PointStatus): RankBandKey | null {
+  if (status !== "SUCCEEDED") return null
+  return RANK_BANDS.find((b) => b.test(rank))?.key ?? null
+}
+
+// ── Pre-flight validation ─────────────────────────────────────────────────
+// Mirrors the two 400s in the backend's scans.service.ts, so an impossible
+// scan is refused by a disabled button with a reason rather than by a failed
+// request after the click. Both limits are env-tunable server-side
+// (MAPS_SCAN_MIN_SPACING_METERS / MAPS_SCAN_MAX_POINTS); these are the
+// defaults, and the server stays the authority either way.
+
+export const MIN_SPACING_METERS = 50
+export const MAX_SCAN_POINTS = 900
+
+/** Null when the area is scannable, otherwise the reason it isn't. */
+export function validateArea(
+  gridSize: number,
+  radius: number,
+  unit: DistanceUnit,
+  keywordCount: number,
+): string | null {
+  const spacing = deriveSpacingMeters(gridSize, toMeters(radius, unit))
+  if (spacing < MIN_SPACING_METERS) {
+    return `Points would be ${spacing}m apart, closer than the ${MIN_SPACING_METERS}m minimum. Widen the radius or use a smaller grid.`
+  }
+  const points = totalPoints(gridSize, keywordCount)
+  if (points > MAX_SCAN_POINTS) {
+    return `That's ${points} searches, above the ${MAX_SCAN_POINTS} limit. Use a smaller grid or fewer keywords.`
+  }
+  return null
+}
+
+// ── Timing ────────────────────────────────────────────────────────────────
+
+/** Points fetched in parallel — MAPS_SCAN_POINT_CONCURRENCY on the server. */
+const POINT_CONCURRENCY = 8
+
+/**
+ * Mirrors the estimate in the backend's scans.service.ts. Only used before a
+ * scan starts: once it does, the real `estimatedSeconds` comes back on the 202
+ * and is authoritative.
+ */
+export function estimateScanSeconds(points: number): number {
+  const waves = Math.ceil(Math.max(0, points) / POINT_CONCURRENCY)
+  return waves * (points <= 25 ? 8 : 12)
+}
+
+/** "about 4 minutes" / "about 30 seconds" — deliberately vague, it's an estimate. */
+export function formatDuration(seconds: number): string {
+  if (seconds < 90) return `about ${Math.max(10, Math.round(seconds / 10) * 10)} seconds`
+  const minutes = Math.round(seconds / 60)
+  return `about ${minutes} minute${minutes === 1 ? "" : "s"}`
+}
+
+// ── Point geometry ────────────────────────────────────────────────────────
+
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const
+
+/**
+ * How far a grid point sits from the centre, and in which direction.
+ *
+ * Derived from row/col and the spacing the grid was built with rather than
+ * from a haversine over the stored coordinates — that's exactly how the
+ * backend laid the grid out in the first place, so it agrees by construction
+ * and works for preview points that have no coordinates yet.
+ */
+export function pointOffsetMeters(
+  row: number,
+  col: number,
+  gridSize: number,
+  spacingMeters: number,
+): { distanceMeters: number; bearing: string } {
+  const half = (gridSize - 1) / 2
+  const east = (col - half) * spacingMeters
+  const north = (half - row) * spacingMeters
+  if (east === 0 && north === 0) return { distanceMeters: 0, bearing: "centre" }
+  const deg = (Math.atan2(east, north) * 180) / Math.PI
+  return {
+    distanceMeters: Math.round(Math.hypot(east, north)),
+    bearing: COMPASS[Math.round(((deg + 360) % 360) / 45) % 8]!,
+  }
+}
+
+/** "0.42 mi" / "680 m" — short form, for pin titles and drawer facts. */
+export function formatDistance(meters: number | null, unit: DistanceUnit): string {
+  if (meters == null) return "—"
+  if (unit === "METRIC") {
+    return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / KM_TO_METERS).toFixed(2)} km`
+  }
+  const miles = meters / MILES_TO_METERS
+  return miles < 0.1 ? `${Math.round(meters * 3.28084)} ft` : `${miles.toFixed(2)} mi`
+}

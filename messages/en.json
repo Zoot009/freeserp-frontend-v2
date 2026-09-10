@@ -944,7 +944,249 @@
     "activity": "Activity",
     "activityMovedUp": "moved up {count} → #{pos}",
     "activityDropped": "dropped {count} → #{pos}",
-    "activityRecent": "recent"
+    "activityRecent": "recent",
+    "stat": {
+      "authorityScore": "Authority Score",
+      "authorityHint": "How strong this domain is, from 0 to 100. Under 30 is weak, 30–59 middling, 60+ strong.",
+      "notMeasured": "not measured yet",
+      "strongOf100": "strong · of 100",
+      "moderateOf100": "moderate · of 100",
+      "weakOf100": "weak · of 100",
+      "backlinks": "Backlinks",
+      "backlinksHint": "How many links from other sites point at this domain.",
+      "inboundLinks": "inbound links",
+      "trackedKeywords": "Tracked Keywords",
+      "trackedHint": "How many keywords you're tracking. Each is checked on your project's schedule.",
+      "pctRank": "{pct}% of them rank",
+      "organicKeywords": "Organic Keywords",
+      "organicKeywordsHint": "Keywords where this site appears in the top 100 results.",
+      "rankingTop100": "ranking in top 100",
+      "organicTraffic": "Organic Traffic",
+      "organicTrafficHint": "How many visits your keywords are likely bringing you each month.",
+      "visitsPerMonth": "visits per month"
+    },
+    "movement": {
+      "title": "Keyword Movement",
+      "hint": "Each keyword's first check in this range compared against its latest. Improved and Declined are moves within the top 100; New entered it, Lost dropped out. A keyword checked only once can't be compared, so it isn't counted.",
+      "improved": "Improved",
+      "declined": "Declined",
+      "new": "New",
+      "lost": "Lost",
+      "noneTracked": "No keywords tracked yet. Add the terms you actually want to win — five is enough to start.",
+      "addKeywords": "Add keywords",
+      "nothingToCompare": "Nothing to compare yet — movement needs two checks of the same keyword inside this range. Your {count, plural, one {# tracked keyword has} other {# tracked keywords have}} been checked once so far.",
+      "nothingMoved": "None of the {count, plural, one {# keyword} other {# keywords}} checked twice in this range changed position."
+    },
+    "page": {
+      "title": "SEO Dashboard",
+      "createProject": "Create SEO Project",
+      "range24h": "Last 24 hours",
+      "range7d": "Last 7 days",
+      "range30d": "Last 30 days",
+      "range90d": "Last 90 days",
+      "loadFailed": "Couldn't load your projects",
+      "tryAgain": "Try again",
+      "addFirstTitle": "Add your first website",
+      "addFirstBody": "Create a project and FreeSERP starts tracking its keywords, crawling its pages and watching its AI-search visibility.",
+      "lastRefresh": "Last full refresh {when}",
+      "showAllHidden": "Show all {count, plural, one {# hidden widget} other {# hidden widgets}}",
+      "widgetPositionTracking": "Position Tracking",
+      "widgetSiteAudit": "Site Audit",
+      "widgetTraffic": "Traffic Analytics",
+      "widgetKeywordMovement": "Keyword Movement"
+    },
+    "tools": {
+      "open": "Open",
+      "setUp": "Set up",
+      "mapsTitle": "Google Maps Tracker",
+      "mapsDesc": "Track a business across a grid of points in its city and see where it falls out of the local pack.",
+      "mapsHint": "Checks your listing's position from many points across a city, not one, because local results change street by street.",
+      "mapsP1": "Rank at every point on a city grid",
+      "mapsP2": "The rivals holding the pack you want",
+      "mapsP3": "Re-checked on the schedule you set",
+      "magicTitle": "Keyword Magic Tool",
+      "magicDesc": "Turn one seed keyword into hundreds of real ideas, with volume, difficulty and intent.",
+      "magicHint": "Keyword research across the full database — filter by volume, difficulty and intent, then track the ones worth having.",
+      "magicP1": "Volume, difficulty and intent per idea",
+      "magicP2": "Filter down to what you can win",
+      "magicP3": "Send the good ones straight to tracking",
+      "aiTitle": "AI Prompt Tracker",
+      "aiDesc": "See whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter.",
+      "aiHint": "Runs your prompts against the four AI platforms on a schedule and records whether your brand was mentioned, and where.",
+      "aiP1": "Four platforms, the same prompts",
+      "aiP2": "How often you are named, and beside whom",
+      "aiP3": "Runs itself on a cadence you choose",
+      "spyTitle": "Competitor Spy",
+      "spyDesc": "See the domains sitting above you on your own keywords, and the searches they own that you do not.",
+      "spyHint": "Built from this project's own keywords, so the competitors it names are the ones actually beating you on them.",
+      "spyP1": "Who outranks you, keyword by keyword",
+      "spyP2": "Searches they hold and you are missing",
+      "spyP3": "Their authority beside yours",
+      "ytTitle": "YouTube Rank Tracker",
+      "ytDesc": "Track videos on YouTube search and see the channel, views and length of everything ranking above you.",
+      "ytHint": "A separate project list from the web one, because a channel and a domain are not the same thing to rank.",
+      "ytP1": "Positions on YouTube search itself",
+      "ytP2": "What the videos beating you look like",
+      "ytP3": "Checked automatically, like your keywords",
+      "serpTitle": "Quick SERP Checker",
+      "serpDesc": "Read a live SERP for any query and country without adding it to a project first.",
+      "serpHint": "A one-off look at a live result page — useful before you commit a keyword to tracking.",
+      "serpP1": "Any query, any country, right now",
+      "serpP2": "The full page, features included",
+      "serpP3": "No project or setup needed"
+    },
+    "position": {
+      "title": "Position Tracking",
+      "hint": "Daily rank checks for the keywords you track, in one location and language.",
+      "viewFullReport": "View full report",
+      "engineLang": "Google · English",
+      "visibility": "Visibility",
+      "visibilityHint": "Share of all your tracked search volume that your rankings actually capture, weighted by position. It's volume-weighted, so ranking #1 on a term with no volume data adds nothing to it, and a handful of wins among high-volume keywords still reads low.",
+      "avgPosition": "Avg. position",
+      "avgPositionHint": "Your average Google position across the keywords that rank.",
+      "onlyOneDay": "Only one day of ranking data",
+      "notEnoughHistory": "Not enough history yet",
+      "curveAppears": "The curve appears once a second check finds ranking keywords.",
+      "noChecksInRange": "No completed checks in this range.",
+      "bandsTitle": "Keywords by position band",
+      "bandsHint": "Where your tracked keywords currently sit in the results, and how many moved in or out over the last 7 days.",
+      "colBand": "Band",
+      "colKeywords": "Keywords",
+      "colNew": "New",
+      "colLost": "Lost",
+      "noKeywordsYet": "No keywords tracked yet. Add the terms you actually want to win — five is enough to start.",
+      "rankSummary": "{ranked} of {tracked} tracked keywords rank inside the top 100.",
+      "tabWinners": "Winners",
+      "tabLosers": "Losers",
+      "colKeyword": "Keyword",
+      "colPosition": "Position",
+      "colVolume": "Volume",
+      "colWantToRank": "Want to rank?",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
+      "openAnalysis": "Open the latest competitor analysis for this keyword",
+      "seeWhatItTakes": "See what it takes to move this keyword from {from} to #1",
+      "bandTop3": "Top 3",
+      "band4to10": "4 – 10",
+      "band11to20": "11 – 20",
+      "band21to100": "21 – 100",
+      "bandUnranked": "Unranked",
+      "deviceMobile": "mobile",
+      "deviceDesktop": "desktop",
+      "scopeMixed": "Checked against <b>{markets}</b>, mostly <b>{country}</b> on {device}. The figures above pool every market, so they aren't any single one's numbers.",
+      "scopeSingle": "Rank checks run against <b>Google {country}</b>, in English, on {device}.",
+      "setPerKeyword": "Set location & device per keyword"
+    },
+    "audit": {
+      "title": "Site Audit",
+      "hint": "A crawl of up to 100 pages, checking status codes, titles, meta, headings and internal links.",
+      "crawling": "Crawling…",
+      "updated": "Updated: {date}",
+      "gradeExcellent": "Excellent",
+      "gradeExcellentCopy": "Almost every check passed. Skim the notices when you have time.",
+      "gradeGood": "Good",
+      "gradeGoodCopy": "A solid site. Clearing the warnings is what moves it into the 90s.",
+      "gradeNeedsWork": "Needs work",
+      "gradeNeedsWorkCopy": "Start with the errors below — they cost the most points each.",
+      "gradePoor": "Poor",
+      "gradePoorCopy": "Enough is broken to hold rankings back. Fix the errors first.",
+      "siteHealth": "Site Health",
+      "siteHealthHint": "Overall score for the crawled site, 0–100. Based on how many checks passed against how many ran.",
+      "siteHealthOf100": "Site health {score} of 100",
+      "errors": "Errors",
+      "errorsHint": "High-severity problems — fix these first.",
+      "warnings": "Warnings",
+      "warningsHint": "Medium-severity issues worth addressing.",
+      "notices": "Notices",
+      "noticesHint": "Low-severity observations.",
+      "degradedHint": "No checks ran on this crawl, so nothing was counted.",
+      "scoresByArea": "Scores by area",
+      "scoresByAreaHint": "How the crawled pages scored in each part of the audit, 0–100.",
+      "checksPassed": "<n>{passed}</n> checks passed",
+      "checksPassedOf": " of {total}",
+      "crawledPages": "Crawled Pages",
+      "crawledPagesHint": "Pages reached in this crawl, split by the status their server returned. These come from our own crawler, so they are recorded even when the scored checks can't run.",
+      "statusHealthy": "Healthy",
+      "statusBroken": "Broken",
+      "statusRedirect": "Redirect",
+      "statusBlocked": "Blocked",
+      "statusAria": "{label}: {count, plural, one {# page} other {# pages}}",
+      "hidePages": "Hide pages",
+      "viewFullReport": "View full report",
+      "recrawl": "Re-crawl",
+      "queueing": "Queueing…",
+      "recrawlQueued": "Re-crawl queued — this takes a few minutes.",
+      "recrawlFailed": "Couldn't start the crawl — please try again.",
+      "cooldown": "Crawled recently — you can run another {when}",
+      "stageQueued": "Queued",
+      "stageCrawling": "Crawling pages",
+      "stageChecks": "Running checks",
+      "stageReport": "Building report",
+      "crawlBlocked": "We couldn't crawl your website — it's blocking automated access, or the site is unreachable.",
+      "catTechnical": "Technical",
+      "catOnPage": "On page",
+      "catPerformance": "Performance",
+      "catAccessibility": "Accessibility",
+      "catLinks": "Links",
+      "grade": "Grade",
+      "onePageOnly": "Only this page could be read. If your site has more, it is likely blocking automated access — the scores above cover this page alone.",
+      "noScoreTitle": "Finished without a score",
+      "noScoreMapped": "We mapped {count} pages successfully, but the scoring pass could not complete — so there is no health score this time. The page list below is complete. Re-crawl to try scoring again.",
+      "noScoreBlocked": "We only reached {count, plural, one {# page} other {# pages}}, and the checks could not run — it looks like automated access is being blocked. Allow our crawler, or re-crawl to try again."
+    },
+    "traffic": {
+      "title": "Traffic Analytics",
+      "hintOwn": "Modelled traffic for the whole domain, updated after each completed check.",
+      "hintGsc": "Measured clicks, impressions, CTR and average position from the Search Console property linked to this project.",
+      "tabOwn": "FreeSERP Data",
+      "tabGsc": "Google Data",
+      "gscConnected": "Real clicks and impressions from Google Search Console.",
+      "gscSignIn": "Sign in with Google to see real Search Console clicks and impressions here.",
+      "gscPickProperty": "Google is connected — pick the Search Console property that covers this project.",
+      "estVisits": "Est. Visits",
+      "estVisitsHint": "Estimated organic sessions in the selected range, modelled from position × search volume. Not measured traffic — switch to Google Data for that.",
+      "rankingPages": "Ranking Pages",
+      "rankingPagesHint": "Distinct URLs on this domain that rank for at least one tracked keyword.",
+      "bounceRate": "Bounce Rate",
+      "bounceRateHint": "Share of sessions that end without a second pageview. On-site behaviour, so it needs Google Analytics — neither rank data nor Search Console can provide it.",
+      "pagesPerVisit": "Pages / Visit",
+      "pagesPerVisitHint": "Average pageviews per organic session. On-site behaviour, so it needs Google Analytics — neither rank data nor Search Console can provide it.",
+      "seriesVisits": "Est. visits",
+      "seriesPages": "Ranking pages",
+      "seriesClicks": "Clicks",
+      "oneCheckOnly": "One check so far. The line appears from the second one — checks run on this project's schedule.",
+      "checksInRange": "{count} checks in this range. Each dot is one day's measurement.",
+      "noChecksTitle": "No completed checks in this range",
+      "noChecksBody": "Pick a longer range above, or start a check from the Keywords page.",
+      "notConnectedTitle": "Google Search Console isn't connected",
+      "notConnectedBody": "Connect it once and this view fills with the clicks, impressions and average position Google actually recorded for your site.",
+      "connectAction": "Connect Search Console",
+      "noPropertyTitle": "No property linked to this project",
+      "noPropertyBody": "Your Google account is connected, but this project isn't pointed at a Search Console property yet. Pick the one that covers your domain.",
+      "loadFailedTitle": "Couldn't load Search Console data",
+      "loadFailedToast": "Couldn't load Search Console data.",
+      "mismatch": "These figures are for a different site.",
+      "totalClicks": "Total clicks",
+      "totalClicksHint": "Times someone clicked through to your site from Google search results. Measured by Google, not modelled.",
+      "impressions": "Impressions",
+      "impressionsHint": "Times a link to your site appeared in search results, whether or not it was clicked.",
+      "averageCtr": "Average CTR",
+      "averageCtrHint": "Clicks divided by impressions — how often people who saw you chose you.",
+      "averagePosition": "Average position",
+      "averagePositionHint": "Mean position across every impression in the range. Lower is better, so a fall here is an improvement.",
+      "noGscDataTitle": "No Search Console data in this range",
+      "noGscDataBody": "Google reports nothing for these dates. Its data also lags about two days, so a very short range can come back empty.",
+      "tabTopPages": "Top pages",
+      "tabTopQueries": "Top queries",
+      "colPage": "Page",
+      "colQuery": "Query",
+      "colClicks": "Clicks",
+      "colImpressions": "Impressions",
+      "colPosition": "Position",
+      "prevPage": "Previous page",
+      "nextPage": "Next page",
+      "gscConnectedFrom": "Real clicks and impressions from {site}."
+    }
   },
   "dashPrimitives": {
     "notFoundTitle": "Not found in the top {depth} results — ranking deeper than our scan reaches",
@@ -1033,7 +1275,7 @@
     "admin": "Admin",
     "startLabel": "How should we start tracking keywords?",
     "autoTitle": "Find them for me",
-    "autoDesc": "We'll scan your homepage with AI and suggest keywords it should already rank for — you just pick the ones worth tracking.",
+    "autoDesc": "We'll scan your homepage with AI and start tracking the 10 strongest keywords it should rank for.",
     "manualTitle": "I'll add my own",
     "manualDesc": "Skip the analysis. Start with an empty list and type in the exact keywords you want to track — nothing spent."
   },
@@ -1220,7 +1462,12 @@
     "device": "Device",
     "appearance": "Appearance",
     "date": "Date",
-    "reconnectCta": "Reconnect Google"
+    "reconnectCta": "Reconnect Google",
+    "addToTracker": "Add to rank tracker",
+    "addSelectedToTracker": "Add {count} to rank tracker",
+    "tracked": "Tracked",
+    "alreadyTracked": "Already tracked in this project",
+    "selectAll": "Select all"
   },
   "quotaUpsell": {
     "eyebrow": "Upgrade",
@@ -1353,7 +1600,7 @@
     "toolScoreWhat": "One page scored against one keyword",
     "toolQuickWhat": "A live lookup without tracking anything",
     "toolConsoleWhat": "Real clicks beside your tracked positions",
-    "costPerKeyword": "1 / keyword",
+    "costPerKeyword": "1–2 / keyword",
     "costPerScan": "3–57 / scan",
     "costPerSearch": "3–15 / search",
     "costPerPages": "1 / 20 pages",
@@ -1361,7 +1608,8 @@
     "costPerCrawl": "2 / crawl",
     "costPerPage": "3 / page",
     "costPerLookup": "1 / lookup",
-    "costFree": "Free"
+    "costFree": "Free",
+    "costPerKeywordNote": "Scheduled and bulk checks cost 1. A small manual check jumps the queue for faster results and costs 2."
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",
@@ -1514,5 +1762,179 @@
     "loading": "Loading…",
     "cancel": "Cancel",
     "close": "Close"
+  },
+  "toolContext": {
+    "hide": "Hide",
+    "show": "What is this tool for?",
+    "aria": "About this tool",
+    "google-tracker": {
+      "lede": "Tracks where your domain ranks in search for the keywords you choose, on the engine and in the country you choose, and keeps that position as history.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "One position is trivia; the line it draws is the signal. The trend tells you whether a page is gaining ground, being overtaken, or slipping after a change you made — which a one-off search never can."
+        },
+        {
+          "head": "How to read it",
+          "body": "One project per domain, keywords underneath it. Every check stores one real position per keyword, so a card's trend is recorded history rather than an estimate. Projects with no checks yet show no trend, not a flat line."
+        }
+      ]
+    },
+    "youtube-tracker": {
+      "lede": "Tracks where a channel's or a video's results appear in YouTube search for the keywords you add.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "YouTube is the second-largest search engine, and its rankings move for reasons Google's don't — age, watch time and length matter as much as the words in the title. Views and age sit beside the position because they are what explain a move."
+        },
+        {
+          "head": "How to read it",
+          "body": "Results are personalised and shift through the day, so treat a position as a trend, not an exact rank. Depth sets how far down a check looks: a video sitting 34th is simply invisible to a Top 20 check."
+        }
+      ]
+    },
+    "maps-tracker": {
+      "lede": "Scans a grid of points around a location and reports where a business appears in Google Maps results at each one.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "Local rank is not one number — it changes street by street. A business can sit first at its own address and vanish two miles away, and a single-point check would never show it."
+        },
+        {
+          "head": "How to read it",
+          "body": "Each cell in the grid is one real search run from that coordinate. Read the shape, not the average: a strong centre with weak edges is a different problem from being weak everywhere."
+        }
+      ]
+    },
+    "ai-prompt-tracker": {
+      "lede": "Tracks whether AI assistants name your brand when someone asks them the questions your customers ask.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "An answer from an assistant increasingly replaces the click on a blue link. If a model recommends three companies in your category and none of them is you, that is the new page two — and it is invisible in every rank report you own."
+        },
+        {
+          "head": "How to read it",
+          "body": "Track prompts a real customer would type, not keywords. Each run records which brands were named and which sources were cited, so you can see who is being recommended in your place and where the model is reading it from."
+        }
+      ]
+    },
+    "keywords": {
+      "lede": "Every keyword you track, across every project, in one list.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "A project page answers “how is this site doing”. This answers “where am I strong or weak overall” — your best and worst positions, and the same keyword across several sites, without opening each project in turn."
+        },
+        {
+          "head": "How to read it",
+          "body": "Sort by position to find what is nearly there: keywords sitting between 11 and 20 are usually one improvement away from page one, which is where nearly all the clicks are."
+        }
+      ]
+    },
+    "favorites": {
+      "lede": "The projects and keywords you starred, gathered in one place.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "Tracking hundreds of keywords means the dozen that actually pay the bills get lost among them. This is the working set you check first."
+        },
+        {
+          "head": "How to read it",
+          "body": "Star anything from its row or card and it appears here. Nothing is copied or duplicated — these are the same items, just gathered."
+        }
+      ]
+    },
+    "quick-serp": {
+      "lede": "Runs one search and shows you the live result page, without adding anything to a project.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "For the question you have right now — who ranks for this, what does the page look like in that country — when you do not want the keyword followed forever."
+        },
+        {
+          "head": "How to read it",
+          "body": "Nothing here is stored against a project and no history is kept. If the answer matters next week too, track the keyword instead."
+        }
+      ]
+    },
+    "keyword-magic": {
+      "lede": "Turns one seed keyword into hundreds of real keyword ideas, with search volume, difficulty, CPC and intent.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "The keyword you would think of first is usually the hardest one in your market. The variants around it are where the winnable traffic is, and you cannot guess them — volume and difficulty have to come from data."
+        },
+        {
+          "head": "How to read it",
+          "body": "Intent decides what to build: informational terms want an article, transactional ones want a product or service page. Difficulty decides whether you can realistically take it at your current authority."
+        }
+      ]
+    },
+    "keyword-score-checker": {
+      "lede": "Crawls one of your own pages and scores it against a target keyword — on-page and off-page, with no competitors involved.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "When a page will not rank, this tells you whether the page itself is the problem before you spend a month on links or competitor research."
+        },
+        {
+          "head": "How to read it",
+          "body": "The score is a summary; the failed checks are the work. They come back in priority order, so start at the top rather than trying to clear the list."
+        }
+      ]
+    },
+    "website-audit": {
+      "lede": "Crawls outward from one URL with a real browser, runs 63 SEO rules over every page it reaches, and rolls the findings up across the site.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "Technical faults never show up in a rank report. They just quietly cap what every page on the site can achieve, no matter how good the content is — and the ones worth fixing first are usually the ones repeated across hundreds of pages, which only a crawl can show you."
+        },
+        {
+          "head": "How to read it",
+          "body": "A real browser is the point: it sees what renders, including anything injected by JavaScript, rather than the raw HTML a simple fetch would return. Start with the site rollup — it counts how many pages share each fault — then open a page to see it in place. How far the crawl goes depends on your plan."
+        }
+      ]
+    },
+    "page-audit": {
+      "lede": "Audits one URL with a real browser and runs the same 63 SEO rules over what actually loads.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "One page at a time is the right tool when you have just changed something, or when a single page matters more than the rest — a landing page, a product page, the one you are trying to rank. It costs a fraction of a full crawl and returns in seconds."
+        },
+        {
+          "head": "How to read it",
+          "body": "Issues arrive in priority order with the exact fix, so work down from the top. If the faults here look like they belong to the template rather than the page, run a full website audit to find out how many other pages share them."
+        }
+      ]
+    },
+    "competitor-analysis": {
+      "lede": "Crawls your site and the competitors you name for one keyword, then compares them side by side.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "Ranking is relative, not absolute. There is no score that makes a page rank — only being better than the specific pages currently above it for that specific search."
+        },
+        {
+          "head": "How to read it",
+          "body": "Look for the gaps that repeat across every competitor above you. One rival doing something is a choice; all of them doing it is the bar for that keyword."
+        }
+      ]
+    },
+    "ai-internal-linking": {
+      "lede": "Crawls a domain's internal links and maps how authority moves between its pages.",
+      "points": [
+        {
+          "head": "Why it matters",
+          "body": "Internal links are the only ranking factor you fully control — no outreach, no waiting. An orphan page receives none of your site's authority no matter how good it is."
+        },
+        {
+          "head": "How to read it",
+          "body": "Orphans need a link from somewhere relevant. Hubs are where you have authority to spend, so a link added there is worth more than the same link added anywhere else."
+        }
+      ]
+    }
   }
 }

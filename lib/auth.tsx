@@ -78,7 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const { user } = await api.get<{ user: User }>("/api/auth/me")
+      // The session probe answers its own 401 below — it must not trigger the
+      // client's global bounce to /login, which would throw a logged-out visitor
+      // off a public page (e.g. /signup) they deliberately opened.
+      const { user } = await api.get<{ user: User }>("/api/auth/me", { skipAuthRedirect: true })
       setUser(user)
     } catch (err) {
       // ONLY a real 401 ends the session. Clearing `user` on every error made a

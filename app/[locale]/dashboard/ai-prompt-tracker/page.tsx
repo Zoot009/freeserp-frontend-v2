@@ -14,6 +14,8 @@ import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
+import type { Platform } from "@/lib/ai-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects) ─────────────────────────────
 type ProjectSummary = {
@@ -22,6 +24,15 @@ type ProjectSummary = {
   brandName: string
   brandDomain: string | null
   promptCount: number
+  /**
+   * Average mention rate per assistant this brand is tracked on.
+   *
+   * A KEY that is absent means "not tracked on that assistant"; a key whose
+   * value is null means "tracked, nothing has completed yet". Those are
+   * different findings and the card draws them differently. Optional so a
+   * frontend deployed ahead of the backend still typechecks.
+   */
+  platformRates?: Partial<Record<Platform, number | null>>
   createdAt: string
 }
 
@@ -131,7 +142,12 @@ export default function LlmPromptsPage() {
       ) : (
         <div className="grid g-3">
           {projects.map((p) => (
-            <Link key={p.id} href={`/dashboard/ai-prompt-tracker/${p.id}`} className="card" style={{ display: "block" }}>
+            <Link
+              key={p.id}
+              href={`/dashboard/ai-prompt-tracker/${p.id}`}
+              className="card llm-brand"
+              style={{ display: "block" }}
+            >
               <div className="card-h">
                 <div>
                   <div className="t">{p.name}</div>
@@ -144,6 +160,9 @@ export default function LlmPromptsPage() {
                   {p.promptCount} prompt{p.promptCount === 1 ? "" : "s"}
                 </span>
               </div>
+              {/* How this brand scores on each assistant, so the difference
+                  between them is visible before you open anything. */}
+              <BrandEngines rates={p.platformRates ?? {}} />
             </Link>
           ))}
         </div>

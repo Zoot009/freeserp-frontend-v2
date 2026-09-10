@@ -43,6 +43,12 @@ export interface CreditActionRate {
   credits: number
   unitSize: number
   unitLabel: string | null
+  /** Flat charge added once per action, on top of the per-unit blocks. Only
+   *  maps.scan.point sets one today (the per-scan setup that doesn't scale
+   *  with grid size). Optional because older API builds omit it. */
+  baseCredits?: number
+  /** Floor the total is lifted to. Defaults to 1 server-side. */
+  minCredits?: number
 }
 
 export interface CreditRateCard {
@@ -202,9 +208,14 @@ export function quoteCredits(
     candidates.find((r) => r.variant == null) ??
     candidates[0]
   if (!rate) return null
-  if (rate.credits === 0) return 0
+  // Mirrors creditsFor() in the backend's credits/catalog.ts. The base charge
+  // is NOT zero-rated the same way a 0-credit per-unit rate is: only a rate
+  // with no per-unit AND no base component costs nothing.
+  const base = rate.baseCredits ?? 0
+  if (rate.credits === 0 && base === 0) return 0
   const size = Math.max(1, rate.unitSize)
-  return Math.max(Math.ceil(Math.max(0, units) / size) * rate.credits, 1)
+  const raw = base + Math.ceil(Math.max(0, units) / size) * rate.credits
+  return Math.max(raw, rate.minCredits ?? 1)
 }
 
 export interface CreditQuote {

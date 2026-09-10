@@ -127,6 +127,9 @@ export interface ScanHistoryKeyword {
 export interface ScanHistoryItem {
   id: string
   status: ScanStatus
+  /** Why a FAILED scan failed. The list endpoint includes the whole scan row,
+   *  so this has always been on the wire — it just wasn't declared. */
+  errorMessage: string | null
   totalPoints: number
   pointsDone: number
   gridSize: number

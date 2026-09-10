@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "./icons"
 import { normalizeDomain, projectNameFor } from "@/lib/pendingDomain"
+import { useRouter } from "@/i18n/navigation"
 
 // 402s that mean "this plan won't allow another project" — as opposed to a bad
 // domain or a duplicate, which the form can still fix in place.
@@ -63,6 +64,7 @@ export function CreateProjectModal<T>({
   const [autoKeywords, setAutoKeywords] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -107,6 +109,40 @@ export function CreateProjectModal<T>({
         const id = (created as { id?: string } | null)?.id
         if (id) declineKeywordAi(id)
       }
+      /**
+       * Hold the modal until the keywords exist, then open the tracker on them.
+       *
+       * The server tracks the shortlist itself once the analysis finishes, so
+       * the keywords arrive with or without this. What it buys is the landing:
+       * redirect the moment the project is created and the tracker is empty,
+       * because the run has not finished — and the page loads its list once, so
+       * it stays empty until a manual refresh. Waiting means the first thing
+       * seen is the ten keywords, which is the point of choosing "find them for
+       * me".
+       *
+       * "I'll add my own" skips all of it: there is nothing to wait for, and the
+       * empty tracker is exactly what was asked for.
+       */
+      /**
+       * Straight to the tracker. No waiting.
+       *
+       * This used to hold the modal on "Finding your keywords…" until the run
+       * finished. On a fresh account that is a homepage crawl plus a model call
+       * — long enough that the dialog read as frozen, and it was: there was
+       * nothing to look at and no way out of it.
+       *
+       * The server tracks the shortlist itself, so nothing is lost by leaving
+       * early. The tracker knows a run is in flight and fills itself in when it
+       * lands, which is a page that is doing something rather than a dialog
+       * that is not.
+       */
+      const id = (created as { id?: string } | null)?.id
+      if (autoKeywords && id) {
+        onCreated(created)
+        router.push(`/dashboard/project/${id}/keywords`)
+        return
+      }
+
       onCreated(created)
     } catch (err: unknown) {
       if (onPlanLimit && err instanceof ApiError && PLAN_LIMIT_CODES.has(err.code)) {
@@ -243,6 +279,9 @@ export function CreateProjectModal<T>({
               )}
             </div>
             <div className="modal-f">
+              {/* Nothing to cancel once the project exists — the run is server
+                  side and the keywords are coming either way. Closing here would
+                  only strand the user on a dashboard mid-redraw. */}
               <button type="button" className="btn" onClick={onClose}>
                 {t("cancel")}
               </button>

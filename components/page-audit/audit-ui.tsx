@@ -1039,11 +1039,39 @@ interface ImageSample {
   hasAlt: boolean
 }
 
+/**
+ * Image optimizer routes that hide the real filename in a query parameter.
+ *
+ * A Next.js site serves every image from /_next/image?url=%2Fhero.jpg&w=640,
+ * so the last path segment is the literal word "image" — for every image on
+ * the page. A list of fourteen rows all labelled "image" identifies nothing.
+ * Cloudflare, Shopify and Wordpress's Jetpack do the same trick with their own
+ * parameter names.
+ */
+const OPTIMIZER_PARAMS = ["url", "src", "image"]
+
 function shortFilename(src: string): string {
   try {
     const u = new URL(src, "http://placeholder.invalid")
+
+    // If the path itself carries no name worth showing, look for the original
+    // URL in the query string before giving up on it.
     const segs = u.pathname.split("/").filter(Boolean)
-    const last = segs[segs.length - 1] ?? src
+    let last = segs[segs.length - 1] ?? src
+
+    if (!last.includes(".") || last === "image") {
+      for (const p of OPTIMIZER_PARAMS) {
+        const inner = u.searchParams.get(p)
+        if (!inner) continue
+        const innerSegs = new URL(inner, "http://placeholder.invalid").pathname.split("/").filter(Boolean)
+        const innerLast = innerSegs[innerSegs.length - 1]
+        if (innerLast?.includes(".")) {
+          last = innerLast
+          break
+        }
+      }
+    }
+
     return last.length > 40 ? last.slice(0, 37) + "..." : last
   } catch {
     return src.length > 40 ? src.slice(0, 37) + "..." : src
@@ -1463,7 +1491,27 @@ function HotjarIcon({ className = "h-5 w-5" }: { className?: string }) {
   )
 }
 
+// Facebook brand mark — white "f" on the Facebook blue rounded square. Same
+// shape as the Hotjar mark above, so the two branded squares sit at one weight
+// beside Google's multi-colour glyph.
+function FacebookIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <rect width="24" height="24" rx="6" fill="#1877F2" />
+      <path
+        fill="#fff"
+        d="M15.4 12.8h-2.3v7.7H9.9v-7.7H8.2v-2.7h1.7V8.4C9.9 6.3 11.1 5 13.5 5h2v2.7h-1.4c-.7 0-.9.3-.9.9v1.5h2.4l-.2 2.7z"
+      />
+    </svg>
+  )
+}
+
 // Canonical display label + optional brand icon per detected tool.
+//
+// The four keys here are exactly the four AnalyticsDetectionRule can push, so
+// every detected tool now carries a mark. Facebook Pixel was the one without —
+// it rendered as a bare label in a row of branded chips, which read as a tool
+// we had not finished supporting rather than one we simply had no icon for.
 interface AnalyticsToolMeta {
   label: string
   icon?: React.ReactNode
@@ -1472,7 +1520,7 @@ interface AnalyticsToolMeta {
 const ANALYTICS_TOOL_META: Record<string, AnalyticsToolMeta> = {
   "google analytics":   { label: "Google Analytics",   icon: <GoogleIcon /> },
   "google tag manager": { label: "Google Tag Manager", icon: <GoogleIcon /> },
-  "facebook pixel":     { label: "Facebook Pixel" },
+  "facebook pixel":     { label: "Facebook Pixel",     icon: <FacebookIcon /> },
   hotjar:               { label: "Hotjar", icon: <HotjarIcon /> },
 }
 
@@ -3606,8 +3654,8 @@ function sevToPriority(sev: Issue["severity"]): 1 | 2 | 3 {
 // Module scope, so it cannot call a hook: it holds the message KEY and the
 // component that renders it resolves the label.
 const PRIORITY_META: Record<1 | 2 | 3, { labelKey: string; chip: string }> = {
-  1: { labelKey: "highPriority", chip: "bg-rose-500/10 text-rose-600" },
-  2: { labelKey: "mediumPriority", chip: "bg-amber-500/10 text-amber-600" },
+  1: { labelKey: "highPriority", chip: "bg-rose-500/10 text-rose-600" },
+  2: { labelKey: "mediumPriority", chip: "bg-amber-500/10 text-amber-600" },
   3: { labelKey: "lowPriority", chip: "bg-emerald-500/10 text-emerald-600" },
 }
 
@@ -3901,6 +3949,7 @@ function QuickLinks({ items }: { items: NavItem[] }) {
 export function AuditReportResults({
   report,
   onNewAudit,
+  onRunFresh,
   isAuthenticated = false,
   shared = false,
   hiddenSections,
@@ -3908,6 +3957,15 @@ export function AuditReportResults({
 }: {
   report: AuditReport
   onNewAudit: () => void
+  /**
+   * Re-crawl this exact URL, ignoring the cached report.
+   *
+   * Reports are reused for two weeks, so "New Audit" on the same URL returns
+   * this same report — correct almost always, and baffling on the one occasion
+   * you have just changed the site and want to see it. Absent on the shared
+   * public view, which has no credits to spend.
+   */
+  onRunFresh?: () => void
   isAuthenticated?: boolean
   /** Public shared view — hides the AI assistant and share controls. */
   shared?: boolean
@@ -4197,6 +4255,23 @@ export function AuditReportResults({
                 <RefreshCw className="h-3 w-3" />
                 {t("newAudit")}
               </Button>
+              {/* Separate from "New Audit" on purpose: that one takes you back
+                  to the form, this one re-crawls the site you are looking at.
+                  Titled rather than labelled with the cost, because the button
+                  beside it is not, and a bare price on one of two adjacent
+                  actions reads as a warning about that action specifically. */}
+              {onRunFresh && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={onRunFresh}
+                  title="Ignore the saved report and crawl this site again now"
+                >
+                  <Zap className="h-3 w-3" />
+                  Run fresh
+                </Button>
+              )}
             </div>
           </div>
 

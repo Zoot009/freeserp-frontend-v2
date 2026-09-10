@@ -70,6 +70,38 @@ interface RequestInitWithJson extends Omit<RequestInit, "body"> {
   query?: Record<string, string | number | boolean | undefined>
   skipAuth?: boolean
   skipRefresh?: boolean
+  /**
+   * Opt out of the global "session is over, go to /login" bounce on a 401.
+   * For probes whose whole job is to find out whether anyone is signed in
+   * (see AuthProvider), a 401 is an answer, not an expired session.
+   */
+  skipAuthRedirect?: boolean
+}
+
+/**
+ * Routes where being signed out is the normal state. A 401 on one of these must
+ * never bounce to /login: the visitor is already exactly where they meant to be,
+ * and redirecting strands them on the wrong form — a "Sign up free" click landing
+ * on the login page, which is how this was found.
+ *
+ * Matched on the path with any locale prefix stripped, so /es/signup counts too.
+ */
+const PUBLIC_AUTH_ROUTES = [
+  "/login",
+  "/signup",
+  "/otp-login",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/auth",
+  "/share",
+]
+
+const LOCALE_PREFIX = /^\/(?:en|es|fr|de)(?=\/|$)/
+
+function isPublicAuthPath(pathname: string): boolean {
+  const path = pathname.replace(LOCALE_PREFIX, "") || "/"
+  return PUBLIC_AUTH_ROUTES.some((r) => path === r || path.startsWith(`${r}/`))
 }
 
 function buildUrl(path: string, query?: RequestInitWithJson["query"]): string {
@@ -124,7 +156,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInitWithJson = {}): Promise<T> {
-  const { body, query, skipAuth, skipRefresh, headers, ...rest } = init
+  const { body, query, skipAuth, skipRefresh, skipAuthRedirect, headers, ...rest } = init
   const buildHeaders = (token: string | null): Record<string, string> => {
     const h: Record<string, string> = {
       "Accept": "application/json",
@@ -171,7 +203,11 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
        * once even if a dozen parallel requests all 401 together.
        */
       setAccessToken(null)
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+      if (
+        typeof window !== "undefined" &&
+        !skipAuthRedirect &&
+        !isPublicAuthPath(window.location.pathname)
+      ) {
         const from = window.location.pathname + window.location.search
         window.location.href = `/login?next=${encodeURIComponent(from)}`
       }

@@ -18,6 +18,7 @@ import { ArrowLeft, RefreshCw, XCircle } from "lucide-react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { CreditBalance } from "@/components/dashboard/credit-balance"
 import {
   AuditReportResults,
   transformReport,
@@ -32,6 +33,9 @@ export default function AuditReportPage() {
   const [report, setReport] = useState<AuditReport | null>(null)
   const [totals, setTotals] = useState({ pages: 0, issues: 0 })
   const [isSite, setIsSite] = useState(false)
+  // Kept so "Run fresh" can re-crawl the same target. The transformed report is
+  // the UI's shape, not the API's, so this is read off the raw response.
+  const [sourceUrl, setSourceUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -44,6 +48,7 @@ export default function AuditReportPage() {
       const t = data.totals as { pages?: number; issues?: number } | undefined
       setTotals({ pages: t?.pages ?? 0, issues: t?.issues ?? 0 })
       setIsSite((data.mode as string) === "SITE")
+      setSourceUrl(String(data.url ?? ""))
       setError(null)
     } catch (err) {
       setError(
@@ -104,14 +109,44 @@ export default function AuditReportPage() {
 
   return (
     <div className="px-6 pb-10 pt-5">
-      <Button asChild variant="ghost" size="sm" className="mb-3 gap-1.5 text-[13px]">
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" /> All audits
-        </Link>
-      </Button>
+      {/*
+        The balance rides on the back-link row.
+
+        This route runs in the shell's focus mode, which drops the whole chrome —
+        sidebar and header — so the report reads as a document. The credit
+        counter lives in that header, so it disappeared exactly where people care
+        about it most: this page is what a run of credits was just spent ON, and
+        re-running an audit from here spends 500 more.
+
+        Put back here rather than by re-enabling the header, because the rest of
+        the chrome is deliberately gone and the back-link row was already half
+        empty.
+      */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-[13px]">
+          <Link href={backHref}>
+            <ArrowLeft className="size-4" /> All audits
+          </Link>
+        </Button>
+        <CreditBalance />
+      </div>
       <AuditReportResults
         report={report}
         onNewAudit={() => router.push(backHref)}
+        /**
+         * Re-crawl this exact target, past the cache.
+         *
+         * Reports are reused for two weeks, so going back to the form and
+         * re-entering the same URL returns this same report. That is right
+         * almost always — and useless on the one occasion someone has just
+         * changed their site and wants to see whether it helped. forceRecrawl
+         * is the API's existing escape hatch; it simply had no button.
+         */
+        onRunFresh={
+          sourceUrl
+            ? () => router.push(`${backHref}?url=${encodeURIComponent(sourceUrl)}&fresh=1`)
+            : undefined
+        }
         isAuthenticated
         /* Site audits replace the Recommendations section with the rollup. Same
            slot — first thing after the scores — and the list it displaces is

@@ -51,6 +51,10 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   ],
   "/dashboard/youtube": [WORKSPACE, { key: "youtube" }],
   "/dashboard/ai-prompt-tracker": [WORKSPACE, { key: "aiPromptTracker" }],
+  // Its child routes (/new, /<scanId>) fall through to the prefix match below;
+  // the scan id is dropped as an id segment, so the trail ends here and this
+  // crumb is the way back to the list.
+  "/dashboard/google-maps-tracker": [WORKSPACE, { key: "mapsTracker" }],
   "/dashboard/keywords": [WORKSPACE, { key: "keywords" }],
   "/dashboard/favorites": [WORKSPACE, { key: "favorites" }],
   "/dashboard/serp-checker": [WORKSPACE, { key: "quickSerp" }],

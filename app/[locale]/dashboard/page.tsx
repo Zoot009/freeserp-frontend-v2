@@ -22,6 +22,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import { Plus } from "lucide-react"
 import { api } from "@/lib/api"
@@ -122,34 +123,51 @@ function ctr(pos: number | null): number {
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10
-const RANGE_LABEL: Record<Range, string> = { "24h": "Last 24 hours", "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" }
+/** Message KEYS, not text: a module constant cannot call the hook that resolves them. */
+const RANGE_LABEL_KEY: Record<Range, string> = { "24h": "range24h", "7d": "range7d", "30d": "range30d", "90d": "range90d" }
 // Width of each range in days — the domain the charts plot their time axis
 // against, so a sample sits at the date it was taken. 24h is a fraction, which
 // is fine: it's only ever multiplied by a day in milliseconds.
 const RANGE_DAYS: Record<Range, number> = { "24h": 1, "7d": 7, "30d": 30, "90d": 90 }
 
-/** Exclusive ranking bands, so the counts sum to the keywords tracked. */
+/** Exclusive ranking bands, so the counts sum to the keywords tracked.
+ *  `label` is a message key — only "Unranked" actually differs by language,
+ *  but keeping all five in the catalogue beats four literals and one lookup. */
 const BAND_DEFS = [
-  { label: "Top 3", lo: 1, hi: 3 },
-  { label: "4 – 10", lo: 4, hi: 10 },
-  { label: "11 – 20", lo: 11, hi: 20 },
-  { label: "21 – 100", lo: 21, hi: 100 },
+  { label: "bandTop3", lo: 1, hi: 3 },
+  { label: "band4to10", lo: 4, hi: 10 },
+  { label: "band11to20", lo: 11, hi: 20 },
+  { label: "band21to100", lo: 21, hi: 100 },
 ]
 
-// The catalogue the Hidden Widgets panel restores from — every widget id used
-// below has to appear here, or a hidden card would have no way back.
-const WIDGETS: WidgetDef[] = [
-  { id: "position-tracking", label: "Position Tracking" },
-  { id: "site-crawl", label: "Site Audit" },
-  { id: "traffic", label: "Traffic Analytics" },
-  { id: "keyword-movement", label: "Keyword Movement" },
-  { id: "tool-maps-tracker", label: "Google Maps Tracker" },
-  { id: "tool-keyword-magic", label: "Keyword Magic Tool" },
-  { id: "tool-ai-prompts", label: "AI Prompt Tracker" },
-  { id: "tool-competitor-spy", label: "Competitor Spy" },
-  { id: "tool-youtube-tracker", label: "YouTube Rank Tracker" },
-  { id: "tool-quick-serp", label: "Quick SERP Checker" },
-]
+/**
+ * The catalogue the Hidden Widgets panel restores from — every widget id used
+ * below has to appear here, or a hidden card would have no way back.
+ *
+ * Built from the messages rather than declared as a const, because the labels
+ * are what the user reads in that panel: a French account hiding "Suivi de
+ * position" should find it under that name, not under "Position Tracking".
+ * The IDS are stable and never translated — they key localStorage.
+ */
+function useWidgetDefs(): WidgetDef[] {
+  const t = useTranslations("dashOverview.page")
+  const tt = useTranslations("dashOverview.tools")
+  return useMemo(
+    () => [
+      { id: "position-tracking", label: t("widgetPositionTracking") },
+      { id: "site-crawl", label: t("widgetSiteAudit") },
+      { id: "traffic", label: t("widgetTraffic") },
+      { id: "keyword-movement", label: t("widgetKeywordMovement") },
+      { id: "tool-maps-tracker", label: tt("mapsTitle") },
+      { id: "tool-keyword-magic", label: tt("magicTitle") },
+      { id: "tool-ai-prompts", label: tt("aiTitle") },
+      { id: "tool-competitor-spy", label: tt("spyTitle") },
+      { id: "tool-youtube-tracker", label: tt("ytTitle") },
+      { id: "tool-quick-serp", label: tt("serpTitle") },
+    ],
+    [t, tt],
+  )
+}
 
 /**
  * The bottom of the dashboard: the Hidden Widgets panel, then the last-refresh
@@ -161,6 +179,7 @@ const WIDGETS: WidgetDef[] = [
  * so it shouldn't need finding.
  */
 function DashboardFooter({ refreshed }: { refreshed: string | null }) {
+  const t = useTranslations("dashOverview.page")
   const { hidden, ready, showAll } = useWidgets()
   const count = ready ? hidden.length : 0
 
@@ -169,7 +188,7 @@ function DashboardFooter({ refreshed }: { refreshed: string | null }) {
       <HiddenWidgets />
       {(refreshed || count > 0) && (
         <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-          {refreshed && <span>Last full refresh {refreshed}</span>}
+          {refreshed && <span>{t("lastRefresh", { when: refreshed })}</span>}
           {count > 0 && (
             <>
               {refreshed && <span aria-hidden>·</span>}
@@ -181,7 +200,7 @@ function DashboardFooter({ refreshed }: { refreshed: string | null }) {
                 onClick={showAll}
                 className="font-semibold text-primary transition-opacity hover:opacity-80"
               >
-                Show all {count} hidden widget{count === 1 ? "" : "s"}
+                {t("showAllHidden", { count })}
               </button>
             </>
           )}
@@ -194,6 +213,9 @@ function DashboardFooter({ refreshed }: { refreshed: string | null }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SeoDashboardPage() {
+  const t = useTranslations("dashOverview.page")
+  const tTool = useTranslations("dashOverview.tools")
+  const widgetDefs = useWidgetDefs()
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
@@ -207,6 +229,9 @@ export default function SeoDashboardPage() {
   // null until the request settles — the setup card distinguishes "not
   // connected" from "we don't know yet" and shouldn't claim either early.
   const [gscConnected, setGscConnected] = useState<boolean | null>(null)
+  // Bumped to re-run both GSC reads after the Traffic card connects an account.
+  const [gscKey, setGscKey] = useState(0)
+  const refreshGsc = useCallback(() => setGscKey((k) => k + 1), [])
   // The Search Console GRANT is account-wide, but the property is linked per
   // project — so "connected" alone said nothing about whether THIS project has
   // data behind it, and every project claimed to be set up off one connection.
@@ -259,7 +284,7 @@ export default function SeoDashboardPage() {
       .then((r) => { if (!cancelled) setGscConnected(!!r?.connected) })
       .catch(() => undefined)
     return () => { cancelled = true }
-  }, [])
+  }, [gscKey])
 
   // Which Search Console property this project is pointed at, if any. Scoped to
   // the project, so switching projects re-asks rather than carrying the last
@@ -272,7 +297,7 @@ export default function SeoDashboardPage() {
       .then((r) => { if (!cancelled && r) setGscSite(r) })
       .catch(() => undefined)
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, gscKey])
 
   useEffect(() => {
     if (projectId === null && projects.length > 0) setProjectId(projects[0]!.id)
@@ -374,7 +399,7 @@ export default function SeoDashboardPage() {
     // everything the other four rows didn't claim — so its movement cells stay
     // blank rather than printing a zero that means something different.
     const unranked = kws.length - ranked.length
-    bands.push({ label: "Unranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
+    bands.push({ label: "bandUnranked", count: unranked, added: null, lost: null, share: share(unranked), highlight: unranked > 0 })
 
     const kwVis = (k: Keyword) => (totalVol > 0 ? round1((ctr(k.position) * (k.searchVolume ?? 0) / totalVol) * 100) : 0)
     const toTop = (k: Keyword): TopKeyword => ({
@@ -476,7 +501,7 @@ export default function SeoDashboardPage() {
     : null
 
   return (
-    <WidgetProvider defs={WIDGETS}>
+    <WidgetProvider defs={widgetDefs}>
       <div className="flex flex-col gap-4 px-6 pb-10 pt-5">
         {/* ── Header ──
             No breadcrumb here: the shell's top bar already carries one, and two
@@ -485,7 +510,7 @@ export default function SeoDashboardPage() {
             neither — it only names the page. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-bold leading-tight tracking-[-0.02em]">
-            <span className="shrink-0">SEO Dashboard{domain ? ":" : ""}</span>
+            <span className="shrink-0">{t("title")}{domain ? ":" : ""}</span>
             <ProjectSwitcher
               value={projectId}
               onSelect={setProjectId}
@@ -515,7 +540,7 @@ export default function SeoDashboardPage() {
               className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
               onClick={startCreate}
             >
-              <Plus className="size-4" /> Create SEO Project
+              <Plus className="size-4" /> {t("createProject")}
             </Button>
           </div>
         </div>
@@ -523,17 +548,17 @@ export default function SeoDashboardPage() {
         {projectsError && loadedProjects && projects.length === 0 ? (
           <div className="grid place-items-center rounded-lg border border-destructive/30 bg-destructive/5 py-16 text-center">
             <div className="max-w-md px-4">
-              <h2 className="text-base font-bold">Couldn&apos;t load your projects</h2>
+              <h2 className="text-base font-bold">{t("loadFailed")}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">{projectsError}</p>
-              <Button size="sm" variant="outline" className="mt-4" onClick={() => window.location.reload()}>Try again</Button>
+              <Button size="sm" variant="outline" className="mt-4" onClick={() => window.location.reload()}>{t("tryAgain")}</Button>
             </div>
           </div>
         ) : noProjects ? (
           <div className="grid place-items-center rounded-lg border border-dashed py-20 text-center">
             <div className="max-w-sm">
-              <h2 className="text-base font-bold">Add your first website</h2>
-              <p className="mt-1.5 text-sm text-muted-foreground">Create a project and FreeSERP starts tracking its keywords, crawling its pages and watching its AI-search visibility.</p>
-              <Button size="sm" className="mt-4" onClick={startCreate}>Create SEO Project</Button>
+              <h2 className="text-base font-bold">{t("addFirstTitle")}</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">{t("addFirstBody")}</p>
+              <Button size="sm" className="mt-4" onClick={startCreate}>{t("createProject")}</Button>
             </div>
           </div>
         ) : !projectId ? (
@@ -562,6 +587,109 @@ export default function SeoDashboardPage() {
               organicKeywords={m.ranked}
               estTraffic={m.estTraffic}
             />
+
+            {/* ── The tools worth interrupting for ──
+
+                These lived at the foot of the wide column, below Position
+                Tracking's keyword table, which on a project with a full table
+                put them most of a scroll down the page — far enough that the
+                dashboard's own tools were the last thing anyone reached.
+
+                Full width, directly under the headline figures. The numbers
+                still land first, which is the rule; going full width also makes
+                each card wider, so the same six occupy LESS vertical space here
+                than they did stacked in a 65% column.
+
+                The Google rank tracker is deliberately not among them. It is
+                the tool whose numbers fill this entire page — the table below
+                is its output — so a card offering to introduce it talks past
+                the reader. The Maps tracker goes here instead: same idea, on a
+                surface this project genuinely has not been pointed at yet.
+
+                Each is its own widget with its own ✕, so someone who never
+                wants the AI prompt nudge can drop just that one and keep the
+                rest. "Your tools" at the foot of the page is the full list;
+                these six are the ones worth interrupting for. */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ToolCard
+                id="tool-maps-tracker"
+                title={tTool("mapsTitle")}
+                description={tTool("mapsDesc")}
+                href="/dashboard/google-maps-tracker"
+                hint={tTool("mapsHint")}
+                points={[
+                  tTool("mapsP1"),
+                  tTool("mapsP2"),
+                  tTool("mapsP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-keyword-magic"
+                title={tTool("magicTitle")}
+                description={tTool("magicDesc")}
+                href="/dashboard/keyword-magic"
+                hint={tTool("magicHint")}
+                points={[
+                  tTool("magicP1"),
+                  tTool("magicP2"),
+                  tTool("magicP3"),
+                ]}
+                // Nothing to set up: it answers a query the moment you type
+                // one, so "Set up" would be a promise of work that is not
+                // there.
+                cta={tTool("open")}
+              />
+              <ToolCard
+                id="tool-ai-prompts"
+                title={tTool("aiTitle")}
+                description={tTool("aiDesc")}
+                href="/dashboard/ai-prompt-tracker"
+                hint={tTool("aiHint")}
+                points={[
+                  tTool("aiP1"),
+                  tTool("aiP2"),
+                  tTool("aiP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-competitor-spy"
+                title={tTool("spyTitle")}
+                description={tTool("spyDesc")}
+                href={`/dashboard/project/${projectId}/competitor-spy`}
+                hint={tTool("spyHint")}
+                points={[
+                  tTool("spyP1"),
+                  tTool("spyP2"),
+                  tTool("spyP3"),
+                ]}
+                cta={tTool("open")}
+              />
+              <ToolCard
+                id="tool-youtube-tracker"
+                title={tTool("ytTitle")}
+                description={tTool("ytDesc")}
+                href="/dashboard/youtube"
+                hint={tTool("ytHint")}
+                points={[
+                  tTool("ytP1"),
+                  tTool("ytP2"),
+                  tTool("ytP3"),
+                ]}
+              />
+              <ToolCard
+                id="tool-quick-serp"
+                title={tTool("serpTitle")}
+                description={tTool("serpDesc")}
+                href="/dashboard/serp-checker"
+                hint={tTool("serpHint")}
+                points={[
+                  tTool("serpP1"),
+                  tTool("serpP2"),
+                  tTool("serpP3"),
+                ]}
+                cta={tTool("open")}
+              />
+            </div>
 
             {/*
               ── The four main cards, in two independently-flowing columns ──
@@ -592,7 +720,7 @@ export default function SeoDashboardPage() {
                   bands={m.bands}
                   tracked={m.tracked}
                   ranked={m.ranked}
-                  rangeLabel={RANGE_LABEL[range]}
+                  rangeLabel={t(RANGE_LABEL_KEY[range])}
                   rangeDays={RANGE_DAYS[range]}
                   // `history` (traffic) carries EVERY check day; overview.history
                   // only the days something ranked. The gap between the two is
@@ -601,111 +729,6 @@ export default function SeoDashboardPage() {
                   scope={m.scope}
                   keywords={m.topKeywords}
                 />
-
-                {/* Tool prompts, filling the hole this column leaves.
-                    Position Tracking is the only card in the wide column and
-                    the narrow one stacks two, so the left side ran out of
-                    content while the right side was still going — several
-                    hundred pixels of blank page in the middle of the
-                    dashboard.
-
-                    Six, not three, and each one says what it gives you rather
-                    than only what it is: three short cards left most of that
-                    hole exactly as it was, sitting in a pool of their own
-                    whitespace. Two rows of substantial card fill the column
-                    and read as part of the dashboard.
-
-                    The Google rank tracker is deliberately NOT among them. It
-                    is the tool whose numbers fill this entire page — the table
-                    directly above these cards is its output — so a card
-                    offering to introduce it is talking past the reader. The
-                    Maps tracker is the one that goes here: same idea, a
-                    surface this project genuinely has not been pointed at yet.
-
-                    Each is its own widget with its own ✕, so someone who never
-                    wants the AI prompt nudge can drop just that one and keep
-                    the rest. "Your tools" at the foot of the page is the full
-                    list; these six are the ones worth interrupting for. */}
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <ToolCard
-                    id="tool-maps-tracker"
-                    title="Google Maps Tracker"
-                    description="Track a business across a grid of points in its city and see where it falls out of the local pack."
-                    href="/dashboard/google-maps-tracker"
-                    hint="Checks your listing's position from many points across a city, not one, because local results change street by street."
-                    points={[
-                      "Rank at every point on a city grid",
-                      "The rivals holding the pack you want",
-                      "Re-checked on the schedule you set",
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-keyword-magic"
-                    title="Keyword Magic Tool"
-                    description="Turn one seed keyword into hundreds of real ideas, with volume, difficulty and intent."
-                    href="/dashboard/keyword-magic"
-                    hint="Keyword research across the full database — filter by volume, difficulty and intent, then track the ones worth having."
-                    points={[
-                      "Volume, difficulty and intent per idea",
-                      "Filter down to what you can win",
-                      "Send the good ones straight to tracking",
-                    ]}
-                    // Nothing to set up: it answers a query the moment you type
-                    // one, so "Set up" would be a promise of work that is not
-                    // there.
-                    cta="Open"
-                  />
-                  <ToolCard
-                    id="tool-ai-prompts"
-                    title="AI Prompt Tracker"
-                    description="See whether ChatGPT, Claude, Gemini and Perplexity name your brand on the prompts that matter."
-                    href="/dashboard/ai-prompt-tracker"
-                    hint="Runs your prompts against the four AI platforms on a schedule and records whether your brand was mentioned, and where."
-                    points={[
-                      "Four platforms, the same prompts",
-                      "How often you are named, and beside whom",
-                      "Runs itself on a cadence you choose",
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-competitor-spy"
-                    title="Competitor Spy"
-                    description="See the domains sitting above you on your own keywords, and the searches they own that you do not."
-                    href={`/dashboard/project/${projectId}/competitor-spy`}
-                    hint="Built from this project's own keywords, so the competitors it names are the ones actually beating you on them."
-                    points={[
-                      "Who outranks you, keyword by keyword",
-                      "Searches they hold and you are missing",
-                      "Their authority beside yours",
-                    ]}
-                    cta="Open"
-                  />
-                  <ToolCard
-                    id="tool-youtube-tracker"
-                    title="YouTube Rank Tracker"
-                    description="Track videos on YouTube search and see the channel, views and length of everything ranking above you."
-                    href="/dashboard/youtube"
-                    hint="A separate project list from the web one, because a channel and a domain are not the same thing to rank."
-                    points={[
-                      "Positions on YouTube search itself",
-                      "What the videos beating you look like",
-                      "Checked automatically, like your keywords",
-                    ]}
-                  />
-                  <ToolCard
-                    id="tool-quick-serp"
-                    title="Quick SERP Checker"
-                    description="Read a live SERP for any query and country without adding it to a project first."
-                    href="/dashboard/serp-checker"
-                    hint="A one-off look at a live result page — useful before you commit a keyword to tracking."
-                    points={[
-                      "Any query, any country, right now",
-                      "The full page, features included",
-                      "No project or setup needed",
-                    ]}
-                    cta="Open"
-                  />
-                </div>
               </div>
 
               {/* Narrow column. Both cards render their own <Widget>, so hiding
@@ -720,7 +743,7 @@ export default function SeoDashboardPage() {
                   // basis to compare" rather than "nothing moved".
                   movements={movement ?? { improved: 0, declined: 0, added: 0, lost: 0, comparable: 0 }}
                   tracked={m.tracked}
-                  rangeLabel={RANGE_LABEL[range]}
+                  rangeLabel={t(RANGE_LABEL_KEY[range])}
                 />
               </div>
             </div>
@@ -738,9 +761,13 @@ export default function SeoDashboardPage() {
               estTraffic={m.estTraffic}
               pages={pagesNow}
               domain={domain}
-              rangeLabel={RANGE_LABEL[range]}
+              rangeLabel={t(RANGE_LABEL_KEY[range])}
               rangeDays={RANGE_DAYS[range]}
               gsc={gscState}
+              /* The card can connect Google itself now, so it has to be able to
+                 tell the page the answer changed — otherwise it keeps rendering
+                 the invitation the user just accepted. */
+              onGscChanged={refreshGsc}
             />
 
             <DashboardFooter refreshed={refreshed} />

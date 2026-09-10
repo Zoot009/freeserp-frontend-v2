@@ -17,6 +17,7 @@
 // Stat and scoreBand now live in components/dashboard/stat-card, so the project
 // page presents a figure identically instead of carrying its own copy that
 // drifts the moment either is touched.
+import { useTranslations } from "next-intl"
 import { StatCard as Stat, scoreBand } from "@/components/dashboard/stat-card"
 import { StatStripSkeleton } from "@/components/dashboard/shell-skeleton"
 
@@ -32,6 +33,7 @@ export type StatStripProps = {
 }
 
 export function StatStrip(p: StatStripProps) {
+  const t = useTranslations("dashOverview.stat")
   const band = scoreBand(p.da)
   const rankedPct = p.tracked ? Math.round((p.organicKeywords / p.tracked) * 100) : 0
   /** Greyed when there is nothing to report, so real numbers stand out. */
@@ -43,49 +45,49 @@ export function StatStrip(p: StatStripProps) {
   return (
     <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 xl:grid-cols-5">
       <Stat
-        label="Authority Score"
-        hint="How strong this domain is, from 0 to 100. Under 30 is weak, 30–59 middling, 60+ strong."
+        label={t("authorityScore")}
+        hint={t("authorityHint")}
         value={p.da ?? "—"}
         tone={band.text}
-        caption={p.da == null ? "not measured yet" : p.da >= 60 ? "strong · of 100" : p.da >= 30 ? "moderate · of 100" : "weak · of 100"}
+        caption={p.da == null ? t("notMeasured") : p.da >= 60 ? t("strongOf100") : p.da >= 30 ? t("moderateOf100") : t("weakOf100")}
         fill={p.da}
         fillClass={band.bar}
       />
 
       <Stat
-        label="Backlinks"
-        hint="How many links from other sites point at this domain."
+        label={t("backlinks")}
+        hint={t("backlinksHint")}
         value={p.backlinks != null ? nf(p.backlinks) : "—"}
         tone={dim(p.backlinks)}
-        caption="inbound links"
+        caption={t("inboundLinks")}
         // No ceiling to be a proportion of, so the track stays empty.
         fill={null}
       />
 
       <Stat
-        label="Tracked Keywords"
-        hint="How many keywords you're tracking. Each is checked on your project's schedule."
+        label={t("trackedKeywords")}
+        hint={t("trackedHint")}
         value={nf(p.tracked)}
         tone={dim(p.tracked)}
-        caption={`${rankedPct}% of them rank`}
+        caption={t("pctRank", { pct: rankedPct })}
         fill={rankedPct}
       />
 
       <Stat
-        label="Organic Keywords"
-        hint="Keywords where this site appears in the top 100 results."
+        label={t("organicKeywords")}
+        hint={t("organicKeywordsHint")}
         value={nf(p.organicKeywords)}
         tone={dim(p.organicKeywords)}
-        caption="ranking in top 100"
+        caption={t("rankingTop100")}
         fill={null}
       />
 
       <Stat
-        label="Organic Traffic"
-        hint="How many visits your keywords are likely bringing you each month."
+        label={t("organicTraffic")}
+        hint={t("organicTrafficHint")}
         value={nf(p.estTraffic)}
         tone={dim(p.estTraffic)}
-        caption="visits per month"
+        caption={t("visitsPerMonth")}
         fill={null}
       />
     </div>

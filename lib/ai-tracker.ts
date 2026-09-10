@@ -128,7 +128,20 @@ export type RunState =
   | { kind: "completed"; at: string; succeeded: number; of: number; failed: number }
   | { kind: "failed"; at: string; reason: string | null }
 
-export function deriveRunState(run: RunSummary | undefined | null): RunState {
+/**
+ * The fields deriveRunState actually reads.
+ *
+ * Typed as a subset rather than RunSummary so the platform routes — which omit
+ * `platform`, the whole response already being scoped to one — can be passed
+ * straight in without a cast.
+ */
+export type DerivableRun = Pick<
+  RunSummary,
+  "status" | "samplesCompleted" | "samplesRequested" | "runAt"
+> &
+  Partial<Pick<RunSummary, "samplesSucceeded" | "errorMessage">>
+
+export function deriveRunState(run: DerivableRun | undefined | null): RunState {
   if (!run) return { kind: "none" }
   switch (run.status) {
     case "PENDING":
@@ -239,4 +252,114 @@ export function relTime(iso: string, now = Date.now()): string {
 
 export function clockTime(d: Date): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+}
+
+// ───── Platform views ───────────────────────────────────────────────────────
+// The shapes GET /api/llm-tracker/platforms[/:platform] returns. Vocabulary
+// rather than editorial copy, so they live here rather than in ai-engines.ts —
+// the engine page and every panel component reads them.
+
+export type ProjectRef = {
+  id: string
+  name: string
+  brandName: string
+  brandDomain: string | null
+}
+
+/**
+ * A run as the PLATFORM routes return it.
+ *
+ * Not RunSummary: that carries `platform`, which these routes deliberately omit
+ * because the whole response is already scoped to one. Typing it as RunSummary
+ * would promise a field that is never sent.
+ */
+export type PlatformRun = Omit<RunSummary, "platform">
+
+export type PlatformPrompt = {
+  id: string
+  projectId: string
+  prompt: string
+  samplesPerRun: number
+  /**
+   * Newest first. `runs[0]` is the current state; the rest are history for the
+   * sparkline. Older backends send exactly one — hence every reader must treat
+   * anything past [0] as optional rather than assuming a window.
+   */
+  runs: PlatformRun[]
+}
+
+export type PlatformSummary = {
+  tracked: number
+  measured: number
+  mentioned: number
+  avgMentionRate: number
+  cited: number
+}
+
+export type PlatformView = {
+  platform: Platform
+  label: string
+  /** Brands that have at least one prompt on this assistant — what the boards
+   *  render and what "brands tracked here" counts. */
+  projects: ProjectRef[]
+  /**
+   * EVERY brand the account has, whether or not it tracks this assistant.
+   *
+   * A different question from `projects`: "which brand should these new prompts
+   * belong to?" has to offer the brands that do NOT track this assistant yet,
+   * since they are the reason someone is adding here at all. Optional so a
+   * frontend deployed ahead of the backend still typechecks — it falls back to
+   * `projects`, which is the pre-existing behaviour.
+   */
+  availableProjects?: ProjectRef[]
+  prompts: PlatformPrompt[]
+  /** Null until at least one run has completed — not zero. */
+  summary: PlatformSummary | null
+}
+
+/** Per-platform aggregates from the index route. Optional: added after launch. */
+export type PlatformStats = {
+  tracked: number
+  measured: number
+  mentioned: number
+  avgMentionRate: number | null
+  cited: number
+}
+
+export type PlatformIndex = {
+  platforms: { id: Platform; label: string; supportsGeo: boolean; stats?: PlatformStats }[]
+  /** Every prompt the account tracks on any assistant — the coverage denominator. */
+  totalPrompts?: number
+}
+
+/** GET /api/llm-tracker/platforms/:platform/answers-detail */
+export type AnswersDetail = {
+  platform: Platform
+  answers: number
+  sources: { domain: string; title: string; url: string; count: number; promptCount: number; own: boolean }[]
+  competitors: { name: string; samples: number; share: number }[]
+  /** Null on the assistants that have no such field, so the UI omits the panel. */
+  fanOut: { q: string; count: number }[] | null
+  /**
+   * promptId → how many DISTINCT domains its newest run cited.
+   *
+   * Served alongside the leaderboard because the leaderboard's fold is by
+   * domain and destroys the per-prompt breakdown the board's Sources column
+   * needs. Optional so a frontend deployed ahead of the backend still
+   * typechecks — the column renders a dash rather than a wrong number.
+   */
+  promptSources?: Record<string, number>
+}
+
+/**
+ * Mention rate over time, oldest first, for a sparkline.
+ *
+ * Only COMPLETED runs contribute: a pending run's null rate is "we have not
+ * looked yet", and dropping it to zero would draw a cliff that never happened.
+ */
+export function rateHistory(runs: readonly PlatformRun[]): number[] {
+  return runs
+    .filter((r) => r.status === "COMPLETED" && r.mentionRate != null)
+    .map((r) => r.mentionRate as number)
+    .reverse()
 }
