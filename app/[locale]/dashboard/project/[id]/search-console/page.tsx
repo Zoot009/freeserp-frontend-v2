@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Icon } from "@/components/dashboard/icons"
 import { cn } from "@/lib/utils"
@@ -444,12 +445,11 @@ export default function SearchConsolePage() {
     return sites.find((s) => propertyCoversDomain(s.siteUrl, projectDomain))?.siteUrl ?? null
   }, [sites, projectDomain])
 
+  // First paint, before we know whether this account is even connected. A
+  // centred "Loading…" on an otherwise blank page told the reader nothing about
+  // what was coming and then shoved the whole layout into place at once.
   if (authLoading || loading) {
-    return (
-      <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
-        {t("loading")}
-      </div>
-    )
+    return <PageSkeleton />
   }
 
   return (
@@ -637,7 +637,16 @@ export default function SearchConsolePage() {
           </div>
           {/* KPI tiles with period-over-period deltas. Same grid and spacing
               as the project page's stat strip — this row used to be four tall
-              tiles on a page whose siblings all show the compact strip. */}
+              tiles on a page whose siblings all show the compact strip.
+
+              Placeholders only when there is nothing yet. On a refetch `perf`
+              still holds the last answer, so the figures stay put and the card
+              dims: the old numbers are true right up until the new ones land,
+              and replacing them with grey bars on every range click would throw
+              away a reading the user may still be looking at. */}
+          {!perf && perfLoading ? (
+            <KpiSkeleton />
+          ) : (
           <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
             <Kpi
               label={t("clicks")}
@@ -677,6 +686,7 @@ export default function SearchConsolePage() {
               lowerIsBetter
             />
           </div>
+          )}
 
           {/* Trend chart */}
           <div
@@ -820,10 +830,10 @@ export default function SearchConsolePage() {
                   </div>
                 )}
               </>
+            ) : perfLoading ? (
+              <ChartSkeleton />
             ) : (
-              <div className="py-10 text-center text-[13px] text-muted-foreground">
-                {perfLoading ? t("loading") : t("noData")}
-              </div>
+              <div className="py-10 text-center text-[13px] text-muted-foreground">{t("noData")}</div>
             )}
           </div>
 
@@ -869,9 +879,13 @@ export default function SearchConsolePage() {
 
             <div style={{ marginTop: 12 }}>
               {!perf ? (
-                <div className="muted" style={{ fontSize: 13, padding: "20px 0", textAlign: "center" }}>
-                  {perfLoading ? t("loading") : t("noData")}
-                </div>
+                perfLoading ? (
+                  <RowsSkeleton rows={8} />
+                ) : (
+                  <div className="muted" style={{ fontSize: 13, padding: "20px 0", textAlign: "center" }}>
+                    {t("noData")}
+                  </div>
+                )
               ) : (
                 <DimTable tab={tab} perf={perf} t={t} onDrill={openDrill} select={querySelect} />
               )}
@@ -890,7 +904,7 @@ export default function SearchConsolePage() {
                   </button>
                 </div>
                 {drillLoading ? (
-                  <div className="muted" style={{ fontSize: 13, padding: "16px 0", textAlign: "center" }}>{t("loading")}</div>
+                  <RowsSkeleton rows={4} />
                 ) : drill.rows.length === 0 ? (
                   <div className="muted" style={{ fontSize: 13, padding: "16px 0", textAlign: "center" }}>{t("noData")}</div>
                 ) : (
@@ -929,6 +943,109 @@ export default function SearchConsolePage() {
 }
 
 // ── KPI tile with period-over-period delta ──────────────────────────────────
+// ── Loading placeholders ────────────────────────────────────────────────────
+//
+// These mirror the real layout rather than being generic grey bars, so nothing
+// moves when the data lands — the whole point of a skeleton over a spinner is
+// that the page is already the right shape before it has anything to say.
+//
+// They are for a FIRST load only, when there is nothing on screen yet. A
+// refetch — changing the range, paging the chart — keeps the previous render
+// and dims it instead. Swapping real data out for placeholders on every filter
+// click makes the page flash and loses the reader's place, and the old numbers
+// are still true right up until the new ones arrive.
+
+/** The four headline figures, at the exact height StatCard renders. */
+function KpiSkeleton() {
+  return (
+    <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="min-w-0 rounded-xl border bg-card px-4.5 py-4 shadow-sm">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="mt-3 h-8 w-20" />
+          <Skeleton className="mt-2.5 h-3 w-14" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The plot area: axis ticks down the left, a soft body, dates along the bottom.
+ *
+ * Deliberately not a single flat block. A bare rectangle the size of a chart
+ * reads as a broken image; a shape with axes reads as a chart that has not
+ * arrived, which is what it is.
+ */
+function ChartSkeleton() {
+  return (
+    <div className="flex h-[380px] gap-3 px-1 pb-1 pt-2">
+      <div className="flex w-10 flex-col justify-between py-1">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-2.5 w-7" />
+        ))}
+      </div>
+      <div className="flex flex-1 flex-col">
+        <Skeleton className="flex-1 rounded-lg" />
+        <div className="mt-3 flex justify-between">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-2.5 w-10" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Table rows. `rows` is set by the caller so the gap matches what it replaces. */
+function RowsSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="space-y-2.5 py-2">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          {/* Staggered widths: equal-length bars read as a table of one repeated
+              value rather than as a list of different things. */}
+          <Skeleton className="h-3.5 flex-1" style={{ maxWidth: `${72 - (i % 3) * 12}%` }} />
+          <Skeleton className="h-3.5 w-12 shrink-0" />
+          <Skeleton className="h-3.5 w-12 shrink-0" />
+          <Skeleton className="h-3.5 w-12 shrink-0" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The whole page, for the first paint before we know anything at all. */
+function PageSkeleton() {
+  return (
+    <div className="page">
+      <div className="page-h">
+        <div style={{ minWidth: 0 }}>
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="mt-3 h-7 w-52" />
+          <Skeleton className="mt-2.5 h-3.5 w-80" />
+        </div>
+      </div>
+      <div className="mb-3.5 mt-4 flex items-center justify-between">
+        <Skeleton className="h-3.5 w-32" />
+        <Skeleton className="h-8 w-64 rounded-lg" />
+      </div>
+      <KpiSkeleton />
+      <div className="mb-3.5 rounded-xl border bg-card p-4.5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <ChartSkeleton />
+      </div>
+      <div className="rounded-xl border bg-card p-4.5 shadow-sm">
+        <Skeleton className="h-8 w-72 rounded-lg" />
+        <RowsSkeleton rows={6} />
+      </div>
+    </div>
+  )
+}
+
 /**
  * One Search Console headline figure.
  *
