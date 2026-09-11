@@ -167,17 +167,16 @@ function Stat({
 }) {
   const body = (
     <>
-      <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+      <div className={cn("flex items-center gap-1.5 text-[13px] font-medium", selected ? "text-white/90" : "text-muted-foreground")}>
         {onToggle && (
           // Decorative: the whole tile is the control, so a real input here
           // would be a second focus stop for one action.
           <span
             aria-hidden
             className={cn(
-              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none text-white transition-colors",
-              !selected && "border-muted-foreground/40",
+              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none transition-colors",
+              selected ? "border-white/70 bg-white/20 text-white" : "border-muted-foreground/40",
             )}
-            style={selected ? { background: color, borderColor: color } : undefined}
           >
             {selected ? "✓" : ""}
           </span>
@@ -186,10 +185,10 @@ function Stat({
         <InfoHint>{hint}</InfoHint>
       </div>
       <div
-        className={cn("mt-0.5 text-[24px] font-bold leading-[1.3] tabular-nums", dim ? "text-muted-foreground/50" : "text-foreground")}
-        // The figure wears its series colour only while plotted, tying tile to
-        // line without a legend to look up.
-        style={selected && !dim ? { color } : undefined}
+        className={cn(
+          "mt-0.5 text-[24px] font-bold leading-[1.3] tabular-nums",
+          selected ? "text-white" : dim ? "text-muted-foreground/50" : "text-foreground",
+        )}
       >
         {value}
       </div>
@@ -197,7 +196,11 @@ function Stat({
         <span
           className={cn(
             "mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
-            delta.good ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400",
+            selected
+              ? "bg-white/20 text-white"
+              : delta.good
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-red-500/10 text-red-600 dark:text-red-400",
           )}
         >
           {delta.text}
@@ -208,15 +211,26 @@ function Stat({
 
   if (!onToggle) return <div className={cn("min-w-0", className)}>{body}</div>
 
+  // Filled with its own series colour while selected, matching the Search
+  // Console page. The tile IS the legend — the card you filled purple is the
+  // purple line — so nothing has to be looked up in a key under the plot.
+  //
+  // className carries the divider padding the read-only row uses (pr-4,
+  // sm:border-l). Those borders belong between plain stats, not around a
+  // filled card, so they are dropped here and the padding comes from the
+  // button instead.
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
+      style={selected ? { backgroundColor: color } : undefined}
       className={cn(
-        "min-w-0 rounded-lg text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        !selected && "opacity-90 hover:opacity-100",
-        className,
+        "min-w-0 rounded-xl border px-4 py-3 text-left transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        selected
+          ? "border-transparent text-white shadow-sm"
+          : "border-border bg-card hover:border-foreground/20",
       )}
     >
       {body}
@@ -789,8 +803,16 @@ export function TrafficCard(p: TrafficProps) {
         />
       ) : perfLoading ? (
         <>
-          <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-24" />)}
+          {/* Matches the filled tiles it stands in for — same gap, same card
+              footprint. The old placeholder was four bare 24px blocks in a
+              gapless grid, so the row jumped sideways when the data landed. */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border px-4 py-3">
+                <Skeleton className="h-3.5 w-20" />
+                <Skeleton className="mt-2 h-6 w-16" />
+              </div>
+            ))}
           </div>
           <Skeleton className="mt-5 h-[190px] w-full rounded-[10px]" />
         </>
@@ -827,7 +849,7 @@ export function TrafficCard(p: TrafficProps) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-y-5 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
               label={t("totalClicks")}
               hint={t("totalClicksHint")}

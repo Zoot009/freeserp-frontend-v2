@@ -8,11 +8,13 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Icon } from "@/components/dashboard/icons"
+import { InfoHint } from "@/components/dashboard/widget"
+import { ArrowDownRight, ArrowUpRight, Check, Eye, Gauge, MousePointerClick, Percent } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { propertyCoversDomain } from "@/components/dashboard/gsc"
@@ -115,6 +117,14 @@ const METRIC_HINTS: Record<MetricKey, string> = {
   position:
     "Your average position across every query that showed your site. Lower is better, so a green arrow here means the number went down.",
 }
+/** One glyph per figure, so a filled card is identifiable at a glance. */
+const METRIC_ICONS: Record<MetricKey, React.ComponentType<{ className?: string }>> = {
+  clicks: MousePointerClick,
+  impressions: Eye,
+  ctr: Percent,
+  position: Gauge,
+}
+
 const METRIC_FORMAT: Record<MetricKey, (v: number) => string> = {
   clicks: fmtInt,
   impressions: fmtInt,
@@ -744,9 +754,9 @@ export default function SearchConsolePage() {
           {!perf && perfLoading ? (
             <KpiSkeleton />
           ) : (
-            <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+            <div className="mb-3.5 grid grid-cols-2 gap-3 md:grid-cols-4">
               {METRIC_KEYS.map((key) => (
-                <Kpi
+                <MetricCard
                   key={key}
                   metricKey={key}
                   label={t(key)}
@@ -813,23 +823,7 @@ export default function SearchConsolePage() {
                     similar from one page to the next. */}
                 <div key={`${metrics.join("-")}-${pageIndex}`} className="fs-chart-reveal">
                   <ChartContainer config={chartConfig} className="!aspect-auto h-[380px] w-full">
-                    <AreaChart data={chartSlice} margin={{ top: 10, right: 8, bottom: 0, left: 4 }}>
-                      <defs>
-                        {/* Light. The fill gives each line a base; it is not
-                            meant to be the loudest thing on the card. With two
-                            series it is lighter still, since two overlapping
-                            fills otherwise muddy into a third colour. */}
-                        {metrics.filter((k) => metrics.length === 1 && !METRIC_INVERTED[k]).map((key) => (
-                          <linearGradient key={key} id={`gscFill-${key}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop
-                              offset="0%"
-                              stopColor={METRIC_COLORS[key]}
-                              stopOpacity={metrics.length > 1 ? 0.1 : 0.18}
-                            />
-                            <stop offset="100%" stopColor={METRIC_COLORS[key]} stopOpacity={0} />
-                          </linearGradient>
-                        ))}
-                      </defs>
+                    <LineChart data={chartSlice} margin={{ top: 10, right: 8, bottom: 0, left: 4 }}>
                       {/* Solid hairline, horizontal only. Dashes read as a
                           threshold or a projection when they are just a grid. */}
                       <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.7} />
@@ -887,7 +881,7 @@ export default function SearchConsolePage() {
                         }
                       />
                       {metrics.map((key) => (
-                        <Area
+                        <Line
                           key={key}
                           yAxisId={key}
                           dataKey={key}
@@ -895,35 +889,25 @@ export default function SearchConsolePage() {
                           stroke={METRIC_COLORS[key]}
                           strokeWidth={2}
                           /**
-                           * No fill unless this is the only series on a
-                           * normal axis.
+                           * Lines, not areas.
                            *
-                           * An Area fills toward its axis BASELINE. Position
-                           * runs on a reversed axis, so its baseline is at the
-                           * TOP — the fill hung down across the whole plot as a
-                           * solid block with the line buried under it. The
-                           * keyword-history chart hit this exact thing and
-                           * solved it the same way.
-                           *
-                           * Two series drop their fills for a second reason:
-                           * overlapping translucent fills blend into a third
-                           * colour that belongs to neither line.
+                           * A fill has to point at a baseline, and neither
+                           * baseline here is meaningful: position runs on a
+                           * reversed axis, so its fill hung DOWN over the whole
+                           * plot, and two fills on two scales overlap into a
+                           * third colour belonging to neither series. Dropping
+                           * the fill removes the whole class of problem instead
+                           * of tuning around it — the same call the
+                           * keyword-history chart made.
                            */
-                          fill={
-                            metrics.length === 1 && !METRIC_INVERTED[key]
-                              ? `url(#gscFill-${key})`
-                              : "none"
-                          }
-                          // A month of points is sparse enough to mark each one,
-                          // which is what makes a single day findable to hover.
-                          dot={{ r: 2.5, strokeWidth: 0, fill: METRIC_COLORS[key], fillOpacity: 0.55 }}
+                          dot={false}
                           activeDot={{ r: 5, strokeWidth: 2, fill: "var(--background)" }}
-                          // Recharts animates an Area by growing it upward, which
-                          // fights the left-to-right reveal the wrapper performs.
+                          // Recharts draws its own line animation, which would
+                          // fight the wrapper’s left-to-right reveal.
                           isAnimationActive={false}
                         />
                       ))}
-                    </AreaChart>
+                    </LineChart>
                   </ChartContainer>
                 </div>
 
@@ -1116,12 +1100,11 @@ export default function SearchConsolePage() {
 /** The four headline figures, at the exact height StatCard renders. */
 function KpiSkeleton() {
   return (
-    <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+    <div className="mb-3.5 grid grid-cols-2 gap-3 md:grid-cols-4">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="min-w-0 rounded-xl border bg-card px-4.5 py-4 shadow-sm">
+        <div key={i} className="min-w-0 rounded-2xl border bg-card px-5 py-4 shadow-sm">
           <Skeleton className="h-3.5 w-24" />
-          <Skeleton className="mt-3 h-8 w-20" />
-          <Skeleton className="mt-2.5 h-3 w-14" />
+          <Skeleton className="mt-3 h-7 w-20" />
         </div>
       ))}
     </div>
@@ -1205,21 +1188,18 @@ function PageSkeleton() {
 }
 
 /**
- * One Search Console headline figure.
+ * One Search Console figure, and the switch that puts it on the chart.
  *
- * Built on the shared StatCard rather than the old `.stat` class this page
- * used to carry. The two had drifted into visibly different cards — this page
- * showed tall bordered tiles with a bare label while every other project page
- * showed the compact strip with an InfoHint — which is exactly the split
- * StatCard was extracted to stop.
+ * Filled with its own series colour while selected, the way Search Console's
+ * own metric cards are. That is doing real work, not decoration: with two lines
+ * on two scales, the tile IS the legend — the card you filled blue is the blue
+ * line — so nothing has to be looked up in a key below the plot.
  *
- * Clicks and impressions are selectable, because the tile doubles as the
- * chart's metric switch. That is why the selected one is wrapped in a button
- * with a ring instead of a recoloured border: a border change on a card that
- * already has one reads as a rendering glitch, and a plain div gave no
- * keyboard route to a control the mouse could reach.
+ * The tick and the icon are aria-hidden. The whole tile is one button, so a
+ * real checkbox inside it would be a second focus stop for a single action, and
+ * the icon repeats what the label already says.
  */
-function Kpi({
+function MetricCard({
   metricKey,
   label,
   hint,
@@ -1239,76 +1219,81 @@ function Kpi({
   prev?: number
   format: (v: number) => string
   lowerIsBetter?: boolean
-  selected?: boolean
-  onClick?: () => void
+  selected: boolean
+  onClick: () => void
 }) {
-  // Period-over-period movement. Rendered only when there is real movement to
-  // report — a "0" delta pill is noise dressed as information.
-  let caption: React.ReactNode = null
+  const color = METRIC_COLORS[metricKey]
+  const Icon = METRIC_ICONS[metricKey]
+
+  // Movement against the preceding window of equal length. Rendered only when
+  // there is real movement — a "0" pill is noise dressed as information.
+  let delta: React.ReactNode = null
   if (cur != null && prev != null) {
     const diff = cur - prev
     if (Math.abs(diff) > 1e-9) {
       const improved = lowerIsBetter ? diff < 0 : diff > 0
-      caption = (
-        <span className={"delta " + (improved ? "up" : "down")}>
-          {improved ? <Icon.arrowUp /> : <Icon.arrowDown />} {format(Math.abs(diff))}
+      delta = (
+        <span
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+            selected
+              ? "bg-white/20 text-white"
+              : improved
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-red-500/10 text-red-600 dark:text-red-400",
+          )}
+        >
+          {improved ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+          {format(Math.abs(diff))}
         </span>
       )
-    } else {
-      caption = <span className="text-muted-foreground/60">No change</span>
     }
   }
-
-  const color = METRIC_COLORS[metricKey]
-
-  const card = (
-    <StatCard
-      // A tick-box in the label, the way Search Console marks which figures
-      // are on the chart. Purely decorative — the whole tile is the control,
-      // so a real <input> here would be a second focus stop for one action.
-      label={
-        <span className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className={cn(
-              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none text-white transition-colors",
-              !selected && "border-muted-foreground/40",
-            )}
-            style={selected ? { background: color, borderColor: color } : undefined}
-          >
-            {selected ? "✓" : ""}
-          </span>
-          <span className="truncate">{label}</span>
-        </span>
-      }
-      hint={hint}
-      value={value}
-      caption={caption}
-      tone={value === "—" ? "text-muted-foreground/50" : undefined}
-      fill={null}
-      // The figure wears its series colour only while plotted, so the tile
-      // and the line are tied together without a legend to look up.
-      valueStyle={selected && value !== "—" ? { color } : undefined}
-    />
-  )
-
-  if (!onClick) return card
 
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
+      style={selected ? { backgroundColor: color } : undefined}
       className={cn(
-        "min-w-0 rounded-xl text-left transition",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        selected ? "ring-2" : "opacity-90 hover:opacity-100 hover:shadow-md",
+        "min-w-0 rounded-2xl border px-5 py-4 text-left transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        selected
+          ? "border-transparent text-white shadow-sm"
+          : "border-border bg-card text-foreground shadow-sm hover:border-foreground/20",
       )}
-      // Ring in the series colour rather than a fixed accent: with two tiles
-      // ticked, one blue ring on both would say they are the same series.
-      style={selected ? ({ "--tw-ring-color": color } as React.CSSProperties) : undefined}
     >
-      {card}
+      <div
+        className={cn(
+          "flex items-center gap-2 text-xs font-medium",
+          selected ? "text-white/90" : "text-muted-foreground",
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border",
+            selected ? "border-white/70 bg-white/20" : "border-border",
+          )}
+        >
+          {selected && <Check className="h-3 w-3" />}
+        </span>
+        <Icon aria-hidden className={cn("h-4 w-4 shrink-0", !selected && "opacity-70")} />
+        <span className="min-w-0 truncate">{label}</span>
+        <InfoHint>{hint}</InfoHint>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <span
+          className={cn(
+            "text-2xl font-semibold tracking-tight tabular-nums",
+            !selected && value === "—" && "text-muted-foreground/50",
+          )}
+        >
+          {value}
+        </span>
+        {delta}
+      </div>
     </button>
   )
 }
