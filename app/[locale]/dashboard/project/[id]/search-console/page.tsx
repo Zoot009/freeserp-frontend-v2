@@ -8,7 +8,8 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { LineChart } from "@/components/dashboard/primitives"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Icon } from "@/components/dashboard/icons"
 import { cn } from "@/lib/utils"
@@ -93,6 +94,16 @@ export default function SearchConsolePage() {
 
   const [range, setRange] = useState<RangeState>({ mode: "preset", days: 90 })
   const [metric, setMetric] = useState<"clicks" | "impressions">("clicks")
+
+  // One series, so no legend: the card heading already names what is plotted,
+  // and a legend box for a single line is chrome that explains nothing. Slot 1
+  // of the chart palette, the same colour the keyword-history chart opens with.
+  const chartConfig = {
+    value: {
+      label: metric === "clicks" ? t("clicks") : t("impressions"),
+      color: "var(--primary)",
+    },
+  } satisfies ChartConfig
   const [tab, setTab] = useState<TabKey>("queries")
   const [drill, setDrill] = useState<DetailResp | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
@@ -629,12 +640,82 @@ export default function SearchConsolePage() {
               )}
             </div>
             {perf && perf.series.length > 0 ? (
-              <LineChart
-                data={perf.series.map((d) => ({ day: d.date, value: metric === "clicks" ? d.clicks : d.impressions }))}
-                height={280}
-                color="var(--brand)"
-                yFormat={fmtInt}
-              />
+              /* Recharts, the same stack the keyword-history chart uses, rather
+                 than the hand-rolled SVG primitive this page had. That one drew
+                 no x-axis at all — ninety days of daily traffic with nothing to
+                 say WHEN any spike happened — and picked its own y-ticks, which
+                 is where 274/206/137/69 came from. */
+              <ChartContainer config={chartConfig} className="!aspect-auto h-[260px] w-full">
+                <AreaChart
+                  data={perf.series.map((d) => ({
+                    ts: new Date(d.date + "T00:00:00Z").getTime(),
+                    value: metric === "clicks" ? d.clicks : d.impressions,
+                  }))}
+                  margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
+                >
+                  <defs>
+                    {/* Light. The fill gives the line a base; it is not meant to
+                        be the loudest thing on the card. */}
+                    <linearGradient id="gscFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.18} />
+                      <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  {/* Solid hairline, horizontal only. Dashes read as a threshold
+                     or a projection when they are just a grid. */}
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.7} />
+                  <XAxis
+                    dataKey="ts"
+                    type="number"
+                    scale="time"
+                    domain={["dataMin", "dataMax"]}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    // Lets Recharts drop labels rather than collide them: at 90
+                    // days every date cannot be printed, and an unreadable axis
+                    // is worse than a sparse one.
+                    minTickGap={44}
+                    tickFormatter={(v) =>
+                      new Date(Number(v)).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+                    }
+                  />
+                  <YAxis
+                    width={44}
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                    tickFormatter={fmtInt}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(_, pl) =>
+                          new Date(Number(pl?.[0]?.payload?.ts)).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        }
+                        formatter={(v) => [fmtInt(Number(v)), metric === "clicks" ? " Clicks" : " Impressions"]}
+                      />
+                    }
+                  />
+                  <Area
+                    dataKey="value"
+                    type="monotone"
+                    stroke="var(--color-value)"
+                    strokeWidth={2}
+                    fill="url(#gscFill)"
+                    // 90 daily points: a dot on each is a solid band of dots.
+                    // The active one on hover is the only marker worth drawing.
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2, fill: "var(--background)" }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ChartContainer>
             ) : (
               <div className="py-10 text-center text-[13px] text-muted-foreground">
                 {perfLoading ? t("loading") : t("noData")}
