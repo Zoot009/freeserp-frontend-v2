@@ -12,6 +12,11 @@
  * about the account, and somebody reading the Overview is exactly as able to act
  * on it.
  *
+ * It never appears for an account that tracks nothing. A new user landing on
+ * "Add your first website" was being told their three checks were back —
+ * about an allowance they had never spent, for keywords that did not exist,
+ * over the top of the one thing the screen was asking them to do.
+ *
  * It only ever appears for someone who ACTUALLY RAN OUT. Firing on a full
  * allowance alone would greet every free user with a popup every morning,
  * including people who have never hit the limit and were not waiting for
@@ -29,6 +34,8 @@ type Usage = {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
+  /** Keywords tracked across every project. Absent on an older API. */
+  trackedKeywords?: number
 }
 
 /** Set the moment a free account hits zero. Cleared once the news is delivered. */
@@ -83,6 +90,13 @@ export function ChecksBackModal() {
         write(KEY_ANNOUNCED, null)
         return
       }
+
+      // Nothing tracked yet, so there is no allowance to miss and nothing the
+      // news would let them do. Checked before the ran-out marker is written:
+      // an empty account must not bank a claim it can collect later either.
+      // Undefined means an older API that cannot say, and silence is the safe
+      // reading of that.
+      if ((usage.trackedKeywords ?? 0) <= 0) return
 
       // Out right now. Remember it — this is what earns the announcement when
       // the allowance comes back.

@@ -37,6 +37,30 @@ export type TrafficPoint = { t: string; traffic: number; pages: number }
 
 /** The four figures Search Console reports for any slice. */
 type GscMetrics = { clicks: number; impressions: number; ctr: number; position: number }
+
+/** The Google figures, in tile order. */
+const GSC_METRIC_KEYS = ["clicks", "impressions", "ctr", "position"] as const
+type GscMetricKey = (typeof GSC_METRIC_KEYS)[number]
+
+/**
+ * Fixed colour per metric, keyed by the metric and never by its position in
+ * the selection — unticking clicks must not repaint impressions under a
+ * reader who has learned which colour is which.
+ */
+const GSC_METRIC_COLORS: Record<GscMetricKey, string> = {
+  clicks: "var(--primary)",
+  impressions: "#7c3aed",
+  ctr: "#0891b2",
+  position: "#d97706",
+}
+
+/** Translation key per metric, for the legend and the caption. */
+const GSC_METRIC_LABEL: Record<GscMetricKey, string> = {
+  clicks: "seriesClicks",
+  impressions: "impressions",
+  ctr: "averageCtr",
+  position: "averagePosition",
+}
 type GscPerformance = {
   siteUrl: string
   startDate: string
@@ -123,7 +147,7 @@ function SourceToggle({
 }
 
 function Stat({
-  label, hint, value, delta, dim, className,
+  label, hint, value, delta, dim, className, selected, color, onToggle,
 }: {
   label: string
   hint: string
@@ -132,14 +156,41 @@ function Stat({
   delta?: { text: string; good: boolean } | null
   dim: boolean
   className?: string
+  /**
+   * Supplied only where the figure doubles as a chart toggle (the Google
+   * tab). Without them this is exactly the read-only stat it has always been,
+   * which is what the FreeSERP tab still renders.
+   */
+  selected?: boolean
+  color?: string
+  onToggle?: () => void
 }) {
-  return (
-    <div className={cn("min-w-0", className)}>
+  const body = (
+    <>
       <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-        <span className="truncate">{label}</span>
+        {onToggle && (
+          // Decorative: the whole tile is the control, so a real input here
+          // would be a second focus stop for one action.
+          <span
+            aria-hidden
+            className={cn(
+              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none text-white transition-colors",
+              !selected && "border-muted-foreground/40",
+            )}
+            style={selected ? { background: color, borderColor: color } : undefined}
+          >
+            {selected ? "✓" : ""}
+          </span>
+        )}
+        <span className="min-w-0 truncate">{label}</span>
         <InfoHint>{hint}</InfoHint>
       </div>
-      <div className={cn("mt-0.5 text-[24px] font-bold leading-[1.3] tabular-nums", dim ? "text-muted-foreground/50" : "text-foreground")}>
+      <div
+        className={cn("mt-0.5 text-[24px] font-bold leading-[1.3] tabular-nums", dim ? "text-muted-foreground/50" : "text-foreground")}
+        // The figure wears its series colour only while plotted, tying tile to
+        // line without a legend to look up.
+        style={selected && !dim ? { color } : undefined}
+      >
         {value}
       </div>
       {delta && (
@@ -152,15 +203,40 @@ function Stat({
           {delta.text}
         </span>
       )}
-    </div>
+    </>
+  )
+
+  if (!onToggle) return <div className={cn("min-w-0", className)}>{body}</div>
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={selected}
+      className={cn(
+        "min-w-0 rounded-lg text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        !selected && "opacity-90 hover:opacity-100",
+        className,
+      )}
+    >
+      {body}
+    </button>
   )
 }
 
-type Series = { key: string; label: string; color: string }
+type Series = {
+  key: string
+  label: string
+  color: string
+  /** Lower is better, so the axis runs the other way. Position only. */
+  inverted?: boolean
+  /** Axis formatting for this series alone. */
+  format?: (v: number) => string
+}
 
 /** Shared chart frame, so the two sources can't drift apart visually. */
 function TimeChart({
-  data, series, domainStart, now, ticks, zeroFloor,
+  data, series, domainStart, now, ticks, zeroFloor, splitAxes = false,
 }: {
   data: { ts: number }[]
   /** One or more series drawn on a shared axis. All are counts, so a shared
@@ -170,6 +246,21 @@ function TimeChart({
   now: number
   ticks: number[]
   zeroFloor: boolean
+  /**
+   * Give each series its own y-axis instead of sharing one.
+   *
+   * Off by default, and the FreeSERP tab leaves it off deliberately: visits
+   * and ranking pages are comparable counts, so one scale is the honest way
+   * to draw them and splitting would invite reading a crossing point that
+   * means nothing.
+   *
+   * The Google tab turns it on because it has no choice — clicks and
+   * impressions differ by one to two orders of magnitude, and on a shared
+   * scale the clicks line lies flat on the baseline reading as zero. The cost
+   * is the usual one for two scales: where the lines cross is set by how the
+   * axes were picked, not by the data, so the caller says so under the chart.
+   */
+  splitAxes?: boolean
 }) {
   const t = useTranslations("dashOverview.traffic")
   const config = Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }]))
@@ -211,19 +302,37 @@ function TimeChart({
           {/* Baseline pinned to 0 where the metric is a count. Letting recharts
               pick dataMin made a series of 0 → 2 fill the whole panel, so one
               visit looked like a vertical takeoff. */}
-          <YAxis
-            width={38}
-            tickFormatter={(v: number) => axisNf.format(v)}
-            allowDecimals={false}
-            domain={zeroFloor ? [0, (max: number) => Math.max(1, Math.ceil(max))] : ["auto", "auto"]}
-            tickLine={false}
-            axisLine={false}
-            className="text-[11px]"
-          />
+          {/* One axis, or one per series — see splitAxes. When split, each is
+              tinted to its series: with two scales the only way to read a line
+              is against the right one, so the pairing has to be visible. */}
+          {(splitAxes ? series : series.slice(0, 1)).map((sr, i) => (
+            <YAxis
+              key={sr.key}
+              {...(splitAxes ? { yAxisId: sr.key, orientation: i === 0 ? ("left" as const) : ("right" as const) } : {})}
+              width={splitAxes ? 46 : 38}
+              tickFormatter={(v: number) => (sr.format ?? ((n: number) => axisNf.format(n)))(v)}
+              allowDecimals={false}
+              reversed={sr.inverted}
+              domain={
+                sr.inverted
+                  ? // A rank cannot beat 1, and asking for 0 leaves the line
+                    // under an empty band that means nothing.
+                    [1, (max: number) => Math.max(2, Math.ceil(max) + 1)]
+                  : zeroFloor
+                    ? [0, (max: number) => Math.max(1, Math.ceil(max))]
+                    : ["auto", "auto"]
+              }
+              tickLine={false}
+              axisLine={false}
+              className="text-[11px]"
+              {...(splitAxes ? { tick: { fill: sr.color } } : {})}
+            />
+          ))}
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, pl) => dayLabel(Number(pl?.[0]?.payload?.ts))} />} />
           {series.map((s) => (
             <Area
               key={s.key}
+              {...(splitAxes ? { yAxisId: s.key } : {})}
               dataKey={s.key}
               type="monotone"
               stroke={`var(--color-${s.key})`}
@@ -455,6 +564,18 @@ export function TrafficCard(p: TrafficProps) {
   const [perfLoading, setPerfLoading] = useState(false)
   const [perfError, setPerfError] = useState<string | null>(null)
 
+  // Which Google figures are plotted. Tiles are checkboxes, the way Search
+  // Console’s own are. Capped at two: two series means two scales, and a
+  // third would need an axis with nowhere to sit, so ticking one drops the
+  // metric selected longest.
+  const [gscMetrics, setGscMetrics] = useState<GscMetricKey[]>(["clicks"])
+  const toggleGscMetric = (key: GscMetricKey) =>
+    setGscMetrics((cur) => {
+      // The chart never empties — the last one on stays on.
+      if (cur.includes(key)) return cur.length === 1 ? cur : cur.filter((k) => k !== key)
+      return cur.length < 2 ? [...cur, key] : [cur[1]!, key]
+    })
+
   const ready = p.gsc.connected === true && !!p.gsc.siteUrl
 
   // Fetched on demand, not on mount: this is a live Google API round trip, and
@@ -492,7 +613,16 @@ export function TrafficCard(p: TrafficProps) {
     { key: "traffic", label: t("seriesVisits"), color: "var(--primary)" },
     { key: "pages", label: t("seriesPages"), color: "var(--warn)" },
   ]
-  const gscChart = (perf?.series ?? []).map((s) => ({ ts: new Date(s.date).getTime(), clicks: s.clicks }))
+  // Every metric on every point, so ticking a tile redraws from data already
+  // in hand. Only clicks was carried before, because only clicks could be
+  // drawn — the rest had nowhere honest to go on a single shared axis.
+  const gscChart = (perf?.series ?? []).map((s) => ({
+    ts: new Date(s.date).getTime(),
+    clicks: s.clicks,
+    impressions: s.impressions,
+    ctr: s.ctr,
+    position: s.position,
+  }))
 
   /** Absolute change vs the preceding window. Lower is better for position. */
   const delta = (nowV: number, prev: number, lowerIsBetter = false, suffix = "") => {
@@ -689,6 +819,9 @@ export function TrafficCard(p: TrafficProps) {
               delta={delta(perf.totals.clicks, perf.previous.clicks)}
               dim={perf.totals.clicks === 0}
               className="pr-4"
+              selected={gscMetrics.includes("clicks")}
+              color={GSC_METRIC_COLORS.clicks}
+              onToggle={() => toggleGscMetric("clicks")}
             />
             <Stat
               label={t("impressions")}
@@ -697,6 +830,9 @@ export function TrafficCard(p: TrafficProps) {
               delta={delta(perf.totals.impressions, perf.previous.impressions)}
               dim={perf.totals.impressions === 0}
               className="px-4 sm:border-l"
+              selected={gscMetrics.includes("impressions")}
+              color={GSC_METRIC_COLORS.impressions}
+              onToggle={() => toggleGscMetric("impressions")}
             />
             <Stat
               label={t("averageCtr")}
@@ -705,6 +841,9 @@ export function TrafficCard(p: TrafficProps) {
               delta={delta(perf.totals.ctr * 100, perf.previous.ctr * 100, false, " pp")}
               dim={perf.totals.ctr === 0}
               className="pr-4 sm:border-l sm:px-4"
+              selected={gscMetrics.includes("ctr")}
+              color={GSC_METRIC_COLORS.ctr}
+              onToggle={() => toggleGscMetric("ctr")}
             />
             <Stat
               label={t("averagePosition")}
@@ -713,26 +852,49 @@ export function TrafficCard(p: TrafficProps) {
               delta={delta(perf.totals.position, perf.previous.position, true, "")}
               dim={!perf.totals.position}
               className="pl-4 sm:border-l"
+              selected={gscMetrics.includes("position")}
+              color={GSC_METRIC_COLORS.position}
+              onToggle={() => toggleGscMetric("position")}
             />
           </div>
 
           {gscChart.length > 0 ? (
             <>
-              {/* Clicks only. Impressions are in this payload too, but they run
-                  one to two orders of magnitude higher (2,443 vs 61 on a real
-                  account) — on the shared axis these series use, the clicks line
-                  would flatten onto the baseline and read as zero. */}
+              {/* Whichever tiles are ticked, each on its own axis.
+
+                  This was clicks alone, because impressions run one to two
+                  orders of magnitude higher (2,443 against 61 on a real
+                  account) and on a shared scale the clicks line flattens onto
+                  the baseline reading as zero. Splitting the axes is what lets
+                  both be drawn — at the cost named under the chart. */}
               <TimeChart
                 data={gscChart}
-                series={[{ key: "clicks", label: t("seriesClicks"), color: "var(--primary)" }]}
+                series={gscMetrics.map((key) => ({
+                  key,
+                  label: t(GSC_METRIC_LABEL[key]),
+                  color: GSC_METRIC_COLORS[key],
+                  inverted: key === "position",
+                  format:
+                    key === "ctr"
+                      ? (v: number) => `${(v * 100).toFixed(1)}%`
+                      : key === "position"
+                        ? (v: number) => v.toFixed(1)
+                        : undefined,
+                }))}
                 domainStart={domainStart}
                 now={now}
                 ticks={ticks}
                 zeroFloor
+                splitAxes={gscMetrics.length > 1}
               />
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Clicks per day from {perf.siteUrl}. Google&apos;s data lags roughly two days, so the last day or two
-                may look low.
+                {gscMetrics.length > 1 && (
+                  <>
+                    {gscMetrics.map((k) => t(GSC_METRIC_LABEL[k])).join(" and ")} use separate scales — read each
+                    line against its own axis, not against the other line.{" "}
+                  </>
+                )}
+                From {perf.siteUrl}. Google&apos;s data lags roughly two days, so the last day or two may look low.
               </p>
             </>
           ) : (
