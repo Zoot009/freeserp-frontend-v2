@@ -2096,6 +2096,16 @@ export default function ProjectKeywordsPage() {
    * So a row only locks when it genuinely has no result. Once a check lands,
    * the data is the user's, whichever side of the allowance it arrived on.
    */
+  /**
+   * Whether the row whose ⋯ menu is open has no result yet.
+   *
+   * The menu still OPENS on a locked row — closing it off would look broken,
+   * and Delete has to stay reachable: somebody who cannot use a keyword must
+   * always be able to remove it. What it cannot do is offer the three actions
+   * that need a position to act on.
+   */
+  const LOCKED_REASON = "Not available until this keyword has been checked"
+
   const isLocked = (kw: Keyword) => {
     const hasResult = kw.checkedAt != null || kw.position != null
     if (hasResult) return false
@@ -3180,7 +3190,10 @@ export default function ProjectKeywordsPage() {
           overflow:hidden and float on top). Closed by the outside-pointerdown
           listener below rather than a click-blocking overlay, so dismissing it
           doesn't swallow the user's click. */}
-      {openMenuId && menuPosition && (
+      {openMenuId && menuPosition && (() => {
+        const menuKw = project.keywords.find((k) => k.id === openMenuId)
+        const menuLocked = menuKw ? isLocked(menuKw) : false
+        return (
         <>
           <div
             data-kw-row-menu
@@ -3204,6 +3217,8 @@ export default function ProjectKeywordsPage() {
                 setOpenMenuId(null)
                 setMenuPosition(null)
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3211,9 +3226,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("viewDetails")}
@@ -3230,6 +3248,8 @@ export default function ProjectKeywordsPage() {
                   )
                 }
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3237,9 +3257,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("newAnalysis")}
@@ -3267,6 +3290,8 @@ export default function ProjectKeywordsPage() {
                   setHistoryLoading(false)
                 }
               }}
+              disabled={menuLocked}
+              title={menuLocked ? LOCKED_REASON : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -3274,9 +3299,12 @@ export default function ProjectKeywordsPage() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 6,
-                color: "var(--text)",
+                // Dimmed and not-allowed rather than hidden: the row HAS these
+                // actions, they just need a result to act on. Removing them
+                // would make a locked row look like a different kind of row.
+                color: menuLocked ? "var(--text-subtle)" : "var(--text)",
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: menuLocked ? "not-allowed" : "pointer",
               }}
             >
               {t("analysisHistory")}
@@ -3303,9 +3331,28 @@ export default function ProjectKeywordsPage() {
             >
               {t("delete")}
             </button>
+
+            {/* Says why the three above are grey. Without it a disabled item
+                reads as a bug rather than as a state — and the fix is one the
+                user can actually carry out. */}
+            {menuLocked && (
+              <div
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  marginTop: 4,
+                  padding: "8px 10px 6px",
+                  color: "var(--text-subtle)",
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                Check this keyword to unlock the rest.
+              </div>
+            )}
           </div>
         </>
-      )}
+        )
+      })()}
 
       {/* Modals */}
       {showAddKw && typeof window !== "undefined" && createPortal(

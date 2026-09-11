@@ -422,3 +422,34 @@ input[type="checkbox"].brutalist-checkbox:focus {
   will-change: transform, opacity;
 }
 
+
+/* ── Chart reveal ──────────────────────────────────────────────────────────
+   Wipes a chart in from the left on mount. Applied to a wrapper keyed on the
+   visible window, so it replays when the reader pages or switches metric —
+   which is what tells them the plot changed, on a chart whose shape can look
+   similar from one window to the next.
+
+   clip-path rather than a width or transform: the SVG keeps its final geometry
+   throughout, so nothing reflows, the axis labels never slide, and the line is
+   drawn at its true position from the first frame. Recharts' own animation is
+   switched off on this chart precisely so the two do not fight. */
+@keyframes fs-chart-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.fs-chart-reveal {
+  animation: fs-chart-reveal 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* A wipe is motion across the whole width of a card, which is exactly the kind
+   this setting exists to stop. The chart still renders — it simply arrives. */
+@media (prefers-reduced-motion: reduce) {
+  .fs-chart-reveal {
+    animation: none;
+  }
+}

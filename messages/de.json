@@ -484,11 +484,11 @@
     "keywords": "Keywords",
     "youtube": "YouTube",
     "aiPromptTracker": "KI-Prompt-Tracker",
-    "aiPlatforms": "KI-Plattformen",
-    "platformChatgpt": "ChatGPT",
-    "platformClaude": "Claude",
-    "platformGemini": "Gemini",
-    "platformPerplexity": "Perplexity",
+    "aiPlatforms": "KI-Prompt-Tracker",
+    "platformChatgpt": "ChatGPT-Tracker",
+    "platformClaude": "Claude-Tracker",
+    "platformGemini": "Gemini-Tracker",
+    "platformPerplexity": "Perplexity-Tracker",
     "favorites": "Favoriten",
     "quickSerp": "Quick-SERP-Checker",
     "keywordMagic": "Keyword Magic Tool",
@@ -1433,7 +1433,8 @@
     "range": {
       "7d": "7 Tage",
       "28d": "28 Tage",
-      "3m": "3 Monate"
+      "3m": "3 Monate",
+      "custom": "Benutzerdefiniert"
     },
     "clicks": "Klicks gesamt",
     "impressions": "Impressionen gesamt",
@@ -1467,7 +1468,8 @@
     "addSelectedToTracker": "{count} zum Rank-Tracker hinzufügen",
     "tracked": "Verfolgt",
     "alreadyTracked": "Wird in diesem Projekt bereits verfolgt",
-    "selectAll": "Alle auswählen"
+    "selectAll": "Alle auswählen",
+    "rowsPerPage": "Zeilen pro Seite:"
   },
   "quotaUpsell": {
     "eyebrow": "Upgrade",
