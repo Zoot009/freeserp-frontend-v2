@@ -337,7 +337,23 @@ function TimeChart({
               type="monotone"
               stroke={`var(--color-${s.key})`}
               strokeWidth={2}
-              fill={`url(#fill-${s.key})`}
+              /**
+               * A fill only where it can actually sit UNDER the line.
+               *
+               * An Area fills toward its axis baseline. A reversed axis puts
+               * that baseline at the TOP, so the fill hangs down across the
+               * whole plot as a solid block with the line buried inside it —
+               * which is what average position did the moment it became
+               * selectable. The keyword-history chart hit the same thing and
+               * answered it the same way.
+               *
+               * Split axes drop their fills for a second reason: two
+               * translucent fills on two different scales overlap into a third
+               * colour belonging to neither line. Gated on splitAxes rather
+               * than on series.length, so the FreeSERP tab — two comparable
+               * counts on ONE shared axis — keeps the fills it has always had.
+               */
+              fill={splitAxes || s.inverted ? "none" : `url(#fill-${s.key})`}
               /* Dots on, deliberately. With them off, three samples in a 30-day
                  window are indistinguishable from thirty — the line looks
                  continuous either way. The dots are the honest signal of how

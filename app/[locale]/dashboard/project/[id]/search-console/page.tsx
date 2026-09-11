@@ -819,7 +819,7 @@ export default function SearchConsolePage() {
                             meant to be the loudest thing on the card. With two
                             series it is lighter still, since two overlapping
                             fills otherwise muddy into a third colour. */}
-                        {metrics.map((key) => (
+                        {metrics.filter((k) => metrics.length === 1 && !METRIC_INVERTED[k]).map((key) => (
                           <linearGradient key={key} id={`gscFill-${key}`} x1="0" y1="0" x2="0" y2="1">
                             <stop
                               offset="0%"
@@ -894,7 +894,26 @@ export default function SearchConsolePage() {
                           type="monotone"
                           stroke={METRIC_COLORS[key]}
                           strokeWidth={2}
-                          fill={`url(#gscFill-${key})`}
+                          /**
+                           * No fill unless this is the only series on a
+                           * normal axis.
+                           *
+                           * An Area fills toward its axis BASELINE. Position
+                           * runs on a reversed axis, so its baseline is at the
+                           * TOP — the fill hung down across the whole plot as a
+                           * solid block with the line buried under it. The
+                           * keyword-history chart hit this exact thing and
+                           * solved it the same way.
+                           *
+                           * Two series drop their fills for a second reason:
+                           * overlapping translucent fills blend into a third
+                           * colour that belongs to neither line.
+                           */
+                          fill={
+                            metrics.length === 1 && !METRIC_INVERTED[key]
+                              ? `url(#gscFill-${key})`
+                              : "none"
+                          }
                           // A month of points is sparse enough to mark each one,
                           // which is what makes a single day findable to hover.
                           dot={{ r: 2.5, strokeWidth: 0, fill: METRIC_COLORS[key], fillOpacity: 0.55 }}
