@@ -9,6 +9,9 @@ import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { LineChart } from "@/components/dashboard/primitives"
+import { StatCard } from "@/components/dashboard/stat-card"
+import { Icon } from "@/components/dashboard/icons"
+import { cn } from "@/lib/utils"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { propertyCoversDomain } from "@/components/dashboard/gsc"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
@@ -483,59 +486,95 @@ export default function SearchConsolePage() {
       {/* State 3 — linked: full report */}
       {conn?.connected && siteUrl && (
         <>
-          {/* Range controls */}
-          <div className="row" style={{ justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-            <span className="tiny muted mono">{siteHost(siteUrl)}</span>
-            <div className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <div className="row" style={{ gap: 6 }}>
-                {PRESETS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    className={"btn" + (range.mode === "preset" && range.days === d ? " primary" : "")}
-                    style={{ paddingTop: 6, paddingBottom: 6, fontSize: 12 }}
-                    onClick={() => setRange({ mode: "preset", days: d })}
-                  >
-                    {t(`range.${PRESET_LABEL[d]}`)}
-                  </button>
-                ))}
-              </div>
-              <div className="row" style={{ gap: 4, alignItems: "center" }}>
-                <input
-                  type="date"
-                  className="input"
-                  style={{ width: "auto", paddingTop: 6, paddingBottom: 6, fontSize: 12 }}
-                  value={range.mode === "custom" ? range.start : ""}
-                  onChange={(e) =>
-                    setRange((r) => ({
-                      mode: "custom",
-                      start: e.target.value,
-                      end: r.mode === "custom" ? r.end : "",
-                    }))
+          {/* Range controls.
+
+              The two date inputs used to sit here permanently, so the page
+              opened showing a pair of empty "mm/dd/yyyy" browser controls
+              beside the presets — unstyled, unexplained, and irrelevant to
+              the 3-month range actually selected. They are now behind a
+              Custom segment and only appear once that is chosen. */}
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
+            <span className="truncate font-mono text-xs text-muted-foreground">{siteHost(siteUrl)}</span>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* One segmented control, so the presets and Custom read as the
+                  single either/or choice they are. */}
+              <div className="inline-flex rounded-lg border bg-card p-0.5 shadow-sm">
+                {PRESETS.map((d) => {
+                  const on = range.mode === "preset" && range.days === d
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setRange({ mode: "preset", days: d })}
+                      className={cn(
+                        "rounded-[6px] px-3 py-1.5 text-xs font-medium transition",
+                        on
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {t(`range.${PRESET_LABEL[d]}`)}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  aria-pressed={range.mode === "custom"}
+                  onClick={() =>
+                    setRange((r) => (r.mode === "custom" ? r : { mode: "custom", start: "", end: "" }))
                   }
-                />
-                <span className="tiny muted">–</span>
-                <input
-                  type="date"
-                  className="input"
-                  style={{ width: "auto", paddingTop: 6, paddingBottom: 6, fontSize: 12 }}
-                  value={range.mode === "custom" ? range.end : ""}
-                  onChange={(e) =>
-                    setRange((r) => ({
-                      mode: "custom",
-                      start: r.mode === "custom" ? r.start : "",
-                      end: e.target.value,
-                    }))
-                  }
-                />
+                  className={cn(
+                    "rounded-[6px] px-3 py-1.5 text-xs font-medium transition",
+                    range.mode === "custom"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {t("range.custom")}
+                </button>
               </div>
+
+              {range.mode === "custom" && (
+                <div className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2 py-1 shadow-sm">
+                  <input
+                    type="date"
+                    aria-label={t("range.custom")}
+                    className="w-[8.5rem] bg-transparent px-1 py-1 text-xs text-foreground outline-none"
+                    value={range.start}
+                    onChange={(e) =>
+                      setRange((r) => ({
+                        mode: "custom",
+                        start: e.target.value,
+                        end: r.mode === "custom" ? r.end : "",
+                      }))
+                    }
+                  />
+                  <span className="text-muted-foreground">–</span>
+                  <input
+                    type="date"
+                    aria-label={t("range.custom")}
+                    className="w-[8.5rem] bg-transparent px-1 py-1 text-xs text-foreground outline-none"
+                    value={range.end}
+                    onChange={(e) =>
+                      setRange((r) => ({
+                        mode: "custom",
+                        start: r.mode === "custom" ? r.start : "",
+                        end: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              )}
             </div>
           </div>
-
-          {/* KPI tiles with period-over-period deltas */}
-          <div className="grid g-4" style={{ marginBottom: 14 }}>
+          {/* KPI tiles with period-over-period deltas. Same grid and spacing
+              as the project page's stat strip — this row used to be four tall
+              tiles on a page whose siblings all show the compact strip. */}
+          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
             <Kpi
               label={t("clicks")}
+              hint="Times someone clicked through to your site from Google, for this property and range."
               value={perf ? fmtInt(perf.totals.clicks) : "—"}
               cur={perf?.totals.clicks}
               prev={perf?.previous.clicks}
@@ -545,6 +584,7 @@ export default function SearchConsolePage() {
             />
             <Kpi
               label={t("impressions")}
+              hint="Times a link to your site appeared in results. High impressions with few clicks usually means you rank, but not high enough."
               value={perf ? fmtInt(perf.totals.impressions) : "—"}
               cur={perf?.totals.impressions}
               prev={perf?.previous.impressions}
@@ -554,6 +594,7 @@ export default function SearchConsolePage() {
             />
             <Kpi
               label={t("ctr")}
+              hint="Clicks divided by impressions. Compared against the previous period in percentage points, not percent — a move from 1% to 2% is +1 pp."
               value={perf ? fmtPct(perf.totals.ctr) : "—"}
               cur={perf?.totals.ctr}
               prev={perf?.previous.ctr}
@@ -561,6 +602,7 @@ export default function SearchConsolePage() {
             />
             <Kpi
               label={t("position")}
+              hint="Your average position across every query that showed your site. Lower is better, so a green arrow here means the number went down."
               value={perf ? fmtPos(perf.totals.position) : "—"}
               cur={perf?.totals.position}
               prev={perf?.previous.position}
@@ -570,10 +612,21 @@ export default function SearchConsolePage() {
           </div>
 
           {/* Trend chart */}
-          <div className="card" style={{ padding: 18, marginBottom: 14, opacity: perfLoading ? 0.6 : 1 }}>
-            <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-              <span className="b">{metric === "clicks" ? t("clicks") : t("impressions")}</span>
-              {perf && <span className="tiny muted mono">{perf.startDate} → {perf.endDate}</span>}
+          <div
+            className={cn(
+              "mb-3.5 rounded-xl border bg-card p-4.5 shadow-sm transition-opacity",
+              perfLoading && "opacity-60",
+            )}
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                {metric === "clicks" ? t("clicks") : t("impressions")}
+              </span>
+              {perf && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {perf.startDate} → {perf.endDate}
+                </span>
+              )}
             </div>
             {perf && perf.series.length > 0 ? (
               <LineChart
@@ -583,14 +636,14 @@ export default function SearchConsolePage() {
                 yFormat={fmtInt}
               />
             ) : (
-              <div className="muted" style={{ fontSize: 13, padding: "40px 0", textAlign: "center" }}>
+              <div className="py-10 text-center text-[13px] text-muted-foreground">
                 {perfLoading ? t("loading") : t("noData")}
               </div>
             )}
           </div>
 
           {/* Dimension tabs */}
-          <div className="card" style={{ padding: 18 }}>
+          <div className="rounded-xl border bg-card p-4.5 shadow-sm">
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <div className="tabs">
                 {TAB_KEYS.map((k) => (
@@ -691,8 +744,24 @@ export default function SearchConsolePage() {
 }
 
 // ── KPI tile with period-over-period delta ──────────────────────────────────
+/**
+ * One Search Console headline figure.
+ *
+ * Built on the shared StatCard rather than the old `.stat` class this page
+ * used to carry. The two had drifted into visibly different cards — this page
+ * showed tall bordered tiles with a bare label while every other project page
+ * showed the compact strip with an InfoHint — which is exactly the split
+ * StatCard was extracted to stop.
+ *
+ * Clicks and impressions are selectable, because the tile doubles as the
+ * chart's metric switch. That is why the selected one is wrapped in a button
+ * with a ring instead of a recoloured border: a border change on a card that
+ * already has one reads as a rendering glitch, and a plain div gave no
+ * keyboard route to a control the mouse could reach.
+ */
 function Kpi({
   label,
+  hint,
   value,
   cur,
   prev,
@@ -702,6 +771,7 @@ function Kpi({
   onClick,
 }: {
   label: string
+  hint: React.ReactNode
   value: React.ReactNode
   cur?: number
   prev?: number
@@ -710,40 +780,53 @@ function Kpi({
   selected?: boolean
   onClick?: () => void
 }) {
-  let delta: React.ReactNode = null
+  // Period-over-period movement. Rendered only when there is real movement to
+  // report — a "0" delta pill is noise dressed as information.
+  let caption: React.ReactNode = null
   if (cur != null && prev != null) {
     const diff = cur - prev
-    const changed = Math.abs(diff) > 1e-9
-    const improved = lowerIsBetter ? diff < 0 : diff > 0
-    const cls = !changed ? "flat" : improved ? "up" : "down"
-    delta = (
-      <span className={"delta " + cls}>
-        {changed ? (improved ? "▲" : "▼") : "—"} {changed ? format(Math.abs(diff)) : ""}
-      </span>
-    )
+    if (Math.abs(diff) > 1e-9) {
+      const improved = lowerIsBetter ? diff < 0 : diff > 0
+      caption = (
+        <span className={"delta " + (improved ? "up" : "down")}>
+          {improved ? <Icon.arrowUp /> : <Icon.arrowDown />} {format(Math.abs(diff))}
+        </span>
+      )
+    } else {
+      caption = <span className="text-muted-foreground/60">No change</span>
+    }
   }
-  const inner = (
-    <>
-      <div className="lbl">{label}</div>
-      <div className="val tabular">{value}</div>
-      {delta && <div className="row" style={{ gap: 8, alignItems: "center" }}>{delta}</div>}
-    </>
-  )
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        className="stat"
-        onClick={onClick}
-        style={{ textAlign: "left", cursor: "pointer", borderColor: selected ? "var(--brand)" : undefined }}
-      >
-        {inner}
-      </button>
-    )
-  }
-  return <div className="stat">{inner}</div>
-}
 
+  const card = (
+    <StatCard
+      label={label}
+      hint={hint}
+      value={value}
+      caption={caption}
+      tone={value === "—" ? "text-muted-foreground/50" : undefined}
+      fill={null}
+    />
+  )
+
+  if (!onClick) return card
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        "min-w-0 rounded-xl text-left transition",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selected
+          ? "ring-2 ring-primary"
+          : "opacity-90 hover:opacity-100 hover:shadow-md",
+      )}
+    >
+      {card}
+    </button>
+  )
+}
 // ── Active-tab table ────────────────────────────────────────────────────────
 function DimTable({
   tab,

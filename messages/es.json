@@ -1433,7 +1433,8 @@
     "range": {
       "7d": "7 días",
       "28d": "28 días",
-      "3m": "3 meses"
+      "3m": "3 meses",
+      "custom": "Personalizado"
     },
     "clicks": "Clics totales",
     "impressions": "Impresiones totales",
