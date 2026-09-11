@@ -337,7 +337,25 @@ export type AnswersDetail = {
   platform: Platform
   answers: number
   sources: { domain: string; title: string; url: string; count: number; promptCount: number; own: boolean }[]
-  competitors: { name: string; samples: number; share: number }[]
+  competitors: {
+    name: string
+    samples: number
+    share: number
+    /**
+     * Answers that linked this rival as a SOURCE, and that count as a fraction
+     * of the answers looked at.
+     *
+     * Optional so a frontend deployed ahead of the backend still typechecks —
+     * an older payload simply omits them and the panel shows the naming story
+     * alone, which is what it always showed.
+     *
+     * A rival can be cited without ever being named (share 0, cited > 0). That
+     * is not a rendering glitch: it is the assistant using someone as a source
+     * without crediting them in the prose, and it is worth seeing.
+     */
+    cited?: number
+    citedShare?: number
+  }[]
   /** Null on the assistants that have no such field, so the UI omits the panel. */
   fanOut: { q: string; count: number }[] | null
   /**

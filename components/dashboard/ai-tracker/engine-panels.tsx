@@ -58,10 +58,15 @@ export function SourcesLeaderboard({
 }
 
 /**
- * Who gets named in the answers where you hoped to be.
+ * Who gets named in the answers where you hoped to be — and who gets linked to.
  *
  * Rivals step down through the neutral ramp rather than each taking a colour of
  * their own: there is one thing to look at here and it is your segment.
+ *
+ * Naming and citing are reported apart, because they are different findings with
+ * different work behind them. The bar stays share-of-VOICE (who the answer talks
+ * about); the key adds who the answer actually LINKED to, which is the stronger
+ * signal and the one an SEO can act on.
  */
 export function ShareOfVoice({
   engine,
@@ -72,11 +77,19 @@ export function ShareOfVoice({
 }) {
   if (!competitors.length) return null
   const ramp = ["var(--text-soft)", "var(--text-mute)", "var(--border-strong)", "var(--bg-inset)"]
+  // Older backends send no citation counts at all. Distinguish that from "we
+  // looked and nobody was cited" so the panel stays silent rather than claiming
+  // a zero it never measured.
+  const hasCitations = competitors.some((c) => c.cited != null)
   return (
     <>
       <SectionHead
         title="Who gets named instead of you"
-        why={`Share of voice across completed ${engine.label} answers`}
+        why={
+          hasCitations
+            ? `Share of voice across completed ${engine.label} answers, and who those answers linked to`
+            : `Share of voice across completed ${engine.label} answers`
+        }
       />
       <div className="card">
         <div className="llm-sov-bar">
@@ -92,10 +105,28 @@ export function ShareOfVoice({
           {competitors.map((c, i) => (
             <div key={c.name}>
               <i style={{ background: ramp[i % ramp.length] }} />
-              {c.name} <b>{pct(c.share)}</b>
+              {c.name}{" "}
+              {c.share > 0 ? (
+                <b>{pct(c.share)}</b>
+              ) : (
+                // Cited but never named. A 0% here would read as "irrelevant",
+                // which is the opposite of what it means.
+                <span className="muted">not named</span>
+              )}
+              {!!c.cited && (
+                <span className="muted" style={{ marginLeft: 6 }}>
+                  · cited in {c.cited}
+                </span>
+              )}
             </div>
           ))}
         </div>
+        {hasCitations && (
+          <div className="tiny muted" style={{ marginTop: 8 }}>
+            &ldquo;Cited&rdquo; means {engine.label} linked to them as a source.
+            Add a competitor&rsquo;s domain in brand settings to track it.
+          </div>
+        )}
       </div>
     </>
   )

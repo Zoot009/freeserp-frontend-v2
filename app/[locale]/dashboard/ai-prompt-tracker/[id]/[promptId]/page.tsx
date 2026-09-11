@@ -50,6 +50,9 @@ type Sample = {
   cited: boolean
   citations: Citation[] | null
   competitorsMentioned: string[] | null
+  /** Rivals this answer LINKED to. Null on samples scored before the column
+   *  existed — a rescore fills those in from citations stored all along. */
+  competitorsCited?: string[] | null
   fanOutQueries: string[] | null
   checkUrl: string | null
 }
@@ -535,6 +538,7 @@ function AnswersTab({ samples, terms }: { samples: Sample[]; terms: string[] }) 
           failed={s.status !== "COMPLETED"}
           checkUrl={s.checkUrl}
           competitors={s.competitorsMentioned}
+          competitorsCited={s.competitorsCited ?? null}
           fanOut={s.fanOutQueries}
         >
           {s.responseText ? (

@@ -241,6 +241,7 @@ export function AnswerCard({
   failed,
   checkUrl,
   competitors,
+  competitorsCited,
   fanOut,
   children,
 }: {
@@ -250,10 +251,12 @@ export function AnswerCard({
   failed: boolean
   checkUrl: string | null
   competitors: string[] | null
+  /** Rivals this answer linked to as a source — a stronger signal than naming. */
+  competitorsCited: string[] | null
   fanOut: string[] | null
   children: React.ReactNode
 }) {
-  const hasFooter = !!competitors?.length || !!fanOut?.length
+  const hasFooter = !!competitors?.length || !!competitorsCited?.length || !!fanOut?.length
   return (
     <article className={`llm-answer ${mentioned ? "hit" : ""}`.trim()}>
       <header className="llm-answer-h">
@@ -286,6 +289,19 @@ export function AnswerCard({
               <span className="tiny muted">Also named</span>
               {competitors.map((c) => (
                 <span className="chip outline" key={c}>
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
+          {!!competitorsCited?.length && (
+            <div className="r">
+              {/* Its own row rather than a variant chip in "Also named": a rival
+                  can be linked to without being named, so the two lists do not
+                  contain the same rivals and merging them would imply they do. */}
+              <span className="tiny muted">Also cited</span>
+              {competitorsCited.map((c) => (
+                <span className="chip pos outline" key={c}>
                   {c}
                 </span>
               ))}

@@ -43,6 +43,7 @@ import {
   type RunSummary,
 } from "@/lib/ai-tracker"
 import { ENGINES, ENGINE_NOTE, ENGINE_ORDER } from "@/lib/ai-engines"
+import { BrandSettingsModal } from "@/components/dashboard/ai-tracker/brand-settings"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
 // Platform, RunSummary, PromptRow and the status vocabulary live in
@@ -55,6 +56,19 @@ type Project = {
   brandName: string
   brandDomain: string | null
   competitorNames: string[]
+  /**
+   * The rest of the editable configuration. Optional so a frontend deployed
+   * ahead of the backend still typechecks against the older payload — the
+   * settings modal simply opens with empty lists rather than crashing.
+   */
+  brandAliases?: string[]
+  competitorDomains?: string[]
+  /**
+   * What the scorer will and will not match on, derived server-side by
+   * withBrandTerms(). `ignored` is why a brand made of ordinary words reports 0%,
+   * and the settings modal is where that gets explained and fixed.
+   */
+  brandTerms?: { matched: string[]; ignored: string[] }
 }
 
 
@@ -95,6 +109,14 @@ export default function LlmPromptListPage() {
   /** Prompt id whose platform editor is open — the "also ask Claude this one"
    *  path, which did not exist while platforms were fixed at creation. */
   const [editPlatforms, setEditPlatforms] = useState<string | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  /**
+   * Set while the server is re-scoring this brand's history after a settings
+   * change. Purely informational — the rates on screen are still the OLD ones
+   * until the rescore lands, and saying so beats letting the user read stale
+   * numbers as the result of their edit.
+   */
+  const [rescoring, setRescoring] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -127,6 +149,32 @@ export default function LlmPromptListPage() {
   useEffect(() => {
     if (user) void load()
   }, [user, load])
+
+  /**
+   * Refresh a few times while a rescore is running.
+   *
+   * A rescore has no status endpoint and does not need one: it is a bounded
+   * recompute over rows we already hold, typically well under a second, and the
+   * only observable is that the rates change. So this polls briefly rather than
+   * inventing a job-status API for a job nobody needs to watch.
+   *
+   * The ceiling matters more than the interval. If a rescore is somehow slower
+   * than this, the banner clears and the page carries on showing real (if
+   * momentarily stale) numbers — which is strictly better than a spinner that
+   * never resolves.
+   */
+  useEffect(() => {
+    if (!rescoring) return
+    let elapsed = 0
+    const RESCORE_POLL_MS = 2000
+    const RESCORE_TIMEOUT_MS = 30_000
+    const id = setInterval(() => {
+      elapsed += RESCORE_POLL_MS
+      void load(true)
+      if (elapsed >= RESCORE_TIMEOUT_MS) setRescoring(false)
+    }, RESCORE_POLL_MS)
+    return () => clearInterval(id)
+  }, [rescoring, load])
 
   // Poll while any run is in flight. A sample can take up to ~2 minutes, so this
   // runs for a while — hence `silent`, which never raises a banner.
@@ -407,6 +455,9 @@ export default function LlmPromptListPage() {
           <h1>{project.name}</h1>
         </div>
         <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={() => setShowSettings(true)}>
+            <Icon.settings /> Brand settings
+          </button>
           <button className="btn" onClick={() => setShowAdd(true)}>
             <Icon.plus /> Add prompts
           </button>
@@ -443,6 +494,22 @@ export default function LlmPromptListPage() {
           </span>
         </div>
       </div>
+
+      {rescoring && (
+        <div className="card tight" style={{ marginBottom: 12 }}>
+          <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
+            <Icon.refresh />
+            <div className="tiny" style={{ flex: 1 }}>
+              <span className="b">Rechecking your history. </span>
+              <span className="muted">
+                Every answer already collected is being re-read against the new
+                settings, so the rates below may still show the old ones for a
+                moment. Nothing is being re-run and nothing is charged.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {notice && (
         <div className="card tight" style={{ marginBottom: 12 }}>
@@ -682,6 +749,30 @@ export default function LlmPromptListPage() {
           onSave={async (next) => {
             await updatePlatforms(editing.id, next)
             setEditPlatforms(null)
+          }}
+        />
+      )}
+
+      {showSettings && project && (
+        <BrandSettingsModal
+          project={project}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated, isRescoring) => {
+            setShowSettings(false)
+            // Take the server's copy: it carries the freshly derived brandTerms,
+            // so reopening the modal shows what is now ignored rather than what
+            // was ignored before the edit.
+            setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+            setRescoring(isRescoring)
+            toast.success(
+              isRescoring ? "Saved — rechecking your history" : "Brand settings saved",
+            )
+            if (!isRescoring) void load(true)
+          }}
+          onDeleted={() => {
+            setShowSettings(false)
+            toast.success("Brand deleted")
+            router.replace("/dashboard/ai-prompt-tracker")
           }}
         />
       )}
