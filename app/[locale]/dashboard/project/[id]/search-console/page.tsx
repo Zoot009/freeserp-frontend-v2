@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Icon } from "@/components/dashboard/icons"
 import { InfoHint } from "@/components/dashboard/widget"
-import { ArrowDownRight, ArrowUpRight, Check, Eye, Gauge, MousePointerClick, Percent } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, Check, ExternalLink, Eye, Gauge, MousePointerClick, Percent } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { propertyCoversDomain } from "@/components/dashboard/gsc"
@@ -823,7 +823,7 @@ export default function SearchConsolePage() {
                     similar from one page to the next. */}
                 <div key={`${metrics.join("-")}-${pageIndex}`} className="fs-chart-reveal">
                   <ChartContainer config={chartConfig} className="!aspect-auto h-[380px] w-full">
-                    <LineChart data={chartSlice} margin={{ top: 10, right: 8, bottom: 0, left: 4 }}>
+                    <LineChart data={chartSlice} margin={{ top: 10, right: 12, bottom: 0, left: 12 }}>
                       {/* Solid hairline, horizontal only. Dashes read as a
                           threshold or a projection when they are just a grid. */}
                       <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.7} />
@@ -840,26 +840,29 @@ export default function SearchConsolePage() {
                           new Date(Number(v)).toLocaleDateString(undefined, { day: "numeric", month: "short" })
                         }
                       />
-                      {/* An axis per selected metric: first left, second right.
-                          They cannot share one — clicks and impressions differ
-                          by up to two orders of magnitude, and on a single scale
-                          the clicks line sits flat on the baseline reading as
-                          zero. Each axis is tinted to its series, because with
-                          two scales the only way to read a line is against the
-                          right one. */}
-                      {metrics.map((key, i) => (
+                      {/* Scales exist but are not drawn.
+
+                          Each series still gets its own y-axis — it has to,
+                          since clicks and impressions differ by up to two
+                          orders of magnitude and would otherwise flatten one
+                          of them onto the baseline. What is dropped is the
+                          TICKS. Two labelled scales on one plot is the part
+                          people misread: the eye treats a crossing point as
+                          meaningful when it is only an artefact of how the two
+                          were scaled. Without them the chart says what it can
+                          honestly say — the SHAPE of each series over time —
+                          and the tooltip gives exact values for any day.
+
+                          The tile above carries the total and the colour, so
+                          magnitude has not gone missing, only the misleading
+                          way of reading it off the grid. */}
+                      {metrics.map((key) => (
                         <YAxis
                           key={key}
                           yAxisId={key}
-                          orientation={i === 0 ? "left" : "right"}
-                          width={52}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={key === "ctr"}
+                          hide
                           reversed={METRIC_INVERTED[key]}
                           domain={chartDomains[key]}
-                          tickFormatter={METRIC_FORMAT[key]}
-                          tick={{ fill: METRIC_COLORS[key] }}
                         />
                       ))}
                       <ChartTooltip
@@ -916,8 +919,8 @@ export default function SearchConsolePage() {
                     the chart, rather than left for the reader to infer. */}
                 {metrics.length > 1 && (
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    {metrics.map((k) => t(k)).join(" and ")} use separate scales — read each line against its own
-                    axis, not against the other line.
+                    {metrics.map((k) => t(k)).join(" and ")} are drawn on separate scales, so compare each line
+                    against itself over time — where they cross means nothing. Hover any day for exact figures.
                   </p>
                 )}
 
@@ -1297,6 +1300,93 @@ function MetricCard({
     </button>
   )
 }
+/**
+ * Search Console reports countries as ISO 3166-1 alpha-3. Map to alpha-2 and
+ * let the runtime resolve the name, rather than shipping 250 English strings
+ * that would then need translating four more times.
+ */
+const A3_TO_A2: Record<string, string> = {
+  afg:"AF",ala:"AX",alb:"AL",dza:"DZ",asm:"AS",and:"AD",ago:"AO",aia:"AI",ata:"AQ",atg:"AG",arg:"AR",arm:"AM",abw:"AW",aus:"AU",aut:"AT",aze:"AZ",bhs:"BS",bhr:"BH",bgd:"BD",brb:"BB",blr:"BY",bel:"BE",blz:"BZ",ben:"BJ",bmu:"BM",btn:"BT",bol:"BO",bes:"BQ",bih:"BA",bwa:"BW",bvt:"BV",bra:"BR",iot:"IO",brn:"BN",bgr:"BG",bfa:"BF",bdi:"BI",cpv:"CV",khm:"KH",cmr:"CM",can:"CA",cym:"KY",caf:"CF",tcd:"TD",chl:"CL",chn:"CN",cxr:"CX",cck:"CC",col:"CO",com:"KM",cog:"CG",cod:"CD",cok:"CK",cri:"CR",civ:"CI",hrv:"HR",cub:"CU",cuw:"CW",cyp:"CY",cze:"CZ",dnk:"DK",dji:"DJ",dma:"DM",dom:"DO",ecu:"EC",egy:"EG",slv:"SV",gnq:"GQ",eri:"ER",est:"EE",swz:"SZ",eth:"ET",flk:"FK",fro:"FO",fji:"FJ",fin:"FI",fra:"FR",guf:"GF",pyf:"PF",atf:"TF",gab:"GA",gmb:"GM",geo:"GE",deu:"DE",gha:"GH",gib:"GI",grc:"GR",grl:"GL",grd:"GD",glp:"GP",gum:"GU",gtm:"GT",ggy:"GG",gin:"GN",gnb:"GW",guy:"GY",hti:"HT",hmd:"HM",vat:"VA",hnd:"HN",hkg:"HK",hun:"HU",isl:"IS",ind:"IN",idn:"ID",irn:"IR",irq:"IQ",irl:"IE",imn:"IM",isr:"IL",ita:"IT",jam:"JM",jpn:"JP",jey:"JE",jor:"JO",kaz:"KZ",ken:"KE",kir:"KI",prk:"KP",kor:"KR",kwt:"KW",kgz:"KG",lao:"LA",lva:"LV",lbn:"LB",lso:"LS",lbr:"LR",lby:"LY",lie:"LI",ltu:"LT",lux:"LU",mac:"MO",mdg:"MG",mwi:"MW",mys:"MY",mdv:"MV",mli:"ML",mlt:"MT",mhl:"MH",mtq:"MQ",mrt:"MR",mus:"MU",myt:"YT",mex:"MX",fsm:"FM",mda:"MD",mco:"MC",mng:"MN",mne:"ME",msr:"MS",mar:"MA",moz:"MZ",mmr:"MM",nam:"NA",nru:"NR",npl:"NP",nld:"NL",ncl:"NC",nzl:"NZ",nic:"NI",ner:"NE",nga:"NG",niu:"NU",nfk:"NF",mkd:"MK",mnp:"MP",nor:"NO",omn:"OM",pak:"PK",plw:"PW",pse:"PS",pan:"PA",png:"PG",pry:"PY",per:"PE",phl:"PH",pcn:"PN",pol:"PL",prt:"PT",pri:"PR",qat:"QA",reu:"RE",rou:"RO",rus:"RU",rwa:"RW",blm:"BL",shn:"SH",kna:"KN",lca:"LC",maf:"MF",spm:"PM",vct:"VC",wsm:"WS",smr:"SM",stp:"ST",sau:"SA",sen:"SN",srb:"RS",syc:"SC",sle:"SL",sgp:"SG",sxm:"SX",svk:"SK",svn:"SI",slb:"SB",som:"SO",zaf:"ZA",sgs:"GS",ssd:"SS",esp:"ES",lka:"LK",sdn:"SD",sur:"SR",sjm:"SJ",swe:"SE",che:"CH",syr:"SY",twn:"TW",tjk:"TJ",tza:"TZ",tha:"TH",tls:"TL",tgo:"TG",tkl:"TK",ton:"TO",tto:"TT",tun:"TN",tur:"TR",tkm:"TM",tca:"TC",tuv:"TV",uga:"UG",ukr:"UA",are:"AE",gbr:"GB",usa:"US",umi:"UM",ury:"UY",uzb:"UZ",vut:"VU",ven:"VE",vnm:"VN",vgb:"VG",vir:"VI",wlf:"WF",esh:"EH",yem:"YE",zmb:"ZM",zwe:"ZW",
+}
+
+/** "United States", not "USA". Falls back to the raw code when unresolvable. */
+function countryName(a3: string, locale?: string): string {
+  const code = a3.toLowerCase()
+  if (code === "zzz") return "Unknown region"
+  const a2 = A3_TO_A2[code]
+  if (!a2) return a3.toUpperCase()
+  try {
+    return new Intl.DisplayNames([locale ?? "en"], { type: "region" }).of(a2) ?? a3.toUpperCase()
+  } catch {
+    return a3.toUpperCase()
+  }
+}
+
+const DEVICE_LABEL: Record<string, string> = { DESKTOP: "Desktop", MOBILE: "Mobile", TABLET: "Tablet" }
+
+/**
+ * The path, not the whole URL.
+ *
+ * Every row in a Pages table repeats the same domain, so the part that differs
+ * — the only part worth reading — starts 25 characters in and is the first
+ * thing an ellipsis eats.
+ */
+function prettyPath(url: string): string {
+  try {
+    const u = new URL(url)
+    return u.pathname + u.search || "/"
+  } catch {
+    return url.replace(/^https?:\/\//, "")
+  }
+}
+
+/**
+ * Clicks per device as bars rather than a four-column table.
+ *
+ * Three rows of numbers where the only question is "how does the split look"
+ * is a table doing a chart's job. The share is the point, so the share is what
+ * gets drawn.
+ */
+function DeviceBars({
+  rows,
+  onSelect,
+  t,
+}: {
+  rows: { key: string; clicks: number }[]
+  onSelect?: (key: string) => void
+  t: (k: string) => string
+}) {
+  const total = rows.reduce((s, r) => s + r.clicks, 0)
+  if (rows.length === 0) {
+    return <div className="py-8 text-center text-[13px] text-muted-foreground">{t("noData")}</div>
+  }
+  return (
+    <div className="space-y-3 py-3">
+      {rows.map((r) => {
+        const share = total > 0 ? (r.clicks / total) * 100 : 0
+        return (
+          <button
+            key={r.key}
+            type="button"
+            onClick={onSelect ? () => onSelect(r.key) : undefined}
+            className={cn("block w-full text-left", onSelect && "-m-1 cursor-pointer rounded-lg p-1 hover:bg-muted/40")}
+          >
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="font-medium text-foreground">{DEVICE_LABEL[r.key] ?? r.key}</span>
+              <span className="tabular-nums text-muted-foreground">
+                {fmtInt(r.clicks)} · {share.toFixed(0)}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Active-tab table ────────────────────────────────────────────────────────
 function DimTable({
   tab,
@@ -1325,16 +1415,33 @@ function DimTable({
     return (
       <MetricsTable
         head={t("page")}
-        rows={perf.topPages.map((r) => ({ label: r.page, m: r, mono: true, onClick: () => onDrill("page", r.page) }))}
+        rows={perf.topPages.map((r) => ({
+          label: prettyPath(r.page),
+          title: r.page,
+          href: r.page,
+          m: r,
+          mono: true,
+          onClick: () => onDrill("page", r.page),
+        }))}
         t={t}
       />
     )
   }
   if (tab === "countries") {
-    return <MetricsTable head={t("country")} rows={perf.countries.map((r) => ({ label: r.country.toUpperCase(), m: r }))} t={t} />
+    return (
+      <MetricsTable
+        head={t("country")}
+        // "United States", not "usa". The code is kept as the title so the
+        // raw value Google returned is still recoverable on hover.
+        rows={perf.countries.map((r) => ({ label: countryName(r.country), title: r.country.toUpperCase(), m: r }))}
+        t={t}
+      />
+    )
   }
   if (tab === "devices") {
-    return <MetricsTable head={t("device")} rows={perf.devices.map((r) => ({ label: r.device, m: r }))} t={t} />
+    // Bars, not a table: with three rows the only question is how the split
+    // looks, and a share is better drawn than tabulated.
+    return <DeviceBars rows={perf.devices.map((r) => ({ key: r.device, clicks: r.clicks }))} t={t} />
   }
   if (tab === "appearance") {
     return <MetricsTable head={t("appearance")} rows={perf.searchAppearance.map((r) => ({ label: r.appearance, m: r }))} t={t} />
@@ -1392,7 +1499,8 @@ function SortHead({
   )
 }
 
-const TABLE_PAGE_SIZE = 25
+/** Offered in the rows-per-page picker; the first is the default. */
+const TABLE_PAGE_SIZES = [25, 50, 100] as const
 
 function MetricsTable({
   head,
@@ -1401,13 +1509,23 @@ function MetricsTable({
   select,
 }: {
   head: string
-  rows: { label: string; m: Metrics; mono?: boolean; onClick?: () => void }[]
+  rows: {
+    label: string
+    /** Full value behind a shortened label — the URL behind a path, the code behind a country. */
+    title?: string
+    /** Opens in a new tab from a small icon. Pages only. */
+    href?: string
+    m: Metrics
+    mono?: boolean
+    onClick?: () => void
+  }[]
   t: (k: string) => string
   /** Supplied only for keyword rows — see QuerySelect. */
   select?: QuerySelect
 }) {
   const [sort, setSort] = useState<SortState>(null)
   const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState<number>(TABLE_PAGE_SIZES[0])
 
   // Sort the WHOLE set, then cut the page out of the result. Sorting only the
   // visible page would reorder twenty-five rows inside a list of six hundred
@@ -1421,17 +1539,17 @@ function MetricsTable({
     })
   }, [rows, sort])
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / TABLE_PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize))
   const pageIndex = Math.min(page, pageCount - 1)
   const visible = useMemo(
-    () => sorted.slice(pageIndex * TABLE_PAGE_SIZE, pageIndex * TABLE_PAGE_SIZE + TABLE_PAGE_SIZE),
+    () => sorted.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize),
     [sorted, pageIndex],
   )
 
   // Any change to what is being listed puts the reader back at the top. Staying
   // on page 9 after re-sorting leaves them somewhere in a list they have never
   // seen the start of.
-  useEffect(() => setPage(0), [sort, rows])
+  useEffect(() => setPage(0), [sort, rows, pageSize])
 
   const onSort = (key: SortKey) =>
     setSort((s) => {
@@ -1504,13 +1622,26 @@ function MetricsTable({
                     />
                   </td>
                 )}
-                <td
-                  className={r.mono ? "mono tiny" : ""}
-                  style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  title={r.label}
-                >
-                  {r.mono ? siteHost(r.label) || r.label : r.label}
-                  {isTracked && <span className="tag" style={{ marginLeft: 8 }}>{t("tracked")}</span>}
+                <td className={r.mono ? "mono tiny" : ""} style={{ maxWidth: 320 }} title={r.title ?? r.label}>
+                  <span className="flex max-w-full items-center gap-1.5">
+                    <span className="truncate">{r.label}</span>
+                    {isTracked && <span className="tag shrink-0">{t("tracked")}</span>}
+                    {r.href && (
+                      // stopPropagation: the row opens the drill-down, and
+                      // following the link must not also navigate the panel
+                      // underneath it.
+                      <a
+                        href={r.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-muted-foreground/50 transition-colors hover:text-primary"
+                        title={r.href}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </span>
                 </td>
                 <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.clicks)}</td>
                 <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.impressions)}</td>
@@ -1522,12 +1653,28 @@ function MetricsTable({
         </tbody>
       </table>
 
-      {pageCount > 1 && (
+      {(pageCount > 1 || sorted.length > TABLE_PAGE_SIZES[0]) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-          <span className="text-xs text-muted-foreground">
-            {pageIndex * TABLE_PAGE_SIZE + 1}–{Math.min(sorted.length, (pageIndex + 1) * TABLE_PAGE_SIZE)} of{" "}
-            {sorted.length.toLocaleString()}
-          </span>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <label className="flex items-center gap-1.5">
+              {t("rowsPerPage")}
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-md border bg-background px-1.5 py-1 text-foreground outline-none"
+              >
+                {TABLE_PAGE_SIZES.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="tabular-nums">
+              {pageIndex * pageSize + 1}–{Math.min(sorted.length, (pageIndex + 1) * pageSize)} of{" "}
+              {sorted.length.toLocaleString()}
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -1572,7 +1719,7 @@ function exportTab(tab: TabKey, perf: Performance, t: (k: string) => string) {
   let body: (string | number)[][] = []
   if (tab === "queries") body = perf.topQueries.map((r) => pick(r.query, r))
   else if (tab === "pages") body = perf.topPages.map((r) => pick(r.page, r))
-  else if (tab === "countries") body = perf.countries.map((r) => pick(r.country.toUpperCase(), r))
+  else if (tab === "countries") body = perf.countries.map((r) => pick(countryName(r.country), r))
   else if (tab === "devices") body = perf.devices.map((r) => pick(r.device, r))
   else if (tab === "appearance") body = perf.searchAppearance.map((r) => pick(r.appearance, r))
   else body = perf.series.map((r) => pick(r.date, r))

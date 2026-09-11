@@ -1468,7 +1468,8 @@
     "addSelectedToTracker": "Ajouter {count} au suivi de position",
     "tracked": "Suivi",
     "alreadyTracked": "Déjà suivi dans ce projet",
-    "selectAll": "Tout sélectionner"
+    "selectAll": "Tout sélectionner",
+    "rowsPerPage": "Lignes par page :"
   },
   "quotaUpsell": {
     "eyebrow": "Passer au niveau supérieur",

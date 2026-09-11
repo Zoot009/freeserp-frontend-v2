@@ -1468,7 +1468,8 @@
     "addSelectedToTracker": "Add {count} to rank tracker",
     "tracked": "Tracked",
     "alreadyTracked": "Already tracked in this project",
-    "selectAll": "Select all"
+    "selectAll": "Select all",
+    "rowsPerPage": "Rows per page:"
   },
   "quotaUpsell": {
     "eyebrow": "Upgrade",

@@ -1468,7 +1468,8 @@
     "addSelectedToTracker": "Añadir {count} al rank tracker",
     "tracked": "Rastreada",
     "alreadyTracked": "Ya se rastrea en este proyecto",
-    "selectAll": "Seleccionar todo"
+    "selectAll": "Seleccionar todo",
+    "rowsPerPage": "Filas por página:"
   },
   "quotaUpsell": {
     "eyebrow": "Mejorar plan",
