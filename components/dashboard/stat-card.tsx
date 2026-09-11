@@ -26,11 +26,25 @@ export function StatCard({
   tone,
   fill,
   fillClass,
+  valueStyle,
 }: {
-  label: string
+  /**
+   * Usually a string. Widened to a node so a caller can put a mark beside the
+   * text — the Search Console tiles carry a tick showing which figures are on
+   * the chart — without a second, nearly identical stat card existing to hold
+   * it. A node supplied here owns its own layout; the truncation below only
+   * does anything useful for a plain string.
+   */
+  label: React.ReactNode
   /** What the number means, and what a good one looks like. */
   hint: React.ReactNode
   value: React.ReactNode
+  /**
+   * Inline style for the figure, for the one case a token class cannot cover:
+   * a colour that belongs to a data series rather than to the theme. Prefer
+   * `tone` for anything that is a theme decision.
+   */
+  valueStyle?: React.CSSProperties
   /** Sub-line under the figure. A node, so a delta pill can sit here. */
   caption?: React.ReactNode
   tone?: string
@@ -46,15 +60,18 @@ export function StatCard({
   return (
     <div className="min-w-0 rounded-xl border bg-card px-4.5 py-4 shadow-sm">
       <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-        <span className="truncate">{label}</span>
+        <span className="min-w-0 truncate">{label}</span>
         <InfoHint>{hint}</InfoHint>
       </div>
       <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2">
         <span
           className={cn(
             "text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums",
-            tone ?? "text-primary",
+            // A caller-supplied colour wins, so the token class is dropped
+            // rather than left to lose a specificity race it might not lose.
+            valueStyle?.color ? undefined : (tone ?? "text-primary"),
           )}
+          style={valueStyle}
         >
           {value}
         </span>

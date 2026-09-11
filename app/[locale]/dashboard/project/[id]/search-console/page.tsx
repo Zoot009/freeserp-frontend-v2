@@ -80,6 +80,48 @@ const fmtPos = (v: number) => v.toFixed(1)
 const fmtDay = (ts: number) =>
   new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short" })
 
+/** The four figures Search Console reports, and the order the tiles sit in. */
+const METRIC_KEYS = ["clicks", "impressions", "ctr", "position"] as const
+type MetricKey = (typeof METRIC_KEYS)[number]
+
+/**
+ * A fixed colour per metric, from the palette the keyword chart already uses.
+ *
+ * Keyed by metric, never by selection order. Assigning by position would
+ * repaint impressions the moment clicks was unticked, and a reader who has
+ * learned "blue is clicks" would be quietly lied to.
+ */
+const METRIC_COLORS: Record<MetricKey, string> = {
+  clicks: "var(--primary)",
+  impressions: "#7c3aed",
+  ctr: "#0891b2",
+  position: "#d97706",
+}
+
+/** Lower is better for position, so its axis runs the other way. */
+const METRIC_INVERTED: Record<MetricKey, boolean> = {
+  clicks: false,
+  impressions: false,
+  ctr: false,
+  position: true,
+}
+
+/** What each figure means, and what a good one looks like. */
+const METRIC_HINTS: Record<MetricKey, string> = {
+  clicks: "Times someone clicked through to your site from Google, for this property and range.",
+  impressions:
+    "Times a link to your site appeared in results. High impressions with few clicks usually means you rank, but not high enough.",
+  ctr: "Clicks divided by impressions. Compared against the previous period in percentage points, not percent — a move from 1% to 2% is +1 pp.",
+  position:
+    "Your average position across every query that showed your site. Lower is better, so a green arrow here means the number went down.",
+}
+const METRIC_FORMAT: Record<MetricKey, (v: number) => string> = {
+  clicks: fmtInt,
+  impressions: fmtInt,
+  ctr: fmtPct,
+  position: fmtPos,
+}
+
 export default function SearchConsolePage() {
   const params = useParams()
   const router = useRouter()
@@ -97,17 +139,38 @@ export default function SearchConsolePage() {
   const [perf, setPerf] = useState<Performance | null>(null)
 
   const [range, setRange] = useState<RangeState>({ mode: "preset", days: 90 })
-  const [metric, setMetric] = useState<"clicks" | "impressions">("clicks")
+  // ── Which metrics are plotted ─────────────────────────────────────────
+  //
+  // Tiles are checkboxes, the way Search Console's own are: tick two and both
+  // are drawn, each against its own y-axis.
+  //
+  // Capped at two on purpose. Clicks and impressions differ by one to two
+  // orders of magnitude on a real account (2,443 against 61), so they cannot
+  // share a scale — the clicks line flattens onto the baseline and reads as
+  // zero. Two series means two axes, which is what Google does and what this
+  // was asked to match; a third would need a third scale nobody can label, so
+  // ticking one drops the metric that has been selected longest.
+  //
+  // Worth knowing what that costs: with two scales, WHERE the lines cross is
+  // set by how the axes were chosen, not by the data. Read each line against
+  // its own axis, not against the other line.
+  const [metrics, setMetrics] = useState<MetricKey[]>(["clicks"])
 
-  // One series, so no legend: the card heading already names what is plotted,
-  // and a legend box for a single line is chrome that explains nothing. Slot 1
-  // of the chart palette, the same colour the keyword-history chart opens with.
-  const chartConfig = {
-    value: {
-      label: metric === "clicks" ? t("clicks") : t("impressions"),
-      color: "var(--primary)",
-    },
-  } satisfies ChartConfig
+  const toggleMetric = (key: MetricKey) =>
+    setMetrics((cur) => {
+      if (cur.includes(key)) {
+        // Never leave the chart with nothing to draw — the last remaining
+        // metric stays stuck on rather than emptying the plot.
+        return cur.length === 1 ? cur : cur.filter((k) => k !== key)
+      }
+      return cur.length < 2 ? [...cur, key] : [cur[1]!, key]
+    })
+
+  // One series, one colour, held by the metric rather than by its position in
+  // the selection — so unticking clicks must not repaint impressions.
+  const chartConfig = Object.fromEntries(
+    METRIC_KEYS.map((k) => [k, { label: t(k), color: METRIC_COLORS[k] }]),
+  ) satisfies ChartConfig
 
   // ── Chart paging ──────────────────────────────────────────────────────
   //
@@ -117,13 +180,18 @@ export default function SearchConsolePage() {
   const CHART_PAGE_DAYS = 30
   const [chartPage, setChartPage] = useState(0)
 
+  // Every metric is carried on every point, so ticking a tile redraws from data
+  // already in hand rather than re-deriving the series on each toggle.
   const chartPoints = useMemo(
     () =>
       (perf?.series ?? []).map((d) => ({
         ts: new Date(d.date + "T00:00:00Z").getTime(),
-        value: metric === "clicks" ? d.clicks : d.impressions,
+        clicks: d.clicks,
+        impressions: d.impressions,
+        ctr: d.ctr,
+        position: d.position,
       })),
-    [perf, metric],
+    [perf],
   )
 
   const chartPageCount = Math.max(1, Math.ceil(chartPoints.length / CHART_PAGE_DAYS))
@@ -134,7 +202,7 @@ export default function SearchConsolePage() {
   // for.
   useEffect(() => {
     setChartPage(Math.max(0, Math.ceil((chartPoints.length || 1) / CHART_PAGE_DAYS) - 1))
-  }, [chartPoints.length, metric])
+  }, [chartPoints.length])
 
   const pageIndex = Math.min(chartPage, chartPageCount - 1)
   // Windows are measured back from the NEWEST point, not forward from the
@@ -154,12 +222,28 @@ export default function SearchConsolePage() {
   // its own maximum draws a quiet week and a record week as the same shape at
   // the same height, so paging through looks like nothing ever changes. A
   // fixed ceiling means a tall page really is a busier one.
-  const chartYMax = useMemo(() => {
-    const max = Math.max(0, ...chartPoints.map((d) => d.value))
-    if (max === 0) return 1
-    // Round up to a clean step so the axis reads 0/100/200 rather than 0/93/186.
-    const step = Math.pow(10, Math.floor(Math.log10(max))) / 2
-    return Math.ceil((max * 1.05) / step) * step
+  // One per metric, so a tile ticked on page 3 does not rescale page 1.
+  const chartDomains = useMemo(() => {
+    const out = {} as Record<MetricKey, [number, number]>
+    for (const key of METRIC_KEYS) {
+      const values = chartPoints.map((d) => d[key]).filter((v) => Number.isFinite(v))
+      const max = Math.max(0, ...values)
+      if (METRIC_INVERTED[key]) {
+        // Position: 1 is the best a rank can be, and the axis is reversed at
+        // render time. Asking for 0 would leave the line floating under an
+        // empty band that means nothing.
+        out[key] = [1, Math.max(2, Math.ceil(max) + 1)]
+        continue
+      }
+      if (max <= 0) {
+        out[key] = [0, 1]
+        continue
+      }
+      // Round up to a clean step so the axis reads 0/100/200, not 0/93/186.
+      const step = Math.pow(10, Math.floor(Math.log10(max))) / 2
+      out[key] = [0, Math.ceil((max * 1.05) / step) * step]
+    }
+    return out
   }, [chartPoints])
   const [tab, setTab] = useState<TabKey>("queries")
   const [drill, setDrill] = useState<DetailResp | null>(null)
@@ -660,58 +744,61 @@ export default function SearchConsolePage() {
           {!perf && perfLoading ? (
             <KpiSkeleton />
           ) : (
-          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-            <Kpi
-              label={t("clicks")}
-              hint="Times someone clicked through to your site from Google, for this property and range."
-              value={perf ? fmtInt(perf.totals.clicks) : "—"}
-              cur={perf?.totals.clicks}
-              prev={perf?.previous.clicks}
-              format={fmtInt}
-              selected={metric === "clicks"}
-              onClick={() => setMetric("clicks")}
-            />
-            <Kpi
-              label={t("impressions")}
-              hint="Times a link to your site appeared in results. High impressions with few clicks usually means you rank, but not high enough."
-              value={perf ? fmtInt(perf.totals.impressions) : "—"}
-              cur={perf?.totals.impressions}
-              prev={perf?.previous.impressions}
-              format={fmtInt}
-              selected={metric === "impressions"}
-              onClick={() => setMetric("impressions")}
-            />
-            <Kpi
-              label={t("ctr")}
-              hint="Clicks divided by impressions. Compared against the previous period in percentage points, not percent — a move from 1% to 2% is +1 pp."
-              value={perf ? fmtPct(perf.totals.ctr) : "—"}
-              cur={perf?.totals.ctr}
-              prev={perf?.previous.ctr}
-              format={(v) => `${(v * 100).toFixed(2)} pp`}
-            />
-            <Kpi
-              label={t("position")}
-              hint="Your average position across every query that showed your site. Lower is better, so a green arrow here means the number went down."
-              value={perf ? fmtPos(perf.totals.position) : "—"}
-              cur={perf?.totals.position}
-              prev={perf?.previous.position}
-              format={(v) => v.toFixed(1)}
-              lowerIsBetter
-            />
-          </div>
+            <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+              {METRIC_KEYS.map((key) => (
+                <Kpi
+                  key={key}
+                  metricKey={key}
+                  label={t(key)}
+                  hint={METRIC_HINTS[key]}
+                  value={perf ? METRIC_FORMAT[key](perf.totals[key]) : "—"}
+                  cur={perf?.totals[key]}
+                  prev={perf?.previous[key]}
+                  // CTR moves in percentage POINTS, not percent: 1% to 2% is
+                  // +1 pp, and calling that "+100%" would be true of the ratio
+                  // and useless to the reader.
+                  format={key === "ctr" ? (v) => `${(v * 100).toFixed(2)} pp` : METRIC_FORMAT[key]}
+                  lowerIsBetter={METRIC_INVERTED[key]}
+                  selected={metrics.includes(key)}
+                  onClick={() => toggleMetric(key)}
+                />
+              ))}
+            </div>
           )}
 
           {/* Trend chart */}
           <div
             className={cn(
-              "mb-3.5 rounded-xl border bg-card p-4.5 shadow-sm transition-opacity",
+              // overflow-hidden is load-bearing, not cosmetic. ChartContainer
+              // debounces its ResizeObserver by 120ms so that animating the
+              // sidebar does not re-lay-out every chart on every observed
+              // frame — which means the SVG keeps its OLD pixel width for the
+              // length of the gesture. That is fine inside a box that clips it
+              // and very visible inside one that does not: the plot spilled
+              // past the card edge every time the sidebar opened or closed.
+              // The overview's traffic card has always clipped; this one did
+              // not, which is why only this page showed it.
+              "mb-3.5 overflow-hidden rounded-xl border bg-card p-4.5 shadow-sm transition-opacity",
               perfLoading && "opacity-60",
             )}
           >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[13px] font-medium text-muted-foreground">
-                {metric === "clicks" ? t("clicks") : t("impressions")}
-              </span>
+              {/* Names every plotted series, with its colour beside it. With
+                  two lines on two scales, which colour is which is the first
+                  thing the reader needs and the axis tint alone is too quiet
+                  to carry it. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {metrics.map((key) => (
+                  <span key={key} className="flex items-center gap-1.5 text-[13px] font-medium">
+                    <span
+                      aria-hidden
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: METRIC_COLORS[key] }}
+                    />
+                    <span className="text-muted-foreground">{t(key)}</span>
+                  </span>
+                ))}
+              </div>
               {perf && (
                 <span className="font-mono text-xs text-muted-foreground">
                   {perf.startDate} → {perf.endDate}
@@ -720,20 +807,28 @@ export default function SearchConsolePage() {
             </div>
             {perf && perf.series.length > 0 ? (
               <>
-                {/* keyed on the window so the reveal replays when you page or
-                    switch metric — the animation is what tells you the plot
-                    changed, on a chart whose shape can otherwise look similar
-                    from one page to the next. */}
-                <div key={`${metric}-${pageIndex}`} className="fs-chart-reveal">
+                {/* keyed on the window and the selection so the reveal replays
+                    when either changes — the animation is what tells you the
+                    plot changed, on a chart whose shape can otherwise look
+                    similar from one page to the next. */}
+                <div key={`${metrics.join("-")}-${pageIndex}`} className="fs-chart-reveal">
                   <ChartContainer config={chartConfig} className="!aspect-auto h-[380px] w-full">
-                    <AreaChart data={chartSlice} margin={{ top: 10, right: 14, bottom: 0, left: 4 }}>
+                    <AreaChart data={chartSlice} margin={{ top: 10, right: 8, bottom: 0, left: 4 }}>
                       <defs>
-                        {/* Light. The fill gives the line a base; it is not
-                            meant to be the loudest thing on the card. */}
-                        <linearGradient id="gscFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.18} />
-                          <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0} />
-                        </linearGradient>
+                        {/* Light. The fill gives each line a base; it is not
+                            meant to be the loudest thing on the card. With two
+                            series it is lighter still, since two overlapping
+                            fills otherwise muddy into a third colour. */}
+                        {metrics.map((key) => (
+                          <linearGradient key={key} id={`gscFill-${key}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop
+                              offset="0%"
+                              stopColor={METRIC_COLORS[key]}
+                              stopOpacity={metrics.length > 1 ? 0.1 : 0.18}
+                            />
+                            <stop offset="100%" stopColor={METRIC_COLORS[key]} stopOpacity={0} />
+                          </linearGradient>
+                        ))}
                       </defs>
                       {/* Solid hairline, horizontal only. Dashes read as a
                           threshold or a projection when they are just a grid. */}
@@ -751,15 +846,28 @@ export default function SearchConsolePage() {
                           new Date(Number(v)).toLocaleDateString(undefined, { day: "numeric", month: "short" })
                         }
                       />
-                      {/* Fixed across every page — see chartYMax. */}
-                      <YAxis
-                        width={46}
-                        tickLine={false}
-                        axisLine={false}
-                        allowDecimals={false}
-                        domain={[0, chartYMax]}
-                        tickFormatter={fmtInt}
-                      />
+                      {/* An axis per selected metric: first left, second right.
+                          They cannot share one — clicks and impressions differ
+                          by up to two orders of magnitude, and on a single scale
+                          the clicks line sits flat on the baseline reading as
+                          zero. Each axis is tinted to its series, because with
+                          two scales the only way to read a line is against the
+                          right one. */}
+                      {metrics.map((key, i) => (
+                        <YAxis
+                          key={key}
+                          yAxisId={key}
+                          orientation={i === 0 ? "left" : "right"}
+                          width={52}
+                          tickLine={false}
+                          axisLine={false}
+                          allowDecimals={key === "ctr"}
+                          reversed={METRIC_INVERTED[key]}
+                          domain={chartDomains[key]}
+                          tickFormatter={METRIC_FORMAT[key]}
+                          tick={{ fill: METRIC_COLORS[key] }}
+                        />
+                      ))}
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
@@ -771,27 +879,44 @@ export default function SearchConsolePage() {
                                 year: "numeric",
                               })
                             }
-                            formatter={(v) => [fmtInt(Number(v)), metric === "clicks" ? " Clicks" : " Impressions"]}
+                            formatter={(v, name) => [
+                              METRIC_FORMAT[name as MetricKey]?.(Number(v)) ?? String(v),
+                              ` ${t(String(name))}`,
+                            ]}
                           />
                         }
                       />
-                      <Area
-                        dataKey="value"
-                        type="monotone"
-                        stroke="var(--color-value)"
-                        strokeWidth={2}
-                        fill="url(#gscFill)"
-                        // A month of points is sparse enough to mark each one,
-                        // which is what makes a single day findable to hover.
-                        dot={{ r: 2.5, strokeWidth: 0, fill: "var(--color-value)", fillOpacity: 0.55 }}
-                        activeDot={{ r: 5, strokeWidth: 2, fill: "var(--background)" }}
-                        // Recharts animates an Area by growing it upward, which
-                        // fights the left-to-right reveal the wrapper performs.
-                        isAnimationActive={false}
-                      />
+                      {metrics.map((key) => (
+                        <Area
+                          key={key}
+                          yAxisId={key}
+                          dataKey={key}
+                          type="monotone"
+                          stroke={METRIC_COLORS[key]}
+                          strokeWidth={2}
+                          fill={`url(#gscFill-${key})`}
+                          // A month of points is sparse enough to mark each one,
+                          // which is what makes a single day findable to hover.
+                          dot={{ r: 2.5, strokeWidth: 0, fill: METRIC_COLORS[key], fillOpacity: 0.55 }}
+                          activeDot={{ r: 5, strokeWidth: 2, fill: "var(--background)" }}
+                          // Recharts animates an Area by growing it upward, which
+                          // fights the left-to-right reveal the wrapper performs.
+                          isAnimationActive={false}
+                        />
+                      ))}
                     </AreaChart>
                   </ChartContainer>
                 </div>
+
+                {/* Two scales mean the crossing point is an artefact of how the
+                    axes were picked, not something in the data. Said once, under
+                    the chart, rather than left for the reader to infer. */}
+                {metrics.length > 1 && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {metrics.map((k) => t(k)).join(" and ")} use separate scales — read each line against its own
+                    axis, not against the other line.
+                  </p>
+                )}
 
                 {/* Pager. Hidden when everything already fits in one window — a
                     7-day range has nothing to page through. */}
@@ -1076,6 +1201,7 @@ function PageSkeleton() {
  * keyboard route to a control the mouse could reach.
  */
 function Kpi({
+  metricKey,
   label,
   hint,
   value,
@@ -1086,6 +1212,7 @@ function Kpi({
   selected,
   onClick,
 }: {
+  metricKey: MetricKey
   label: string
   hint: React.ReactNode
   value: React.ReactNode
@@ -1113,14 +1240,36 @@ function Kpi({
     }
   }
 
+  const color = METRIC_COLORS[metricKey]
+
   const card = (
     <StatCard
-      label={label}
+      // A tick-box in the label, the way Search Console marks which figures
+      // are on the chart. Purely decorative — the whole tile is the control,
+      // so a real <input> here would be a second focus stop for one action.
+      label={
+        <span className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={cn(
+              "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none text-white transition-colors",
+              !selected && "border-muted-foreground/40",
+            )}
+            style={selected ? { background: color, borderColor: color } : undefined}
+          >
+            {selected ? "✓" : ""}
+          </span>
+          <span className="truncate">{label}</span>
+        </span>
+      }
       hint={hint}
       value={value}
       caption={caption}
       tone={value === "—" ? "text-muted-foreground/50" : undefined}
       fill={null}
+      // The figure wears its series colour only while plotted, so the tile
+      // and the line are tied together without a legend to look up.
+      valueStyle={selected && value !== "—" ? { color } : undefined}
     />
   )
 
@@ -1134,10 +1283,11 @@ function Kpi({
       className={cn(
         "min-w-0 rounded-xl text-left transition",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        selected
-          ? "ring-2 ring-primary"
-          : "opacity-90 hover:opacity-100 hover:shadow-md",
+        selected ? "ring-2" : "opacity-90 hover:opacity-100 hover:shadow-md",
       )}
+      // Ring in the series colour rather than a fixed accent: with two tiles
+      // ticked, one blue ring on both would say they are the same series.
+      style={selected ? ({ "--tw-ring-color": color } as React.CSSProperties) : undefined}
     >
       {card}
     </button>
