@@ -175,6 +175,9 @@ export default function SearchConsolePage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [perfLoading, setPerfLoading] = useState(false)
+  // Whether the first performance request has come back at all — success or
+  // failure. Distinct from perfLoading, which is true again on every refetch.
+  const [perfSettled, setPerfSettled] = useState(false)
   const [error, setError] = useState("")
   // Google rejected the stored grant — the row still says "connected", but only
   // signing in again will fix it.
@@ -244,6 +247,7 @@ export default function SearchConsolePage() {
       noteError(err, "Failed to load performance")
     } finally {
       setPerfLoading(false)
+      setPerfSettled(true)
     }
   }, [projectId, rangeQuery, noteError])
 
@@ -448,7 +452,16 @@ export default function SearchConsolePage() {
   // First paint, before we know whether this account is even connected. A
   // centred "Loading…" on an otherwise blank page told the reader nothing about
   // what was coming and then shoved the whole layout into place at once.
-  if (authLoading || loading) {
+  //
+  // Held until the first performance response too, not just the base load.
+  // This page fetches in two stages — is there a connection, then what does it
+  // say — and releasing the skeleton after stage one drew the real layout with
+  // a SECOND set of placeholders inside it. One skeleton replacing another is
+  // two loads as far as the reader is concerned, and the swap between the two
+  // shapes is the flicker. perfSettled rather than !perfLoading, because there
+  // is a gap between the two effects where no request is in flight yet and the
+  // real page would flash through it.
+  if (authLoading || loading || (siteUrl != null && !perfSettled)) {
     return <PageSkeleton />
   }
 
@@ -853,20 +866,21 @@ export default function SearchConsolePage() {
                 ))}
               </div>
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                {/* Shown on the Queries tab, and anywhere a selection is still
-                    held — switching to Pages to drill into one keeps whatever
+                {/* Only once something is ticked.
+                    It used to sit on the Queries tab permanently, greyed out —
+                    a primary-styled button doing nothing, which reads as the
+                    main action of the card being broken rather than as one
+                    waiting on a selection. It still follows a selection across
+                    tabs: switching to Pages to drill into a keyword keeps what
                     was ticked, and hiding the button there would strand it. */}
-                {(tab === "queries" || selectedQueries.size > 0) && (
+                {selectedQueries.size > 0 && (
                   <button
                     type="button"
                     className="btn primary"
                     style={{ fontSize: 12 }}
-                    disabled={selectedQueries.size === 0}
                     onClick={() => setShowAddModal(true)}
                   >
-                    {selectedQueries.size > 0
-                      ? t("addSelectedToTracker", { count: selectedQueries.size })
-                      : t("addToTracker")}
+                    {t("addSelectedToTracker", { count: selectedQueries.size })}
                   </button>
                 )}
                 {perf && (
@@ -1176,6 +1190,56 @@ function DimTable({
 }
 
 // ── Generic metrics table ───────────────────────────────────────────────────
+
+/** Which column a table is ordered by. `null` keeps Google's own ordering. */
+type SortKey = "label" | "clicks" | "impressions" | "ctr" | "position"
+type SortState = { key: SortKey; dir: "asc" | "desc" } | null
+
+/**
+ * A sortable column heading.
+ *
+ * The caret only appears on the active column. Showing a neutral double arrow
+ * on every heading — the usual way of advertising that a table sorts — puts six
+ * pieces of chrome in a row where the reader needs to find one thing, and the
+ * active state then has to shout over its own decoration to be seen.
+ */
+function SortHead({
+  label,
+  col,
+  sort,
+  onSort,
+  align = "right",
+}: {
+  label: string
+  col: SortKey
+  sort: SortState
+  onSort: (k: SortKey) => void
+  align?: "left" | "right"
+}) {
+  const active = sort?.key === col
+  return (
+    <th style={{ textAlign: align }}>
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : "none"}
+        className={cn(
+          "inline-flex w-full items-center gap-1 whitespace-nowrap transition-colors hover:text-foreground",
+          align === "right" ? "justify-end" : "justify-start",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {label}
+        <span aria-hidden className={cn("text-[9px] leading-none", active ? "opacity-100" : "opacity-0")}>
+          {active && sort!.dir === "asc" ? "▲" : "▼"}
+        </span>
+      </button>
+    </th>
+  )
+}
+
+const TABLE_PAGE_SIZE = 25
+
 function MetricsTable({
   head,
   rows,
@@ -1188,73 +1252,154 @@ function MetricsTable({
   /** Supplied only for keyword rows — see QuerySelect. */
   select?: QuerySelect
 }) {
+  const [sort, setSort] = useState<SortState>(null)
+  const [page, setPage] = useState(0)
+
+  // Sort the WHOLE set, then cut the page out of the result. Sorting only the
+  // visible page would reorder twenty-five rows inside a list of six hundred
+  // and call it sorted, which is worse than not offering it.
+  const sorted = useMemo(() => {
+    if (!sort) return rows
+    const dir = sort.dir === "asc" ? 1 : -1
+    return [...rows].sort((a, b) => {
+      if (sort.key === "label") return a.label.localeCompare(b.label) * dir
+      return (a.m[sort.key] - b.m[sort.key]) * dir
+    })
+  }, [rows, sort])
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / TABLE_PAGE_SIZE))
+  const pageIndex = Math.min(page, pageCount - 1)
+  const visible = useMemo(
+    () => sorted.slice(pageIndex * TABLE_PAGE_SIZE, pageIndex * TABLE_PAGE_SIZE + TABLE_PAGE_SIZE),
+    [sorted, pageIndex],
+  )
+
+  // Any change to what is being listed puts the reader back at the top. Staying
+  // on page 9 after re-sorting leaves them somewhere in a list they have never
+  // seen the start of.
+  useEffect(() => setPage(0), [sort, rows])
+
+  const onSort = (key: SortKey) =>
+    setSort((s) => {
+      // First click: biggest first for a measure, A–Z for a name. Opening a
+      // clicks column at its smallest values would be a useless first view.
+      //
+      // The two columns therefore START in opposite directions, which is why
+      // the flip is written against `first` rather than hard-coded to "desc" —
+      // doing that skipped Z–A entirely, so the name column could only ever be
+      // sorted one way.
+      const first: "asc" | "desc" = key === "label" ? "asc" : "desc"
+      if (s?.key !== key) return { key, dir: first }
+      if (s.dir === first) return { key, dir: first === "asc" ? "desc" : "asc" }
+      // Third click returns to Google's own order rather than trapping the
+      // reader in a sort they cannot undo.
+      return null
+    })
+
   if (rows.length === 0) {
     return <div className="muted" style={{ fontSize: 13, padding: "20px 0", textAlign: "center" }}>{t("noData")}</div>
   }
-  const labels = rows.map((r) => r.label)
-  const selectable = select ? labels.filter((l) => !select.isTracked(l)) : []
+
+  // Header tick-box covers the rows actually on screen. A control that silently
+  // selects six hundred rows from a view of twenty-five is a nasty surprise
+  // when the next button says "add to rank tracker".
+  const pageLabels = visible.map((r) => r.label)
+  const selectable = select ? pageLabels.filter((l) => !select.isTracked(l)) : []
   const allSelected = select != null && selectable.length > 0 && selectable.every((l) => select.selected.has(l))
+
   return (
-    <table className="tbl">
-      <thead>
-        <tr>
-          {select && (
-            <th style={{ width: 32 }}>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                disabled={selectable.length === 0}
-                onChange={() => select.onToggleAll(labels)}
-                aria-label={t("selectAll")}
-                title={t("selectAll")}
-              />
-            </th>
-          )}
-          <th>{head}</th>
-          <th style={{ textAlign: "right" }}>{t("clicks")}</th>
-          <th style={{ textAlign: "right" }}>{t("impressions")}</th>
-          <th style={{ textAlign: "right" }}>{t("ctr")}</th>
-          <th style={{ textAlign: "right" }}>{t("position")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => {
-          const isTracked = select?.isTracked(r.label) ?? false
-          return (
-          <tr key={i} onClick={r.onClick} style={{ cursor: r.onClick ? "pointer" : "default" }}>
+    <>
+      <table className="tbl">
+        <thead>
+          <tr>
             {select && (
-              // stopPropagation: the row itself opens the drill-down, and ticking
-              // a box must not also navigate away from the list being ticked.
-              <td onClick={(e) => e.stopPropagation()} style={{ width: 32 }}>
+              <th style={{ width: 32 }}>
                 <input
                   type="checkbox"
-                  checked={select.selected.has(r.label)}
-                  disabled={isTracked}
-                  onChange={() => select.onToggle(r.label)}
-                  aria-label={isTracked ? t("alreadyTracked") : r.label}
-                  title={isTracked ? t("alreadyTracked") : undefined}
+                  checked={allSelected}
+                  disabled={selectable.length === 0}
+                  onChange={() => select.onToggleAll(pageLabels)}
+                  aria-label={t("selectAll")}
+                  title={t("selectAll")}
                 />
-              </td>
+              </th>
             )}
-            <td
-              className={r.mono ? "mono tiny" : ""}
-              style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-              title={r.label}
-            >
-              {r.mono ? siteHost(r.label) || r.label : r.label}
-              {isTracked && (
-                <span className="tag" style={{ marginLeft: 8 }}>{t("tracked")}</span>
-              )}
-            </td>
-            <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.clicks)}</td>
-            <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.impressions)}</td>
-            <td className="tabular" style={{ textAlign: "right" }}>{fmtPct(r.m.ctr)}</td>
-            <td className="tabular" style={{ textAlign: "right" }}>{fmtPos(r.m.position)}</td>
+            <SortHead label={head} col="label" sort={sort} onSort={onSort} align="left" />
+            <SortHead label={t("clicks")} col="clicks" sort={sort} onSort={onSort} />
+            <SortHead label={t("impressions")} col="impressions" sort={sort} onSort={onSort} />
+            <SortHead label={t("ctr")} col="ctr" sort={sort} onSort={onSort} />
+            <SortHead label={t("position")} col="position" sort={sort} onSort={onSort} />
           </tr>
-          )
-        })}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {visible.map((r, i) => {
+            const isTracked = select?.isTracked(r.label) ?? false
+            return (
+              <tr key={r.label + i} onClick={r.onClick} style={{ cursor: r.onClick ? "pointer" : "default" }}>
+                {select && (
+                  // stopPropagation: the row itself opens the drill-down, and ticking
+                  // a box must not also navigate away from the list being ticked.
+                  <td onClick={(e) => e.stopPropagation()} style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      checked={select.selected.has(r.label)}
+                      disabled={isTracked}
+                      onChange={() => select.onToggle(r.label)}
+                      aria-label={isTracked ? t("alreadyTracked") : r.label}
+                      title={isTracked ? t("alreadyTracked") : undefined}
+                    />
+                  </td>
+                )}
+                <td
+                  className={r.mono ? "mono tiny" : ""}
+                  style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  title={r.label}
+                >
+                  {r.mono ? siteHost(r.label) || r.label : r.label}
+                  {isTracked && <span className="tag" style={{ marginLeft: 8 }}>{t("tracked")}</span>}
+                </td>
+                <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.clicks)}</td>
+                <td className="tabular" style={{ textAlign: "right" }}>{fmtInt(r.m.impressions)}</td>
+                <td className="tabular" style={{ textAlign: "right" }}>{fmtPct(r.m.ctr)}</td>
+                <td className="tabular" style={{ textAlign: "right" }}>{fmtPos(r.m.position)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {pageCount > 1 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+          <span className="text-xs text-muted-foreground">
+            {pageIndex * TABLE_PAGE_SIZE + 1}–{Math.min(sorted.length, (pageIndex + 1) * TABLE_PAGE_SIZE)} of{" "}
+            {sorted.length.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPage((i) => Math.max(0, i - 1))}
+              disabled={pageIndex === 0}
+              aria-label="Previous page"
+              className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              ←
+            </button>
+            <span className="px-1 font-mono text-xs text-muted-foreground">
+              {pageIndex + 1} / {pageCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((i) => Math.min(pageCount - 1, i + 1))}
+              disabled={pageIndex >= pageCount - 1}
+              aria-label="Next page"
+              className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              →
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
