@@ -75,6 +75,9 @@ function siteHost(siteUrl: string): string {
 const fmtInt = (v: number) => Math.round(v).toLocaleString()
 const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
 const fmtPos = (v: number) => v.toFixed(1)
+/** "12 Jun" — the pager's window label, in the reader's own locale. */
+const fmtDay = (ts: number) =>
+  new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short" })
 
 export default function SearchConsolePage() {
   const params = useParams()
@@ -104,6 +107,59 @@ export default function SearchConsolePage() {
       color: "var(--primary)",
     },
   } satisfies ChartConfig
+
+  // ── Chart paging ──────────────────────────────────────────────────────
+  //
+  // Ninety daily points in one plot is a sawtooth nobody can read a date off.
+  // The series is cut into windows and paged instead, newest first, because
+  // "how did last week go" is the question people open this page with.
+  const CHART_PAGE_DAYS = 30
+  const [chartPage, setChartPage] = useState(0)
+
+  const chartPoints = useMemo(
+    () =>
+      (perf?.series ?? []).map((d) => ({
+        ts: new Date(d.date + "T00:00:00Z").getTime(),
+        value: metric === "clicks" ? d.clicks : d.impressions,
+      })),
+    [perf, metric],
+  )
+
+  const chartPageCount = Math.max(1, Math.ceil(chartPoints.length / CHART_PAGE_DAYS))
+
+  // Land on the most recent window, and go back there whenever the range or
+  // the metric changes — page 2 of the old data is meaningless against a new
+  // range, and silently keeping the index shows a window the user did not ask
+  // for.
+  useEffect(() => {
+    setChartPage(Math.max(0, Math.ceil((chartPoints.length || 1) / CHART_PAGE_DAYS) - 1))
+  }, [chartPoints.length, metric])
+
+  const pageIndex = Math.min(chartPage, chartPageCount - 1)
+  // Windows are measured back from the NEWEST point, not forward from the
+  // oldest. Counting forward, a 31-day range splits into 30 + 1 — and since we
+  // open on the newest window, that one point IS the landing page: a lone dot
+  // with no line, which looks broken rather than sparse. Anchoring to the end
+  // makes every window the reader opens a full one, and leaves any short
+  // remainder on the oldest page where it reads as "this is all we have".
+  const chartSlice = useMemo(() => {
+    const end = chartPoints.length - (chartPageCount - 1 - pageIndex) * CHART_PAGE_DAYS
+    return chartPoints.slice(Math.max(0, end - CHART_PAGE_DAYS), Math.max(0, end))
+  }, [chartPoints, chartPageCount, pageIndex])
+
+  // One y-scale for every page, taken from the WHOLE series.
+  //
+  // This is the part that makes paging honest. Letting each window scale to
+  // its own maximum draws a quiet week and a record week as the same shape at
+  // the same height, so paging through looks like nothing ever changes. A
+  // fixed ceiling means a tall page really is a busier one.
+  const chartYMax = useMemo(() => {
+    const max = Math.max(0, ...chartPoints.map((d) => d.value))
+    if (max === 0) return 1
+    // Round up to a clean step so the axis reads 0/100/200 rather than 0/93/186.
+    const step = Math.pow(10, Math.floor(Math.log10(max))) / 2
+    return Math.ceil((max * 1.05) / step) * step
+  }, [chartPoints])
   const [tab, setTab] = useState<TabKey>("queries")
   const [drill, setDrill] = useState<DetailResp | null>(null)
   const [drillLoading, setDrillLoading] = useState(false)
@@ -640,82 +696,130 @@ export default function SearchConsolePage() {
               )}
             </div>
             {perf && perf.series.length > 0 ? (
-              /* Recharts, the same stack the keyword-history chart uses, rather
-                 than the hand-rolled SVG primitive this page had. That one drew
-                 no x-axis at all — ninety days of daily traffic with nothing to
-                 say WHEN any spike happened — and picked its own y-ticks, which
-                 is where 274/206/137/69 came from. */
-              <ChartContainer config={chartConfig} className="!aspect-auto h-[260px] w-full">
-                <AreaChart
-                  data={perf.series.map((d) => ({
-                    ts: new Date(d.date + "T00:00:00Z").getTime(),
-                    value: metric === "clicks" ? d.clicks : d.impressions,
-                  }))}
-                  margin={{ top: 8, right: 12, bottom: 0, left: 4 }}
-                >
-                  <defs>
-                    {/* Light. The fill gives the line a base; it is not meant to
-                        be the loudest thing on the card. */}
-                    <linearGradient id="gscFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.18} />
-                      <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  {/* Solid hairline, horizontal only. Dashes read as a threshold
-                     or a projection when they are just a grid. */}
-                  <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.7} />
-                  <XAxis
-                    dataKey="ts"
-                    type="number"
-                    scale="time"
-                    domain={["dataMin", "dataMax"]}
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    // Lets Recharts drop labels rather than collide them: at 90
-                    // days every date cannot be printed, and an unreadable axis
-                    // is worse than a sparse one.
-                    minTickGap={44}
-                    tickFormatter={(v) =>
-                      new Date(Number(v)).toLocaleDateString(undefined, { day: "numeric", month: "short" })
-                    }
-                  />
-                  <YAxis
-                    width={44}
-                    tickLine={false}
-                    axisLine={false}
-                    allowDecimals={false}
-                    tickFormatter={fmtInt}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={(_, pl) =>
-                          new Date(Number(pl?.[0]?.payload?.ts)).toLocaleDateString(undefined, {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
+              <>
+                {/* keyed on the window so the reveal replays when you page or
+                    switch metric — the animation is what tells you the plot
+                    changed, on a chart whose shape can otherwise look similar
+                    from one page to the next. */}
+                <div key={`${metric}-${pageIndex}`} className="fs-chart-reveal">
+                  <ChartContainer config={chartConfig} className="!aspect-auto h-[380px] w-full">
+                    <AreaChart data={chartSlice} margin={{ top: 10, right: 14, bottom: 0, left: 4 }}>
+                      <defs>
+                        {/* Light. The fill gives the line a base; it is not
+                            meant to be the loudest thing on the card. */}
+                        <linearGradient id="gscFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.18} />
+                          <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      {/* Solid hairline, horizontal only. Dashes read as a
+                          threshold or a projection when they are just a grid. */}
+                      <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.7} />
+                      <XAxis
+                        dataKey="ts"
+                        type="number"
+                        scale="time"
+                        domain={["dataMin", "dataMax"]}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={40}
+                        tickFormatter={(v) =>
+                          new Date(Number(v)).toLocaleDateString(undefined, { day: "numeric", month: "short" })
                         }
-                        formatter={(v) => [fmtInt(Number(v)), metric === "clicks" ? " Clicks" : " Impressions"]}
                       />
-                    }
-                  />
-                  <Area
-                    dataKey="value"
-                    type="monotone"
-                    stroke="var(--color-value)"
-                    strokeWidth={2}
-                    fill="url(#gscFill)"
-                    // 90 daily points: a dot on each is a solid band of dots.
-                    // The active one on hover is the only marker worth drawing.
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, fill: "var(--background)" }}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ChartContainer>
+                      {/* Fixed across every page — see chartYMax. */}
+                      <YAxis
+                        width={46}
+                        tickLine={false}
+                        axisLine={false}
+                        allowDecimals={false}
+                        domain={[0, chartYMax]}
+                        tickFormatter={fmtInt}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            labelFormatter={(_, pl) =>
+                              new Date(Number(pl?.[0]?.payload?.ts)).toLocaleDateString(undefined, {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            }
+                            formatter={(v) => [fmtInt(Number(v)), metric === "clicks" ? " Clicks" : " Impressions"]}
+                          />
+                        }
+                      />
+                      <Area
+                        dataKey="value"
+                        type="monotone"
+                        stroke="var(--color-value)"
+                        strokeWidth={2}
+                        fill="url(#gscFill)"
+                        // A month of points is sparse enough to mark each one,
+                        // which is what makes a single day findable to hover.
+                        dot={{ r: 2.5, strokeWidth: 0, fill: "var(--color-value)", fillOpacity: 0.55 }}
+                        activeDot={{ r: 5, strokeWidth: 2, fill: "var(--background)" }}
+                        // Recharts animates an Area by growing it upward, which
+                        // fights the left-to-right reveal the wrapper performs.
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </div>
+
+                {/* Pager. Hidden when everything already fits in one window — a
+                    7-day range has nothing to page through. */}
+                {chartPageCount > 1 && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {chartSlice.length > 0 && `${fmtDay(chartSlice[0]!.ts)} – ${fmtDay(chartSlice[chartSlice.length - 1]!.ts)}`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setChartPage((i) => Math.max(0, i - 1))}
+                        disabled={pageIndex === 0}
+                        aria-label="Earlier dates"
+                        className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        ←
+                      </button>
+                      {/* Dots, not page numbers: the pages are windows of time,
+                          and "3" names nothing a reader can hold on to. The date
+                          range beside them is the real label. */}
+                      <div className="flex items-center gap-1 px-1">
+                        {Array.from({ length: chartPageCount }, (_, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setChartPage(i)}
+                            aria-label={`Window ${i + 1} of ${chartPageCount}`}
+                            aria-current={i === pageIndex}
+                            className={cn(
+                              "h-1.5 rounded-full transition-all",
+                              i === pageIndex
+                                ? "w-5 bg-primary"
+                                : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60",
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setChartPage((i) => Math.min(chartPageCount - 1, i + 1))}
+                        disabled={pageIndex >= chartPageCount - 1}
+                        aria-label="Later dates"
+                        className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="py-10 text-center text-[13px] text-muted-foreground">
                 {perfLoading ? t("loading") : t("noData")}
