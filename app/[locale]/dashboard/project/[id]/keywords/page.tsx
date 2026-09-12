@@ -2865,7 +2865,7 @@ export default function ProjectKeywordsPage() {
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl flush" style={{ minWidth: 1060 }}>
+            <table className="tbl flush" style={{ minWidth: 1080 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -2926,9 +2926,14 @@ export default function ProjectKeywordsPage() {
                       Not sortable. A set of features has no order to sort by,
                       and a header that looks clickable but ranks nothing is
                       worse than a plain one. */}
-                  {/* Four icon chips fit on one line here; the text chips
-                      this replaced needed 150px and still wrapped to three. */}
-                  <th style={{ width: 112 }}>
+                  {/* minWidth, not width. The table is layout:auto, so a width
+                      is only a hint and the browser sizes a column by its
+                      CONTENT -- and this cell wraps, so its min-content is one
+                      chip. With the sidebar open the squeeze landed here and
+                      stacked the chips into a vertical strip 24px wide. The
+                      floor below fits four across; beyond four it wraps to a
+                      second line rather than narrowing further. */}
+                  <th style={{ width: 116, minWidth: 116 }}>
                     <Hint text={t("tipSerp")}><span>{t("colSerp")}</span></Hint>
                   </th>
                   <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
@@ -3079,9 +3084,9 @@ export default function ProjectKeywordsPage() {
                       <td>
                         <AiOverviewCell features={kw.serpFeatures} />
                       </td>
-                      <td>
+                      <td style={{ minWidth: 116 }}>
                         {feats.length > 0 ? (
-                          <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+                          <div className="row" style={{ gap: 3, flexWrap: "wrap", minWidth: 105 }}>
                             {feats.map((f) => (
                               <FeatChip key={f} f={f} />
                             ))}

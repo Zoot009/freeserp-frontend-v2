@@ -377,7 +377,12 @@ export default function KeywordsListPage() {
                 <SortHeader label={t("colVolume")} k="vol" sort={sort} onClick={click} />
                 <SortHeader label={t("colTraffic")} k="traffic" sort={sort} onClick={click} />
                 <th>{t("colProject")}</th>
-                <th>{t("colSerp")}</th>
+                {/* Floored, like the same column on a project.  The cell wraps,
+                    so its min-content is a single chip, and in a layout:auto
+                    table that is what the browser squeezes it to the moment the
+                    row is tight -- leaving the features stacked in a vertical
+                    strip. Four across, then wrap. */}
+                <th style={{ minWidth: 116 }}>{t("colSerp")}</th>
                 <th>{t("colTrend")}</th>
               </tr>
             </thead>
@@ -457,9 +462,9 @@ export default function KeywordsListPage() {
                   <td>
                     <span className="chip">{r.projectDomain}</span>
                   </td>
-                  <td>
+                  <td style={{ minWidth: 116 }}>
                     {r.feat && r.feat.length > 0 ? (
-                      <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+                      <div className="row" style={{ gap: 3, flexWrap: "wrap", minWidth: 105 }}>
                         {r.feat.map((f) => <FeatChip key={f} f={f} />)}
                       </div>
                     ) : (
