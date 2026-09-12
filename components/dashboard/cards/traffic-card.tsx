@@ -318,11 +318,25 @@ function TimeChart({
               visit looked like a vertical takeoff. */}
           {/* One axis, or one per series — see splitAxes. When split, each is
               tinted to its series: with two scales the only way to read a line
-              is against the right one, so the pairing has to be visible. */}
+              is against the right one, so the pairing has to be visible.
+
+              Past the second, the axis is still DECLARED and still scales its
+              line — it is just not drawn, because a plot has a left side and a
+              right side and that is all. Dropping the axis instead would put the
+              third series back on the first one's scale, where clicks measured
+              in ones against impressions measured in thousands lie flat on the
+              baseline reading as zero. A line with no printed axis is read for
+              its shape, and for its number in the tooltip. */}
           {(splitAxes ? series : series.slice(0, 1)).map((sr, i) => (
             <YAxis
               key={sr.key}
-              {...(splitAxes ? { yAxisId: sr.key, orientation: i === 0 ? ("left" as const) : ("right" as const) } : {})}
+              {...(splitAxes
+                ? {
+                    yAxisId: sr.key,
+                    orientation: i === 0 ? ("left" as const) : ("right" as const),
+                    hide: i > 1,
+                  }
+                : {})}
               width={splitAxes ? 46 : 38}
               tickFormatter={(v: number) => (sr.format ?? ((n: number) => axisNf.format(n)))(v)}
               allowDecimals={false}
@@ -522,6 +536,13 @@ function DimTable({ perf }: { perf: GscPerformance }) {
   )
 }
 
+/** "Clicks and CTR", "Clicks, CTR and Impressions" — the caption lists as many
+ *  as four metrics now, and "a and b and c and d" reads as a list nobody wrote. */
+function listOf(items: string[]): string {
+  if (items.length < 3) return items.join(" and ")
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`
+}
+
 /** Centred message + optional action, used by every not-yet-usable Google state. */
 function Notice({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
   return (
@@ -595,15 +616,23 @@ export function TrafficCard(p: TrafficProps) {
   const [perfError, setPerfError] = useState<string | null>(null)
 
   // Which Google figures are plotted. Tiles are checkboxes, the way Search
-  // Console’s own are. Capped at two: two series means two scales, and a
-  // third would need an axis with nowhere to sit, so ticking one drops the
-  // metric selected longest.
+  // Console’s own are — and like Search Console's, all four can be on at once.
+  //
+  // This was capped at two, because a plot has two sides and a third series had
+  // no side to put an axis on. Ticking a third silently dropped whichever had
+  // been on longest, which is a strange thing for a checkbox to do: you asked
+  // for a metric and something else went out. A chart is allowed to carry a
+  // line whose axis is not printed — the tooltip gives every selected figure
+  // for the day under the cursor, and the shape is what a third and fourth line
+  // are ticked for. So the axes stay at two, the lines do not.
   const [gscMetrics, setGscMetrics] = useState<GscMetricKey[]>(["clicks"])
   const toggleGscMetric = (key: GscMetricKey) =>
     setGscMetrics((cur) => {
       // The chart never empties — the last one on stays on.
       if (cur.includes(key)) return cur.length === 1 ? cur : cur.filter((k) => k !== key)
-      return cur.length < 2 ? [...cur, key] : [cur[1]!, key]
+      // Appended, so the two OLDEST selections keep the printed axes. Ticking a
+      // third must not renumber the two already being read.
+      return [...cur, key]
     })
 
   const ready = p.gsc.connected === true && !!p.gsc.siteUrl
@@ -928,8 +957,18 @@ export function TrafficCard(p: TrafficProps) {
               <p className="mt-2 text-[11px] text-muted-foreground">
                 {gscMetrics.length > 1 && (
                   <>
-                    {gscMetrics.map((k) => t(GSC_METRIC_LABEL[k])).join(" and ")} use separate scales — read each
-                    line against its own axis, not against the other line.{" "}
+                    {listOf(gscMetrics.map((k) => t(GSC_METRIC_LABEL[k])))} each use their own scale — read a line
+                    against its own axis, never against another line.{" "}
+                    {/* Said plainly rather than left to be noticed: two printed
+                        axes and four lines invites reading the unlabelled ones
+                        off the nearest axis, which is the one misreading this
+                        chart can actually cause. */}
+                    {gscMetrics.length > 2 && (
+                      <>
+                        Only the first two are printed — hover any day for{" "}
+                        {gscMetrics.length === 3 ? "all three" : "all four"} figures.{" "}
+                      </>
+                    )}
                   </>
                 )}
                 From {perf.siteUrl}. Google&apos;s data lags roughly two days, so the last day or two may look low.
