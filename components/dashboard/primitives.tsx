@@ -3,8 +3,8 @@
 import { useId, useState } from "react"
 import { useTranslations } from "next-intl"
 import {
+  BadgeCheck,
   BookOpen,
-  Check,
   ImageIcon,
   MapPin,
   MessageCircleQuestion,
@@ -644,9 +644,12 @@ export function trendToSparkline(trend: MonthlySearch[] | null | undefined): num
  */
 export function FeatChip({ f }: { f: string }) {
   const t = useTranslations("dashPrimitives")
+  // One glyph per feature, no glyph used twice — a chip that shares its shape
+  // with another is read as that other one at a glance, which is the whole
+  // point of an icon over a label.
   const map: Record<string, { icon: LucideIcon; title: string }> = {
     AI: { icon: Sparkles, title: t("feat.AI") },
-    AICITED: { icon: Sparkles, title: t("feat.AICITED") },
+    AICITED: { icon: BadgeCheck, title: t("feat.AICITED") },
     FS: { icon: TextQuote, title: t("feat.FS") },
     PAA: { icon: MessageCircleQuestion, title: t("feat.PAA") },
     VID: { icon: Video, title: t("feat.VID") },
@@ -664,9 +667,9 @@ export function FeatChip({ f }: { f: string }) {
 
   const Glyph = m.icon
   // Cited in the AI Overview is a win, so it reads as a positive chip rather
-  // than another neutral outline among six — and carries a tick, because the
-  // sparkle alone can't distinguish being IN the overview from being left out
-  // of one.
+  // than another neutral outline among six. Its badge is a different glyph from
+  // the plain sparkle rather than the sparkle plus a tick: two marks in one chip
+  // read as two features, and the pair was the only place a shape repeated.
   return (
     <span
       className={f === "AICITED" ? "chip feat brand" : "chip feat outline"}
@@ -674,7 +677,6 @@ export function FeatChip({ f }: { f: string }) {
       aria-label={m.title}
     >
       <Glyph size={13} strokeWidth={1.75} aria-hidden />
-      {f === "AICITED" && <Check size={11} strokeWidth={3} aria-hidden />}
     </span>
   )
 }
