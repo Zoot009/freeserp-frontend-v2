@@ -51,6 +51,15 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   ],
   "/dashboard/youtube": [WORKSPACE, { key: "youtube" }],
   "/dashboard/ai-prompt-tracker": [WORKSPACE, { key: "aiPromptTracker" }],
+  // The four assistant pages sit under /dashboard/ai-platforms, which is a
+  // directory and never a page. Left to the segment fallback below, the trail
+  // invented a crumb pointing at it — a 404 — and labelled it with the old
+  // section name. The section is the AI Prompt Tracker, so name it and point it
+  // there; the url of the pages underneath is unchanged.
+  "/dashboard/ai-platforms": [
+    WORKSPACE,
+    { key: "aiPromptTracker", href: "/dashboard/ai-prompt-tracker" },
+  ],
   // Its child routes (/new, /<scanId>) fall through to the prefix match below;
   // the scan id is dropped as an id segment, so the trail ends here and this
   // crumb is the way back to the list.
@@ -73,6 +82,16 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
 // crumbs — they always contain digits, unlike route words like "keywords" or
 // "competitor-analysis".
 const isIdSegment = (s: string) => /[0-9]/.test(s) && s.length >= 8
+
+// Segments a humanised slug gets wrong. Brand names do not survive
+// title-casing a url ("chatgpt" reads as "Chatgpt"), so these take the label the
+// sidebar already uses for the same destination.
+const SEGMENT_KEYS: Record<string, string> = {
+  "/dashboard/ai-platforms/chatgpt": "platformChatgpt",
+  "/dashboard/ai-platforms/claude": "platformClaude",
+  "/dashboard/ai-platforms/gemini": "platformGemini",
+  "/dashboard/ai-platforms/perplexity": "platformPerplexity",
+}
 
 const humanize = (s: string) =>
   s
@@ -116,7 +135,8 @@ function crumbsFor(
   for (const seg of tail) {
     acc += `/${seg}`
     if (isIdSegment(seg)) continue
-    extra.push({ label: humanize(seg), href: acc })
+    const segKey = SEGMENT_KEYS[acc]
+    extra.push({ label: segKey ? tNav(segKey) : humanize(seg), href: acc })
   }
 
   // A curated trail's leaf has no href — it's written as the end of the line.
