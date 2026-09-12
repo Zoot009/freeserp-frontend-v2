@@ -171,21 +171,8 @@ function Stat({
         {onToggle && (
           // Decorative: the whole tile is the control, so a real input here
           // would be a second focus stop for one action.
-          //
-          // Unselected, it is tinted with the series colour rather than left
-          // grey. The filled tile is the legend — but only once you have filled
-          // it, so a row with one metric on showed no colour at all for the
-          // other three and gave no clue which line each would become. This is
-          // the whole key, visible before anything is clicked.
           <span
             aria-hidden
-            // color-mix rather than an appended alpha: one of these colours is
-            // var(--primary), and "var(--primary)1F" is not a colour.
-            style={
-              selected || !color
-                ? undefined
-                : { borderColor: color, backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` }
-            }
             className={cn(
               "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border text-[9px] font-bold leading-none transition-colors",
               selected ? "border-white/70 bg-white/20 text-white" : "border-muted-foreground/40",
@@ -361,18 +348,7 @@ function TimeChart({
               key={s.key}
               {...(splitAxes ? { yAxisId: s.key } : {})}
               dataKey={s.key}
-              /**
-               * Straight segments, not a smoothed curve.
-               *
-               * These are DAILY totals, and monotone interpolation draws the
-               * values between them — so two clicks in a month came out as two
-               * gaussian humps, each implying a half-click on the days either
-               * side, which is not a number that can exist. The shape was also
-               * the loudest thing on a panel whose real finding was "almost
-               * nothing happened". Search Console, which this panel mirrors,
-               * joins its points with straight lines for the same reason.
-               */
-              type="linear"
+              type="monotone"
               stroke={`var(--color-${s.key})`}
               strokeWidth={2}
               /**
@@ -471,10 +447,6 @@ function DimTable({ perf }: { perf: GscPerformance }) {
   // page 8 should land on its last page, not silently snap to the first.
   const current = Math.min(page, pageCount - 1)
   const slice = rows.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE)
-  // Measured across EVERY row, not the ten on screen, so a bar means the same
-  // width on page one as on page three. Per-page maxima would refill the top
-  // row to full on each page and quietly rescale the whole table under you.
-  const maxImpressions = Math.max(1, ...rows.map((r) => r.impressions || 0))
 
   const GRID = "grid grid-cols-[minmax(0,1fr)_72px_92px_64px_72px] items-center gap-3"
   const TABS = [
@@ -522,7 +494,7 @@ function DimTable({ perf }: { perf: GscPerformance }) {
         </p>
       ) : (
         <div className="mt-3">
-          <div className={cn(GRID, "-mx-2 border-b px-2 pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
+          <div className={cn(GRID, "border-b pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground")}>
             <span>{tab === "pages" ? t("colPage") : t("colQuery")}</span>
             <span className="text-right">{t("colClicks")}</span>
             <span className="text-right">{t("colImpressions")}</span>
@@ -530,14 +502,7 @@ function DimTable({ perf }: { perf: GscPerformance }) {
             <span className="text-right">{t("colPosition")}</span>
           </div>
           {slice.map((r) => (
-            <div
-              key={r.key}
-              className={cn(
-                GRID,
-                "border-b py-2 text-[13px] transition-colors last:border-0",
-                "-mx-2 rounded-md px-2 hover:bg-muted/50",
-              )}
-            >
+            <div key={r.key} className={cn(GRID, "border-b py-2 text-[13px] last:border-0")}>
               {r.href ? (
                 <a href={r.href} target="_blank" rel="noopener noreferrer" title={r.href} className="truncate text-primary hover:underline">
                   {r.key}
@@ -546,20 +511,7 @@ function DimTable({ perf }: { perf: GscPerformance }) {
                 <span className="truncate" title={r.key}>{r.key}</span>
               )}
               <span className="text-right font-semibold tabular-nums">{nf(r.clicks)}</span>
-              {/* The impressions figure over its own share of the largest.
-                  Ten right-aligned numbers are read one at a time; the same ten
-                  with a bar behind them are read at a glance, and which page
-                  carries the demand is the question this table exists to
-                  answer. Behind the number rather than beside it, so it costs
-                  the row no width and the column stays a column of figures. */}
-              <span className="relative block text-right tabular-nums text-muted-foreground">
-                <span
-                  aria-hidden
-                  className="absolute inset-y-[2px] right-0 rounded-[3px] bg-primary/10"
-                  style={{ width: `${Math.max(3, ((r.impressions || 0) / maxImpressions) * 100)}%` }}
-                />
-                <span className="relative px-1">{nf(r.impressions)}</span>
-              </span>
+              <span className="text-right tabular-nums text-muted-foreground">{nf(r.impressions)}</span>
               <span className="text-right tabular-nums text-muted-foreground">{(r.ctr * 100).toFixed(1)}%</span>
               <span className="text-right tabular-nums text-muted-foreground">{r.position ? r.position.toFixed(1) : "—"}</span>
             </div>
