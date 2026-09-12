@@ -69,12 +69,13 @@ const MAPS: Item[] = [{ key: "mapsTracker", url: "/dashboard/google-maps-tracker
 // An earlier version of this file argued against exactly this, on the grounds
 // that four menu items "would promise four views that do not exist". They exist
 // now — each is a real route backed by GET /api/llm-tracker/platforms/:platform.
-// Listed alphabetically rather than in the backend's array order: a nav list is
-// read, not iterated.
+// Ordered by how much of the market each assistant answers for, not
+// alphabetically and not in the backend's array order: a nav list is read, not
+// iterated, and the one most people came to check belongs at the top of it.
 const AI_PLATFORMS: Item[] = [
   { key: "platformChatgpt", url: "/dashboard/ai-platforms/chatgpt", icon: ChatGptMarkIcon },
-  { key: "platformClaude", url: "/dashboard/ai-platforms/claude", icon: ClaudeMarkIcon },
   { key: "platformGemini", url: "/dashboard/ai-platforms/gemini", icon: GeminiMarkIcon },
+  { key: "platformClaude", url: "/dashboard/ai-platforms/claude", icon: ClaudeMarkIcon },
   { key: "platformPerplexity", url: "/dashboard/ai-platforms/perplexity", icon: PerplexityMarkIcon },
 ]
 
