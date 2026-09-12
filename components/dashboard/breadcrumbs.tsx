@@ -2,6 +2,7 @@
 
 import { Fragment } from "react"
 import { useTranslations } from "next-intl"
+import { useSearchParams } from "next/navigation"
 import { Link, usePathname } from "@/i18n/navigation"
 import {
   Breadcrumb,
@@ -52,14 +53,16 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   "/dashboard/youtube": [WORKSPACE, { key: "youtube" }],
   "/dashboard/ai-prompt-tracker": [WORKSPACE, { key: "aiPromptTracker" }],
   // The four assistant pages sit under /dashboard/ai-platforms, which is a
-  // directory and never a page. Left to the segment fallback below, the trail
-  // invented a crumb pointing at it — a 404 — and labelled it with the old
-  // section name. The section is the AI Prompt Tracker, so name it and point it
-  // there; the url of the pages underneath is unchanged.
-  "/dashboard/ai-platforms": [
-    WORKSPACE,
-    { key: "aiPromptTracker", href: "/dashboard/ai-prompt-tracker" },
-  ],
+  // directory and never a page — left to the segment fallback below, the trail
+  // invented a crumb pointing at it, and that url 404s.
+  //
+  // They hang off the workspace directly rather than off the AI Prompt Tracker.
+  // An assistant page is a destination in its own right — the sidebar lists the
+  // four and lists nothing else for this section — and the tracker is where its
+  // OWN actions lead: "New brand" here opens it. A crumb sitting ABOVE a page
+  // you reach by going forwards reads as going backwards. The trail forwards is
+  // built by ORIGIN instead, in crumbsFor below.
+  "/dashboard/ai-platforms": [WORKSPACE],
   // Its child routes (/new, /<scanId>) fall through to the prefix match below;
   // the scan id is dropped as an id segment, so the trail ends here and this
   // crumb is the way back to the list.
@@ -83,14 +86,15 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
 // "competitor-analysis".
 const isIdSegment = (s: string) => /[0-9]/.test(s) && s.length >= 8
 
-// Segments a humanised slug gets wrong. Brand names do not survive
-// title-casing a url ("chatgpt" reads as "Chatgpt"), so these take the label the
-// sidebar already uses for the same destination.
-const SEGMENT_KEYS: Record<string, string> = {
-  "/dashboard/ai-platforms/chatgpt": "platformChatgpt",
-  "/dashboard/ai-platforms/claude": "platformClaude",
-  "/dashboard/ai-platforms/gemini": "platformGemini",
-  "/dashboard/ai-platforms/perplexity": "platformPerplexity",
+// The four assistants, by url slug. Their labels come from the nav messages —
+// the sidebar names the same destinations, and a humanised slug would read
+// "Chatgpt". Used twice: for the leaf on the assistant page itself, and for the
+// origin crumb on the tracker pages that page's buttons lead to.
+const ASSISTANT_KEYS: Record<string, string> = {
+  chatgpt: "platformChatgpt",
+  claude: "platformClaude",
+  gemini: "platformGemini",
+  perplexity: "platformPerplexity",
 }
 
 const humanize = (s: string) =>
@@ -105,7 +109,7 @@ function projectIdFrom(pathname: string): string | null {
   return m ? m[1]! : null
 }
 
-function crumbsFor(
+function pathCrumbs(
   pathname: string,
   tNav: (k: string) => string,
   projectName?: string | null,
@@ -135,8 +139,8 @@ function crumbsFor(
   for (const seg of tail) {
     acc += `/${seg}`
     if (isIdSegment(seg)) continue
-    const segKey = SEGMENT_KEYS[acc]
-    extra.push({ label: segKey ? tNav(segKey) : humanize(seg), href: acc })
+    const assistant = acc === `/dashboard/ai-platforms/${seg}` ? ASSISTANT_KEYS[seg] : undefined
+    extra.push({ label: assistant ? tNav(assistant) : humanize(seg), href: acc })
   }
 
   // A curated trail's leaf has no href — it's written as the end of the line.
@@ -148,13 +152,47 @@ function crumbsFor(
   return [...base, ...extra]
 }
 
+/**
+ * The trail, with the assistant page kept in it when that is where you came
+ * from.
+ *
+ * The AI Prompt Tracker is not an ancestor of the assistant pages — it is what
+ * their buttons OPEN. "New brand" on the ChatGPT page lands on the tracker, so
+ * the tracker is a step forwards and the trail has to grow by one:
+ *
+ *   Workspace › ChatGPT Tracker            (the assistant page)
+ *   Workspace › ChatGPT Tracker › AI Prompt Tracker   (after "New brand")
+ *
+ * The origin rides on the url as ?platform=<slug> — the deep links into the
+ * add-prompts modal already carried it — so it survives a refresh and a shared
+ * link, which a remembered value would not.
+ */
+function crumbsFor(
+  pathname: string,
+  tNav: (k: string) => string,
+  projectName?: string | null,
+  platform?: string | null,
+): Crumb[] {
+  const trail = pathCrumbs(pathname, tNav, projectName)
+
+  const key = platform ? ASSISTANT_KEYS[platform] : undefined
+  if (key && pathname.startsWith("/dashboard/ai-prompt-tracker")) {
+    // After the workspace root, before the tracker itself.
+    trail.splice(1, 0, { label: tNav(key), href: `/dashboard/ai-platforms/${platform}` })
+  }
+
+  return trail
+}
+
 export function DashboardBreadcrumb({ className }: { className?: string }) {
   // Locale-agnostic, so the route table above needs no per-locale entries.
   const pathname = usePathname() || "/dashboard"
   const tNav = useTranslations("dashboardNav")
   const projectName = useProjectCrumb(projectIdFrom(pathname))
   const detail = useDetailCrumb()
-  const base = crumbsFor(pathname, tNav, projectName)
+  // Which assistant page this was opened from, when it was opened from one.
+  const platform = useSearchParams()?.get("platform")
+  const base = crumbsFor(pathname, tNav, projectName, platform)
 
   // A page-published leaf extends the trail by one. The crumb it lands on is no
   // longer the page you are on, so it takes the page's own way back — the

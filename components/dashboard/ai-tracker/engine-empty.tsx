@@ -76,7 +76,7 @@ export function EngineEmpty({
               with it already selected. */}
           <AddPromptsAction engine={engine} projects={projects} />
           {!fresh && (
-            <Link className="btn" href="/dashboard/ai-prompt-tracker">
+            <Link className="btn" href={`/dashboard/ai-prompt-tracker?platform=${engine.slug}`}>
               All brands
             </Link>
           )}

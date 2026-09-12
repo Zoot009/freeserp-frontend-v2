@@ -49,7 +49,10 @@ export function EngineHero({
           </span>
           <div>
             <div className="tiny muted">
-              <Link href="/dashboard/ai-prompt-tracker">AI Prompt Tracker</Link> · Assistant
+              <Link href={`/dashboard/ai-prompt-tracker?platform=${engine.slug}`}>
+                AI Prompt Tracker
+              </Link>{" "}
+              · Assistant
             </div>
             <h1>{engine.label}</h1>
             <p className="llm-hero-tag">{engine.tagline}</p>

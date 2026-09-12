@@ -67,7 +67,9 @@ export function AddPromptsAction({
 
   if (projects.length === 0) {
     return (
-      <Link className={className} href="/dashboard/ai-prompt-tracker">
+      // ?platform keeps this assistant in the breadcrumb on the page it opens:
+      // creating a brand is a step FORWARDS from here, not a trip back up.
+      <Link className={className} href={`/dashboard/ai-prompt-tracker?platform=${engine.slug}`}>
         <Plus aria-hidden /> New brand
       </Link>
     )
