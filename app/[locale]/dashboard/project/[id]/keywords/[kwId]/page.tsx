@@ -9,7 +9,15 @@ import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
-import { PosCell, Sparkline, trendToSparkline, type MonthlySearch } from "@/components/dashboard/primitives"
+import {
+  FeatChip,
+  PosCell,
+  Sparkline,
+  aiCitationState,
+  trendToSparkline,
+  type MonthlySearch,
+  type SerpFeatures,
+} from "@/components/dashboard/primitives"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
@@ -30,6 +38,8 @@ interface LatestCheck {
   change: number | null
   previousPos: number | null
   competitors: Competitor[] | null
+  /** What Google put on the page besides the organic results. */
+  serpFeatures?: SerpFeatures | null
   monthlyTraffic: number | null
   revenueLoss: number | null
   status: string
@@ -280,6 +290,78 @@ export default function KeywordDetailPage() {
   }
 
   const competitors = latestCheck?.competitors || []
+
+  // Every feature we can detect, in the order it tends to appear on the page,
+  // each with what THIS check saw of it. Absent ones are kept: "no AI Overview
+  // for this keyword" is a finding, and a list that silently drops them can't
+  // be told apart from one that never looked.
+  // undefined and null are NOT the same answer here. A backend that has not
+  // shipped this field yet sends neither, and a page that reported "no features
+  // on this page" for every keyword in that window would be confidently wrong.
+  // null means a check looked and recorded none; undefined means nobody asked.
+  const sfKnown = latestCheck != null && latestCheck.serpFeatures !== undefined
+  const sf = latestCheck?.serpFeatures ?? null
+  const paaCount = Array.isArray(sf?.peopleAlsoAsk) ? sf.peopleAlsoAsk.length : 0
+  const relatedCount = Array.isArray(sf?.relatedSearches) ? sf.relatedSearches.length : 0
+  const citation = aiCitationState(sf)
+  const serpFeatureRows: { key: string; name: string; present: boolean; detail: string }[] = [
+    {
+      key: citation === "cited" ? "AICITED" : "AI",
+      name: "AI Overview",
+      present: !!sf?.aiOverview,
+      detail:
+        citation === "cited"
+          ? sf?.aiOverviewCitation?.citedInExpansion
+            ? "Your site is cited, in a nested block rather than the overview itself"
+            : sf?.aiOverviewCitation?.citedPosition
+              ? `Your site is cited, as source #${sf.aiOverviewCitation.citedPosition}`
+              : "Your site is cited among its sources"
+          : citation === "not-cited"
+            ? "Google answers above the results, without citing you"
+            : citation === "no-overview"
+              ? "No AI Overview on this result page"
+              : "Not established by this check",
+    },
+    {
+      key: "FS",
+      name: "Featured snippet",
+      present: !!sf?.featuredSnippet,
+      detail: sf?.featuredSnippet
+        ? "One page is pulled above the rest and answered from"
+        : "No answer box above the results",
+    },
+    {
+      key: "PAA",
+      name: "People also ask",
+      present: paaCount > 0,
+      detail: paaCount > 0 ? `${paaCount} question${paaCount === 1 ? "" : "s"} to expand` : "Not shown",
+    },
+    {
+      key: "IMG",
+      name: "Image pack",
+      present: !!sf?.imagePack,
+      detail: sf?.imagePack ? "A strip of images takes a row of the page" : "Not shown",
+    },
+    {
+      key: "VID",
+      name: "Video carousel",
+      present: !!sf?.videoPack,
+      detail: sf?.videoPack ? "Videos take a row of the page" : "Not shown",
+    },
+    {
+      key: "LOCAL",
+      name: "Local pack",
+      present: !!sf?.localPack,
+      detail: sf?.localPack ? "A map and three businesses sit above the results" : "Not shown",
+    },
+    {
+      key: "KG",
+      name: "Knowledge graph",
+      present: !!sf?.knowledgeGraph,
+      detail: sf?.knowledgeGraph ? "A panel down the side of the page" : "Not shown",
+    },
+  ]
+  const featureCount = serpFeatureRows.filter((r) => r.present).length
   // How deep the latest check actually looked. Free plans crawl to the
   // trialCheckDepth admin setting, so "100+" was a lie for them; fall back to
   // 100 only for rows written before the depth was recorded.
@@ -525,12 +607,24 @@ export default function KeywordDetailPage() {
               }
               fill={null}
             />
+            {/* This card used to read "SERP features" over a count of
+                COMPETITORS, with the caption quietly correcting the title. The
+                features never reached this page at all. They do now, and the
+                count under the label is the number of them; who else ranks is
+                answered properly by "Top of the results" below, which lists
+                them rather than counting them. */}
             <StatCard
               label="SERP features"
-              hint="How many competitor pages are showing in the search results for this keyword."
-              value={competitors.length}
-              tone={competitors.length ? undefined : "text-muted-foreground/50"}
-              caption="competitor pages ranked"
+              hint="How many of Google's own blocks — the AI Overview, a featured snippet, People also ask, image, video and local packs, the knowledge panel — appear on this result page."
+              value={sfKnown ? featureCount : "—"}
+              tone={sfKnown && featureCount ? undefined : "text-muted-foreground/50"}
+              caption={
+                !sfKnown
+                  ? "not recorded for this check"
+                  : featureCount
+                    ? "on this result page"
+                    : "just the organic results"
+              }
               fill={null}
             />
           </div>
@@ -669,6 +763,83 @@ export default function KeywordDetailPage() {
               </div>
             )}
           </div>
+
+          {/* What the result page looks like, before who is on it.
+
+              The stat card above can only say how many; this is the one place
+              that says WHICH, and what each one means for this keyword — the
+              number of People-also-ask questions, whether the AI Overview cites
+              you. Absent features stay on the list, greyed: "there is no local
+              pack here" is a real answer and reads differently from a list that
+              was never filled in.
+
+              Only drawn once a check has run. Before that every row would say
+              "not shown", which is a page-worth of confident nonsense about a
+              SERP nobody has looked at yet. */}
+          {latestCheck && sfKnown && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="card-h">
+                <div>
+                  <div className="t">SERP features</div>
+                  <div className="tiny muted" style={{ marginTop: 2 }}>
+                    {featureCount > 0
+                      ? `${featureCount} of Google's own blocks on this page, besides the organic results`
+                      : "Google shows nothing but the organic results for this keyword"}
+                  </div>
+                </div>
+              </div>
+              <div className="col" style={{ gap: 0 }}>
+                {serpFeatureRows.map((r) => (
+                  <div
+                    key={r.key}
+                    className="row"
+                    style={{
+                      gap: 10,
+                      alignItems: "center",
+                      padding: "9px 0",
+                      borderTop: "1px solid var(--border)",
+                      opacity: r.present ? 1 : 0.5,
+                    }}
+                  >
+                    {/* The same chip as the tables, so a feature is the same
+                        mark wherever it is met. Absent ones keep the glyph and
+                        lose the row's opacity rather than going blank. */}
+                    <FeatChip f={r.key} />
+                    <span style={{ fontSize: 13, fontWeight: 500, minWidth: 132 }}>{r.name}</span>
+                    <span className="tiny muted" style={{ flex: 1, minWidth: 0 }}>
+                      {r.detail}
+                    </span>
+                  </div>
+                ))}
+                {relatedCount > 0 && (
+                  <div
+                    className="tiny muted"
+                    style={{ padding: "9px 0 0", borderTop: "1px solid var(--border)" }}
+                  >
+                    Google also offers {relatedCount} related search
+                    {relatedCount === 1 ? "" : "es"} at the foot of the page.
+                  </div>
+                )}
+                {latestCheck.carriedFromAt && (
+                  // Same caveat the SERP tab carries: a windowed check skips the
+                  // top of the page, so these were observed earlier and saying
+                  // otherwise would date them to a check that never saw them.
+                  <div
+                    className="tiny muted"
+                    style={{ padding: "9px 0 0", borderTop: "1px solid var(--border)" }}
+                  >
+                    As last observed on{" "}
+                    {new Date(latestCheck.carriedFromAt).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                    ; the newest check read only your position.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Who else is on this result page.
               The whole SERP is already loaded for the tab next door, and the
