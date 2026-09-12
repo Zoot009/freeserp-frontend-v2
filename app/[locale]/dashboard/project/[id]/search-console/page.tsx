@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useGoogleLogin } from "@react-oauth/google"
@@ -16,7 +16,6 @@ import { Icon } from "@/components/dashboard/icons"
 import { InfoHint } from "@/components/dashboard/widget"
 import { ArrowDownRight, ArrowUpRight, Check, ExternalLink, Eye, Gauge, MousePointerClick, Percent } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Dropdown } from "@/components/dashboard/dropdown"
 import { propertyCoversDomain } from "@/components/dashboard/gsc"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { DEFAULT_ENGINE } from "@/hooks/use-engines"
@@ -143,9 +142,6 @@ export default function SearchConsolePage() {
   const [siteUrl, setSiteUrl] = useState<string | null>(null)
   const [projectDomain, setProjectDomain] = useState<string>("")
   const [sites, setSites] = useState<Site[] | null>(null)
-  // Property picked in the "link a property" dropdown; null = not touched yet
-  // (falls back to the suggested match for the project domain).
-  const [chosenSite, setChosenSite] = useState<string | null>(null)
   const [perf, setPerf] = useState<Performance | null>(null)
 
   const [range, setRange] = useState<RangeState>({ mode: "preset", days: 90 })
@@ -449,14 +445,16 @@ export default function SearchConsolePage() {
   })
 
   /**
-   * Link a property, honouring the server's domain-coverage check.
+   * Link the property matched for this project.
    *
-   * The API rejects a property that doesn't cover the project's domain with
-   * `gsc_property_domain_mismatch` rather than silently accepting it — linking
-   * the wrong one puts another site's clicks and impressions under this
-   * project's name everywhere. That's recoverable but genuinely wanted
-   * sometimes (a migration, an oddly-named property), so the refusal is turned
-   * into a question here and retried with `confirm` if the answer is yes.
+   * The API refuses a property that doesn't cover the project's domain with
+   * `gsc_property_domain_mismatch` — linking the wrong one puts another site's
+   * clicks and impressions under this project's name everywhere. That refusal
+   * used to become a window.confirm, because the property was a choice someone
+   * had made and might have meant. It is not a choice any more: it is matched
+   * from the domain, so a mismatch means our match and the server's check
+   * disagree and there is nobody to ask. Report it and leave the project
+   * unlinked rather than confirming past a disagreement on the reader's behalf.
    */
   const linkSite = useCallback(
     async (url: string) => {
@@ -466,32 +464,12 @@ export default function SearchConsolePage() {
         await api.put(`/api/gsc/projects/${projectId}/site`, { siteUrl: url })
         setSiteUrl(url)
       } catch (err) {
-        if (err instanceof ApiError && err.code === "gsc_property_domain_mismatch") {
-          const ok = window.confirm(
-            `${url} doesn't look like it covers ${projectDomain}.\n\n` +
-              `Linking it will show that site's clicks, impressions and average position under this project ` +
-              `everywhere in the dashboard.\n\nLink it anyway?`,
-          )
-          if (!ok) {
-            setBusy(false)
-            return
-          }
-          try {
-            await api.put(`/api/gsc/projects/${projectId}/site`, { siteUrl: url, confirm: true })
-            setSiteUrl(url)
-          } catch (retryErr) {
-            setError(retryErr instanceof Error ? retryErr.message : "Failed to link property")
-          } finally {
-            setBusy(false)
-          }
-          return
-        }
         setError(err instanceof Error ? err.message : "Failed to link property")
       } finally {
         setBusy(false)
       }
     },
-    [projectId, projectDomain],
+    [projectId],
   )
 
   const disconnect = useCallback(async () => {
@@ -508,12 +486,6 @@ export default function SearchConsolePage() {
       setBusy(false)
     }
   }, [])
-
-  const changeProperty = useCallback(async () => {
-    setSiteUrl(null)
-    setPerf(null)
-    await loadSites()
-  }, [loadSites])
 
   const openDrill = useCallback(
     async (forDim: "page" | "query", value: string) => {
@@ -542,6 +514,26 @@ export default function SearchConsolePage() {
     if (!sites || !projectDomain) return null
     return sites.find((s) => propertyCoversDomain(s.siteUrl, projectDomain))?.siteUrl ?? null
   }, [sites, projectDomain])
+
+  /**
+   * Link the matched property as soon as we know it.
+   *
+   * The property was a question with exactly one right answer: the project
+   * already names its domain, and only a property covering that domain can be
+   * correct. Asking anyway let someone answer it wrong — and a wrong answer
+   * shows another site's clicks and position under this project everywhere —
+   * so it is matched and linked instead. What cannot be matched is reported
+   * below rather than handed back as a list to choose from.
+   *
+   * The ref makes this one attempt per page load: after a refusal the next
+   * step is the error banner, not a retry loop against an API that just said no.
+   */
+  const autoLinkTried = useRef(false)
+  useEffect(() => {
+    if (!conn?.connected || siteUrl || !suggestedSite || autoLinkTried.current) return
+    autoLinkTried.current = true
+    void linkSite(suggestedSite)
+  }, [conn?.connected, siteUrl, suggestedSite, linkSite])
 
   // First paint, before we know whether this account is even connected. A
   // centred "Loading…" on an otherwise blank page told the reader nothing about
@@ -574,11 +566,9 @@ export default function SearchConsolePage() {
           <div className="col" style={{ alignItems: "flex-end", gap: 6 }}>
             {conn.googleEmail && <span className="tiny muted mono">{conn.googleEmail}</span>}
             <div className="row" style={{ gap: 8 }}>
-              {siteUrl && (
-                <button type="button" className="btn" onClick={changeProperty} disabled={busy}>
-                  {t("changeProperty")}
-                </button>
-              )}
+              {/* No "Change property" here. The property follows the project's
+                  domain, so there is nothing to change it to — a different
+                  Google account is what Disconnect is for. */}
               <button
                 type="button"
                 className="btn"
@@ -622,37 +612,29 @@ export default function SearchConsolePage() {
         </div>
       )}
 
-      {/* State 2 — connected, no property linked yet */}
+      {/* State 2 — connected, nothing linked yet.
+
+          This used to be the property picker. It can only be the reason the
+          match did not happen now: while a match is in flight the effect above
+          is already linking it, and the moment it lands State 3 takes over. */}
       {conn?.connected && !siteUrl && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ marginTop: 0 }}>{t("selectTitle")}</h2>
-          <p className="muted" style={{ fontSize: 13 }}>{t("selectDesc")}</p>
-          {sites && sites.length === 0 && <p className="muted" style={{ fontSize: 13 }}>{t("noProperties")}</p>}
-          {sites && sites.length > 0 && (
-            <div className="row" style={{ gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-              <Dropdown
-                menuAlign="left"
-                style={{ minWidth: 280 }}
-                block
-                value={chosenSite ?? suggestedSite ?? ""}
-                placeholder={t("choosePropertyPlaceholder")}
-                options={sites.map((s) => ({ value: s.siteUrl, label: siteHost(s.siteUrl) }))}
-                onChange={setChosenSite}
-                disabled={busy}
-                ariaLabel={t("choosePropertyPlaceholder")}
-              />
-              <button
-                type="button"
-                className="btn primary"
-                disabled={busy || !(chosenSite ?? suggestedSite)}
-                onClick={() => {
-                  const site = chosenSite ?? suggestedSite
-                  if (site) linkSite(site)
-                }}
-              >
-                {t("linkCta")}
-              </button>
-            </div>
+          {sites && !suggestedSite ? (
+            <>
+              <h2 style={{ marginTop: 0 }}>{t("noMatchTitle")}</h2>
+              <p className="muted" style={{ fontSize: 13, margin: "8px 0 0" }}>
+                {sites.length === 0 ? t("noProperties") : t("noMatchDesc", { domain: projectDomain })}
+              </p>
+            </>
+          ) : (
+            // We have a match and are still here, so either the link is in
+            // flight or it was refused. `error` is the only honest way to tell
+            // those apart from render: busy is false for the frame between the
+            // property list arriving and the effect firing, and reading the
+            // attempt ref here would flash "couldn't link" through that frame.
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              {error ? t("linkFailed", { domain: projectDomain }) : t("matching")}
+            </p>
           )}
         </div>
       )}
