@@ -2,19 +2,19 @@
 
 import { useId, useState } from "react"
 import { useTranslations } from "next-intl"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
-  BadgeCheck,
-  BookOpen,
-  ImageIcon,
-  MapPin,
-  MessageCircleQuestion,
-  Newspaper,
-  ShoppingBag,
-  Sparkles,
-  TextQuote,
-  Video,
-  type LucideIcon,
-} from "lucide-react"
+  AiCitedGlyph,
+  AiOverviewGlyph,
+  ImagePackGlyph,
+  KnowledgeGlyph,
+  LocalGlyph,
+  NewsGlyph,
+  PaaGlyph,
+  ShoppingGlyph,
+  SnippetGlyph,
+  VideoGlyph,
+} from "./serp-icons"
 import { Icon } from "./icons"
 
 // ---------------------------------------------------------------------------
@@ -635,49 +635,67 @@ export function trendToSparkline(trend: MonthlySearch[] | null | undefined): num
 /**
  * One SERP feature.
  *
- * These were two- and three-letter labels — PAA, Vid, Img, KG — which had to be
- * expanded from the tooltip before they meant anything, and still wrapped onto
- * a second and third line in a table column. A glyph each says the same thing
- * in a third of the width and is recognised rather than decoded. The name is
- * still the tooltip AND the accessible name, so hovering or reading the row
- * with a screen reader gives back exactly what the text chip said.
+ * Three passes to get here, and each one is worth knowing about.
+ *
+ * It began as two- and three-letter labels — PAA, Vid, Img, KG — acronyms that
+ * had to be expanded from a tooltip before they meant anything, and that still
+ * wrapped onto a second and third line in a narrow table column.
+ *
+ * Then general-purpose icons, which were a third of the width but all read as
+ * the same thin outline at 13px: a bubble, a camera, a book, distinguishable
+ * only by squinting. The glyphs are drawn per feature now (./serp-icons), each
+ * a miniature of the block it stands for, with silhouettes — solid bars, an
+ * outlined card, a pin, a star — that differ before the detail is even legible.
+ *
+ * Colour carries the rest of the load. One accent per feature means a row of
+ * chips is recognised as a PATTERN rather than decoded left to right, which is
+ * the only way a set of icons beats a set of words at this size.
+ *
+ * The name is still the whole explanation, in the app's own tooltip rather than
+ * the OS one — `title` waits a second, ignores the styling, and never appears
+ * for keyboard or touch users — and it is the chip's accessible name, so a
+ * screen reader gets the full phrase where the acronym gave it "P A A".
  */
+const FEAT_STYLE: Record<
+  string,
+  { Glyph: (p: { size?: number }) => React.ReactElement; accent: string; brand?: true }
+> = {
+  AI: { Glyph: AiOverviewGlyph, accent: "var(--feat-ai)" },
+  AICITED: { Glyph: AiCitedGlyph, accent: "var(--brand)", brand: true },
+  FS: { Glyph: SnippetGlyph, accent: "var(--feat-fs)" },
+  PAA: { Glyph: PaaGlyph, accent: "var(--feat-paa)" },
+  VID: { Glyph: VideoGlyph, accent: "var(--feat-vid)" },
+  IMG: { Glyph: ImagePackGlyph, accent: "var(--feat-img)" },
+  LOCAL: { Glyph: LocalGlyph, accent: "var(--feat-local)" },
+  KG: { Glyph: KnowledgeGlyph, accent: "var(--feat-kg)" },
+  SHOP: { Glyph: ShoppingGlyph, accent: "var(--feat-shop)" },
+  NEWS: { Glyph: NewsGlyph, accent: "var(--feat-news)" },
+}
+
 export function FeatChip({ f }: { f: string }) {
   const t = useTranslations("dashPrimitives")
-  // One glyph per feature, no glyph used twice — a chip that shares its shape
-  // with another is read as that other one at a glance, which is the whole
-  // point of an icon over a label.
-  const map: Record<string, { icon: LucideIcon; title: string }> = {
-    AI: { icon: Sparkles, title: t("feat.AI") },
-    AICITED: { icon: BadgeCheck, title: t("feat.AICITED") },
-    FS: { icon: TextQuote, title: t("feat.FS") },
-    PAA: { icon: MessageCircleQuestion, title: t("feat.PAA") },
-    VID: { icon: Video, title: t("feat.VID") },
-    IMG: { icon: ImageIcon, title: t("feat.IMG") },
-    LOCAL: { icon: MapPin, title: t("feat.LOCAL") },
-    KG: { icon: BookOpen, title: t("feat.KG") },
-    SHOP: { icon: ShoppingBag, title: t("feat.SHOP") },
-    NEWS: { icon: Newspaper, title: t("feat.NEWS") },
-  }
+  const style = FEAT_STYLE[f]
 
-  const m = map[f]
   // A feature nobody has drawn yet keeps the old behaviour and shows its key.
   // A label out of place beats a blank square that could mean anything.
-  if (!m) return <span className="chip outline" title={f}>{f}</span>
+  if (!style) return <span className="chip outline" title={f}>{f}</span>
 
-  const Glyph = m.icon
-  // Cited in the AI Overview is a win, so it reads as a positive chip rather
-  // than another neutral outline among six. Its badge is a different glyph from
-  // the plain sparkle rather than the sparkle plus a tick: two marks in one chip
-  // read as two features, and the pair was the only place a shape repeated.
+  const { Glyph, accent, brand } = style
+  const title = t(`feat.${f}`)
+
   return (
-    <span
-      className={f === "AICITED" ? "chip feat brand" : "chip feat outline"}
-      title={m.title}
-      aria-label={m.title}
-    >
-      <Glyph size={13} strokeWidth={1.75} aria-hidden />
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={brand ? "chip feat brand" : "chip feat outline"}
+          style={{ color: accent }}
+          aria-label={title}
+        >
+          <Glyph size={14} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-60 text-xs">{title}</TooltipContent>
+    </Tooltip>
   )
 }
 

@@ -32,6 +32,20 @@
   --meter-checks: #2D5BFF;
   --meter-ai: #0D9488;
 
+  /* SERP feature accents — one hue per feature, so a row of chips is read as a
+     pattern rather than decoded glyph by glyph. Kept off the saturated end: six
+     of these can appear on one table row, and six full-strength colours in a
+     20px band is a fruit salad, not a signal. */
+  --feat-ai: #7C3AED;
+  --feat-fs: #0D9488;
+  --feat-paa: #B45309;
+  --feat-vid: #DC2626;
+  --feat-img: #DB2777;
+  --feat-local: #16A34A;
+  --feat-kg: #4F46E5;
+  --feat-shop: #EA580C;
+  --feat-news: #475569;
+
   --black: #0B0D12;
   --white: #FFFFFF;
 
@@ -91,6 +105,18 @@
      elevated surface (#14181F). */
   --meter-checks: #5B7DFF;
   --meter-ai: #0FA896;
+
+  /* Re-stepped for the dark surface rather than reused: every light-mode accent
+     above is too dark to read on #14181F. */
+  --feat-ai: #A78BFA;
+  --feat-fs: #2DD4BF;
+  --feat-paa: #FBBF24;
+  --feat-vid: #F87171;
+  --feat-img: #F472B6;
+  --feat-local: #4ADE80;
+  --feat-kg: #818CF8;
+  --feat-shop: #FB923C;
+  --feat-news: #94A3B8;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
@@ -1819,9 +1845,16 @@
 .fs-app .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .fs-app .chip.outline { background: transparent; border: 1px solid var(--border); }
 /* SERP feature chips. Icon-only, so the horizontal text padding would leave the
-   glyph off-centre in a chip twice as wide as it needs to be. */
+   glyph off-centre in a chip twice as wide as it needs to be.
+
+   The chip takes its feature's colour via an inline `color`, which the glyph
+   picks up through currentColor — and so does the border, at a low enough alpha
+   that the outline is tinted rather than coloured. A full-strength border would
+   put the loudest part of the chip around the outside of it. */
 .fs-app .chip.feat { padding: 3px 4px; gap: 1px; }
 .fs-app .chip.feat svg { display: block; }
+.fs-app .chip.feat.outline { border-color: color-mix(in srgb, currentColor 30%, var(--border)); }
+.fs-app .chip.feat.outline:hover { border-color: color-mix(in srgb, currentColor 55%, var(--border)); }
 /* Clickable list rows (e.g. saved-analysis history lists) */
 .fs-app .list-row:hover { background: var(--bg-sub); }
 .fs-app li:last-child > .list-row { border-bottom: none !important; }
