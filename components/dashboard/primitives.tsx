@@ -2,6 +2,19 @@
 
 import { useId, useState } from "react"
 import { useTranslations } from "next-intl"
+import {
+  BookOpen,
+  Check,
+  ImageIcon,
+  MapPin,
+  MessageCircleQuestion,
+  Newspaper,
+  ShoppingBag,
+  Sparkles,
+  TextQuote,
+  Video,
+  type LucideIcon,
+} from "lucide-react"
 import { Icon } from "./icons"
 
 // ---------------------------------------------------------------------------
@@ -619,24 +632,51 @@ export function trendToSparkline(trend: MonthlySearch[] | null | undefined): num
     .map((p) => p.searchVolume)
 }
 
+/**
+ * One SERP feature.
+ *
+ * These were two- and three-letter labels — PAA, Vid, Img, KG — which had to be
+ * expanded from the tooltip before they meant anything, and still wrapped onto
+ * a second and third line in a table column. A glyph each says the same thing
+ * in a third of the width and is recognised rather than decoded. The name is
+ * still the tooltip AND the accessible name, so hovering or reading the row
+ * with a screen reader gives back exactly what the text chip said.
+ */
 export function FeatChip({ f }: { f: string }) {
   const t = useTranslations("dashPrimitives")
-  const map: Record<string, { label: string; title: string }> = {
-    AI: { label: "AI", title: t("feat.AI") },
-    AICITED: { label: "AI ✓", title: t("feat.AICITED") },
-    FS: { label: "FS", title: t("feat.FS") },
-    PAA: { label: "PAA", title: t("feat.PAA") },
-    VID: { label: "Vid", title: t("feat.VID") },
-    IMG: { label: "Img", title: t("feat.IMG") },
-    LOCAL: { label: "Local", title: t("feat.LOCAL") },
-    KG: { label: "KG", title: t("feat.KG") },
-    SHOP: { label: "Shop", title: t("feat.SHOP") },
-    NEWS: { label: "News", title: t("feat.NEWS") },
+  const map: Record<string, { icon: LucideIcon; title: string }> = {
+    AI: { icon: Sparkles, title: t("feat.AI") },
+    AICITED: { icon: Sparkles, title: t("feat.AICITED") },
+    FS: { icon: TextQuote, title: t("feat.FS") },
+    PAA: { icon: MessageCircleQuestion, title: t("feat.PAA") },
+    VID: { icon: Video, title: t("feat.VID") },
+    IMG: { icon: ImageIcon, title: t("feat.IMG") },
+    LOCAL: { icon: MapPin, title: t("feat.LOCAL") },
+    KG: { icon: BookOpen, title: t("feat.KG") },
+    SHOP: { icon: ShoppingBag, title: t("feat.SHOP") },
+    NEWS: { icon: Newspaper, title: t("feat.NEWS") },
   }
-  const m = map[f] || { label: f, title: f }
-  // Cited in the AI Overview is a win, so it reads as a positive chip rather than
-  // another neutral outline among six.
-  return <span className={f === "AICITED" ? "chip brand" : "chip outline"} title={m.title}>{m.label}</span>
+
+  const m = map[f]
+  // A feature nobody has drawn yet keeps the old behaviour and shows its key.
+  // A label out of place beats a blank square that could mean anything.
+  if (!m) return <span className="chip outline" title={f}>{f}</span>
+
+  const Glyph = m.icon
+  // Cited in the AI Overview is a win, so it reads as a positive chip rather
+  // than another neutral outline among six — and carries a tick, because the
+  // sparkle alone can't distinguish being IN the overview from being left out
+  // of one.
+  return (
+    <span
+      className={f === "AICITED" ? "chip feat brand" : "chip feat outline"}
+      title={m.title}
+      aria-label={m.title}
+    >
+      <Glyph size={13} strokeWidth={1.75} aria-hidden />
+      {f === "AICITED" && <Check size={11} strokeWidth={3} aria-hidden />}
+    </span>
+  )
 }
 
 /**

@@ -1818,6 +1818,10 @@
 .fs-app .chip.neg { background: var(--neg-soft); color: var(--neg); }
 .fs-app .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .fs-app .chip.outline { background: transparent; border: 1px solid var(--border); }
+/* SERP feature chips. Icon-only, so the horizontal text padding would leave the
+   glyph off-centre in a chip twice as wide as it needs to be. */
+.fs-app .chip.feat { padding: 3px 4px; gap: 1px; }
+.fs-app .chip.feat svg { display: block; }
 /* Clickable list rows (e.g. saved-analysis history lists) */
 .fs-app .list-row:hover { background: var(--bg-sub); }
 .fs-app li:last-child > .list-row { border-bottom: none !important; }

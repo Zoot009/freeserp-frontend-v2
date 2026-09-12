@@ -2865,7 +2865,7 @@ export default function ProjectKeywordsPage() {
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl flush" style={{ minWidth: 1100 }}>
+            <table className="tbl flush" style={{ minWidth: 1060 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -2926,7 +2926,9 @@ export default function ProjectKeywordsPage() {
                       Not sortable. A set of features has no order to sort by,
                       and a header that looks clickable but ranks nothing is
                       worse than a plain one. */}
-                  <th style={{ width: 150 }}>
+                  {/* Four icon chips fit on one line here; the text chips
+                      this replaced needed 150px and still wrapped to three. */}
+                  <th style={{ width: 112 }}>
                     <Hint text={t("tipSerp")}><span>{t("colSerp")}</span></Hint>
                   </th>
                   <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
