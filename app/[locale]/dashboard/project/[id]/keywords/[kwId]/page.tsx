@@ -362,6 +362,24 @@ export default function KeywordDetailPage() {
     },
   ]
   const featureCount = serpFeatureRows.filter((r) => r.present).length
+
+  /**
+   * Columns chosen to divide the cards, not a fixed four.
+   *
+   * The row is 5, 6 or 7 cards depending on whether there is enough history for
+   * a 1-day and a 7-day change, and a hard `md:grid-cols-4` left the fifth card
+   * stranded alone on a second row a quarter of the page wide — which reads as
+   * an afterthought rather than as one of the figures. Each count gets a
+   * division that comes out even, and the classes are written in full because
+   * Tailwind reads this file rather than evaluating it.
+   */
+  const statCount = 5 + (d1 != null ? 1 : 0) + (d7 != null ? 1 : 0)
+  const statCols =
+    statCount === 7
+      ? "grid-cols-2 sm:grid-cols-4"
+      : statCount === 6
+        ? "grid-cols-2 sm:grid-cols-3"
+        : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"
   // How deep the latest check actually looked. Free plans crawl to the
   // trialCheckDepth admin setting, so "100+" was a lie for them; fall back to
   // 100 only for rows written before the depth was recorded.
@@ -531,7 +549,7 @@ export default function KeywordDetailPage() {
           {/* The same StatCard the Overview and the project page use, so a
               figure is presented identically wherever it appears — and so each
               one carries an explanation rather than a bare label. */}
-          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+          <div className={`mb-3.5 grid gap-3.5 ${statCols}`}>
             <StatCard
               label="Position"
               hint={`Where this keyword ranks on Google right now. Anything below the top ${notFoundDepth} shows as ${notFoundDepth}+.`}
@@ -600,6 +618,10 @@ export default function KeywordDetailPage() {
                   ? new Date(latestCheck.checkedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
                   : "Never"
               }
+              // "Never" was set in the same 34px brand blue as a position or a
+              // volume — the page's loudest treatment, spent on the absence of a
+              // measurement. It is the one value in the row that is not a figure.
+              tone={latestCheck?.checkedAt ? undefined : "text-muted-foreground"}
               caption={
                 latestCheck?.checkedAt
                   ? new Date(latestCheck.checkedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
@@ -743,10 +765,16 @@ export default function KeywordDetailPage() {
             ) : (
               /* One check is a dot, not a trend. Say what turns it into a line
                  and when, rather than leaving the page's main graphic missing
-                 with nothing in its place. */
+                 with nothing in its place.
+
+                 Sized to the words, not to the chart it stands in for. Holding
+                 the full 200px reserved a plot's worth of blank card for two
+                 lines of text, and on a new keyword — where this is the state
+                 every reader meets first — that pushed everything the page
+                 actually knows below the fold. */
               <div
                 style={{
-                  height: 200, display: "flex", flexDirection: "column",
+                  height: 124, display: "flex", flexDirection: "column",
                   alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center",
                 }}
               >
@@ -796,6 +824,10 @@ export default function KeywordDetailPage() {
                     style={{
                       gap: 10,
                       alignItems: "center",
+                      // Wraps rather than squeezing the description to nothing:
+                      // at phone width the name and its detail stack instead of
+                      // the detail shrinking to one word per line.
+                      flexWrap: "wrap",
                       padding: "9px 0",
                       borderTop: "1px solid var(--border)",
                       opacity: r.present ? 1 : 0.5,
