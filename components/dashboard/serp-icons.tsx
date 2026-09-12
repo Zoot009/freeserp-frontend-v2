@@ -12,8 +12,10 @@ import type { SVGProps } from "react"
  * differ — solid bars, an outlined card, a pin, a star — rather than ten
  * variations on a 1.5px stroke.
  *
- * Drawn on a 16×16 grid, sized by the caller, coloured by `currentColor` so the
- * per-feature accent lives with the chip. Everything is `aria-hidden`: the chip
+ * Drawn on a 16×16 grid, sized by the caller, painted in `currentColor` — which
+ * on a filled chip is the knocked-out white, not the feature's colour. Secondary
+ * shapes drop their opacity instead of taking a second colour, so they read as
+ * the fill showing through. Everything is `aria-hidden`: the chip
  * carries the accessible name, and a glyph that also announced itself would say
  * it twice.
  */
@@ -49,8 +51,9 @@ export const AiOverviewGlyph = ({ size = 14, ...p }: GlyphProps) => (
  *
  * Composed rather than a second separate mark: the badge overlaps the star, so
  * it reads as one glyph with a state, the way a notification dot does — not as
- * two features in one chip. The knock-out is the brand chip's own background,
- * which is the only surface this glyph is ever drawn on.
+ * two features in one chip. The tick is knocked out in the chip's own fill
+ * (--feat-fill), so it is a hole in the badge rather than a stroke painted over
+ * it, and it stays right whatever colour the chip is.
  */
 export const AiCitedGlyph = ({ size = 14, ...p }: GlyphProps) => (
   <svg {...svg(size, p)}>
@@ -61,7 +64,7 @@ export const AiCitedGlyph = ({ size = 14, ...p }: GlyphProps) => (
     <circle cx="11.4" cy="11.3" r="3.9" fill="currentColor" />
     <path
       d="M9.7 11.35l1.15 1.15 2.2-2.4"
-      stroke="var(--brand-soft)"
+      stroke="var(--feat-fill)"
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
