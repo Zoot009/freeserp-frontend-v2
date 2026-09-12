@@ -9,6 +9,7 @@ import { api, ApiError, getAccessToken } from "@/lib/api"
 import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
+import { CancelPlanDialog, type CancelReason } from "@/components/dashboard/cancel-plan-dialog"
 import { TIERS, SEARCHES_PER_WORKER, tierPriceUsd, type BillingInterval } from "@/lib/pricing"
 import { Loader2 } from "lucide-react"
 import { useCredits } from "@/lib/credits"
@@ -247,10 +248,16 @@ function WorkerBillingPage() {
     }
   }
 
-  const cancelPlan = async () => {
+  /**
+   * The reason rides on the cancel call itself rather than going to an endpoint
+   * of its own. Two requests would mean a state where one succeeded and the
+   * other did not — most likely a recorded reason for a subscription that is
+   * still live, which is a churn report that counts people who never left.
+   */
+  const cancelPlan = async (input: { reason?: CancelReason; details?: string } = {}) => {
     setBusy(true)
     try {
-      await api.post("/api/billing/cancel")
+      await api.post("/api/billing/cancel", input)
       toast.success(t("cancelSuccess"))
       setConfirmCancel(false)
       await load()
@@ -757,13 +764,8 @@ function WorkerBillingPage() {
         )}
       </div>
 
-      <ConfirmDialog
+      <CancelPlanDialog
         open={confirmCancel}
-        title={t("cancelDialogTitle")}
-        body={t("cancelDialogBody")}
-        confirmLabel={t("cancelPlan")}
-        cancelLabel={t("keepPlan")}
-        danger
         busy={busy}
         onConfirm={cancelPlan}
         onClose={() => setConfirmCancel(false)}
