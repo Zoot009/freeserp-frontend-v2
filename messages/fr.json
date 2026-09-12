@@ -830,6 +830,8 @@
     "aiStageIdeas": "Recherche d'idées de mots-clés",
     "aiStageVolume": "Vérification des volumes de recherche",
     "colAiOverview": "AI Overview",
+    "colSerp": "SERP",
+    "tipSerp": "Les autres fonctionnalités de la page de résultats Google pour ce mot-clé : extrait optimisé, People Also Ask, packs vidéo, image et local, knowledge panel",
     "colAiOverviewTitle": "Si Google affiche un AI Overview pour ce mot-clé et s'il cite votre site",
     "aioCited": "Cité",
     "aioCitedAt": "Cité n° {position}",

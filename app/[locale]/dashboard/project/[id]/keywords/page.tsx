@@ -31,7 +31,9 @@ import { track } from "@/lib/analytics"
 import {
   PosCell,
   DeltaCell,
+  FeatChip,
   aiCitationState,
+  serpFeaturesToChips,
   type AiCitationState,
   type SerpFeatures,
   type MonthlySearch,
@@ -2863,7 +2865,7 @@ export default function ProjectKeywordsPage() {
               </div>
             ) : (
           <div style={{ overflowX: "auto", overflowY: "visible" }}>
-            <table className="tbl flush" style={{ minWidth: 980 }}>
+            <table className="tbl flush" style={{ minWidth: 1100 }}>
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>
@@ -2914,6 +2916,19 @@ export default function ProjectKeywordsPage() {
                     // page — and so it isn't announced twice from one header.
                     info={<HeaderInfo>{t("colAiOverviewTitle")}</HeaderInfo>}
                   />
+                  {/* What ELSE Google puts on the page for this keyword.
+                      It sits beside AI Overview because both describe the same
+                      results page, and the AI chip is left out of it for the
+                      same reason: the column next door already answers that,
+                      and answers it better — cited, not cited, or no overview
+                      at all, where a chip could only say "there was one".
+
+                      Not sortable. A set of features has no order to sort by,
+                      and a header that looks clickable but ranks nothing is
+                      worse than a plain one. */}
+                  <th style={{ width: 150 }}>
+                    <Hint text={t("tipSerp")}><span>{t("colSerp")}</span></Hint>
+                  </th>
                   <SortHeader label={t("colLastChecked")} title={t("tipLastChecked")} k="checkedAt" sort={sort} onClick={clickSort} width={116} />
                   <th style={{ width: 190, whiteSpace: "nowrap" }}>
                     <Hint text={t("tipActions")}><span>{t("colActions")}</span></Hint>
@@ -2923,6 +2938,10 @@ export default function ProjectKeywordsPage() {
               <tbody>
                 {filtered.map((kw, i) => {
                   const isActive = kw.status === "PENDING" || kw.status === "PROCESSING"
+                  // AI/AICITED dropped: the AI Overview column says it properly.
+                  const feats = serpFeaturesToChips(kw.serpFeatures).filter(
+                    (f) => f !== "AI" && f !== "AICITED",
+                  )
                   const isSelected = selectedKeywords.has(kw.id)
                   const locked = isLocked(kw)
                   const rowStyle: React.CSSProperties = {}
@@ -3057,6 +3076,17 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td>
                         <AiOverviewCell features={kw.serpFeatures} />
+                      </td>
+                      <td>
+                        {feats.length > 0 ? (
+                          <div className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+                            {feats.map((f) => (
+                              <FeatChip key={f} f={f} />
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="tiny muted">—</span>
+                        )}
                       </td>
                       <td className="tiny muted" style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>

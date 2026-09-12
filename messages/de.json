@@ -830,6 +830,8 @@
     "aiStageIdeas": "Keyword-Ideen werden gesucht",
     "aiStageVolume": "Suchvolumen werden geprüft",
     "colAiOverview": "AI Overview",
+    "colSerp": "SERP",
+    "tipSerp": "Die übrigen Funktionen auf Googles Ergebnisseite für dieses Keyword — Featured Snippet, People Also Ask, Video-, Bild- und Local-Pack, Knowledge Panel",
     "colAiOverviewTitle": "Ob Google für dieses Keyword eine AI Overview zeigt und ob Ihre Website zitiert wird",
     "aioCited": "Zitiert",
     "aioCitedAt": "Zitiert #{position}",

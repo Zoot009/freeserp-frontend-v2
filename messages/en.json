@@ -833,6 +833,8 @@
     "aiStageIdeas": "Finding keyword ideas",
     "aiStageVolume": "Checking search volumes",
     "colAiOverview": "AI Overview",
+    "colSerp": "SERP",
+    "tipSerp": "The other features on Google's results page for this keyword — featured snippet, People Also Ask, video, image and local packs, knowledge panel",
     "colAiOverviewTitle": "Whether Google shows an AI Overview for this keyword, and whether it cites your site",
     "aioCited": "Cited",
     "aioCitedAt": "Cited #{position}",

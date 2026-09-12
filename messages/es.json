@@ -830,6 +830,8 @@
     "aiStageIdeas": "Buscando ideas de palabras clave",
     "aiStageVolume": "Consultando volúmenes de búsqueda",
     "colAiOverview": "AI Overview",
+    "colSerp": "SERP",
+    "tipSerp": "Las demás funciones de la página de resultados de Google para esta palabra clave: fragmento destacado, People Also Ask, packs de vídeo, imagen y local, panel de conocimiento",
     "colAiOverviewTitle": "Si Google muestra un AI Overview para esta palabra clave y si cita tu sitio",
     "aioCited": "Citado",
     "aioCitedAt": "Citado n.º {position}",
