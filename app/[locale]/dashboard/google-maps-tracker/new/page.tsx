@@ -231,9 +231,6 @@ function NewScanBuilder() {
 
         <div className="mt-setup" style={{ marginTop: 16 }}>
           <SetupRail
-            showAi={currentLocation != null}
-            aiRequested={aiRequested}
-            onAiChange={setAiRequested}
             searches={searches}
             disabledReason={disabledReason}
             submitting={submitting}
@@ -313,16 +310,50 @@ function NewScanBuilder() {
           </MapCard>
         </div>
 
-        <CreditCostConfirm
+<CreditCostConfirm
           action={CREDIT_ACTION_KEYS.mapsScanPoint}
           units={searches}
           open={confirmScan}
           onOpenChange={setConfirmScan}
           onConfirm={() => void runScan()}
           title="Run this scan?"
-          description={`${searches} ${searches === 1 ? "search" : "searches"} — ${gridSize} × ${gridSize} points for each of your ${keywords.length} keyword${keywords.length === 1 ? "" : "s"}${aiRequested ? ", plus an AI analysis when it finishes" : ""}.`}
+          description={`${searches} ${searches === 1 ? "search" : "searches"} — ${gridSize} × ${gridSize} points for each of your ${keywords.length} keyword${keywords.length === 1 ? "" : "s"}.`}
           confirmLabel="Run scan"
-        />
+        >
+          {/* Asked here rather than in the rail, because this is the moment the
+              run is being committed to and the price is on screen to answer it
+              against. In the rail it was a switch three controls above a button
+              that quoted a cost, with nothing tying the two together.
+
+              Only offered once there is a business to analyse. */}
+          {currentLocation != null && (
+            <div className="rounded-lg border p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium">AI analysis</div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    Reads the finished grid and writes up where you are winning and losing.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="mt-toggle shrink-0"
+                  aria-pressed={aiRequested}
+                  aria-label="AI analysis"
+                  onClick={() => setAiRequested(!aiRequested)}
+                >
+                  <i />
+                </button>
+              </div>
+              {/* Stated, because the toggle sits next to a price and a switch
+                  beside a number reads as changing it. It does not: the scan is
+                  charged per grid point, and the analysis is included. */}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Included — it does not change the credits above.
+              </p>
+            </div>
+          )}
+        </CreditCostConfirm>
       </div>
     </APIProvider>
   )

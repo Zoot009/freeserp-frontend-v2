@@ -47,11 +47,26 @@ export function RadiusDropdown({
   )
 }
 
+/**
+ * Miles or kilometres, as a full-width segmented control.
+ *
+ * It used to be an inline pill sitting under two full-width dropdowns, which
+ * left it stranded against the left edge at half their width — it read as a
+ * stray control rather than the third setting in the same stack. `block` makes
+ * the three line up, and the halves share the width evenly so neither unit
+ * looks like the default because its word is longer.
+ */
 export function UnitToggle({ value, onChange }: { value: DistanceUnit; onChange: (u: DistanceUnit) => void }) {
   return (
-    <div className="pill-toggle">
+    <div className="pill-toggle block" role="group" aria-label="Distance unit">
       {(["IMPERIAL", "METRIC"] as const).map((u) => (
-        <button key={u} type="button" className={value === u ? "active" : ""} onClick={() => onChange(u)}>
+        <button
+          key={u}
+          type="button"
+          aria-pressed={value === u}
+          className={value === u ? "active" : ""}
+          onClick={() => onChange(u)}
+        >
           {u === "IMPERIAL" ? "Imperial" : "Metric"}
         </button>
       ))}
