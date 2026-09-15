@@ -29,10 +29,16 @@ import type { MapLocation, Scan, CreateScanResponse } from "@/components/maps-tr
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 const LIST = "/dashboard/google-maps-tracker"
 
-// A 3 x 3 over 0.1 miles — the old defaults — is nine searches inside one
-// block, which tells nobody anything. These are the settings the redesign
-// previews, and the ones a first scan should actually be run at.
-const DEFAULT_GRID_SIZE = 7
+// The radius is what makes a first scan worth reading, not the grid. The
+// defaults these replaced were 3 x 3 over 0.1 MILES — nine searches inside one
+// block, which tells nobody anything — and the fix was read as "raise the
+// grid", landing on 7 x 7. That is 49 points and 8 credits before anyone has
+// seen what a scan even produces.
+//
+// 3 x 3 over the same 1.5 miles is 3 credits and pins a mile and a half apart:
+// a real picture of the area, at the cheapest it can be drawn. Anyone who wants
+// it finer raises it from the dropdown, having seen what they are buying.
+const DEFAULT_GRID_SIZE = 3
 const DEFAULT_RADIUS = 1.5
 // Geographic center of the continental US — just a reasonable starting view
 // before any location is picked; the map re-centers via fitBounds once one is.
