@@ -1939,5 +1939,19 @@
         }
       ]
     }
+  },
+  "unsubscribe": {
+    "title": "Marketing-E-Mails abbestellen",
+    "loading": "Einstellungen werden geprüft…",
+    "invalid": "Dieser Abmeldelink ist ungültig. Möglicherweise wurde er unterwegs verändert – bitte verwende den Link am Ende einer aktuellen E-Mail.",
+    "error": "Etwas ist schiefgelaufen. Bitte versuche es gleich noch einmal.",
+    "prompt": "{email} von FreeSerp-Produkttipps, Onboarding- und Upgrade-E-Mails abmelden?",
+    "confirm": "Abbestellen",
+    "working": "Wird ausgeführt…",
+    "done": "{email} wurde von Marketing-E-Mails abgemeldet.",
+    "undo": "Rückgängig – wieder anmelden",
+    "resubscribed": "{email} wurde wieder für Marketing-E-Mails angemeldet.",
+    "transactionalNote": "Konto-E-Mails wie Anmeldecodes, Passwort-Zurücksetzungen und Rechnungshinweise erhältst du weiterhin.",
+    "backHome": "Zurück zu FreeSerp"
   }
 }

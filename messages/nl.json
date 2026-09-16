@@ -620,5 +620,19 @@
     "autoDesc": "We scannen je startpagina met AI en stellen zoekwoorden voor waarop hij al zou moeten ranken — jij kiest welke je volgt.",
     "manualTitle": "Ik voeg ze zelf toe",
     "manualDesc": "Zonder analyse. Begin met een lege lijst en typ zelf de zoekwoorden die je wilt volgen — geen credits gebruikt."
+  },
+  "unsubscribe": {
+    "title": "Marketing-e-mails opzeggen",
+    "loading": "Je voorkeuren worden gecontroleerd…",
+    "invalid": "Deze afmeldlink is niet geldig. Mogelijk is hij onderweg aangepast — gebruik de link onderaan een recente e-mail.",
+    "error": "Er is iets misgegaan. Probeer het zo dadelijk opnieuw.",
+    "prompt": "{email} afmelden voor FreeSerp-producttips, onboarding- en upgrade-e-mails?",
+    "confirm": "Afmelden",
+    "working": "Bezig…",
+    "done": "{email} is afgemeld voor marketing-e-mails.",
+    "undo": "Ongedaan maken — meld me weer aan",
+    "resubscribed": "{email} is weer aangemeld voor marketing-e-mails.",
+    "transactionalNote": "Je ontvangt nog steeds account-e-mails zoals inlogcodes, wachtwoordherstel en factuurmeldingen.",
+    "backHome": "Terug naar FreeSerp"
   }
 }

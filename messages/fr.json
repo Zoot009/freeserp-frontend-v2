@@ -1939,5 +1939,19 @@
         }
       ]
     }
+  },
+  "unsubscribe": {
+    "title": "Se désabonner des e-mails marketing",
+    "loading": "Vérification de vos préférences…",
+    "invalid": "Ce lien de désabonnement n'est pas valide. Il a peut-être été modifié en cours de route : utilisez le lien figurant au bas d'un e-mail récent.",
+    "error": "Une erreur s'est produite. Veuillez réessayer dans un instant.",
+    "prompt": "Désabonner {email} des conseils produit, des e-mails de prise en main et des offres de mise à niveau FreeSerp ?",
+    "confirm": "Se désabonner",
+    "working": "Traitement…",
+    "done": "{email} a été désabonné des e-mails marketing.",
+    "undo": "Annuler — me réabonner",
+    "resubscribed": "{email} a été réabonné aux e-mails marketing.",
+    "transactionalNote": "Vous continuerez à recevoir les e-mails liés au compte : codes de connexion, réinitialisations de mot de passe et avis de facturation.",
+    "backHome": "Retour à FreeSerp"
   }
 }

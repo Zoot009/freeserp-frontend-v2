@@ -1939,5 +1939,19 @@
         }
       ]
     }
+  },
+  "unsubscribe": {
+    "title": "Cancelar la suscripción a los correos de marketing",
+    "loading": "Comprobando tus preferencias…",
+    "invalid": "Este enlace para cancelar la suscripción no es válido. Puede haberse modificado durante el envío: usa el enlace que aparece al final de un correo reciente.",
+    "error": "Algo ha salido mal. Vuelve a intentarlo en un momento.",
+    "prompt": "¿Cancelar la suscripción de {email} a los consejos de producto, la incorporación y los correos de mejora de FreeSerp?",
+    "confirm": "Cancelar la suscripción",
+    "working": "Procesando…",
+    "done": "Se ha cancelado la suscripción de {email} a los correos de marketing.",
+    "undo": "Deshacer: volver a suscribirme",
+    "resubscribed": "{email} se ha vuelto a suscribir a los correos de marketing.",
+    "transactionalNote": "Seguirás recibiendo correos de la cuenta, como códigos de acceso, restablecimientos de contraseña y avisos de facturación.",
+    "backHome": "Volver a FreeSerp"
   }
 }
