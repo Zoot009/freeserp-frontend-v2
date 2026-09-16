@@ -706,6 +706,8 @@
   font-size: 28px; font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.1;
+  /* Same reason as .tbl: a row of StatTiles that refreshes should not reflow. */
+  font-variant-numeric: tabular-nums;
 }
 .fs-app .stat .delta {
   display: inline-flex; align-items: center; gap: 4px;
@@ -740,7 +742,7 @@
   font-size: 11px; color: var(--text-mute); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-.fs-app .stat-strip .val { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+.fs-app .stat-strip .val { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .fs-app .stat-strip .delta {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; font-weight: 500;
@@ -990,6 +992,14 @@
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
+  /* Lining tabular figures for the whole table, not per-cell. Proportional
+     digits change width as they change value, so a column of rates visibly
+     shifts every time a poll lands — worst on the AI tracker's board, where
+     runs settle one at a time under a 3s poll. Set here rather than on the
+     numeric cells because those are right-aligned with an inline style, not a
+     class, so there is no shared hook to hang it on; and a data table is the
+     one place tabular figures are correct for prose cells too. */
+  font-variant-numeric: tabular-nums;
 }
 .fs-app .tbl th {
   text-align: left;
@@ -1002,10 +1012,15 @@
   background: var(--bg-sub);
   border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
-  position: sticky; top: 0;
+  /* Sticky since this class existed, but with no z-index: any cell content that
+     forms a stacking context painted straight over the pinned header on scroll.
+     1 is enough — every floating menu that opens from inside a table is either
+     portaled (Dropdown `portal`, z-index 10010) or carries an inline z-index 50,
+     so nothing that should sit above the header loses to it. */
+  position: sticky; top: 0; z-index: 1;
 }
-.fs-app .tbl th:first-child { border-left: 1px solid var(--border); border-top-left-radius: 8px; }
-.fs-app .tbl th:last-child { border-right: 1px solid var(--border); border-top-right-radius: 8px; }
+.fs-app .tbl th:first-child { border-left: 1px solid var(--border); border-top-left-radius: var(--r-sm); }
+.fs-app .tbl th:last-child { border-right: 1px solid var(--border); border-top-right-radius: var(--r-sm); }
 .fs-app .tbl td {
   padding: 9px 12px;
   border-bottom: 1px solid var(--border);
@@ -1015,8 +1030,8 @@
 .fs-app .tbl tr:hover td { background: var(--bg-sub); }
 .fs-app .tbl td:first-child { border-left: 1px solid var(--border); }
 .fs-app .tbl td:last-child { border-right: 1px solid var(--border); }
-.fs-app .tbl tr:last-child td:first-child { border-bottom-left-radius: 8px; }
-.fs-app .tbl tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+.fs-app .tbl tr:last-child td:first-child { border-bottom-left-radius: var(--r-sm); }
+.fs-app .tbl tr:last-child td:last-child { border-bottom-right-radius: var(--r-sm); }
 /* Full-bleed variant, for a table that fills a padding:0 card. The rules above
    frame the table so it can stand on a bare page; inside a card that already
    has a border and a radius they draw a second outline just inside the card's,
