@@ -58,6 +58,36 @@
   --r-lg: 16px;
   --r-xl: 22px;
 
+  /* Spacing scale. The radius and shadow scales were always here; spacing was
+     not, so every class picked its own (9, 13, 14, 18, 20, 22, 26 all appeared).
+     4px multiples, with ONE half-step: --sp-h is for icon-beside-label gaps,
+     which are the one place a 4px floor reads as cramped and 8px as detached.
+     Deliberately NOT applied to `.page`'s 28px top padding — five full-bleed
+     helpers (.llm-hero, .kd-header, .halo and friends) pull themselves out of
+     it with a hardcoded `margin: -28px`, so that number is load-bearing and
+     moves only with them. */
+  --sp-h: 6px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* Internal rule, for separators INSIDE a bordered container — table row
+     dividers above all. --border keeps framing the container itself, so the
+     two stop competing at the same weight.
+
+     The ratio differs per theme on purpose, and the reason is not the contrast
+     RATIO: 62% measures 1.126:1 on white and 1.122:1 on the dark card, which
+     says they are equivalent and is misleading. At the dark end the same ratio
+     is a far weaker edge in practice — rendered side by side, a 62% rule is
+     clearly present on white and all but gone on #14181F. Dark therefore holds
+     a heavier mix, the same way --accent re-steps rather than flipping. */
+  --hairline: color-mix(in srgb, var(--border) 62%, transparent);
+
   /* Horizontal padding of .page — shared by the negative-margin classes
      (.halo / .kd-header / .kd-tabs) so they stay in lockstep. Overridden on
      phones in the responsive block at the bottom of this file. */
@@ -80,6 +110,9 @@
   text-rendering: optimizeLegibility;
 }
 .dark .fs-app {
+  /* See the --hairline comment above: dark needs the heavier mix to stay visible. */
+  --hairline: color-mix(in srgb, var(--border) 85%, transparent);
+
   --brand: #5B7DFF;
   --brand-soft: #1A2249;
   --brand-deep: #8AA2FF;
@@ -620,8 +653,8 @@
 }
 .fs-app .page-h {
   display: flex; align-items: flex-end; justify-content: space-between;
-  margin-bottom: 22px;
-  gap: 16px;
+  margin-bottom: var(--sp-6);
+  gap: var(--sp-4);
 }
 .fs-app .page-h h1 {
   margin: 0;
@@ -678,14 +711,14 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 18px;
+  padding: var(--sp-5);
   box-shadow: var(--shadow-sm);
 }
-.fs-app .card.tight { padding: 14px; }
+.fs-app .card.tight { padding: var(--sp-4); }
 .fs-app .card-h {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
-  gap: 10px;
+  margin-bottom: var(--sp-4);
+  gap: var(--sp-3);
 }
 .fs-app .card-h .t { font-size: 14px; font-weight: 600; }
 .fs-app .card-h .ac { display: flex; gap: 6px; align-items: center; color: var(--text-mute); font-size: 12px; }
@@ -932,7 +965,7 @@
 .fs-app .cmp-track .rm:hover { color: var(--neg); background: var(--neg-soft); }
 .fs-app .cmp-track .rm:disabled { cursor: default; opacity: 0.35; }
 /* Grid helpers */
-.fs-app .grid { display: grid; gap: 14px; }
+.fs-app .grid { display: grid; gap: var(--sp-4); }
 .fs-app .g-4 { grid-template-columns: repeat(4, 1fr); }
 .fs-app .g-3 { grid-template-columns: repeat(3, 1fr); }
 .fs-app .g-2 { grid-template-columns: repeat(2, 1fr); }
@@ -943,8 +976,8 @@
    background rather than the page white so it reads as commentary about the
    screen, not another data card on it. */
 .fs-app .tool-ctx {
-  padding: 14px 16px;
-  margin-bottom: 16px;
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
   background: var(--bg-sub);
 }
 .fs-app .tool-ctx-top { display: flex; align-items: flex-start; gap: 10px; }
@@ -1008,7 +1041,7 @@
   color: var(--text-mute);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   background: var(--bg-sub);
   border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
@@ -1022,8 +1055,13 @@
 .fs-app .tbl th:first-child { border-left: 1px solid var(--border); border-top-left-radius: var(--r-sm); }
 .fs-app .tbl th:last-child { border-right: 1px solid var(--border); border-top-right-radius: var(--r-sm); }
 .fs-app .tbl td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+  /* 10px, not a scale step. Row height governs how much of a board you can see
+     at once, so this is set by measurement rather than by rhythm: at 1440x900
+     the AI tracker's prompt board fits 12 rows at 9px, 11 at 10px and 10 at
+     12px. 12px costs two rows of an eight-column workbench table, which is a
+     worse trade than one off-scale value. */
+  padding: 10px var(--sp-3);
+  border-bottom: 1px solid var(--hairline);
   vertical-align: middle;
   color: var(--text);
 }
@@ -1043,13 +1081,13 @@
 .fs-app .tbl.flush td:first-child {
   border-left: 0;
   border-top-left-radius: 0; border-bottom-left-radius: 0;
-  padding-left: 16px;
+  padding-left: var(--sp-4);
 }
 .fs-app .tbl.flush th:last-child,
 .fs-app .tbl.flush td:last-child {
   border-right: 0;
   border-top-right-radius: 0; border-bottom-right-radius: 0;
-  padding-right: 16px;
+  padding-right: var(--sp-4);
 }
 .fs-app .tbl.flush tr:last-child td { border-bottom: 0; }
 /* Keyword cell: one line with an ellipsis, so a long keyword can't wrap and
@@ -1858,7 +1896,7 @@
 .fs-app .chip.pos { background: var(--pos-soft); color: var(--pos); }
 .fs-app .chip.neg { background: var(--neg-soft); color: var(--neg); }
 .fs-app .chip.warn { background: var(--warn-soft); color: var(--warn); }
-.fs-app .chip.outline { background: transparent; border: 1px solid var(--border); }
+.fs-app .chip.outline { background: transparent; border: 1px solid var(--hairline); }
 /* SERP feature chips. Icon-only, so the horizontal text padding would leave the
    glyph off-centre in a chip twice as wide as it needs to be.
 
