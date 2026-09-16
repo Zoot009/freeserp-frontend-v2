@@ -564,11 +564,16 @@ export default function LlmPromptListPage() {
                   <th>Platform</th>
                   {/* Status was never a column: it was smuggled into Mention
                       rate, where PENDING and PROCESSING rendered identically. */}
-                  <th style={{ width: 200 }}>Status</th>
-                  <th style={{ textAlign: "right" }}>Mention rate</th>
-                  <th style={{ textAlign: "right" }}>Cited</th>
-                  <th style={{ textAlign: "right" }}>Prominence</th>
-                  <th style={{ width: 150 }}>Schedule</th>
+                  {/* Widths and alignment come from the .llm-c-* classes in
+                      dashboard.css, which reserve each column's widest SETTLED
+                      state so a run finishing mid-poll cannot re-measure the
+                      table. Prompt carries no floor — it is the flex column
+                      that absorbs whatever the others give up. */}
+                  <th className="llm-c-status">Status</th>
+                  <th className="llm-c-rate">Mention rate</th>
+                  <th className="llm-c-cited">Cited</th>
+                  <th className="llm-c-prom">Prominence</th>
+                  <th className="llm-c-sched">Schedule</th>
                   <th style={{ width: 150 }} />
                 </tr>
               </thead>
@@ -661,26 +666,30 @@ export default function LlmPromptListPage() {
                             </button>
                           )}
                         </td>
-                        <td>
+                        <td className="llm-c-status">
                           <RunStateCell
                             state={state}
                             onRetry={state.kind === "failed" ? () => void runNow([p.id]) : undefined}
                           />
                         </td>
-                        <td style={{ textAlign: "right" }}>
-                          <RateCell rate={run?.mentionRate ?? null} change={run?.change ?? null} />
+                        <td className="llm-c-rate">
+                          <RateCell
+                            state={state}
+                            rate={run?.mentionRate ?? null}
+                            change={run?.change ?? null}
+                          />
                         </td>
-                        <td style={{ textAlign: "right" }}>
+                        <td className="llm-c-cited">
                           <CitedCell state={state} rate={run?.citationRate ?? null} />
                         </td>
-                        <td style={{ textAlign: "right" }}>
+                        <td className="llm-c-prom">
                           <ProminenceCell state={state} value={run?.avgProminence ?? null} />
                         </td>
                         {/* Cadence is a per-prompt property, so it belongs with the
                             other per-prompt cells in the rowSpan'd group — not
                             repeated once per platform row. */}
                         {idx === 0 ? (
-                          <td rowSpan={tracked.length}>
+                          <td rowSpan={tracked.length} className="llm-c-sched">
                             <Dropdown
                               ariaLabel={`Run frequency for "${p.prompt}"`}
                               value={frequencyValue(p)}
@@ -691,7 +700,7 @@ export default function LlmPromptListPage() {
                               portal
                             />
                             {p.autoRunEnabled && p.nextScheduledRun ? (
-                              <div className="tiny muted" style={{ marginTop: 4 }}>
+                              <div className="tiny muted llm-next-run">
                                 Next {untilTime(p.nextScheduledRun)}
                               </div>
                             ) : null}

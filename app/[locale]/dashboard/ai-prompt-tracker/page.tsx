@@ -43,7 +43,7 @@ export default function LlmPromptsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [unavailable, setUnavailable] = useState<"" | "missing" | "no-access">("")
+  const [unavailable, setUnavailable] = useState<"" | "missing" | "unverified">("")
   const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export default function LlmPromptsPage() {
       // belongs in the red error card — and now that this is the headline nav
       // item, the 403 is what most users will hit.
       if (err instanceof ApiError && err.status === 404) setUnavailable("missing")
-      else if (err instanceof ApiError && err.status === 403) setUnavailable("no-access")
+      else if (err instanceof ApiError && err.status === 403) setUnavailable("unverified")
       else setError(err instanceof Error ? err.message : "Failed to load projects")
     } finally {
       setLoading(false)
@@ -86,9 +86,19 @@ export default function LlmPromptsPage() {
           <h1>AI Prompt Tracker</h1>
         </div>
         <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          {unavailable === "no-access"
-            ? "AI Prompt Tracker is in early access and your account isn't on the list yet. Contact us and we'll add you."
-            : "Prompt tracking isn't available on this API version yet."}
+          {unavailable === "unverified" ? (
+            <>
+              {/* Reachable only if the shell's redirect hasn't run — it sends
+                  every unverified user to /verify-email before any dashboard
+                  page renders. Kept as a backstop, pointing at that same page,
+                  which is where the working resend control lives. Settings has
+                  no such control; an earlier draft of this string said it did. */}
+              Confirm your email address to start tracking.{" "}
+              <Link href="/verify-email">Resend the confirmation link</Link>.
+            </>
+          ) : (
+            "Prompt tracking isn't available on this API version yet."
+          )}
         </div>
       </div>
     )
@@ -117,15 +127,7 @@ export default function LlmPromptsPage() {
       )}
 
       {projects.length === 0 ? (
-        <div
-          className="card"
-          style={{
-            border: "1px dashed var(--border-strong)",
-            background: "transparent",
-            textAlign: "center",
-            padding: 40,
-          }}
-        >
+        <div className="llm-empty">
           <div className="eyebrow">
             <span className="spark">
               <Icon.spark />
@@ -146,7 +148,6 @@ export default function LlmPromptsPage() {
               key={p.id}
               href={`/dashboard/ai-prompt-tracker/${p.id}`}
               className="card llm-brand"
-              style={{ display: "block" }}
             >
               <div className="card-h">
                 <div>
