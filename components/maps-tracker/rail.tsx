@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react"
 import { useCreditQuote, CREDIT_ACTION_KEYS } from "@/lib/credits"
-import { estimateScanSeconds, formatDuration } from "./grid"
 
 export type StepState = "active" | "done" | "locked"
 
@@ -81,19 +80,12 @@ export function RailStep({
  */
 export function SetupRail({
   steps,
-  aiRequested,
-  onAiChange,
-  showAi,
   searches,
   disabledReason,
   submitting,
   onRun,
 }: {
   steps: ReactNode
-  aiRequested: boolean
-  onAiChange: (v: boolean) => void
-  /** Hidden until there is something to analyse — an empty account has no use for it. */
-  showAi: boolean
   searches: number
   /** Null when the scan can run; otherwise why it can't, shown under the button. */
   disabledReason: string | null
@@ -106,42 +98,21 @@ export function SetupRail({
   return (
     <div className="mt-rail">
       {steps}
+      {/* The AI switch used to live here, above the button. It has moved into
+          the confirmation that opens on the click: it is a question about the
+          run you are about to pay for, so it belongs where the price is, and
+          having it here meant the button quoted a cost for a choice made three
+          controls away. */}
       <div className="mt-rail-foot">
-        {showAi && (
-          <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
-            <span className="row" style={{ gap: 8 }}>
-              <span
-                aria-hidden
-                style={{
-                  width: 26, height: 26, borderRadius: 8,
-                  background: "var(--brand-soft)", color: "var(--brand)",
-                  display: "grid", placeItems: "center", fontSize: 13,
-                }}
-              >
-                ✳
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>AI analysis</span>
-            </span>
-            <button
-              type="button"
-              className="mt-toggle"
-              id="mt-ai-toggle"
-              aria-pressed={aiRequested}
-              aria-label="AI analysis"
-              onClick={() => onAiChange(!aiRequested)}
-            >
-              <i />
-            </button>
-          </div>
-        )}
-
         <button type="button" className="btn primary mt-run" disabled={!runnable} onClick={onRun}>
           {submitting ? "Starting…" : cost != null ? `Run scan · ${cost} credits` : "Run scan"}
         </button>
 
-        <div className="mt-rail-note">
-          {disabledReason ?? `${searches} ${searches === 1 ? "search" : "searches"} · ${formatDuration(estimateScanSeconds(searches))}`}
-        </div>
+        {/* Only ever the reason the button is dead now. The estimate that used
+            to sit here ("27 searches · about 50 seconds") described the same
+            run twice — the button already carries its price, and the map its
+            point count. */}
+        {disabledReason && <div className="mt-rail-note">{disabledReason}</div>}
       </div>
     </div>
   )

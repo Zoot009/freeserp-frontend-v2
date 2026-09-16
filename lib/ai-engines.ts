@@ -93,7 +93,15 @@ export type EngineProfile = {
   label: string
   /** One line. What this assistant is, not what the feature does. */
   tagline: string
-  /** 1 for everything except Claude. Mirrors the credits catalog's rate cards. */
+  /**
+   * Mirrors the credits catalog's rate cards (backend credits/catalog.ts).
+   *
+   * 3 on the two assistants answered through DataForSEO's `responses` endpoint —
+   * Claude at ~$0.023 an answer and Perplexity at ~$0.015 — against 1 on the two
+   * read from the cheap scraper endpoint. It is the ENDPOINT that splits the
+   * price, not Claude being Claude, which is why this said "except Claude" and
+   * was wrong about Perplexity for as long as that was the only exception.
+   */
   creditsPerAnswer: 1 | 3
   caps: Capability[]
   metrics: MetricKey[]
@@ -179,7 +187,7 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     label: "Perplexity",
     tagline:
       "A search engine that writes. Every answer is retrieved and sourced, so on this page a citation — not a mention — is the score that counts.",
-    creditsPerAnswer: 1,
+    creditsPerAnswer: 3,
     caps: [
       {
         state: "yes",
@@ -197,7 +205,12 @@ export const ENGINES: Record<Platform, EngineProfile> = {
         label: "Reproduce the answer",
         detail: "An API answer has no shareable page. The full answer text is stored with the run instead.",
       },
-      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
+      {
+        state: "note",
+        label: "3 credits an answer",
+        detail:
+          "Answered through the same endpoint as Claude, not the cheap one ChatGPT and Gemini use. A five-answer run costs fifteen credits.",
+      },
     ],
     // The same four numbers as everyone else, reordered to make a different
     // claim about which one matters.
@@ -263,6 +276,6 @@ export const ENGINE_ORDER: Platform[] = ["chat_gpt", "gemini", "perplexity", "cl
 export const ENGINE_NOTE: Record<Platform, string> = {
   chat_gpt: "Live product output, with a link back to the answer",
   gemini: "Live product output; no country targeting",
-  perplexity: "API answer; always retrieves, so almost always cited",
+  perplexity: "API answer; always retrieves, so almost always cited. 3 credits each, not 1",
   claude: "API answer; 3 credits each, not 1",
 }

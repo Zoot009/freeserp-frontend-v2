@@ -1,15 +1,20 @@
 "use client"
 
-import { GridSizeDropdown, RadiusDropdown, UnitToggle, spacingCaption } from "./grid-controls"
-import { totalPoints, validateArea, type DistanceUnit } from "./grid"
+import { GridSizeDropdown, RadiusDropdown, UnitToggle } from "./grid-controls"
+import { validateArea, type DistanceUnit } from "./grid"
 
 /**
  * Step 3 — how wide to look, and how fine the grid.
  *
- * The two numbers interact in a way that isn't obvious (a big grid over a
- * small radius packs points on top of each other), so the caption under the
- * controls always states the resulting spacing, and an unscannable
- * combination says so here rather than failing after the click.
+ * The two numbers interact in a way that isn't obvious: a big grid over a small
+ * radius packs points on top of each other. That used to be spelled out in a
+ * caption under the controls ("9 points per keyword · 1.50 miles between map
+ * pins"), which restated arithmetic the reader had just chosen and the map
+ * beside it already draws — the pins ARE the spacing, and the map's own badge
+ * counts the points.
+ *
+ * What the map cannot say is that a combination will not scan at all, so the
+ * warning stays: it is the half of that caption which was load-bearing.
  */
 export function AreaStep({
   gridSize,
@@ -29,7 +34,6 @@ export function AreaStep({
   onUnit: (u: DistanceUnit) => void
 }) {
   const problem = validateArea(gridSize, radius, unit, Math.max(1, keywordCount))
-  const points = totalPoints(gridSize, 1)
 
   return (
     <>
@@ -37,9 +41,6 @@ export function AreaStep({
         <GridSizeDropdown value={gridSize} onChange={onGridSize} />
         <RadiusDropdown value={radius} unit={unit} onChange={onRadius} />
         <UnitToggle value={unit} onChange={onUnit} />
-      </div>
-      <div className="mt-step-hint">
-        {points} points per keyword · {spacingCaption(gridSize, radius, unit)}
       </div>
       {problem && (
         <div className="tiny" style={{ marginTop: 8, color: "var(--warn)" }} role="alert">{problem}</div>

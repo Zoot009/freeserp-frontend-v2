@@ -1959,6 +1959,12 @@
   box-shadow: none;
 }
 
+/* Fills its container, for a toggle stacked under full-width controls rather
+   than sitting inline beside something. The halves share the width evenly so
+   neither option reads as the default just because its word is longer. */
+.fs-app .pill-toggle.block { display: flex; width: 100%; }
+.fs-app .pill-toggle.block button { flex: 1 1 0; justify-content: center; }
+
 /* ── Engine picker cards (Add keywords modal) ─────────────────────────────────
    The engine choice used to be a .pill-toggle identical to the Device toggle two
    rows above it, so the two least-alike decisions in the form looked like the

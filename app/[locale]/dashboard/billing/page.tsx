@@ -9,6 +9,7 @@ import { api, ApiError, getAccessToken } from "@/lib/api"
 import { StatTile } from "@/components/dashboard/primitives"
 import { Icon } from "@/components/dashboard/icons"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
+import { CancelPlanDialog, type CancelReason } from "@/components/dashboard/cancel-plan-dialog"
 import { TIERS, SEARCHES_PER_WORKER, tierPriceUsd, type BillingInterval } from "@/lib/pricing"
 import { Loader2 } from "lucide-react"
 import { useCredits } from "@/lib/credits"
@@ -203,7 +204,12 @@ function WorkerBillingPage() {
   // nudge, not an error — reserve the red only for paid users who are hard-stopped.
   const aiBarColor = ai && !ai.degrades && aiUsedPct >= 100 ? "var(--neg)" : "var(--brand)"
   // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
-  const canResume = sub?.provider === "stripe"
+  //
+  // A hand-granted plan can, and must: there is no provider to reinstate at, so
+  // undoing it is just clearing our own flag. Without this a comped account that
+  // changed its mind was offered "Resubscribe" — a trip to the pricing page to
+  // buy the plan somebody already gave them.
+  const canResume = sub?.provider === "stripe" || sub?.provider === "manual"
   // Stripe flips the sub to past_due while its dunning retries run; the user's
   // plan is already degraded to free, so this must render independent of isPaid.
   const isPastDue = sub?.status === "past_due"
@@ -247,10 +253,16 @@ function WorkerBillingPage() {
     }
   }
 
-  const cancelPlan = async () => {
+  /**
+   * The reason rides on the cancel call itself rather than going to an endpoint
+   * of its own. Two requests would mean a state where one succeeded and the
+   * other did not — most likely a recorded reason for a subscription that is
+   * still live, which is a churn report that counts people who never left.
+   */
+  const cancelPlan = async (input: { reason?: CancelReason; details?: string } = {}) => {
     setBusy(true)
     try {
-      await api.post("/api/billing/cancel")
+      await api.post("/api/billing/cancel", input)
       toast.success(t("cancelSuccess"))
       setConfirmCancel(false)
       await load()
@@ -757,13 +769,8 @@ function WorkerBillingPage() {
         )}
       </div>
 
-      <ConfirmDialog
+      <CancelPlanDialog
         open={confirmCancel}
-        title={t("cancelDialogTitle")}
-        body={t("cancelDialogBody")}
-        confirmLabel={t("cancelPlan")}
-        cancelLabel={t("keepPlan")}
-        danger
         busy={busy}
         onConfirm={cancelPlan}
         onClose={() => setConfirmCancel(false)}
