@@ -44,6 +44,7 @@
     "@react-oauth/google": "^0.13.4",
     "@sanity/client": "^7.20.0",
     "@sanity/image-url": "^2.1.1",
+    "@tanstack/react-virtual": "^3.14.13",
     "@tiptap/extension-image": "^3.22.2",
     "@tiptap/extension-link": "^3.22.2",
     "@tiptap/extension-placeholder": "^3.22.2",

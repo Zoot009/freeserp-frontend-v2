@@ -132,6 +132,119 @@ export function computeMetrics(points: ScoredPoint[]): ScanMetrics {
   }
 }
 
+// ── Visibility + area difficulty ──────────────────────────────────────────
+//
+// ┌── SHARED BLOCK START ───────────────────────────────────────────────────
+// │ Duplicated in the backend copy of this module
+// │ (freeserp-backend-v2/src/modules/maps-tracker/grid.ts). grid.test.ts
+// │ extracts both blocks, normalises away house style (quotes, semicolons,
+// │ whitespace) and asserts they are the same code. Edit both, or neither.
+// │ The two files cannot be byte-identical overall — the backend half owns
+// │ haversine/ordering, the frontend half owns bands/validation — so the
+// │ guarantee is scoped to the block the two genuinely share.
+// └─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Visibility %, a linear rescaling of ATRP — deliberately NOT a new metric.
+ *
+ *   visibility = (ATRP_PENALTY - atrp) / (ATRP_PENALTY - 1) * 100
+ *
+ * Rank 1 at every point -> 100. Not found anywhere (atrp === ATRP_PENALTY)
+ * -> 0. It costs no extra provider calls, it can never disagree with ATRP,
+ * and it is explainable in one sentence to a user who will never care what
+ * "Average Total Rank Position" means. Display rounded to a whole number.
+ */
+export function computeVisibility(atrp: number | null): number | null {
+  if (atrp === null) return null
+  const pct = ((ATRP_PENALTY - atrp) / (ATRP_PENALTY - 1)) * 100
+  const clamped = Math.max(0, Math.min(100, pct))
+  return Math.round(clamped * 100) / 100
+}
+
+export type AreaDifficulty = "LOW" | "MEDIUM" | "HIGH"
+
+/** One captured competitor, reduced to the two signals difficulty reads. */
+export interface DifficultyResult {
+  /** Stable identity — the provider's placeId when there is one, else the title. */
+  key: string
+  rankAbsolute: number
+  reviewCount: number | null
+}
+
+/** One scored grid point's captured result list. */
+export interface DifficultyPoint {
+  results: DifficultyResult[] | null
+}
+
+// Tuning knobs for the heuristic below, named and kept together so retuning
+// against real scans is a one-line change. These are plausible, not
+// validated — the tooltip copy must say "heuristic", not "measurement".
+export const DIFFICULTY_ENTRENCHMENT_HIGH = 0.6
+export const DIFFICULTY_ENTRENCHMENT_LOW = 0.35
+export const DIFFICULTY_REVIEWS_HIGH = 200
+export const DIFFICULTY_REVIEWS_LOW = 50
+
+/**
+ * How hard this area looks to win — a statement about the MARKET, not about
+ * any one business, so it is the same value for every row in the leaderboard
+ * and is shown once per scan per keyword.
+ *
+ * Two signals, both read off the already-stored topResults (no extra provider
+ * spend, no new job):
+ *
+ *   entrenchment = share of scored points whose top result is the single most
+ *                  frequent top result. 1.0 = one business owns every point.
+ *   authority    = median review count among businesses holding ANY top-3
+ *                  position anywhere in the grid.
+ *
+ * Returns null — never a guess — when the scan carries no review counts at
+ * all. Every scan created before this shipped is in that position, and a
+ * fabricated difficulty on historical data is worse than an absent one.
+ */
+export function computeAreaDifficulty(points: DifficultyPoint[]): AreaDifficulty | null {
+  const topOneCounts = new Map<string, number>()
+  const reviewsByBusiness = new Map<string, number | null>()
+  let pointsWithLeader = 0
+
+  for (const point of points) {
+    if (!point.results || point.results.length === 0) continue
+
+    let leader: DifficultyResult | null = null
+    for (const result of point.results) {
+      if (leader === null || result.rankAbsolute < leader.rankAbsolute) leader = result
+      if (result.rankAbsolute > SOLV_THRESHOLD) continue
+      // First non-null review count for a business wins; a later null never
+      // overwrites a number we already saw for it.
+      const known = reviewsByBusiness.get(result.key)
+      if (known == null) reviewsByBusiness.set(result.key, result.reviewCount)
+    }
+
+    if (leader) {
+      pointsWithLeader += 1
+      topOneCounts.set(leader.key, (topOneCounts.get(leader.key) ?? 0) + 1)
+    }
+  }
+
+  if (pointsWithLeader === 0) return null
+
+  const reviews = [...reviewsByBusiness.values()]
+    .filter((v): v is number => v !== null && Number.isFinite(v))
+    .sort((a, b) => a - b)
+  // No review counts anywhere = a pre-Position-Map scan. Say so, don't guess.
+  if (reviews.length === 0) return null
+
+  const mid = Math.floor(reviews.length / 2)
+  const medianReviews = reviews.length % 2 === 1 ? reviews[mid]! : (reviews[mid - 1]! + reviews[mid]!) / 2
+
+  const entrenchment = Math.max(...topOneCounts.values()) / pointsWithLeader
+
+  if (entrenchment >= DIFFICULTY_ENTRENCHMENT_HIGH && medianReviews >= DIFFICULTY_REVIEWS_HIGH) return "HIGH"
+  if (entrenchment < DIFFICULTY_ENTRENCHMENT_LOW || medianReviews < DIFFICULTY_REVIEWS_LOW) return "LOW"
+  return "MEDIUM"
+}
+
+// ┌── SHARED BLOCK END ─────────────────────────────────────────────────────
+
 // ── Rank color scale — shared by the map, the distribution bar, and the point drawer ──
 
 export type PointStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED"

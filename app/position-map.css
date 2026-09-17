@@ -1,0 +1,439 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   POSITION MAP — the map-first results workspace.
+
+   Sibling to maps-tracker.css, which owns the SETUP page (/new) and is
+   unchanged by this. Split because they are two different screens with two
+   different shapes: setup is a document with a map in it, this is a workspace
+   that IS a map. Same tokens, same .fs-app scoping, same reuse-before-adding
+   rule — .card, .btn, .input, .icon-btn and .skeleton all come from
+   dashboard.css and are used as-is.
+
+   The rank colours still never appear here. They reach the DOM from rankColor()
+   as inline style, because they encode a measurement scale, not a theme — the
+   same rule the pins above follow.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.fs-app .mt-pm {
+  display: flex;
+  flex-direction: column;
+  /* The rail scrolls on its own, so this shell needs a DEFINITE height — an
+     auto height makes the rail as tall as its content, which then overflows
+     the window and nothing scrolls at all.
+
+     --mt-pm-top is the distance from the top of the viewport, set from a
+     measurement (see useViewportOffset in position-map-shell.tsx). The 56px fallback is the dashboard's
+     sticky header, so the layout is still correct if that measurement has not
+     landed yet or JS fails outright — it must never depend on JS to be
+     scrollable. */
+  height: calc(100dvh - var(--mt-pm-top, 56px));
+  min-height: 420px;
+  /* Belt and braces with the height above: whatever the children do, this box
+     cannot contribute more than its own height to the document, so it can never
+     be the reason a page scrollbar appears. */
+  overflow: hidden;
+  background: var(--bg-elev);
+
+  --mt-line-soft: color-mix(in srgb, var(--border) 55%, transparent);
+  --mt-brand-line: color-mix(in srgb, var(--brand) 22%, var(--bg-elev));
+}
+
+/* ── Header strip ───────────────────────────────────────────────────────── */
+.fs-app .mt-pm-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  height: 56px; flex: 0 0 56px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.fs-app .mt-pm-head-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fs-app .mt-pm-head-r { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.fs-app .mt-pm-back {
+  display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: var(--r-md); color: var(--text-soft);
+}
+.fs-app .mt-pm-back:hover { background: var(--bg-sub); color: var(--text); }
+.fs-app .mt-pm-title {
+  font-size: 14px; font-weight: 600; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fs-app .mt-pm-sub { font-size: 11.5px; color: var(--text-mute); margin-top: 1px; }
+
+/* ── Body: rail + canvas ────────────────────────────────────────────────── */
+.fs-app .mt-pm-body {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  /* minmax(0, 1fr), not the implicit `auto`: an auto row is sized by its
+     tallest item, so the rail would grow to fit its own content and its
+     overflow-y would never have anything to scroll. This is what actually
+     makes the rail a scroll container. */
+  grid-template-rows: minmax(0, 1fr);
+}
+.fs-app .mt-pm-body[data-compact] { grid-template-columns: minmax(0, 1fr); }
+
+.fs-app .mt-pm-rail {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-right: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+/* The map is NOT a card: no border, no radius, no padding. It runs edge to
+   edge under the rail's right boundary, which is the whole point of this
+   layout. The absolute child is the Map element filling the canvas. */
+.fs-app .mt-pm-canvas { position: relative; min-width: 0; background: var(--bg-inset); }
+.fs-app .mt-pm-mapwrap { position: absolute; inset: 0; }
+
+.fs-app .mt-pm-sec { padding: 14px; border-bottom: 1px solid var(--mt-line-soft); }
+.fs-app .mt-pm-sec.flush { padding: 14px 0 0; border-bottom: none; }
+.fs-app .mt-pm-sec.flush .mt-pm-sec-h { padding: 0 14px; }
+.fs-app .mt-pm-sec-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;
+}
+.fs-app .mt-pm-sec-t {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-mute);
+}
+
+.fs-app .mt-pm-banner { font-size: 12px; padding: 10px 14px; line-height: 1.5; }
+.fs-app .mt-pm-banner[data-tone="warn"] { background: var(--warn-soft); color: var(--warn); }
+.fs-app .mt-pm-banner[data-tone="neg"]  { background: var(--neg-soft); color: var(--neg); }
+.fs-app .mt-pm-banner[data-tone="mute"] { background: var(--bg-inset); color: var(--text-soft); }
+
+/* ── Floating controls over the canvas ──────────────────────────────────── */
+.fs-app .mt-pm-pill-slot {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 4;
+}
+.fs-app .mt-datepill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(11,13,18,.12);
+  font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer;
+  white-space: nowrap;
+}
+.fs-app .mt-datepill:hover { border-color: var(--border-strong); }
+.fs-app .mt-datepill[data-static] { cursor: default; }
+
+.fs-app .mt-mapctl {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 6px; z-index: 4;
+}
+.fs-app .mt-mapctl-btn {
+  display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 999px; background: var(--bg-elev);
+  border: 1px solid var(--border); color: var(--text-soft);
+  box-shadow: 0 2px 8px rgba(11,13,18,.12); cursor: pointer;
+}
+.fs-app .mt-mapctl-btn:hover { color: var(--brand); border-color: var(--mt-brand-line); }
+
+.fs-app .mt-comparebar {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 5;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px 7px 14px; border-radius: 999px;
+  background: var(--brand); color: #fff;
+  box-shadow: 0 4px 14px rgba(11,13,18,.22);
+  font-size: 12.5px; white-space: nowrap; max-width: calc(100% - 24px);
+}
+.fs-app .mt-comparebar .t { overflow: hidden; text-overflow: ellipsis; }
+.fs-app .mt-comparebar .x {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,.18); color: #fff; border: none;
+  padding: 4px 10px; border-radius: 999px; font-size: 11.5px; cursor: pointer;
+}
+.fs-app .mt-comparebar .x:hover { background: rgba(255,255,255,.3); }
+
+.fs-app .mt-pm-floaterr {
+  position: absolute; left: 12px; bottom: 12px; z-index: 5;
+  background: var(--neg-soft); color: var(--neg);
+  padding: 8px 12px; border-radius: var(--r-md); font-size: 12px; max-width: 320px;
+}
+
+/* ── Keyword chips ──────────────────────────────────────────────────────── */
+.fs-app .mt-kwchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fs-app .mt-kwchip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  font-size: 12.5px; color: var(--text-soft); max-width: 100%;
+}
+.fs-app .mt-kwchip .kw { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .mt-kwchip .pct { font-size: 11px; opacity: .75; font-variant-numeric: tabular-nums; }
+.fs-app .mt-kwchip:hover:not([aria-selected="true"]) { border-color: var(--border-strong); color: var(--text); }
+.fs-app .mt-kwchip[aria-selected="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+.fs-app .mt-kwchip:disabled { cursor: default; }
+
+/* ── Rank distribution strip ────────────────────────────────────────────── */
+.fs-app .mt-strip-h {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px;
+}
+.fs-app .mt-strip-h .t { font-size: 12px; color: var(--text-soft); }
+.fs-app .mt-strip-legend { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; }
+.fs-app .mt-strip-band {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 7px; border-radius: var(--r-sm); cursor: pointer;
+  background: transparent; border: 1px solid transparent; font-size: 11.5px; color: var(--text-soft);
+}
+.fs-app .mt-strip-band:hover { background: var(--bg-sub); }
+.fs-app .mt-strip-band[aria-pressed="true"] { border-color: var(--border-strong); background: var(--bg-sub); color: var(--text); }
+.fs-app .mt-strip-band[data-dim] { opacity: .42; }
+.fs-app .mt-strip-band .sw { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.fs-app .mt-strip-band .ct { font-variant-numeric: tabular-nums; color: var(--text-mute); }
+
+/* ── Shared business bits ───────────────────────────────────────────────── */
+.fs-app .mt-avatar {
+  display: grid; place-items: center; flex-shrink: 0; overflow: hidden;
+  border-radius: var(--r-md); background: var(--bg-sub);
+  color: var(--text-mute); font-weight: 600; letter-spacing: .02em;
+}
+.fs-app .mt-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.fs-app .mt-rankbadge {
+  display: grid; place-items: center; flex-shrink: 0;
+  border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(11,13,18,.18);
+}
+
+.fs-app .mt-stars { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-soft); }
+.fs-app .mt-stars .ico { display: inline-flex; color: #EAB308; }
+.fs-app .mt-stars .v { font-weight: 600; color: var(--text); }
+.fs-app .mt-stars .n { color: var(--text-mute); }
+
+.fs-app .mt-vis { margin-top: 12px; }
+.fs-app .mt-vis.compact { margin-top: 0; }
+.fs-app .mt-vis-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+.fs-app .mt-vis-h .lbl { font-size: 12px; color: var(--text-soft); }
+.fs-app .mt-vis-h .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fs-app .mt-vis-track { height: 7px; border-radius: 999px; background: var(--bg-inset); overflow: hidden; }
+.fs-app .mt-vis-track i { display: block; height: 100%; border-radius: 999px; transition: width .25s ease; }
+
+.fs-app .mt-diff {
+  display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: .01em; cursor: default;
+}
+.fs-app .mt-diff[data-level="low"]    { background: var(--pos-soft); color: var(--pos); }
+.fs-app .mt-diff[data-level="medium"] { background: var(--warn-soft); color: var(--warn); }
+.fs-app .mt-diff[data-level="high"]   { background: var(--neg-soft); color: var(--neg); }
+.fs-app .mt-diff[data-level="none"]   { background: var(--bg-inset); color: var(--text-mute); font-weight: 500; }
+
+.fs-app .mt-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.fs-app .mt-delta[data-dir="up"]   { color: var(--pos); }
+.fs-app .mt-delta[data-dir="down"] { color: var(--neg); }
+.fs-app .mt-delta[data-dir="flat"] { color: var(--text-mute); }
+
+/* ── Target card ────────────────────────────────────────────────────────── */
+.fs-app .mt-target {
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 14px; background: var(--bg-elev);
+}
+.fs-app .mt-target-top { display: flex; align-items: flex-start; gap: 10px; }
+.fs-app .mt-target-id { min-width: 0; flex: 1; }
+.fs-app .mt-target-id .nm { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.fs-app .mt-target-id .ad,
+.fs-app .mt-target-id .ct {
+  font-size: 11.5px; color: var(--text-mute); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fs-app .mt-target-id .mt-stars { margin-top: 5px; }
+.fs-app .mt-target-deltas {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--mt-line-soft);
+}
+.fs-app .mt-target-deltas .k { font-size: 11px; color: var(--text-mute); }
+.fs-app .mt-target-deltanote { font-size: 10.5px; color: var(--text-mute); margin-top: 4px; }
+.fs-app .mt-target-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 12px; flex-wrap: wrap;
+}
+
+/* ── Full-metrics disclosure ────────────────────────────────────────────── */
+.fs-app .mt-disclose { margin-top: 10px; }
+.fs-app .mt-disclose-h {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 8px 10px; border-radius: var(--r-md); cursor: pointer;
+  background: var(--bg-sub); border: 1px solid transparent;
+  font-size: 12px; font-weight: 500; color: var(--text-soft);
+}
+.fs-app .mt-disclose-h:hover { color: var(--text); border-color: var(--border); }
+.fs-app .mt-disclose-h .chev { transition: transform .16s ease; }
+.fs-app .mt-disclose[data-open] .mt-disclose-h .chev { transform: rotate(180deg); }
+.fs-app .mt-disclose-b { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+.fs-app .mt-aibtn { width: 100%; margin-top: 10px; gap: 6px; }
+.fs-app .mt-aisheet { margin-top: 14px; }
+.fs-app .mt-spinner.sm { width: 12px; height: 12px; border-width: 2px; }
+
+/* ── Competitor filters ─────────────────────────────────────────────────── */
+.fs-app .mt-filterbtn {
+  position: relative; display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--bg-elev);
+  color: var(--text-soft); cursor: pointer;
+}
+.fs-app .mt-filterbtn:hover { color: var(--text); }
+.fs-app .mt-filterbtn[data-active] { color: var(--brand); border-color: var(--mt-brand-line); }
+.fs-app .mt-filterbtn .dot {
+  position: absolute; top: -3px; right: -3px; width: 7px; height: 7px;
+  border-radius: 999px; background: var(--brand); border: 1.5px solid var(--bg-elev);
+}
+.fs-app .mt-filt-h {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 600; margin-bottom: 10px;
+}
+.fs-app .mt-filt-g + .mt-filt-g { margin-top: 11px; }
+.fs-app .mt-filt-l {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-mute); margin-bottom: 5px;
+}
+.fs-app .mt-filt-opts { display: flex; flex-wrap: wrap; gap: 4px; }
+.fs-app .mt-filt-opt {
+  padding: 3px 8px; border-radius: var(--r-sm); cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  font-size: 11.5px; color: var(--text-soft);
+}
+.fs-app .mt-filt-opt:hover { border-color: var(--border-strong); color: var(--text); }
+.fs-app .mt-filt-opt[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* ── Competitor list ────────────────────────────────────────────────────── */
+.fs-app .mt-cmp-summary {
+  font-size: 11.5px; color: var(--text-soft); line-height: 1.5;
+  padding: 0 14px 10px; border-bottom: 1px solid var(--mt-line-soft);
+}
+.fs-app .mt-cmp-note { font-size: 12px; color: var(--text-mute); padding: 20px 14px; text-align: center; }
+.fs-app .mt-cmp-list { position: relative; }
+
+.fs-app .mt-cmp { border-bottom: 1px solid var(--mt-line-soft); background: var(--bg-elev); }
+.fs-app .mt-cmp[data-target] { background: var(--brand-soft); }
+.fs-app .mt-cmp-head {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%;
+  padding: 11px 14px; cursor: pointer; text-align: left; background: none; border: none;
+}
+.fs-app .mt-cmp-head:hover { background: var(--bg-sub); }
+.fs-app .mt-cmp[data-target] .mt-cmp-head:hover { background: transparent; }
+/* The badge and avatar sit against the first text line rather than centred on
+   the whole row, which is now three lines tall. */
+.fs-app .mt-cmp-head > .mt-rankbadge,
+.fs-app .mt-cmp-head > .mt-avatar { margin-top: 1px; }
+
+.fs-app .mt-cmp-id { min-width: 0; flex: 1; }
+.fs-app .mt-cmp-id .nm {
+  display: block; font-size: 13px; font-weight: 600; line-height: 1.3;
+  /* Two lines before truncating: at 380px most local business names do not fit
+     on one, and "Delish - The Fresh Bake ..." tells a reader less than the
+     second line would have. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fs-app .mt-cmp-id .nm .you {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  background: var(--brand); color: #fff; font-size: 9.5px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px;
+}
+/* Address and category on ONE line, the address giving way first — the
+   category is the shorter, more comparable fact of the two. */
+.fs-app .mt-cmp-id .sub {
+  display: flex; align-items: baseline; gap: 6px; margin-top: 2px;
+  font-size: 11px; color: var(--text-mute); min-width: 0;
+}
+.fs-app .mt-cmp-id .sub .ad {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fs-app .mt-cmp-id .sub .ct { flex-shrink: 0; opacity: .85; }
+.fs-app .mt-cmp-id .sub .ct::before { content: "· "; }
+.fs-app .mt-cmp-id .mt-stars { margin-top: 3px; }
+
+/* The scale that makes the column readable top to bottom. */
+.fs-app .mt-cmp-bar { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.fs-app .mt-cmp-bar .track {
+  flex: 1; min-width: 0; height: 6px; border-radius: 999px;
+  background: var(--bg-inset); overflow: hidden;
+}
+.fs-app .mt-cmp-bar .track i { display: block; height: 100%; border-radius: 999px; }
+.fs-app .mt-cmp-bar .pct {
+  flex-shrink: 0; font-size: 12px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+
+.fs-app .mt-cmp-head .chev { flex-shrink: 0; margin-top: 2px; color: var(--text-mute); transition: transform .16s ease; }
+.fs-app .mt-cmp[data-expanded] .mt-cmp-head .chev { transform: rotate(180deg); }
+
+.fs-app .mt-cmp-body { padding: 0 14px 14px; }
+.fs-app .mt-cmp-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+.fs-app .mt-cmp-fact .l { display: block; font-size: 10px; color: var(--text-mute); text-transform: uppercase; letter-spacing: .05em; }
+.fs-app .mt-cmp-fact .v { display: block; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.fs-app .mt-cmp-diff { margin-top: 11px; }
+.fs-app .mt-cmp-acts { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.fs-app .mt-cmp-acts .btn { gap: 5px; }
+
+/* ── Scan-runs popover ──────────────────────────────────────────────────── */
+.fs-app .mt-runs-h {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-mute); padding: 6px 8px 4px;
+}
+.fs-app .mt-run-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 8px; border-radius: var(--r-sm); cursor: pointer;
+  background: none; border: none; text-align: left; font-size: 12px;
+}
+.fs-app .mt-run-item:hover { background: var(--bg-sub); }
+.fs-app .mt-run-item[data-current] { background: var(--brand-soft); cursor: default; }
+.fs-app .mt-run-item[data-incomparable] { opacity: .5; }
+.fs-app .mt-run-item .d { flex: 1; min-width: 0; }
+.fs-app .mt-run-item .d .warn { display: block; font-size: 10.5px; color: var(--warn); margin-top: 1px; }
+.fs-app .mt-run-item .v { font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.fs-app .mt-run-item .ck { color: var(--brand); flex-shrink: 0; }
+
+/* ── Scan-settings popover ──────────────────────────────────────────────── */
+.fs-app .mt-setpop-h { font-size: 12px; font-weight: 600; margin-bottom: 9px; }
+.fs-app .mt-setpop-r { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 3px 0; }
+.fs-app .mt-setpop-r .k { font-size: 11.5px; color: var(--text-mute); }
+.fs-app .mt-setpop-r .v { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.fs-app .mt-setpop-note {
+  font-size: 10.5px; color: var(--text-mute); line-height: 1.45;
+  margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--mt-line-soft);
+}
+
+/* ── Below lg: bottom sheet over a full-height map ──────────────────────── */
+.fs-app .mt-pm-sheet { overflow-y: auto; max-height: calc(92vh - 40px); overscroll-behavior: contain; }
+.fs-app .mt-pm-sheet .mt-pm-sec:last-child { padding-bottom: 28px; }
+
+@media (max-width: 1023.98px) {
+  /* The sheet handle sits along the bottom, so the floating controls move up
+     and out of its way rather than being covered by it. */
+  .fs-app .mt-pm-pill-slot { top: 10px; left: 10px; right: auto; transform: none; }
+  .fs-app .mt-mapctl { top: 10px; right: 10px; bottom: auto; transform: none; flex-direction: row; }
+  .fs-app .mt-comparebar { bottom: auto; top: 54px; }
+  .fs-app .mt-pm-floaterr { bottom: auto; top: 54px; left: 10px; right: 10px; max-width: none; }
+  .fs-app .mt-pm-head { padding: 0 10px; }
+}
+
+/* ── AI panel, inside the 440px sheet ───────────────────────────────────── */
+/* The component was written for a full-width card at the bottom of the old
+   stacked page. In a narrow sheet its rows need to wrap rather than sit
+   side by side. */
+.fs-app .mt-aisheet .mt-ai { font-size: 13px; line-height: 1.6; }
+.fs-app .mt-aisheet .mt-ai p { margin: 0 0 12px; color: var(--text-soft); }
+.fs-app .mt-aisheet .mt-ai > .row { flex-wrap: wrap; gap: 8px; }
+.fs-app .mt-aisheet .mt-recs { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.fs-app .mt-aisheet .mt-rec {
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 12px; background: var(--bg-elev);
+}
+.fs-app .mt-aisheet .mt-rec .t { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.fs-app .mt-aisheet .mt-rec .d { font-size: 12px; color: var(--text-soft); line-height: 1.55; margin-top: 4px; }
+
+.fs-app .mt-rec-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.fs-app .mt-prio,
+.fs-app .mt-effort {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .03em; white-space: nowrap;
+}
+.fs-app .mt-prio--high   { background: var(--neg-soft); color: var(--neg); }
+.fs-app .mt-prio--medium { background: var(--warn-soft); color: var(--warn); }
+.fs-app .mt-prio--low    { background: var(--bg-inset); color: var(--text-soft); }
+.fs-app .mt-effort { background: var(--bg-inset); color: var(--text-mute); font-weight: 500; }

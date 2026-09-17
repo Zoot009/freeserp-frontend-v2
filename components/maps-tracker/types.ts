@@ -2,6 +2,10 @@
 // see freeserp-backend-v2/src/modules/maps-tracker/*), same convention as
 // serp-checker's CheckResponse/HistoryItem/CheckRow.
 
+import type { AreaDifficulty } from "./grid"
+
+export type { AreaDifficulty }
+
 export type DistanceUnit = "IMPERIAL" | "METRIC"
 export type ScanStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED"
 export type KeywordStatus = "PENDING" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED"
@@ -44,6 +48,10 @@ export interface ScanKeyword {
   arp: number | null
   atrp: number | null
   solv: number | null
+  /** Linear rescaling of `atrp` — see computeVisibility. Null on scans that settled before the column existed. */
+  visibility: number | null
+  /** A property of the MARKET, identical for every business in this grid. Null on pre-Position-Map scans. */
+  areaDifficulty: AreaDifficulty | null
   foundPoints: number
   scoredPoints: number
   failedPoints: number
@@ -120,6 +128,8 @@ export interface ScanHistoryKeyword {
   arp: number | null
   atrp: number | null
   solv: number | null
+  visibility: number | null
+  areaDifficulty: AreaDifficulty | null
   scoredPoints: number
   points: ScanHistoryPoint[]
 }
@@ -164,6 +174,12 @@ export interface PointDetail {
     ratingCount: number | null
     category: string | null
     isAd: boolean
+    // Added by the Position Map's extended provider mapper. Optional, and
+    // absent on every scan that ran before it — every consumer degrades
+    // rather than rendering an empty frame.
+    cid?: string | null
+    imageUrl?: string | null
+    website?: string | null
   }> | null
 }
 
@@ -177,8 +193,11 @@ export interface CreateScanResponse {
 export interface CompetitorRow {
   key: string
   placeId: string | null
+  cid: string | null
   name: string
   address: string | null
+  imageUrl: string | null
+  website: string | null
   rating: number | null
   reviewCount: number | null
   category: string | null
@@ -189,10 +208,21 @@ export interface CompetitorRow {
   arp: number | null
   atrp: number | null
   solv: number | null
+  visibility: number | null
+  /**
+   * Sparse index -> rank over `CompetitorLeaderboard.points`. A missing index
+   * is a real not-found, not missing data. This is what "Compare on map"
+   * recolours the pins from.
+   */
+  ranks: Record<number, number>
 }
 
 export interface CompetitorLeaderboard {
+  /** The index space every row's `ranks` is keyed against — scored points only. */
+  points: Array<{ id: string; row: number; col: number }>
   rows: CompetitorRow[]
+  areaDifficulty: AreaDifficulty | null
+  visibility: number | null
   insights: {
     yourSolv: number | null
     topSolv: number | null
@@ -202,4 +232,29 @@ export interface CompetitorLeaderboard {
     totalCompetitors: number
     activeCompetitors: number
   }
+}
+
+/** Why a prior run cannot be compared with the one on screen. */
+export type IncomparableReason = "GRID_SIZE" | "RADIUS" | "CENTER"
+
+/** One prior run of the same keyword at the same location — the date pill's list. */
+export interface ScanHistoryEntry {
+  scanId: string
+  keywordId: string
+  keyword: string
+  createdAt: string
+  status: ScanStatus
+  arp: number | null
+  atrp: number | null
+  solv: number | null
+  visibility: number | null
+  areaDifficulty: AreaDifficulty | null
+  gridSize: number
+  radiusMeters: number
+  displayUnit: DistanceUnit
+  centerLat: number
+  centerLng: number
+  comparable: boolean
+  incomparableReason: IncomparableReason | null
+  isCurrent: boolean
 }

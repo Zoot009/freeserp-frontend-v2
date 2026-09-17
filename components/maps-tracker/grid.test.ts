@@ -1,13 +1,21 @@
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
 import {
+  ATRP_PENALTY,
+  DIFFICULTY_ENTRENCHMENT_HIGH,
+  DIFFICULTY_REVIEWS_HIGH,
   RANK_BANDS,
   bandKeyFor,
+  computeAreaDifficulty,
   computeMetrics,
+  computeVisibility,
   estimateScanSeconds,
   formatDistance,
   pointOffsetMeters,
   rankColor,
   validateArea,
+  type DifficultyPoint,
 } from "./grid"
 
 // These three definitions are the whole feature's vocabulary and the redesign
@@ -121,5 +129,149 @@ describe("formatDistance", () => {
     expect(formatDistance(680, "METRIC")).toBe("680 m")
     expect(formatDistance(2400, "METRIC")).toBe("2.40 km")
     expect(formatDistance(null, "IMPERIAL")).toBe("—")
+  })
+})
+
+// ── Position Map additions ────────────────────────────────────────────────
+
+describe("computeVisibility", () => {
+  it("reads 100 when the business ranks 1 at every point", () => {
+    // ATRP of exactly 1 is rank 1 everywhere.
+    expect(computeVisibility(1)).toBe(100)
+  })
+
+  it("reads 0 when the business was found nowhere", () => {
+    // Not found at every point scores ATRP_PENALTY, by ATRP's own definition.
+    expect(computeVisibility(ATRP_PENALTY)).toBe(0)
+  })
+
+  it("passes null through rather than inventing a zero", () => {
+    // No scored points at all is not the same as no visibility.
+    expect(computeVisibility(null)).toBeNull()
+  })
+
+  it("stays a linear rescaling of ATRP, so the midpoint is 50", () => {
+    expect(computeVisibility(11)).toBe(50)
+  })
+
+  it("never disagrees with ATRP about which of two scans is better", () => {
+    const worse = computeVisibility(14)!
+    const better = computeVisibility(6)!
+    expect(better).toBeGreaterThan(worse)
+  })
+
+  it("clamps rather than returning a number outside 0-100", () => {
+    expect(computeVisibility(0)).toBe(100)
+    expect(computeVisibility(99)).toBe(0)
+  })
+})
+
+describe("computeAreaDifficulty", () => {
+  /** n points whose #1 is `leader`, each carrying one top-3 rival at `reviews`. */
+  function grid(opts: {
+    points: number
+    leaderShare: number
+    reviews: number
+  }): DifficultyPoint[] {
+    const { points, leaderShare, reviews } = opts
+    const leaderPoints = Math.round(points * leaderShare)
+    return Array.from({ length: points }, (_, i) => ({
+      results: [
+        { key: i < leaderPoints ? "incumbent" : `rotating-${i}`, rankAbsolute: 1, reviewCount: reviews },
+        { key: `rival-${i % 3}`, rankAbsolute: 2, reviewCount: reviews },
+      ],
+    }))
+  }
+
+  it("calls a grid HIGH when one incumbent owns it and the top 3 are review-heavy", () => {
+    expect(computeAreaDifficulty(grid({ points: 20, leaderShare: 0.9, reviews: 400 }))).toBe("HIGH")
+  })
+
+  it("calls a grid LOW when no single business owns the top spot", () => {
+    // Every point has a different #1 — entrenchment well under the low band.
+    expect(computeAreaDifficulty(grid({ points: 20, leaderShare: 0, reviews: 400 }))).toBe("LOW")
+  })
+
+  it("calls a grid LOW when the incumbents have barely any reviews", () => {
+    // Entrenched, but nobody has authority — winnable.
+    expect(computeAreaDifficulty(grid({ points: 20, leaderShare: 1, reviews: 10 }))).toBe("LOW")
+  })
+
+  it("calls a grid MEDIUM between the two bands", () => {
+    // Entrenched enough to miss LOW, reviews too thin for HIGH.
+    expect(computeAreaDifficulty(grid({ points: 20, leaderShare: 0.5, reviews: 100 }))).toBe("MEDIUM")
+  })
+
+  it("returns null rather than a guess when the scan carries no review counts", () => {
+    // Every scan created before the mapper started storing reviewCount.
+    const historical: DifficultyPoint[] = Array.from({ length: 10 }, () => ({
+      results: [{ key: "incumbent", rankAbsolute: 1, reviewCount: null }],
+    }))
+    expect(computeAreaDifficulty(historical)).toBeNull()
+  })
+
+  it("returns null when there are no results to read at all", () => {
+    expect(computeAreaDifficulty([])).toBeNull()
+    expect(computeAreaDifficulty([{ results: null }, { results: [] }])).toBeNull()
+  })
+
+  it("ignores review counts from businesses outside the top 3", () => {
+    // A rank-9 business with 5000 reviews says nothing about how hard the
+    // local pack is to enter, so it must not drag the median up.
+    const points: DifficultyPoint[] = Array.from({ length: 10 }, () => ({
+      results: [
+        { key: "incumbent", rankAbsolute: 1, reviewCount: 10 },
+        { key: "far-down", rankAbsolute: 9, reviewCount: 5000 },
+      ],
+    }))
+    expect(computeAreaDifficulty(points)).toBe("LOW")
+  })
+
+  it("holds its thresholds where the named constants say they are", () => {
+    // Guards against a retune silently moving a band without the test noticing.
+    expect(DIFFICULTY_ENTRENCHMENT_HIGH).toBe(0.6)
+    expect(DIFFICULTY_REVIEWS_HIGH).toBe(200)
+  })
+})
+
+// ── Shared-block drift guard ──────────────────────────────────────────────
+// grid.ts is deliberately duplicated across the two packages (see the header
+// of the module). The redesign brief adds two functions that MUST mean the
+// same thing on both sides, so this compares the marked block in each copy.
+//
+// It compares normalised text, not bytes: the two packages have different
+// house style (semicolons, quote characters), and forcing one file into the
+// other's style to satisfy a byte comparison would be the test dictating the
+// codebase rather than the other way round. Normalising those away still
+// catches every change that alters what the code DOES.
+
+describe("grid.ts shared block", () => {
+  const START = "SHARED BLOCK START"
+  const END = "SHARED BLOCK END"
+
+  function sharedBlock(file: string): string {
+    const src = readFileSync(file, "utf8")
+    const from = src.indexOf(START)
+    const to = src.indexOf(END)
+    expect(from, `${file} is missing its ${START} marker`).toBeGreaterThan(-1)
+    expect(to, `${file} is missing its ${END} marker`).toBeGreaterThan(from)
+    // Start at the newline after the marker so the marker's own box-drawing
+    // tail never lands in the compared text (it would make a failure diff
+    // open with a row of dashes instead of the code that differs).
+    const blockStart = src.indexOf("\n", from) + 1
+    const blockEnd = src.lastIndexOf("\n", to)
+    return src
+      .slice(blockStart, blockEnd)
+      .replace(/["']/g, '"') // quote style
+      .replace(/;\s*$/gm, "") // semicolons
+      .replace(/^\s*\/\/.*$/gm, "") // comments, including the box drawing
+      .replace(/\s+/g, " ")
+      .trim()
+  }
+
+  it("says the same thing in both packages", () => {
+    const here = path.resolve(__dirname, "grid.ts")
+    const backend = path.resolve(__dirname, "../../../freeserp-backend-v2/src/modules/maps-tracker/grid.ts")
+    expect(sharedBlock(here)).toBe(sharedBlock(backend))
   })
 })

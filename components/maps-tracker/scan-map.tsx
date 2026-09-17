@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Map, AdvancedMarker } from "@vis.gl/react-google-maps"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps"
 import {
   bandKeyFor,
   deriveSpacingMeters,
@@ -42,6 +42,83 @@ const DEFAULT_MAP_ID = "DEMO_MAP_ID"
  */
 const CENTRE_ANCHOR = { anchorLeft: "-50%", anchorTop: "-50%" } as const
 
+// Halo tuning. Named and kept together because these are the two numbers that
+// decide whether the map reads as a coverage cloud or as scattered dots, and
+// they want adjusting against real scans rather than reasoning.
+//
+// The ratio is against the grid SPACING, so the cloud keeps its density at any
+// grid size or radius. Above ~1.0 each circle reaches its neighbour's centre
+// and the field becomes continuous; below ~0.8 the points read separately.
+const HALO_RADIUS_RATIO = 1.15;
+// Low, because overlap is what does the work: where neighbouring points agree
+// the fills stack and darken on their own. Raising this instead of the ratio
+// makes individual discs obvious and muddies the overlaps.
+const HALO_OPACITY = 0.16;
+// Must stay visible, or a band filter looks like the halo layer was switched
+// off rather than filtered.
+const HALO_OPACITY_DIMMED = 0.03;
+
+/**
+ * The coverage cloud: one translucent circle per scored point, drawn under the
+ * pins.
+ *
+ * `google.maps.Circle` rather than CSS, and the radius in METRES, because a
+ * halo sized in pixels stays the same size as the user zooms — which would make
+ * the cloud silently misstate how much ground each point represents. That is
+ * the one thing a geo-grid tool cannot get wrong. Circles scale with zoom
+ * natively; a radial-gradient on a marker does not.
+ *
+ * Overlapping low-opacity fills darken where points agree, which IS the effect.
+ * No blur filter, no compositing tricks.
+ *
+ * FAILED points get no halo at all: the search never ran there, and painting
+ * coverage over a hole would render our own outage as data.
+ */
+function HaloLayer({
+  pins,
+  spacingMeters,
+  dimBand,
+  rankFor,
+}: {
+  pins: MapPinData[]
+  spacingMeters: number
+  dimBand: RankBandKey | null
+  /** Which rank to colour a pin by — the target's, or a compared competitor's. */
+  rankFor: (pin: MapPinData) => number | null
+}) {
+  const map = useMap()
+  const circlesRef = useRef<google.maps.Circle[]>([])
+
+  useEffect(() => {
+    if (!map || typeof google === "undefined" || !google.maps?.Circle) return
+
+    const circles = pins
+      .filter((p) => p.status === "SUCCEEDED")
+      .map((p) => {
+        const rank = rankFor(p)
+        const dimmed = dimBand != null && bandKeyFor(rank, p.status) !== dimBand
+        return new google.maps.Circle({
+          map,
+          center: { lat: p.lat, lng: p.lng },
+          radius: spacingMeters * HALO_RADIUS_RATIO,
+          fillColor: rankColor(rank, p.status).bg,
+          fillOpacity: dimmed ? HALO_OPACITY_DIMMED : HALO_OPACITY,
+          strokeWeight: 0,
+          clickable: false,
+          zIndex: 0,
+        })
+      })
+
+    circlesRef.current = circles
+    return () => {
+      for (const c of circles) c.setMap(null)
+      circlesRef.current = []
+    }
+  }, [map, pins, spacingMeters, dimBand, rankFor])
+
+  return null
+}
+
 function CenterMarker({
   lat,
   lng,
@@ -79,6 +156,7 @@ function CenterMarker({
 
 function GridPin({
   pin,
+  rank,
   spacingMeters,
   gridSize,
   unit,
@@ -87,6 +165,8 @@ function GridPin({
   onClick,
 }: {
   pin: MapPinData
+  /** Whose rank is being drawn — the target's, or a compared competitor's. */
+  rank: number | null
   spacingMeters: number
   gridSize: number
   unit: DistanceUnit
@@ -94,7 +174,7 @@ function GridPin({
   open: boolean
   onClick?: () => void
 }) {
-  const color = rankColor(pin.rank, pin.status)
+  const color = rankColor(rank, pin.status)
   const idle = pin.status === "PENDING"
   const live = pin.status === "RUNNING"
   const scored = !idle && !live
@@ -103,7 +183,7 @@ function GridPin({
   const where = `${formatDistance(distanceMeters, unit)} ${bearing}`
   const what =
     pin.status === "FAILED" ? "Search failed here"
-    : pin.rank != null ? `Rank #${pin.rank}`
+    : rank != null ? `Rank #${rank}`
     : pin.status === "SUCCEEDED" ? "Not in the top 20"
     : "Not searched yet"
 
@@ -163,6 +243,8 @@ export function ScanMap({
   openPointId = null,
   unit = "IMPERIAL",
   interactive = true,
+  rankOverride = null,
+  haloes = true,
 }: {
   centerLat: number
   centerLng: number
@@ -185,8 +267,25 @@ export function ScanMap({
   unit?: DistanceUnit
   /** False on the report: a reader looks, they don't pan or click. */
   interactive?: boolean
+  /**
+   * "Compare on map": `row:col` -> that competitor's rank at the point. When
+   * set, every pin and halo is drawn from THIS instead of the target's own
+   * rank. A key that is absent means the competitor was not in the top 20
+   * there — a real not-found, drawn exactly as the target's would be.
+   */
+  rankOverride?: Map<string, number | null> | null
+  /** Off for the pre-scan preview, where there is nothing to shade. */
+  haloes?: boolean
 }) {
   const spacingMeters = deriveSpacingMeters(gridSize, radiusMeters)
+
+  // Stable identity so HaloLayer's effect doesn't tear down and rebuild every
+  // circle on each two-second poll.
+  const rankFor = useCallback(
+    (pin: MapPinData): number | null =>
+      rankOverride ? (rankOverride.get(`${pin.row}:${pin.col}`) ?? null) : pin.rank,
+    [rankOverride],
+  )
 
   const previewPins = useMemo<MapPinData[]>(() => {
     if (pins) return pins
@@ -233,7 +332,14 @@ export function ScanMap({
     if (grid.length === 0) return
     const bounds = new google.maps.LatLngBounds()
     for (const p of grid) bounds.extend({ lat: p.lat, lng: p.lng })
-    mapInstance.fitBounds(bounds, 48)
+    // Padding scales with the viewport rather than the old flat 48px, which was
+    // tuned when the map was a ~400px card. On the full-height canvas a fixed
+    // 48 left a large grid as a speck with empty map all around it; on a phone
+    // the same 48 ate most of the width. Proportional, then clamped.
+    const el = mapInstance.getDiv()
+    const smaller = el ? Math.min(el.clientWidth, el.clientHeight) : 400
+    const pad = Math.round(Math.max(28, Math.min(96, smaller * 0.08)))
+    mapInstance.fitBounds(bounds, pad)
   }, [mapInstance, centerLat, centerLng, gridSize, radiusMeters, sizeTick, userMoved])
 
   return (
@@ -255,14 +361,18 @@ export function ScanMap({
       {showCenterMarker && (
         <CenterMarker lat={centerLat} lng={centerLng} onCenterChange={interactive ? onCenterChange : undefined} />
       )}
+      {haloes && (
+        <HaloLayer pins={previewPins} spacingMeters={spacingMeters} dimBand={dimBand} rankFor={rankFor} />
+      )}
       {previewPins.map((p) => (
         <GridPin
           key={`${p.row}-${p.col}`}
           pin={p}
+          rank={rankFor(p)}
           gridSize={gridSize}
           spacingMeters={spacingMeters}
           unit={unit}
-          dimmed={dimBand != null && bandKeyFor(p.rank, p.status) !== dimBand}
+          dimmed={dimBand != null && bandKeyFor(rankFor(p), p.status) !== dimBand}
           open={openPointId != null && p.pointId === openPointId}
           // Only SUCCEEDED pins have a top-results payload to show — only
           // those look/act clickable, so hover state doesn't lie.

@@ -82,9 +82,14 @@ export function AiAnalysis({ scan }: { scan: Scan }) {
             // `evidence` also has no slot; it belongs to the claim above it, so
             // it rides along as the card's tooltip rather than being dropped.
             <div className="mt-rec" key={i} title={r.evidence ? `Evidence: ${r.evidence}` : undefined}>
-              <div className="row" style={{ gap: 6, marginBottom: 6 }}>
-                <span className={`mt-prio ${PRIO_CLASS[r.priority] ?? "mt-prio--low"}`}>{r.priority}</span>
-                <span className="tiny muted tabular">{r.effort.charAt(0) + r.effort.slice(1).toLowerCase()} effort</span>
+              {/* Two distinct badges, spaced by the wrapper rather than by
+                  whitespace between inline spans — as bare spans they read as
+                  "HIGHMedium effort" the moment anything disturbs the layout. */}
+              <div className="mt-rec-badges">
+                <span className={`mt-prio ${PRIO_CLASS[r.priority] ?? "mt-prio--low"}`}>
+                  {r.priority.charAt(0) + r.priority.slice(1).toLowerCase()} priority
+                </span>
+                <span className="mt-effort">{r.effort.charAt(0) + r.effort.slice(1).toLowerCase()} effort</span>
               </div>
               <div className="t">{r.title}</div>
               <div className="d">{r.detail}</div>

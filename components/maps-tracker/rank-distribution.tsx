@@ -18,26 +18,19 @@ function counts(points: ScanPointSummary[]) {
 }
 
 /**
- * Where the points landed.
+ * The rail's version: the stacked bar and the legend, no card chrome.
  *
- * This replaces the rank matrix — a grid of 49 to 441 coloured cells with
- * numbers in them, which showed everything and communicated nothing. A reader
- * wants the shape first; the individual points are still one click away on the
- * map, which is where a coordinate actually means something.
- *
- * Clicking a band filters the map to those points, so the summary and the
- * detail are the same gesture.
+ * Same `counts()` and the same click-to-filter gesture as the card above —
+ * clicking a band dims every non-matching pin AND its halo on the map. That
+ * gesture is the best thing in the old UI and it survives the redesign
+ * unchanged, including Esc unwinding the drawer before the band filter.
  */
-export function RankDistributionCard({
+export function RankDistributionStrip({
   points,
-  bestRank,
-  worstRank,
   activeBand,
   onBandToggle,
 }: {
   points: ScanPointSummary[]
-  bestRank: number | null
-  worstRank: number | null
   activeBand: RankBandKey | null
   onBandToggle: (key: RankBandKey) => void
 }) {
@@ -45,39 +38,39 @@ export function RankDistributionCard({
   const total = scoredOnly(points).length
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Where the {total} points landed</span>
-        {bestRank != null && (
-          <span className="tiny muted">Best #{bestRank} · worst #{worstRank}</span>
+    <div className="mt-strip">
+      <div className="mt-strip-h">
+        <span className="t">{total} points searched</span>
+        {activeBand && (
+          <button type="button" className="mt-link" onClick={() => onBandToggle(activeBand)}>
+            Clear filter
+          </button>
         )}
       </div>
-      <div className="tiny muted" style={{ margin: "2px 0 16px" }}>
-        {activeBand
-          ? `Showing ${RANK_BANDS.find((b) => b.key === activeBand)?.label} on the map · click again to clear`
-          : "Click a band to highlight those points on the map"}
-      </div>
 
-      <div className="mt-distbar" style={{ marginBottom: 14 }}>
+      <div className="mt-distbar" style={{ height: 10 }}>
         {bands.map((b) => (
           <i key={b.key} style={{ width: `${b.pct}%`, background: b.color }} />
         ))}
       </div>
 
-      {bands.map((b) => (
-        <button
-          key={b.key}
-          type="button"
-          className="mt-bandrow"
-          aria-pressed={activeBand === b.key}
-          onClick={() => onBandToggle(b.key)}
-        >
-          <i className="sw" style={{ background: b.color }} aria-hidden />
-          <span className="nm">{b.label}</span>
-          <span className="ct">{b.count}</span>
-          <span className="pc">{b.pct.toFixed(0)}%</span>
-        </button>
-      ))}
+      <div className="mt-strip-legend">
+        {bands.map((b) => (
+          <button
+            key={b.key}
+            type="button"
+            className="mt-strip-band"
+            aria-pressed={activeBand === b.key}
+            data-dim={activeBand != null && activeBand !== b.key ? true : undefined}
+            onClick={() => onBandToggle(b.key)}
+            title={`${b.count} points ranked ${b.label}`}
+          >
+            <i className="sw" style={{ background: b.color }} aria-hidden />
+            <span className="nm">{b.label}</span>
+            <span className="ct">{b.count}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

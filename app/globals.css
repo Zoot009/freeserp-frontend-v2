@@ -3,6 +3,7 @@
 @import "./dashboard.css";
 @import "./pricing.css";
 @import "./maps-tracker.css";
+@import "./position-map.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
