@@ -204,7 +204,12 @@ function WorkerBillingPage() {
   // nudge, not an error — reserve the red only for paid users who are hard-stopped.
   const aiBarColor = ai && !ai.degrades && aiUsedPct >= 100 ? "var(--neg)" : "var(--brand)"
   // Only Stripe supports resume; PayU SI mandates (and legacy Razorpay) can't be reinstated.
-  const canResume = sub?.provider === "stripe"
+  //
+  // A hand-granted plan can, and must: there is no provider to reinstate at, so
+  // undoing it is just clearing our own flag. Without this a comped account that
+  // changed its mind was offered "Resubscribe" — a trip to the pricing page to
+  // buy the plan somebody already gave them.
+  const canResume = sub?.provider === "stripe" || sub?.provider === "manual"
   // Stripe flips the sub to past_due while its dunning retries run; the user's
   // plan is already degraded to free, so this must render independent of isPaid.
   const isPastDue = sub?.status === "past_due"

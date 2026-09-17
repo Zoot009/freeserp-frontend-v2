@@ -90,7 +90,7 @@ export function PromptBoard({
       case "status":
         return <RunStateCell state={state} />
       case "rate":
-        return <RateCell rate={run?.mentionRate ?? null} change={run?.change ?? null} />
+        return <RateCell state={state} rate={run?.mentionRate ?? null} change={run?.change ?? null} />
       case "position": {
         // Prominence is "how far into the answer the first mention lands", so a
         // SHORT bar is good. The word beside it carries that, because a bar

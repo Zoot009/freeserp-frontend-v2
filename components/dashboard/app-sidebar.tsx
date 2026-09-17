@@ -16,7 +16,14 @@ import {
   ChevronsUpDown,
   Youtube,
   MapPin,
+  Map,
+  Navigation,
+  Store,
   FileSearch,
+  ShoppingCart,
+  ShoppingBag,
+  Package,
+  Tag,
   Users,
   Link2,
 } from "lucide-react"
@@ -27,6 +34,7 @@ import {
   GeminiMarkIcon,
   PerplexityMarkIcon,
 } from "@/components/dashboard/platform-marks"
+import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
   SidebarContent,
@@ -39,7 +47,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-type Item = { key: string; url: string; icon: React.ComponentType<{ className?: string }> }
+type Item = { key: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
 
 // Overview sits above the first group label, on its own — it is the page every
 // other item is a drill-down from, so filing it under a category would put the
@@ -59,7 +67,11 @@ const SEARCH_ENGINE: Item[] = [
   { key: "youtubeTracker", url: "/dashboard/youtube", icon: Youtube },
 ]
 
-const MAPS: Item[] = [{ key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin }]
+const MAPS: Item[] = [
+  { key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
+  { key: "bingMapsTracker", url: "/dashboard/bing-maps-tracker", icon: Map, soon: true },
+  { key: "appleMapsTracker", url: "/dashboard/apple-maps-tracker", icon: Navigation, soon: true },
+]
 
 // Every prompt you run on ONE platform, across every brand, with that
 // platform's own aggregate numbers. These are the only LLM-tracker entries in
@@ -85,6 +97,7 @@ const AUDIT: Item[] = [
   // URL, title and history.
   { key: "websiteAudit", url: "/dashboard/site-audit", icon: ScanSearch },
   { key: "pageAudit", url: "/dashboard/page-audit", icon: FileSearch },
+  { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store, soon: true },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
   { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
 ]
@@ -99,6 +112,14 @@ const TOOLS: Item[] = [
   { key: "keywordAnalysis", url: "/dashboard/keyword-analysis", icon: Search },
 ]
 
+// Nothing here routes anywhere yet. Every item is `soon`, which renders disabled
+// with a badge rather than as a link into a 404.
+const COMING_SOON: Item[] = [
+  { key: "amazon", url: "/dashboard/amazon", icon: ShoppingCart, soon: true },
+  { key: "flipkart", url: "/dashboard/flipkart", icon: ShoppingBag, soon: true },
+  { key: "temu", url: "/dashboard/temu", icon: Package, soon: true },
+  { key: "ebay", url: "/dashboard/ebay", icon: Tag, soon: true },
+]
 
 function isActive(url: string, pathname: string | null, search: string | null): boolean {
   if (!pathname) return false
@@ -137,7 +158,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   // next; expanded, it sits above the label as a section rule. A transform
   // moves it, not a margin, so nothing below it shifts either way.
   const DIVIDER =
-    "before:pointer-events-none before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-sidebar-border before:transition-transform before:duration-[260ms] before:ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[collapsible=icon]:before:translate-y-[10px]"
+    "before:pointer-events-none before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-sidebar-border before:transition-transform before:duration-200 before:ease-linear group-data-[collapsible=icon]:before:translate-y-[10px]"
 
   const Group = ({ labelKey, items }: { labelKey?: string; items: Item[] }) => (
     <SidebarGroup className={labelKey ? DIVIDER : undefined}>
@@ -145,6 +166,23 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       <SidebarMenu>
         {items.map((it) => {
           const Icon = it.icon
+          if (it.soon) {
+            return (
+              <SidebarMenuItem key={it.url}>
+                <SidebarMenuButton
+                  disabled
+                  tooltip={`${t(it.key)} (${t("soon")})`}
+                  className="cursor-not-allowed opacity-60"
+                >
+                  <Icon />
+                  <span>{t(it.key)}</span>
+                  <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                    {t("soon")}
+                  </Badge>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          }
           return (
             <SidebarMenuItem key={it.url}>
               <SidebarMenuButton asChild isActive={isActive(it.url, pathname, search)} tooltip={t(it.key)}>
@@ -185,6 +223,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />
+        {/*<Group labelKey="comingSoon" items={COMING_SOON} />*/}
       </SidebarContent>
 
       <SidebarFooter>

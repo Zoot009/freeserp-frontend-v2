@@ -132,6 +132,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             bg-card matches the panel, so the bar reads as part of it — and it
             gives the outline buttons a surface to contrast against, which
             bg-background did not in dark mode. */}
+        {/* h-14 (56px) is load-bearing OUTSIDE this file. `.tbl-scroll` in
+            app/dashboard.css sets `max-height: calc(100vh - 132px)`, where the
+            132 is 56 (this bar) + 16 (air) + 60 (.page bottom padding). That
+            arithmetic is the only thing keeping ten pages' sticky table headers
+            clear of this bar at full scroll — and it is clearance by geometry,
+            not stacking: those headers are z-index 1 against this z-20 bar, so
+            if this height grows they slide BEHIND it rather than merely up,
+            which reads as a rendering bug. Change this height, change that 132. */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card px-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />

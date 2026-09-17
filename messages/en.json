@@ -1956,5 +1956,19 @@
         }
       ]
     }
+  },
+  "unsubscribe": {
+    "title": "Unsubscribe from marketing emails",
+    "loading": "Checking your preferences…",
+    "invalid": "This unsubscribe link is not valid. It may have been altered in transit — please use the link from the bottom of a recent email.",
+    "error": "Something went wrong. Please try again in a moment.",
+    "prompt": "Unsubscribe {email} from FreeSerp product tips, onboarding and upgrade emails?",
+    "confirm": "Unsubscribe",
+    "working": "Working…",
+    "done": "{email} has been unsubscribed from marketing emails.",
+    "undo": "Undo — resubscribe me",
+    "resubscribed": "{email} has been resubscribed to marketing emails.",
+    "transactionalNote": "You will still receive account emails such as sign-in codes, password resets and billing notices.",
+    "backHome": "Back to FreeSerp"
   }
 }

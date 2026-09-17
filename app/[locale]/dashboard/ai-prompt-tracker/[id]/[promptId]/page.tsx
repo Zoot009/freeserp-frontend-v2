@@ -285,7 +285,7 @@ export default function LlmPromptDetailPage() {
         />
       </div>
 
-      <div className="tabs" style={{ marginBottom: 12 }}>
+      <div className="tabs">
         {(
           [
             ["answers", `Answers${ok.length ? ` (${ok.length})` : ""}`],

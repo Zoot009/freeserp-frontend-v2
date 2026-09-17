@@ -58,6 +58,36 @@
   --r-lg: 16px;
   --r-xl: 22px;
 
+  /* Spacing scale. The radius and shadow scales were always here; spacing was
+     not, so every class picked its own (9, 13, 14, 18, 20, 22, 26 all appeared).
+     4px multiples, with ONE half-step: --sp-h is for icon-beside-label gaps,
+     which are the one place a 4px floor reads as cramped and 8px as detached.
+     Deliberately NOT applied to `.page`'s 28px top padding — five full-bleed
+     helpers (.llm-hero, .kd-header, .halo and friends) pull themselves out of
+     it with a hardcoded `margin: -28px`, so that number is load-bearing and
+     moves only with them. */
+  --sp-h: 6px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* Internal rule, for separators INSIDE a bordered container — table row
+     dividers above all. --border keeps framing the container itself, so the
+     two stop competing at the same weight.
+
+     The ratio differs per theme on purpose, and the reason is not the contrast
+     RATIO: 62% measures 1.126:1 on white and 1.122:1 on the dark card, which
+     says they are equivalent and is misleading. At the dark end the same ratio
+     is a far weaker edge in practice — rendered side by side, a 62% rule is
+     clearly present on white and all but gone on #14181F. Dark therefore holds
+     a heavier mix, the same way --accent re-steps rather than flipping. */
+  --hairline: color-mix(in srgb, var(--border) 62%, transparent);
+
   /* Horizontal padding of .page — shared by the negative-margin classes
      (.halo / .kd-header / .kd-tabs) so they stay in lockstep. Overridden on
      phones in the responsive block at the bottom of this file. */
@@ -80,6 +110,9 @@
   text-rendering: optimizeLegibility;
 }
 .dark .fs-app {
+  /* See the --hairline comment above: dark needs the heavier mix to stay visible. */
+  --hairline: color-mix(in srgb, var(--border) 85%, transparent);
+
   --brand: #5B7DFF;
   --brand-soft: #1A2249;
   --brand-deep: #8AA2FF;
@@ -620,8 +653,8 @@
 }
 .fs-app .page-h {
   display: flex; align-items: flex-end; justify-content: space-between;
-  margin-bottom: 22px;
-  gap: 16px;
+  margin-bottom: var(--sp-6);
+  gap: var(--sp-4);
 }
 .fs-app .page-h h1 {
   margin: 0;
@@ -678,14 +711,14 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 18px;
+  padding: var(--sp-5);
   box-shadow: var(--shadow-sm);
 }
-.fs-app .card.tight { padding: 14px; }
+.fs-app .card.tight { padding: var(--sp-4); }
 .fs-app .card-h {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
-  gap: 10px;
+  margin-bottom: var(--sp-4);
+  gap: var(--sp-3);
 }
 .fs-app .card-h .t { font-size: 14px; font-weight: 600; }
 .fs-app .card-h .ac { display: flex; gap: 6px; align-items: center; color: var(--text-mute); font-size: 12px; }
@@ -694,8 +727,12 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 16px;
-  display: flex; flex-direction: column; gap: 8px;
+  /* --sp-4, one step below .card's --sp-5, rather than matching it: a tile is a
+     single figure and a label, and giving it a card's gutter makes a row of
+     three read as three empty cards. The two literals this replaces were the
+     last ones left in the tile after the scale landed. */
+  padding: var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-2);
 }
 .fs-app .stat .lbl {
   font-size: 12px; color: var(--text-mute);
@@ -706,6 +743,8 @@
   font-size: 28px; font-weight: 600;
   letter-spacing: -0.025em;
   line-height: 1.1;
+  /* Same reason as .tbl: a row of StatTiles that refreshes should not reflow. */
+  font-variant-numeric: tabular-nums;
 }
 .fs-app .stat .delta {
   display: inline-flex; align-items: center; gap: 4px;
@@ -740,7 +779,7 @@
   font-size: 11px; color: var(--text-mute); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
-.fs-app .stat-strip .val { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+.fs-app .stat-strip .val { font-size: 25px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .fs-app .stat-strip .delta {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; font-weight: 500;
@@ -930,7 +969,7 @@
 .fs-app .cmp-track .rm:hover { color: var(--neg); background: var(--neg-soft); }
 .fs-app .cmp-track .rm:disabled { cursor: default; opacity: 0.35; }
 /* Grid helpers */
-.fs-app .grid { display: grid; gap: 14px; }
+.fs-app .grid { display: grid; gap: var(--sp-4); }
 .fs-app .g-4 { grid-template-columns: repeat(4, 1fr); }
 .fs-app .g-3 { grid-template-columns: repeat(3, 1fr); }
 .fs-app .g-2 { grid-template-columns: repeat(2, 1fr); }
@@ -941,8 +980,8 @@
    background rather than the page white so it reads as commentary about the
    screen, not another data card on it. */
 .fs-app .tool-ctx {
-  padding: 14px 16px;
-  margin-bottom: 16px;
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
   background: var(--bg-sub);
 }
 .fs-app .tool-ctx-top { display: flex; align-items: flex-start; gap: 10px; }
@@ -990,6 +1029,14 @@
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
+  /* Lining tabular figures for the whole table, not per-cell. Proportional
+     digits change width as they change value, so a column of rates visibly
+     shifts every time a poll lands — worst on the AI tracker's board, where
+     runs settle one at a time under a 3s poll. Set here rather than on the
+     numeric cells because those are right-aligned with an inline style, not a
+     class, so there is no shared hook to hang it on; and a data table is the
+     one place tabular figures are correct for prose cells too. */
+  font-variant-numeric: tabular-nums;
 }
 .fs-app .tbl th {
   text-align: left;
@@ -998,25 +1045,35 @@
   color: var(--text-mute);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   background: var(--bg-sub);
   border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
-  position: sticky; top: 0;
+  /* Sticky since this class existed, but with no z-index: any cell content that
+     forms a stacking context painted straight over the pinned header on scroll.
+     1 is enough — every floating menu that opens from inside a table is either
+     portaled (Dropdown `portal`, z-index 10010) or carries an inline z-index 50,
+     so nothing that should sit above the header loses to it. */
+  position: sticky; top: 0; z-index: 1;
 }
-.fs-app .tbl th:first-child { border-left: 1px solid var(--border); border-top-left-radius: 8px; }
-.fs-app .tbl th:last-child { border-right: 1px solid var(--border); border-top-right-radius: 8px; }
+.fs-app .tbl th:first-child { border-left: 1px solid var(--border); border-top-left-radius: var(--r-sm); }
+.fs-app .tbl th:last-child { border-right: 1px solid var(--border); border-top-right-radius: var(--r-sm); }
 .fs-app .tbl td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+  /* 10px, not a scale step. Row height governs how much of a board you can see
+     at once, so this is set by measurement rather than by rhythm: at 1440x900
+     the AI tracker's prompt board fits 12 rows at 9px, 11 at 10px and 10 at
+     12px. 12px costs two rows of an eight-column workbench table, which is a
+     worse trade than one off-scale value. */
+  padding: 10px var(--sp-3);
+  border-bottom: 1px solid var(--hairline);
   vertical-align: middle;
   color: var(--text);
 }
 .fs-app .tbl tr:hover td { background: var(--bg-sub); }
 .fs-app .tbl td:first-child { border-left: 1px solid var(--border); }
 .fs-app .tbl td:last-child { border-right: 1px solid var(--border); }
-.fs-app .tbl tr:last-child td:first-child { border-bottom-left-radius: 8px; }
-.fs-app .tbl tr:last-child td:last-child { border-bottom-right-radius: 8px; }
+.fs-app .tbl tr:last-child td:first-child { border-bottom-left-radius: var(--r-sm); }
+.fs-app .tbl tr:last-child td:last-child { border-bottom-right-radius: var(--r-sm); }
 /* Full-bleed variant, for a table that fills a padding:0 card. The rules above
    frame the table so it can stand on a bare page; inside a card that already
    has a border and a radius they draw a second outline just inside the card's,
@@ -1028,13 +1085,13 @@
 .fs-app .tbl.flush td:first-child {
   border-left: 0;
   border-top-left-radius: 0; border-bottom-left-radius: 0;
-  padding-left: 16px;
+  padding-left: var(--sp-4);
 }
 .fs-app .tbl.flush th:last-child,
 .fs-app .tbl.flush td:last-child {
   border-right: 0;
   border-top-right-radius: 0; border-bottom-right-radius: 0;
-  padding-right: 16px;
+  padding-right: var(--sp-4);
 }
 .fs-app .tbl.flush tr:last-child td { border-bottom: 0; }
 /* Keyword cell: one line with an ellipsis, so a long keyword can't wrap and
@@ -1051,6 +1108,18 @@
   white-space: nowrap;
 }
 
+/* Text cells opt back out of the table's tabular figures.
+   .tbl sets tabular-nums for the whole table so the numeric columns stop
+   reflowing, but these two cells hold PROSE that happens to contain digits —
+   "top 10 seo tools", "cheapest serp api under $100". Geist's proportional "1"
+   is 5.00px against a 7.81px tabular one at 13px, so a tabular "1" inside a
+   sentence opens a visible gap and the phrase reads mechanical. Numbers in
+   running text want proportional figures; numbers in a column want tabular. */
+.fs-app .tbl .kw,
+.fs-app .tbl .dd-trigger,
+.fs-app .llm-next-run,
+.fs-app .llm-prompt { font-variant-numeric: normal; }
+
 /* ============================================================================
    AI PROMPT TRACKER
    ============================================================================ */
@@ -1058,6 +1127,62 @@
 /* A prompt is a question, not a title. .kw ellipsises ONE line, which truncates
    most real prompts to uselessness; two lines is the shortest that still reads. */
 .fs-app .llm-prompt { display: block; min-width: 0; }
+
+/* ── Prompt-board columns: a reserved box per column ───────────────────────
+   The board polls every 3s for up to ten minutes, and a run walks
+   queued -> running -> completed while the user is looking at it. Each step
+   changes what a cell CONTAINS, and with auto table layout that re-measures
+   the column and shifts every row beside it. Measured worst-case settled
+   content, at 13px Geist with these exact classes:
+
+     Mention rate   "—" 11px  ->  "100% +100"  66px    (+55px on a tick)
+     Cited          dot 41px  ->  "Not cited"  73px    (+32px)
+     Prominence     "n/a" 16px -> "100%"       36px    (+20px)
+     Status         "Queued…" 82px -> "2 hours ago · 5 answers failed" 152px
+
+   So each column reserves its widest settled state up front and the in-flight
+   placeholder sits INSIDE that box. The floor is the measurement plus the
+   24px cell gutter — reserving less just moves the reflow later.
+
+   Alignment lives here too, replacing six inline `textAlign: right` styles.
+   Text columns (prompt, platform) stay left and unbounded; Prompt is the flex
+   column that absorbs what these give up. */
+.fs-app .llm-c-rate,
+.fs-app .llm-c-cited,
+.fs-app .llm-c-prom { text-align: right; }
+.fs-app .llm-c-rate   { min-width: 92px; }
+.fs-app .llm-c-cited  { min-width: 98px; }
+.fs-app .llm-c-prom   { min-width: 60px; }
+/* 200px, matching the width this header already asked for: it holds every
+   settled state including a failed run's reason, which is capped just below at
+   the same figure minus the gutter so the column is stable in that state too. */
+.fs-app .llm-c-status { min-width: 200px; }
+.fs-app .llm-c-sched  { min-width: 122px; }
+
+/* The failed reason, capped to what .llm-c-status reserves (200 - 24 gutter) so
+   a long provider error widens the row instead of the column. */
+.fs-app .llm-fail-reason {
+  display: block; max-width: 176px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* "Next in 12d" under the cadence picker. Prose with digits inside .tbl, so it
+   opts out of tabular figures for the same reason .llm-prompt does — deferred
+   from the merge that added that reset because it had no class to hang on. */
+.fs-app .llm-next-run { margin-top: var(--sp-1); font-variant-numeric: normal; }
+
+/* In-flight placeholder: the settled cell's box, holding a pulsing dot rather
+   than a value. `.aio.pending` is the existing three-state verdict treatment
+   from the SERP side — already pulsing, already silenced under
+   prefers-reduced-motion — so nothing new animates and nothing new needs a
+   reduced-motion rule.
+
+   It only needs to be an inline box; the right edge it lands on comes from the
+   .llm-c-* column's own text-align, which is what puts the dot where the number
+   will appear so the value arrives in place rather than sliding in. (An earlier
+   draft added justify-content here, which does nothing on an inline-flex whose
+   width is its content — the alignment was always the column's.) */
+.fs-app .llm-pending-val { display: inline-flex; }
 .fs-app .llm-prompt .txt {
   font-weight: 500; color: var(--text); line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1148,10 +1273,16 @@
 
 /* Dashed "nothing here yet" panel, used by every empty state in the feature. */
 .fs-app .llm-empty {
-  border: 1px dashed var(--border-strong);
-  background: transparent;
+  /* Was a dashed --border-strong box on nothing, which is the vocabulary of a
+     file dropzone or a validation failure. An empty tracker is neither — it is
+     a screen inviting its first brand. A settled surface with a quiet edge says
+     "this belongs here and is waiting" rather than "something went wrong".
+     `.rich` (the engine pages) already overrode its way off the dashed look;
+     this brings the base to the same conclusion. */
+  border: 1px dashed var(--border);
+  background: var(--bg-sub);
   border-radius: var(--r-md);
-  padding: 40px 24px;
+  padding: var(--sp-10) var(--sp-6);
   text-align: center;
 }
 
@@ -1698,13 +1829,20 @@
 /* Named in this answer — the finding, so it takes the accent. */
 .fs-app .llm-answer.hit .llm-answer-n { background: var(--accent-soft); color: var(--accent-ink); }
 .fs-app .llm-answer.hit .llm-answer-h { background: linear-gradient(90deg, var(--accent-soft), transparent 60%); }
-.fs-app .llm-answer-b { padding: 4px 15px 14px; }
+.fs-app .llm-answer-b { padding: var(--sp-1) var(--sp-4) var(--sp-3); }
 /* Where the answer's own metadata lives: who else it named, what it searched. */
 .fs-app .llm-answer-f {
-  display: flex; flex-direction: column; gap: 7px;
-  padding: 11px 15px; border-top: 1px dashed var(--border); background: var(--bg-sub);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  /* The background shift already says "metadata about the answer, not the
+     answer"; a dashed rule on top of it is a second separator doing the same
+     job louder. Hairline, so the card keeps one edge rather than two. */
+  border-top: 1px solid var(--hairline);
+  background: var(--bg-sub);
 }
-.fs-app .llm-answer-f .r { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fs-app .llm-answer-f .r { display: flex; align-items: center; gap: var(--sp-h); flex-wrap: wrap; }
+/* A label column, so "Also named" / "Also cited" / "Searched" start at one x
+   and the chip runs line up as three blocks rather than three ragged rows. */
 .fs-app .llm-answer-f .r > .tiny { min-width: 62px; }
 
 /* The brand, marked up inside the answer. Accent rather than brand blue: the
@@ -1735,12 +1873,19 @@
    Each pill carries its own data-engine, so it inherits that assistant's accent
    from the block at the top of this section. */
 .fs-app .llm-brand-eng {
-  display: flex; gap: 6px; flex-wrap: wrap;
-  margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border);
+  /* A fixed slot per assistant rather than content-width pills: ENGINE_ORDER is
+     always these four, and pills that size to their own value put Perplexity in
+     a different place on every card ("100%" is far wider than "8%"). Four equal
+     columns make the strip scan down the grid as well as across one card. */
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-h);
+  margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--hairline);
 }
 .fs-app .llm-brand-eng .llm-eng {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 8px 3px 6px; border-radius: 99px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  /* min-width:0 lets the pill shrink inside its grid track instead of forcing
+     the track wider than 1fr, which would undo the equal columns above. */
+  min-width: 0;
+  padding: 3px 8px; border-radius: 99px;
   background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   font-size: 11px; font-variant-numeric: tabular-nums;
@@ -1751,6 +1896,13 @@
 .fs-app .llm-brand-eng .llm-eng.off { background: transparent; border-color: var(--border); opacity: .55; }
 .fs-app .llm-brand-eng .llm-eng.off b { color: var(--text-mute); }
 .fs-app a.llm-brand:hover { border-color: var(--border-strong); }
+/* A column, so the assistant strip can be pinned to the bottom. Cards in a row
+   already stretch to equal height (grid default); without this the strip floats
+   at whatever height the brand name happened to end at, so a two-line name in
+   one card knocked its strip out of line with its neighbours'. Replaces an
+   inline `display: block` on the anchor. */
+.fs-app a.llm-brand { display: flex; flex-direction: column; }
+.fs-app a.llm-brand .llm-brand-eng { margin-top: auto; }
 
 @media (max-width: 900px) {
   .fs-app .llm-cost { grid-template-columns: repeat(2, 1fr); }
@@ -1843,7 +1995,7 @@
 .fs-app .chip.pos { background: var(--pos-soft); color: var(--pos); }
 .fs-app .chip.neg { background: var(--neg-soft); color: var(--neg); }
 .fs-app .chip.warn { background: var(--warn-soft); color: var(--warn); }
-.fs-app .chip.outline { background: transparent; border: 1px solid var(--border); }
+.fs-app .chip.outline { background: transparent; border: 1px solid var(--hairline); }
 /* SERP feature chips. Icon-only, so the horizontal text padding would leave the
    glyph off-centre in a chip twice as wide as it needs to be.
 
@@ -1928,6 +2080,14 @@
 /* Semibold when selected, not just recoloured: on the underline pattern the
    2px rule is the only signal, and it disappears against a busy row. */
 .fs-app .tab.active { color: var(--text); font-weight: 600; border-bottom-color: var(--brand); }
+/* Inside an accent-scoped container (the prompt detail page roots itself as
+   .llm-eng with the shown assistant's data-engine) the active tab follows that
+   assistant, not brand blue. It was the one control left contradicting the page
+   it sat on — a teal Perplexity page with a blue underline under "Answers".
+   Scoped rather than changed on .tab itself: the other seven .tabs consumers
+   have no --accent defined, and an undefined custom property here would drop
+   the underline colour entirely. */
+.fs-app .llm-eng .tab.active { border-bottom-color: var(--accent); }
 /* Pill toggle */
 .fs-app .pill-toggle {
   display: inline-flex;
@@ -1958,6 +2118,12 @@
   font-weight: 600;
   box-shadow: none;
 }
+
+/* Fills its container, for a toggle stacked under full-width controls rather
+   than sitting inline beside something. The halves share the width evenly so
+   neither option reads as the default just because its word is longer. */
+.fs-app .pill-toggle.block { display: flex; width: 100%; }
+.fs-app .pill-toggle.block button { flex: 1 1 0; justify-content: center; }
 
 /* ── Engine picker cards (Add keywords modal) ─────────────────────────────────
    The engine choice used to be a .pill-toggle identical to the Device toggle two
@@ -3209,9 +3375,49 @@
    and revealed inside the 768px query.
    ============================================================ */
 
-/* Horizontal-scroll wrapper for wide .tbl tables (keep overflow-x ONLY so the
-   sticky <th top:0> still anchors to the viewport, not this box). */
-.fs-app .tbl-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Horizontal-scroll wrapper for wide .tbl tables.
+   
+   The previous comment here claimed that keeping overflow-x ONLY would let the
+   sticky <th top:0> anchor to the viewport rather than to this box. That is not
+   how overflow works: setting overflow-x to a non-visible value forces a
+   computed overflow-y of `auto`, so this element is a scrollport either way.
+   Measured, not inferred — computed overflow-y reports `auto`, and with no
+   max-height scrollHeight equals clientHeight, so the box never scrolls
+   vertically and the header simply rides the page out of view. Viewport-
+   anchored sticky is NOT achievable inside a horizontal-scroll wrapper; the
+   only working arrangement is the one below, where the box does scroll and the
+   header pins to it.
+
+   The max-height is derived, not a round vh number. At maximum page scroll the
+   pinned header lands at exactly (X - .page's bottom padding) from the top of
+   the viewport, where max-height is calc(100vh - X) — independent of both the
+   viewport height and of how much chrome sits above the table, which is what
+   makes one shared value correct for all ten pages that use this class. So:
+       56px  the shell's sticky app header (h-14), which the header must clear
+     + 16px  one --sp-4 of air below it, so it is clear rather than flush
+     + 60px  .page's bottom padding
+     = 132px
+   Verified at 800px and 900px viewports: the header settles 71px down, 15px
+   below the app bar. Anything above ~116px hides it behind that bar at full
+   scroll, which is the failure the old comment was trying to avoid.
+
+   IMPORTANT: that 15px is CLEARANCE BY GEOMETRY, NOT BY STACKING. The pinned
+   header is z-index 1 inside the .fs-app stacking context; the app bar is
+   z-20. They never overlap only because the arithmetic above keeps them apart.
+   If the app bar grows, or this page gains chrome below the table, the header
+   does not merely ride up — it slides BEHIND the bar, which reads as a
+   rendering bug rather than a layout one. Anything that changes either height
+   has to change the 132px with it.
+
+   overscroll-behavior stops a flick at the end of the table from chaining into
+   the page — the cost of having an inner scroll region at all. */
+.fs-app .tbl-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 132px);
+  overscroll-behavior: contain;
+}
 .fs-app .tbl-scroll .tbl { min-width: 680px; }
 
 /* Mobile chrome — hidden on desktop, shown at <=768px. */

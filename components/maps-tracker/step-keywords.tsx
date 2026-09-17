@@ -73,7 +73,10 @@ export function KeywordsStep({
       </div>
 
       {keywords.length > 0 && (
-        <div className="row" style={{ gap: 5, marginTop: 10 }}>
+        // .row is a flex row with no wrapping, so a third keyword ran off the
+        // side of the rail and the rest were unreachable — the remove buttons
+        // with them.
+        <div className="row" style={{ gap: 5, marginTop: 10, flexWrap: "wrap" }}>
           {keywords.map((k, i) => (
             <span
               key={k}

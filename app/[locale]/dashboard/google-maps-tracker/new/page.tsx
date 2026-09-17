@@ -29,10 +29,16 @@ import type { MapLocation, Scan, CreateScanResponse } from "@/components/maps-tr
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 const LIST = "/dashboard/google-maps-tracker"
 
-// A 3 x 3 over 0.1 miles — the old defaults — is nine searches inside one
-// block, which tells nobody anything. These are the settings the redesign
-// previews, and the ones a first scan should actually be run at.
-const DEFAULT_GRID_SIZE = 7
+// The radius is what makes a first scan worth reading, not the grid. The
+// defaults these replaced were 3 x 3 over 0.1 MILES — nine searches inside one
+// block, which tells nobody anything — and the fix was read as "raise the
+// grid", landing on 7 x 7. That is 49 points and 8 credits before anyone has
+// seen what a scan even produces.
+//
+// 3 x 3 over the same 1.5 miles is 3 credits and pins a mile and a half apart:
+// a real picture of the area, at the cheapest it can be drawn. Anyone who wants
+// it finer raises it from the dropdown, having seen what they are buying.
+const DEFAULT_GRID_SIZE = 3
 const DEFAULT_RADIUS = 1.5
 // Geographic center of the continental US — just a reasonable starting view
 // before any location is picked; the map re-centers via fitBounds once one is.
@@ -231,9 +237,6 @@ function NewScanBuilder() {
 
         <div className="mt-setup" style={{ marginTop: 16 }}>
           <SetupRail
-            showAi={currentLocation != null}
-            aiRequested={aiRequested}
-            onAiChange={setAiRequested}
             searches={searches}
             disabledReason={disabledReason}
             submitting={submitting}
@@ -313,16 +316,50 @@ function NewScanBuilder() {
           </MapCard>
         </div>
 
-        <CreditCostConfirm
+<CreditCostConfirm
           action={CREDIT_ACTION_KEYS.mapsScanPoint}
           units={searches}
           open={confirmScan}
           onOpenChange={setConfirmScan}
           onConfirm={() => void runScan()}
           title="Run this scan?"
-          description={`${searches} ${searches === 1 ? "search" : "searches"} — ${gridSize} × ${gridSize} points for each of your ${keywords.length} keyword${keywords.length === 1 ? "" : "s"}${aiRequested ? ", plus an AI analysis when it finishes" : ""}.`}
+          description={`${searches} ${searches === 1 ? "search" : "searches"} — ${gridSize} × ${gridSize} points for each of your ${keywords.length} keyword${keywords.length === 1 ? "" : "s"}.`}
           confirmLabel="Run scan"
-        />
+        >
+          {/* Asked here rather than in the rail, because this is the moment the
+              run is being committed to and the price is on screen to answer it
+              against. In the rail it was a switch three controls above a button
+              that quoted a cost, with nothing tying the two together.
+
+              Only offered once there is a business to analyse. */}
+          {currentLocation != null && (
+            <div className="rounded-lg border p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium">AI analysis</div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    Reads the finished grid and writes up where you are winning and losing.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="mt-toggle shrink-0"
+                  aria-pressed={aiRequested}
+                  aria-label="AI analysis"
+                  onClick={() => setAiRequested(!aiRequested)}
+                >
+                  <i />
+                </button>
+              </div>
+              {/* Stated, because the toggle sits next to a price and a switch
+                  beside a number reads as changing it. It does not: the scan is
+                  charged per grid point, and the analysis is included. */}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Included — it does not change the credits above.
+              </p>
+            </div>
+          )}
+        </CreditCostConfirm>
       </div>
     </APIProvider>
   )
