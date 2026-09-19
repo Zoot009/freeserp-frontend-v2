@@ -3,37 +3,46 @@
 import type { ReactNode } from "react"
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
-import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
+import { RANK_BANDS, bandKeyFor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
 import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
 
 const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === "PARTIAL"
 const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUNNING"
 
 /**
- * A scan's heatmap thumbnail, always the same footprint.
+ * How a scan's points fall across the rank bands, as one bar.
  *
- * The cells divide a fixed box rather than being a fixed size each, so a 3 × 3
- * and a 21 × 21 occupy identical space — the column stays aligned and rows keep
- * the same height. A big grid just renders at finer resolution, which is the
- * honest thing for a thumbnail whose job is the shape, not the values.
+ * This replaced a miniature of the grid itself. At 52px a 3 × 3 was three fat
+ * squares of flat colour and a 21 × 21 was speckle, so neither end of the range
+ * actually showed a shape — a column of them read as mud rather than as data.
+ *
+ * A bar does the thing a thumbnail grid could never do in a LIST: every bar is
+ * the same width, so two scans compare by eye straight down the column. That is
+ * the question this screen exists to answer — is this run better or worse than
+ * that one — and it is the same bar the Overview card draws, so "the shape of a
+ * scan" looks the same everywhere it appears.
+ *
+ * What is given up is WHERE in the grid the strength sits. That was already
+ * unreadable at this size, and the report one click away draws it properly.
  */
-function MiniHeatmap({ keyword, gridSize }: { keyword: ScanHistoryKeyword; gridSize: number }) {
-  const byPos = new Map(keyword.points.map((p) => [`${p.row}:${p.col}`, p]))
-  const cells = Array.from({ length: gridSize * gridSize }, (_, i) =>
-    byPos.get(`${Math.floor(i / gridSize)}:${i % gridSize}`) ?? null,
-  )
+function MiniBands({ keyword }: { keyword: ScanHistoryKeyword }) {
+  const bands = RANK_BANDS.map((b) => ({
+    key: b.key,
+    label: b.label,
+    color: b.color,
+    count: keyword.points.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
+  })).filter((b) => b.count > 0)
+
+  const total = bands.reduce((sum, b) => sum + b.count, 0)
+  // Every point failed, or none ran. Nothing to draw a distribution of.
+  if (!total) return <span className="mt-mini-none" aria-hidden />
+
   return (
-    <div
-      className="mt-mini"
-      // A 1px gutter is nothing at 3 × 3 and over a third of the width at
-      // 21 × 21, where it turns the thumbnail into speckle. Big grids close up.
-      style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: gridSize > 11 ? 0 : 1 }}
-      aria-hidden
-    >
-      {cells.map((p, i) => (
-        <span key={i} style={{ background: p ? rankColor(p.rank, p.status).bg : "var(--bg-inset)" }} />
+    <span className="mt-bands" title={bands.map((b) => `${b.label}: ${b.count}`).join(" · ")}>
+      {bands.map((b) => (
+        <span key={b.key} style={{ width: `${(b.count / total) * 100}%`, background: b.color }} />
       ))}
-    </div>
+    </span>
   )
 }
 
@@ -85,9 +94,9 @@ function Row({
   return (
     <div className="mt-kwrow-wrap">
       <button type="button" className="mt-kwrow" onClick={onOpen}>
-        {/* A scan that never ran has no shape to show. A grey grid in its place
-            looks like a result, which is worse than an empty cell. */}
-        {scored ? <MiniHeatmap keyword={keyword} gridSize={scan.gridSize} /> : <span className="mt-mini-none" aria-hidden />}
+        {/* A scan that never ran has no distribution to show. A grey bar in
+            its place looks like a result, which is worse than an empty cell. */}
+        {scored ? <MiniBands keyword={keyword} /> : <span className="mt-mini-none" aria-hidden />}
         <span style={{ minWidth: 0 }}>
           <span className="mt-kwrow-name">{keyword.keyword}</span>
           {meta && <span className="mt-kwrow-meta">{meta}</span>}

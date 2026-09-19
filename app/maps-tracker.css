@@ -226,7 +226,7 @@
 .fs-app .mt-hist-head,
 .fs-app .mt-kwrow {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 76px 76px 34px;
+  grid-template-columns: 72px minmax(0, 1fr) 76px 76px 34px;
   gap: 14px; align-items: center;
 }
 .fs-app .mt-hist-head {
@@ -262,12 +262,18 @@
 
 /* Same footprint whatever the grid size — the cells divide the box rather
    than each being a fixed size, so the column never goes ragged. */
-.fs-app .mt-mini { display: grid; gap: 1px; width: 52px; }
-.fs-app .mt-mini span { aspect-ratio: 1; border-radius: 1px; }
-/* Holds the column open for a scan with no heatmap to show, without drawing
-   a grid of grey cells that reads as a result. */
+/* The rank-band distribution, one bar per scan row. Fixed width on purpose:
+   identical bars are what let two runs be compared straight down the column. */
+.fs-app .mt-bands {
+  display: flex; width: 72px; height: 10px;
+  border-radius: 999px; overflow: hidden;
+  background: var(--bg-inset);
+}
+.fs-app .mt-bands span { display: block; height: 100%; }
+/* Holds the column open for a scan with no distribution to show, without
+   drawing a filled bar that reads as a result. */
 .fs-app .mt-mini-none {
-  display: block; width: 52px; height: 52px; border-radius: 4px;
+  display: block; width: 72px; height: 10px; border-radius: 999px;
   border: 1px dashed var(--border-strong);
 }
 
