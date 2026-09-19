@@ -142,28 +142,35 @@ export default function LlmPromptsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid g-3">
+        // Rows, not a three-column card grid. Most accounts track one or two
+        // brands, and a fixed three-track grid gave a single brand a card a
+        // third of the page wide with two empty thirds beside it -- the card
+        // looked stranded because it WAS stranded. A row fills the width at
+        // any count, and the assistant strip lines up down the list so four
+        // brands compare on ChatGPT by reading straight down.
+        <div className="llm-brands">
           {projects.map((p) => (
             <Link
               key={p.id}
               href={`/dashboard/ai-prompt-tracker/${p.id}`}
-              className="card llm-brand"
+              className="llm-brand-row"
             >
-              <div className="card-h">
-                <div>
-                  <div className="t">{p.name}</div>
-                  <div className="tiny muted">
-                    {p.brandName}
-                    {p.brandDomain ? ` · ${p.brandDomain}` : ""}
-                  </div>
-                </div>
-                <span className="chip outline">
-                  {p.promptCount} prompt{p.promptCount === 1 ? "" : "s"}
+              <span className="llm-brand-id">
+                <span className="llm-brand-name">{p.name}</span>
+                <span className="tiny muted llm-brand-sub">
+                  {p.brandName}
+                  {p.brandDomain ? ` · ${p.brandDomain}` : ""}
                 </span>
-              </div>
+              </span>
+
               {/* How this brand scores on each assistant, so the difference
                   between them is visible before you open anything. */}
               <BrandEngines rates={p.platformRates ?? {}} />
+
+              <span className="chip outline llm-brand-count">
+                {p.promptCount} prompt{p.promptCount === 1 ? "" : "s"}
+              </span>
+              <Icon.chevR />
             </Link>
           ))}
         </div>
