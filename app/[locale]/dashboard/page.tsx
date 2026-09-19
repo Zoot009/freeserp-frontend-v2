@@ -36,7 +36,7 @@ import { StatStrip } from "@/components/dashboard/cards/stat-strip"
 import { type GscState } from "@/components/dashboard/gsc"
 import { ToolCard } from "@/components/dashboard/cards/tool-card"
 import { MapsTrackerCard } from "@/components/dashboard/cards/maps-tracker-card"
-import type { ScanHistoryItem } from "@/components/maps-tracker/types"
+import type { Scan, ScanHistoryItem } from "@/components/maps-tracker/types"
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
@@ -243,7 +243,11 @@ export default function SeoDashboardPage() {
   const [projectsError, setProjectsError] = useState<string | null>(null)
   // Maps scans belong to the ACCOUNT, not to a project -- a business is a place,
   // not a website -- so this is fetched once rather than per selected project.
-  const [mapScans, setMapScans] = useState<ScanHistoryItem[] | null>(null)
+  //
+  // The full scan, not the list row: only the detail response carries the
+  // per-point latitude and longitude, and without those the card can draw the
+  // ranks but not where they are.
+  const [mapScan, setMapScan] = useState<Scan | null>(null)
   const [rowsLoading, setRowsLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
   // Creating a project no longer means leaving this page for the Rank Tracker.
@@ -346,15 +350,29 @@ export default function SeoDashboardPage() {
     if (projectId) void loadDetail(projectId).then((d) => d && setDetail(d))
   }, [projectId, loadDetail])
 
-  // The newest grid scan, for the Maps card. Failure is silent and leaves
-  // mapScans null, which simply falls back to the set-up promo -- a dashboard
-  // must not surface an error for a tool the account may never have touched.
+  // The newest grid scan, for the Maps card.
+  //
+  // Two requests, because the list says WHICH scan is worth showing and only
+  // the detail carries the coordinates that put it on a map. The second is
+  // skipped entirely when the list has nothing with a reading in it, so an
+  // account that has never scanned pays for one cheap call and no map.
+  //
+  // Failure is silent and leaves mapScan null, which falls back to the set-up
+  // promo. A dashboard must not raise an error about a tool the account may
+  // never have touched.
   useEffect(() => {
     let cancelled = false
-    void api
-      .get<{ scans: ScanHistoryItem[] }>("/api/maps-tracker/scans")
-      .then((r) => { if (!cancelled) setMapScans(r.scans) })
-      .catch(() => { if (!cancelled) setMapScans([]) })
+    void (async () => {
+      try {
+        const { scans } = await api.get<{ scans: ScanHistoryItem[] }>("/api/maps-tracker/scans")
+        const newest = scans.find((sc) => sc.keywords.some((k) => k.solv != null))
+        if (cancelled || !newest) { if (!cancelled) setMapScan(null); return }
+        const { scan } = await api.get<{ scan: Scan }>(`/api/maps-tracker/scans/${newest.id}`)
+        if (!cancelled) setMapScan(scan)
+      } catch {
+        if (!cancelled) setMapScan(null)
+      }
+    })()
     return () => { cancelled = true }
   }, [refreshTick])
 
@@ -376,14 +394,6 @@ export default function SeoDashboardPage() {
     })
     return () => { cancelled = true }
   }, [projectId, range, refreshTick])
-
-  // The newest scan carrying a real reading. A scan still running, or one that
-  // failed every point, has nothing to put on a card -- and falling back to the
-  // promo in that case is right: there is genuinely nothing to show yet.
-  const latestScan = useMemo(
-    () => mapScans?.find((s) => s.keywords.some((k) => k.solv != null)) ?? null,
-    [mapScans],
-  )
 
   // ── Derived metrics ───────────────────────────────────────────────────────
   const m = useMemo(() => {
@@ -639,7 +649,7 @@ export default function SeoDashboardPage() {
               {/* The promo stands down once the real card is on the page: an
                   offer to "set up" a tool whose results are already above it
                   reads as the dashboard not knowing what the account has. */}
-              {!latestScan && (
+              {!mapScan && (
               <ToolCard
                 id="tool-maps-tracker"
                 title={tTool("mapsTitle")}
@@ -746,7 +756,7 @@ export default function SeoDashboardPage() {
                     a very tall card. Rendered only once a scan has a reading --
                     until then the set-up promo below is what speaks for this tool,
                     and two cards about one untouched tool is one too many. */}
-                {latestScan && <MapsTrackerCard scan={latestScan} loading={false} />}
+                {mapScan && <MapsTrackerCard scan={mapScan} loading={false} />}
                 <PositionTrackingCard
                   projectId={projectId}
                   loading={rowsLoading || statsLoading}

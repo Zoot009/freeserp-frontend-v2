@@ -21,16 +21,20 @@
  */
 
 import { useMemo } from "react"
+import { APIProvider } from "@vis.gl/react-google-maps"
 import { Link } from "@/i18n/navigation"
 import { Widget } from "@/components/dashboard/widget"
 import { Skeleton } from "@/components/ui/skeleton"
 import { rankColor, RANK_BANDS } from "@/components/maps-tracker/grid"
-import type { ScanHistoryItem, ScanHistoryKeyword } from "@/components/maps-tracker/types"
+import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
+import type { Scan, ScanKeyword } from "@/components/maps-tracker/types"
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
 const LIST = "/dashboard/google-maps-tracker"
 
 /** Miles or kilometres, however the scan itself was set up. */
-function radiusLabel(scan: ScanHistoryItem): string {
+function radiusLabel(scan: Scan): string {
   const divisor = scan.displayUnit === "IMPERIAL" ? 1609.344 : 1000
   const unit = scan.displayUnit === "IMPERIAL" ? "mi" : "km"
   return `${(scan.radiusMeters / divisor).toFixed(1)} ${unit}`
@@ -41,13 +45,18 @@ function scanDate(iso: string): string {
 }
 
 /**
- * The grid, one cell per point, at the size the scan was actually run at.
+ * The bare grid — the fallback when there is no Maps key configured.
+ *
+ * It holds the same information as the map, minus where any of it is, so it is
+ * worth having when the map cannot load: a card that renders nothing because an
+ * API key is missing is worse than one that renders the ranks without the
+ * streets they sit on.
  *
  * Ranks are drawn for a 3x3 and a 5x5 and dropped beyond that: past 25 cells
  * the number is smaller than the eye can use in a card this wide, and the
  * colour is carrying the reading anyway.
  */
-function MiniGrid({ keyword, gridSize }: { keyword: ScanHistoryKeyword; gridSize: number }) {
+function MiniGrid({ keyword, gridSize }: { keyword: ScanKeyword; gridSize: number }) {
   const cells = useMemo(() => {
     const byIndex = new Map<string, (typeof keyword.points)[number]>()
     for (const p of keyword.points) byIndex.set(`${p.row}:${p.col}`, p)
@@ -92,8 +101,9 @@ export function MapsTrackerCard({
   scan,
   loading,
 }: {
-  /** The newest completed scan, or null when there is none to show. */
-  scan: ScanHistoryItem | null
+  /** The newest completed scan, in full — the per-point coordinates are what
+   *  put the ranks on a map rather than in a bare grid. */
+  scan: Scan | null
   loading: boolean
 }) {
   // The keyword the business does best on leads the grid. Showing the first
@@ -121,6 +131,19 @@ export function MapsTrackerCard({
 
   const solv = lead.solv
   const running = scan.status === "QUEUED" || scan.status === "RUNNING"
+
+  // One pin per point of the LEAD keyword. The map draws one keyword at a time
+  // for the same reason the grid did: five keywords of pins stacked on one
+  // coordinate is a colour nobody can read back to a rank.
+  const pins: MapPinData[] = lead.points.map((pt) => ({
+    row: pt.row,
+    col: pt.col,
+    lat: pt.latitude,
+    lng: pt.longitude,
+    status: pt.status,
+    rank: pt.rank,
+    pointId: pt.id,
+  }))
   const bandsInUse = RANK_BANDS.filter((b) => lead.points.some((p) => p.status === "SUCCEEDED" && b.test(p.rank)))
 
   return (
@@ -173,7 +196,32 @@ export function MapsTrackerCard({
           </div>
 
           <div className="mt-5">
-            <MiniGrid keyword={lead} gridSize={scan.gridSize} />
+            {/* The ranks where they actually are. A 3x3 of coloured squares
+                says how many points are green; the map says WHICH SIDE of the
+                business is green, and that is the finding somebody acts on --
+                you cannot open a second location on the strength of a square.
+
+                interactive={false}, as on the report: this is a reader's view,
+                not a tool. Clicking through to the full report is the way in. */}
+            {GOOGLE_MAPS_API_KEY ? (
+              <div className="overflow-hidden rounded-lg border" style={{ height: 232 }}>
+                <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+                  <ScanMap
+                    centerLat={scan.centerLat}
+                    centerLng={scan.centerLng}
+                    gridSize={scan.gridSize}
+                    radiusMeters={scan.radiusMeters}
+                    pins={pins}
+                    unit={scan.displayUnit}
+                    interactive={false}
+                    showCenterMarker
+                    defaultZoom={13}
+                  />
+                </APIProvider>
+              </div>
+            ) : (
+              <MiniGrid keyword={lead} gridSize={scan.gridSize} />
+            )}
             {/* Only the bands actually present. A legend listing six colours
                 over a grid using three is a key to a map that does not exist. */}
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
@@ -239,9 +287,4 @@ export function MapsTrackerCard({
       </div>
     </Widget>
   )
-}
-
-/** Exported for the Overview: is there anything worth showing a card for? */
-export function hasScanToShow(scans: ScanHistoryItem[] | null): boolean {
-  return !!scans?.some((s) => s.keywords.some((k) => k.solv != null))
 }
