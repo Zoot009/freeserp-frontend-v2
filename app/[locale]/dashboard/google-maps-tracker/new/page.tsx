@@ -211,13 +211,23 @@ function NewScanBuilder() {
           </Link>
         </div>
 
-        <div className="mt-intro">
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1>{currentLocation && keywords.length > 0 ? "Ready when you are." : "Where do you rank on the map?"}</h1>
-            <p className="mt-lede">
-              Local rank changes street by street. This runs one real Google Maps search from every point on a
-              grid around your business, then shows the shape of your visibility.
-            </p>
+        {/* The same page-h / h1 / .sub heading every other tool uses, and the
+            same wording pattern: the tool's name, then one line saying what it
+            does. This page had its own `mt-intro` at 23px against everyone
+            else's 26px, a question for a title ("Where do you rank on the
+            map?") that changed to "Ready when you are." once a keyword was
+            added, and a two-line paragraph under it.
+
+            A heading that moves is a heading you re-read, and the sentence it
+            replaced was already said twice over -- by the panel directly below
+            and by the map beside it. Its sibling list page at ../page.tsx has
+            been "Google Maps Rank Tracker" + one line all along; this is that. */}
+        <div className="page-h">
+          <div style={{ minWidth: 0 }}>
+            <h1>Google Maps Rank Tracker</h1>
+            <div className="sub">
+              One real Google Maps search from every point on a grid around your business.
+            </div>
           </div>
         </div>
         <ToolContext id="maps-tracker" />
