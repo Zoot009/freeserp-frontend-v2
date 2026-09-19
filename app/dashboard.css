@@ -4289,14 +4289,30 @@
    is a detour from something behind it, and on a first run there is nothing
    behind it.
 
-   Width is capped at a reading measure, not at the dashboard's. Every step is
-   a short column of fields and prose, and a form field stretched to 1400px is
-   harder to fill than one at 720 -- the eye loses the label on its way to the
-   input. */
+   Full page width, like every other card in this dashboard. It was capped at
+   760px to keep a form field near a reading measure, which was the right
+   instinct applied in the wrong place: on a 1900px screen that left two thirds
+   of the page empty beside it, and a card that stops two thirds of the way
+   across reads as unfinished rather than as considered.
+
+   The measure is kept where it actually matters instead -- prose stays at 62ch,
+   and the fields pair up into columns rather than each one stretching the whole
+   way. So the card fills the page and nothing inside it is stretched. */
 .fs-app .llm-wiz {
-  max-width: 760px;
   border: 1px solid var(--border); border-radius: var(--r-md);
   background: var(--bg-elev); overflow: hidden;
+}
+
+/* Two fields abreast. This is what spends the width the max-width used to
+   throw away: a pair of short inputs side by side is both easier to fill than
+   one 1700px input and shorter to scan than two stacked rows. */
+.fs-app .llm-wiz-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px; align-items: start;
+}
+.fs-app .llm-wiz-grid > .wide { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+  .fs-app .llm-wiz-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── The rail ─────────────────────────────────────────────────────────────
@@ -4352,7 +4368,7 @@
 .fs-app .llm-wiz-step[data-state="current"] .llm-wiz-lbl { color: var(--text); font-weight: 600; }
 
 /* ── The body ─────────────────────────────────────────────────────────────── */
-.fs-app .llm-wiz-b { display: flex; flex-direction: column; gap: 18px; padding: 24px 20px 22px; }
+.fs-app .llm-wiz-b { display: flex; flex-direction: column; gap: 18px; padding: 24px 22px 22px; }
 .fs-app .llm-wiz-h {
   margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -0.02em; color: var(--text);
 }
@@ -4431,14 +4447,22 @@
   color: var(--text-soft);
 }
 .fs-app .llm-sugg-note { margin: 0; max-width: 62ch; line-height: 1.5; }
-.fs-app .llm-sugg-list { display: flex; flex-direction: column; gap: 6px; margin-top: 3px; }
+/* Columns that fill whatever width there is, rather than one tall column with
+   the rest of the page beside it. auto-fill with a 360px floor means a narrow
+   screen gets one column and a wide one gets four, without either being told a
+   count -- and a group of four suggestions on a wide screen becomes one row you
+   read across instead of four rows you scroll. */
+.fs-app .llm-sugg-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 6px; margin-top: 3px;
+}
 /* Full width rather than a chip rail: these are sentences, and wrapping them
    into a rail makes the rows different heights and the checkboxes stop lining
    up -- which is the one thing a list of checkboxes has to get right. */
 .fs-app .field label.llm-sugg,
 .fs-app label.llm-sugg {
   display: flex; align-items: flex-start; gap: 10px;
-  width: 100%; padding: 9px 12px;
+  padding: 9px 12px;
 }
 .fs-app .llm-sugg .engine-box { margin-top: 1px; }
 .fs-app .llm-sugg-txt { min-width: 0; font-size: 13px; line-height: 1.45; color: var(--text); }

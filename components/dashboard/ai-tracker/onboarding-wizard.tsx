@@ -350,37 +350,39 @@ export function OnboardingWizard({
               in a sentence.
             </p>
 
-            <div className="field">
-              <label htmlFor="wiz-brand">Brand name</label>
-              <input
-                id="wiz-brand"
-                className="input"
-                value={brandName}
-                onChange={(e) => setBrandName(e.target.value)}
-                placeholder="FreeSERP"
-                maxLength={120}
-                autoFocus
-              />
-              <div className="tiny muted">
-                Written exactly as it appears in prose. We match it as a whole word, so casing and
-                punctuation are handled for you.
+            <div className="llm-wiz-grid">
+              <div className="field">
+                <label htmlFor="wiz-brand">Brand name</label>
+                <input
+                  id="wiz-brand"
+                  className="input"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="FreeSERP"
+                  maxLength={120}
+                  autoFocus
+                />
+                <div className="tiny muted">
+                  Written exactly as it appears in prose. We match it as a whole word, so casing and
+                  punctuation are handled for you.
+                </div>
               </div>
-            </div>
 
-            <div className="field">
-              <label htmlFor="wiz-domain">Domain</label>
-              <input
-                id="wiz-domain"
-                className="input"
-                value={brandDomain}
-                onChange={(e) => setBrandDomain(e.target.value)}
-                placeholder="freeserp.com"
-                maxLength={253}
-              />
-              <div className="tiny muted">
-                Optional, but it is the one name nobody else can use by accident — and it is what
-                separates a <em>citation</em>, where the assistant linked to you, from a passing mention.
-                A brand made of ordinary words (&ldquo;Free SERP&rdquo;) can only be tracked with one.
+              <div className="field">
+                <label htmlFor="wiz-domain">Domain</label>
+                <input
+                  id="wiz-domain"
+                  className="input"
+                  value={brandDomain}
+                  onChange={(e) => setBrandDomain(e.target.value)}
+                  placeholder="freeserp.com"
+                  maxLength={253}
+                />
+                <div className="tiny muted">
+                  Optional, but it is the one name nobody else can use by accident — and it is what
+                  separates a <em>citation</em>, where the assistant linked to you, from a passing mention.
+                  A brand made of ordinary words (&ldquo;Free SERP&rdquo;) can only be tracked with one.
+                </div>
               </div>
             </div>
 
@@ -406,39 +408,44 @@ export function OnboardingWizard({
               gets named in the same answers you do.
             </p>
 
-            <div className="field">
-              <label htmlFor="wiz-cat">What you sell</label>
-              <input
-                id="wiz-cat"
-                className="input"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="rank tracking software"
-                maxLength={80}
-              />
-              <div className="tiny muted">
-                The category a buyer would search, not your positioning line. Used to phrase the
-                suggested questions on the next step — it is not saved to the brand.
+            <div className="llm-wiz-grid">
+              <div className="field">
+                <label htmlFor="wiz-cat">What you sell</label>
+                <input
+                  id="wiz-cat"
+                  className="input"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="rank tracking software"
+                  maxLength={80}
+                />
+                <div className="tiny muted">
+                  The category a buyer would search, not your positioning line. Used to phrase the
+                  suggested questions on the next step — it is not saved to the brand.
+                </div>
               </div>
+
+              <TagField
+                id="wiz-comp"
+                label="Competitors"
+                values={competitors}
+                onChange={setCompetitors}
+                placeholder="Ahrefs, Semrush, Nightwatch"
+                hint="Type a name and press Enter. Each one becomes a head-to-head question on the next step, so three or four is usually enough."
+              />
+
+              {/* Across the foot rather than in a column: this is the field that
+                  collects the most values, and chips wrap better wide than tall. */}
+              <TagField
+                id="wiz-alias"
+                label="Other spellings"
+                values={aliases}
+                onChange={setAliases}
+                placeholder="Free-SERP, FreeSerp"
+                hint="Optional. An assistant that writes your name a way we don't recognise reads as “not mentioned”, which is the one error that makes the whole score wrong."
+                wide
+              />
             </div>
-
-            <TagField
-              id="wiz-comp"
-              label="Competitors"
-              values={competitors}
-              onChange={setCompetitors}
-              placeholder="Ahrefs, Semrush, Nightwatch"
-              hint="Type a name and press Enter. Each one becomes a head-to-head question on the next step, so three or four is usually enough."
-            />
-
-            <TagField
-              id="wiz-alias"
-              label="Other spellings"
-              values={aliases}
-              onChange={setAliases}
-              placeholder="Free-SERP, FreeSerp"
-              hint="Optional. An assistant that writes your name a way we don't recognise reads as “not mentioned”, which is the one error that makes the whole score wrong."
-            />
           </>
         )}
 
@@ -540,41 +547,43 @@ export function OnboardingWizard({
               </div>
             </div>
 
-            <div className="field">
-              <label htmlFor="wiz-samples">Samples per assistant</label>
-              <select
-                id="wiz-samples"
-                className="input"
-                value={samples}
-                onChange={(e) => setSamples(Number(e.target.value))}
-              >
-                {[1, 3, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                    {n === 3 ? " (recommended)" : ""}
-                  </option>
-                ))}
-              </select>
-              <div className="tiny muted">
-                The same question asked twice does not give the same answer. Asking {samples} time
-                {samples === 1 ? "" : "s"} turns a coin-flip into a rate — at 1 the number moves every
-                run and means nothing.
+            <div className="llm-wiz-grid">
+              <div className="field">
+                <label htmlFor="wiz-samples">Samples per assistant</label>
+                <select
+                  id="wiz-samples"
+                  className="input"
+                  value={samples}
+                  onChange={(e) => setSamples(Number(e.target.value))}
+                >
+                  {[1, 3, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                      {n === 3 ? " (recommended)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="tiny muted">
+                  The same question asked twice does not give the same answer. Asking {samples} time
+                  {samples === 1 ? "" : "s"} turns a coin-flip into a rate — at 1 the number moves every
+                  run and means nothing.
+                </div>
               </div>
-            </div>
 
-            <div className="field">
-              <label htmlFor="wiz-freq">Run automatically</label>
-              <Dropdown
-                ariaLabel="Run frequency"
-                value={freq}
-                options={FREQUENCY_OPTIONS}
-                onChange={setFreq}
-                block
-              />
-              <div className="tiny muted">
-                {freq === "off"
-                  ? "You'll run these yourself. A schedule can be turned on per prompt later."
-                  : `${runsPerMonth(Number(freq))} runs a month. AI answers drift slowly — weekly is enough to see a trend without paying for noise.`}
+              <div className="field">
+                <label htmlFor="wiz-freq">Run automatically</label>
+                <Dropdown
+                  ariaLabel="Run frequency"
+                  value={freq}
+                  options={FREQUENCY_OPTIONS}
+                  onChange={setFreq}
+                  block
+                />
+                <div className="tiny muted">
+                  {freq === "off"
+                    ? "You'll run these yourself. A schedule can be turned on per prompt later."
+                    : `${runsPerMonth(Number(freq))} runs a month. AI answers drift slowly — weekly is enough to see a trend without paying for noise.`}
+                </div>
               </div>
             </div>
 
@@ -699,6 +708,8 @@ function TagField({
   hint,
   /** Chips on their own rows -- for full sentences, which do not fit a chip rail. */
   stacked = false,
+  /** Span both columns when the field sits inside .llm-wiz-grid. */
+  wide = false,
 }: {
   id: string
   label: string
@@ -707,6 +718,7 @@ function TagField({
   placeholder?: string
   hint?: string
   stacked?: boolean
+  wide?: boolean
 }) {
   const [draft, setDraft] = useState("")
 
@@ -721,7 +733,7 @@ function TagField({
   }
 
   return (
-    <div className="field">
+    <div className={"field" + (wide ? " wide" : "")}>
       <label htmlFor={id}>{label}</label>
       <div className={"llm-tags" + (stacked ? " stacked" : "")}>
         {values.map((v) => (
