@@ -123,19 +123,37 @@ export function MapsTrackerCard({ scan }: { scan: ScanHistoryItem }) {
     return scored.reduce((b, k) => ((k.solv ?? 0) > (b.solv ?? 0) ? k : b))
   }, [scan])
 
-  // Points per band, in band order, dropping the bands this grid never reached:
-  // a key listing six colours over a bar using three describes a chart that is
-  // not on the screen.
-  const bands = useMemo(() => {
-    if (!lead) return []
-    const counted = RANK_BANDS.map((b) => ({
-      key: b.key,
-      label: b.label,
-      color: b.color,
-      count: lead.points.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
-    })).filter((b) => b.count > 0)
-    const total = counted.reduce((s, b) => s + b.count, 0)
-    return counted.map((b) => ({ ...b, pct: total ? (b.count / total) * 100 : 0 }))
+  /**
+   * How much of the grid this keyword holds, band by band.
+   *
+   * NOT-FOUND IS NOT A SEGMENT. It was, in the band's own #7F1D1D, and on a
+   * business ranking nowhere that is eight ninths of the bar -- the loudest
+   * colour in the palette used to draw the absence of a result. The ranked
+   * points fill from the left and the rest stays empty track, so a keyword
+   * holding one point in nine looks like one point in nine.
+   *
+   * Bands with no points are dropped as well: a key listing six colours over a
+   * bar using two describes a chart that is not on the screen.
+   */
+  const shape = useMemo(() => {
+    if (!lead) return null
+    // A FAILED point is our error, not a finding about the business, so it is
+    // out of the denominator rather than counted as a miss.
+    const scored = lead.points.filter((p) => p.status === "SUCCEEDED")
+    if (scored.length === 0) return null
+
+    const bands = RANK_BANDS.filter((b) => b.key !== "none")
+      .map((b) => ({
+        key: b.key,
+        label: b.label,
+        color: b.color,
+        count: scored.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
+      }))
+      .filter((b) => b.count > 0)
+      .map((b) => ({ ...b, pct: (b.count / scored.length) * 100 }))
+
+    const ranked = bands.reduce((sum, b) => sum + b.count, 0)
+    return { bands, missing: scored.length - ranked }
   }, [lead])
 
   const lean = useMemo(() => (lead ? leaning(lead.points, scan.gridSize) : null), [lead, scan.gridSize])
@@ -185,10 +203,12 @@ export function MapsTrackerCard({ scan }: { scan: ScanHistoryItem }) {
             <span className="text-[13px] text-muted-foreground">of {lead.scoredPoints} points</span>
           </div>
 
-          {/* The grid's shape in one line: how much of the area sits in which
-              band. This is what the map was really being read for. */}
-          <div className="mt-3.5 flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
-            {bands.map((b) => (
+          {/* How much of the area is held, and at what rank. The empty
+              remainder is the not-found share -- drawn as absence rather than
+              as a colour, because it is the majority on a weak grid and a
+              majority of #7F1D1D is all anyone would see. */}
+          <div className="mt-3.5 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            {shape?.bands.map((b) => (
               <span
                 key={b.key}
                 style={{ width: `${b.pct}%`, background: b.color }}
@@ -196,13 +216,17 @@ export function MapsTrackerCard({ scan }: { scan: ScanHistoryItem }) {
               />
             ))}
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1.5 text-[11px] text-muted-foreground">
-            {bands.map((b) => (
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] text-muted-foreground">
+            {shape?.bands.map((b) => (
               <span key={b.key} className="inline-flex items-center gap-1.5">
                 <i className="size-2.5 shrink-0 rounded-[3px]" style={{ background: b.color }} />
                 {b.label} <span className="tabular-nums">{b.count}</span>
               </span>
             ))}
+            {/* No swatch: there is nothing on the bar to key it to. */}
+            {!!shape?.missing && (
+              <span className="tabular-nums">{shape.missing} not found</span>
+            )}
           </div>
 
           {lean && (

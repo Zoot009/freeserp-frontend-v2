@@ -262,18 +262,23 @@
 
 /* Same footprint whatever the grid size — the cells divide the box rather
    than each being a fixed size, so the column never goes ragged. */
-/* The rank-band distribution, one bar per scan row. Fixed width on purpose:
-   identical bars are what let two runs be compared straight down the column. */
+/* How much of the grid a keyword holds. Fixed width on purpose: identical
+   tracks are what let two runs be compared straight down the column.
+
+   6px rather than 10px, because at 10px a filled bar reads as a badge -- a
+   thing with a status -- instead of a measurement. The empty remainder is
+   the not-found share, which is why the track is a plain inset and not a
+   colour: absence should recede, and #7F1D1D does the opposite. */
 .fs-app .mt-bands {
-  display: flex; width: 72px; height: 10px;
-  border-radius: 999px; overflow: hidden;
+  display: flex; width: 72px; height: 6px;
+  border-radius: 3px; overflow: hidden;
   background: var(--bg-inset);
 }
 .fs-app .mt-bands span { display: block; height: 100%; }
-/* Holds the column open for a scan with no distribution to show, without
-   drawing a filled bar that reads as a result. */
+/* Holds the column open for a scan that never ran, without drawing a track
+   that reads as a measured zero. */
 .fs-app .mt-mini-none {
-  display: block; width: 72px; height: 10px; border-radius: 999px;
+  display: block; width: 72px; height: 6px; border-radius: 3px;
   border: 1px dashed var(--border-strong);
 }
 

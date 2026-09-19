@@ -10,37 +10,56 @@ const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === 
 const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUNNING"
 
 /**
- * How a scan's points fall across the rank bands, as one bar.
+ * How much of the grid a keyword actually holds, as one bar.
  *
- * This replaced a miniature of the grid itself. At 52px a 3 × 3 was three fat
- * squares of flat colour and a 21 × 21 was speckle, so neither end of the range
- * actually showed a shape — a column of them read as mud rather than as data.
+ * Every bar is the same width, so two runs compare by eye straight down the
+ * column — which is the question this screen exists to answer, and the thing a
+ * 52px thumbnail of the grid could never do at either end of its range (three
+ * fat squares at 3 × 3, speckle at 21 × 21).
  *
- * A bar does the thing a thumbnail grid could never do in a LIST: every bar is
- * the same width, so two scans compare by eye straight down the column. That is
- * the question this screen exists to answer — is this run better or worse than
- * that one — and it is the same bar the Overview card draws, so "the shape of a
- * scan" looks the same everywhere it appears.
+ * NOT-FOUND IS NOT DRAWN. It was, in the band's own #7F1D1D, and on a business
+ * ranking nowhere that is eight ninths of the bar — every row came out a heavy
+ * red pill and the list read worse than the thumbnails it replaced. Absence is
+ * not a colour: the ranked points fill from the left and the rest stays empty
+ * track, so a keyword holding one point in nine LOOKS like one point in nine.
+ * Weak scans go quiet and strong ones fill up, which is the right way round.
  *
  * What is given up is WHERE in the grid the strength sits. That was already
  * unreadable at this size, and the report one click away draws it properly.
  */
 function MiniBands({ keyword }: { keyword: ScanHistoryKeyword }) {
-  const bands = RANK_BANDS.map((b) => ({
-    key: b.key,
-    label: b.label,
-    color: b.color,
-    count: keyword.points.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
-  })).filter((b) => b.count > 0)
+  // Only points the search actually reached. A FAILED point is our error, not
+  // a finding about the business, so it is out of the denominator entirely.
+  const scored = keyword.points.filter((p) => p.status === "SUCCEEDED")
+  if (scored.length === 0) return <span className="mt-mini-none" aria-hidden />
 
-  const total = bands.reduce((sum, b) => sum + b.count, 0)
-  // Every point failed, or none ran. Nothing to draw a distribution of.
-  if (!total) return <span className="mt-mini-none" aria-hidden />
+  // Ranked bands only, in band order. `none` is deliberately absent: it is the
+  // empty remainder of the track, not a segment.
+  const bands = RANK_BANDS.filter((b) => b.key !== "none")
+    .map((b) => ({
+      key: b.key,
+      label: b.label,
+      color: b.color,
+      count: scored.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
+    }))
+    .filter((b) => b.count > 0)
+
+  const ranked = bands.reduce((sum, b) => sum + b.count, 0)
+  const missing = scored.length - ranked
+  const title = [
+    ...bands.map((b) => `${b.label}: ${b.count}`),
+    missing > 0 ? `Not found: ${missing}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 
   return (
-    <span className="mt-bands" title={bands.map((b) => `${b.label}: ${b.count}`).join(" · ")}>
+    <span className="mt-bands" title={title}>
       {bands.map((b) => (
-        <span key={b.key} style={{ width: `${(b.count / total) * 100}%`, background: b.color }} />
+        <span
+          key={b.key}
+          style={{ width: `${(b.count / scored.length) * 100}%`, background: b.color }}
+        />
       ))}
     </span>
   )
