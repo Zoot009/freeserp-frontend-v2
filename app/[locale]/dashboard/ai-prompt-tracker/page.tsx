@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
+import { OnboardingWizard } from "@/components/dashboard/ai-tracker/onboarding-wizard"
 import type { Platform } from "@/lib/ai-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects) ─────────────────────────────
@@ -104,21 +105,34 @@ export default function LlmPromptsPage() {
     )
   }
 
+  // With nothing tracked, setup IS the page. The old first screen was an empty
+  // state whose only action opened a modal -- one click and one dialog between
+  // a new account and the thing it came here for, and the empty state said
+  // nothing the wizard's own first step does not say better.
+  const firstRun = projects.length === 0
+  const setupOpen = firstRun || showAdd
+
   return (
     <div className="page">
       <div className="page-h">
         <div>
           <h1>AI Prompt Tracker</h1>
           <div className="tiny muted">
-            Ask the AI platforms what your buyers ask, and track whether you get named.
+            {setupOpen
+              ? "Four steps: your brand, your market, the questions, then who we ask."
+              : "Ask the AI platforms what your buyers ask, and track whether you get named."}
           </div>
         </div>
-        <button className="btn primary" onClick={() => setShowAdd(true)}>
-          <Icon.plus /> New brand
-        </button>
+        {!setupOpen && (
+          <button className="btn primary" onClick={() => setShowAdd(true)}>
+            <Icon.plus /> New brand
+          </button>
+        )}
       </div>
 
-      <ToolContext id="ai-prompt-tracker" />
+      {/* Not while setting up: the wizard explains the tool a step at a time, and
+          a second explainer above it competes with the step the reader is on. */}
+      {!setupOpen && <ToolContext id="ai-prompt-tracker" />}
 
       {error && (
         <div className="card" style={{ padding: 16, marginBottom: 16, color: "var(--neg)", fontSize: 13 }}>
@@ -126,21 +140,9 @@ export default function LlmPromptsPage() {
         </div>
       )}
 
-      {projects.length === 0 ? (
-        <div className="llm-empty">
-          <div className="eyebrow">
-            <span className="spark">
-              <Icon.spark />
-            </span>{" "}
-            Nothing tracked yet
-          </div>
-          <div className="b" style={{ margin: "8px 0 14px" }}>
-            Add a brand, then the questions your buyers actually ask AI.
-          </div>
-          <button className="btn primary" onClick={() => setShowAdd(true)}>
-            <Icon.plus /> New brand
-          </button>
-        </div>
+      {setupOpen ? (
+        // No Cancel on a first run -- there is nothing behind it to go back to.
+        <OnboardingWizard onCancel={firstRun ? undefined : () => setShowAdd(false)} />
       ) : (
         // Rows, not a three-column card grid. Most accounts track one or two
         // brands, and a fixed three-track grid gave a single brand a card a
@@ -176,168 +178,6 @@ export default function LlmPromptsPage() {
         </div>
       )}
 
-      {showAdd && (
-        <AddProjectModal
-          onClose={() => setShowAdd(false)}
-          onCreated={(p) => {
-            setShowAdd(false)
-            // ?new=1 opens the add-prompts modal straight away — a brand with no
-            // prompts does nothing, so don't make them find the button.
-            router.push(`/dashboard/ai-prompt-tracker/${p.id}?new=1`)
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-/** Comma or newline separated free text → a deduped, trimmed list. */
-function parseList(raw: string): string[] {
-  return Array.from(
-    new Set(
-      raw
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-  )
-}
-
-function AddProjectModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void
-  onCreated: (p: ProjectSummary) => void
-}) {
-  const [name, setName] = useState("")
-  const [brandName, setBrandName] = useState("")
-  const [brandDomain, setBrandDomain] = useState("")
-  const [aliasesRaw, setAliasesRaw] = useState("")
-  const [competitorsRaw, setCompetitorsRaw] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-    try {
-      const data = await api.post<ProjectSummary>("/api/llm-tracker/projects", {
-        name: name.trim(),
-        brandName: brandName.trim(),
-        ...(brandDomain.trim() ? { brandDomain: brandDomain.trim() } : {}),
-        brandAliases: parseList(aliasesRaw),
-        competitorNames: parseList(competitorsRaw),
-      })
-      onCreated(data)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create brand")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-h">
-          <div className="t">New brand</div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            <Icon.close />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div className="field">
-              <label htmlFor="llm-name">Project name</label>
-              <input
-                id="llm-name"
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My brand"
-                required
-                maxLength={120}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="llm-brand">Brand name</label>
-              <input
-                id="llm-brand"
-                className="input"
-                value={brandName}
-                onChange={(e) => setBrandName(e.target.value)}
-                placeholder="FreeSERP"
-                required
-                maxLength={120}
-              />
-              <div className="tiny muted" style={{ marginTop: 6 }}>
-                Exactly how the brand is written. We match it as a whole word, so
-                punctuation and casing are handled for you. A name made only of
-                ordinary words (&ldquo;Free SERP&rdquo;) can&rsquo;t be told apart
-                from an answer that just uses those words &mdash; add the domain
-                below and we&rsquo;ll match on that instead.
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="llm-domain">Domain (optional)</label>
-              <input
-                id="llm-domain"
-                className="input"
-                value={brandDomain}
-                onChange={(e) => setBrandDomain(e.target.value)}
-                placeholder="freeserp.com"
-                maxLength={253}
-              />
-              <div className="tiny muted" style={{ marginTop: 6 }}>
-                Used to tell a <em>citation</em> (AI linked to you) from a plain
-                mention, and matched in the answer text too &mdash; a domain is the
-                one name nobody else can use by accident. Subdomains count.
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="llm-aliases">Other names (optional)</label>
-              <textarea
-                id="llm-aliases"
-                className="input"
-                rows={2}
-                value={aliasesRaw}
-                onChange={(e) => setAliasesRaw(e.target.value)}
-                placeholder="FreeSERP, Free-SERP"
-              />
-              <div className="tiny muted" style={{ marginTop: 6 }}>
-                One per line or comma separated. Add spellings the AI might use — a
-                missed alias reads as &ldquo;not mentioned&rdquo;. Aliases that are
-                just common words are ignored, for the same reason as above.
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="llm-competitors">Competitors (optional)</label>
-              <textarea
-                id="llm-competitors"
-                className="input"
-                rows={2}
-                value={competitorsRaw}
-                onChange={(e) => setCompetitorsRaw(e.target.value)}
-                placeholder="Ahrefs, Semrush, Nightwatch"
-              />
-              <div className="tiny muted" style={{ marginTop: 6 }}>
-                Scored as share of voice — who gets named in the same answers.
-              </div>
-            </div>
-            {error && <div className="tiny" style={{ color: "var(--neg)" }}>{error}</div>}
-          </div>
-          <div className="modal-f">
-            <button type="button" className="btn" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn primary" disabled={loading || !name.trim() || !brandName.trim()}>
-              {loading ? "Creating…" : "Create brand"}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   )
 }

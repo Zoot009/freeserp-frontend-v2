@@ -4275,3 +4275,212 @@
 @media (prefers-reduced-motion: reduce) {
   .fs-app .kd-finding-bar > span { animation: none; width: 100%; opacity: 0.5; }
 }
+
+
+/* NOTE ON POSITION: this block sits at the END of the file on purpose. Several
+   rules below reuse .engine-card, whose own rules are declared further up and
+   match at identical specificity -- so the wizard's overrides only win by
+   coming later. Moving this block up silently restores the card padding and
+   inline-flex the prompt rows are overriding. */
+
+/* ── Setup wizard (AI Prompt Tracker) ─────────────────────────────────────
+   The tool's front door. Four steps rather than one modal, so it is a PAGE:
+   modal width, modal shadow and a dimmed backdrop would all be claiming this
+   is a detour from something behind it, and on a first run there is nothing
+   behind it.
+
+   Width is capped at a reading measure, not at the dashboard's. Every step is
+   a short column of fields and prose, and a form field stretched to 1400px is
+   harder to fill than one at 720 -- the eye loses the label on its way to the
+   input. */
+.fs-app .llm-wiz {
+  max-width: 760px;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--bg-elev); overflow: hidden;
+}
+
+/* ── The rail ─────────────────────────────────────────────────────────────
+   Four steps named, not "Step 2 of 4". The names are the only thing that tells
+   a new user what the next three screens will ask for, which is most of what
+   makes a wizard feel finite rather than open-ended. */
+.fs-app .llm-wiz-rail {
+  display: flex; align-items: center; gap: 8px;
+  list-style: none; margin: 0; padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sub);
+}
+.fs-app .llm-wiz-crumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The connector grows; the steps themselves do not, so the labels stay put as
+   the container widens instead of drifting apart. */
+.fs-app .llm-wiz-crumb:not(:last-child) { flex: 1; }
+.fs-app .llm-wiz-bar { flex: 1; height: 1px; min-width: 12px; background: var(--border-strong); }
+
+.fs-app .llm-wiz-step {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: 0; padding: 2px; margin: 0;
+  font: inherit; cursor: pointer; white-space: nowrap;
+  border-radius: 6px;
+}
+/* A step ahead of you is not a disabled control the browser should grey out --
+   it is simply not reachable yet, and the dot already says so. Full opacity,
+   default cursor. */
+.fs-app .llm-wiz-step:disabled { cursor: default; opacity: 1; }
+.fs-app .llm-wiz-step:not(:disabled):hover .llm-wiz-lbl { color: var(--text); }
+.fs-app .llm-wiz-step:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.fs-app .llm-wiz-dot {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-mute); background: var(--bg);
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.fs-app .llm-wiz-lbl {
+  font-size: 12.5px; font-weight: 500; color: var(--text-mute);
+  transition: color .14s ease;
+}
+/* Done is brand-on-soft, current is white-on-brand: the step you are on is the
+   only filled dot on the rail, so it is findable without reading anything. */
+.fs-app .llm-wiz-step[data-state="done"] .llm-wiz-dot {
+  background: var(--brand-soft); border-color: var(--brand-soft); color: var(--brand);
+}
+.fs-app .llm-wiz-step[data-state="done"] .llm-wiz-lbl { color: var(--text-soft); }
+.fs-app .llm-wiz-step[data-state="current"] .llm-wiz-dot {
+  background: var(--brand); border-color: var(--brand); color: #fff;
+}
+.fs-app .llm-wiz-step[data-state="current"] .llm-wiz-lbl { color: var(--text); font-weight: 600; }
+
+/* ── The body ─────────────────────────────────────────────────────────────── */
+.fs-app .llm-wiz-b { display: flex; flex-direction: column; gap: 18px; padding: 24px 20px 22px; }
+.fs-app .llm-wiz-h {
+  margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -0.02em; color: var(--text);
+}
+/* Pulled tight under the heading: they are one unit, and the flex gap above
+   would otherwise space them like two separate blocks. */
+.fs-app .llm-wiz-h + .llm-wiz-sub { margin-top: -12px; }
+.fs-app .llm-wiz-sub {
+  margin: 0; max-width: 62ch;
+  font-size: 13px; line-height: 1.55; color: var(--text-soft);
+}
+
+/* The three things a new user is actually worried about, answered before they
+   are asked: what it costs, how long it takes, whether it is reversible. */
+.fs-app .llm-wiz-notes {
+  display: flex; flex-wrap: wrap; gap: 8px 20px;
+  list-style: none; margin: 2px 0 0; padding: 0;
+}
+.fs-app .llm-wiz-notes li {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-mute);
+}
+/* Sized here rather than per-icon: three of the four glyphs in this set take
+   no size prop, so a prop would have made them three different sizes. */
+.fs-app .llm-wiz-notes svg { width: 13px; height: 13px; color: var(--brand); flex-shrink: 0; }
+
+.fs-app .llm-wiz-err {
+  padding: 11px 13px; border-radius: var(--r-sm);
+  border: 1px solid var(--neg); background: var(--neg-soft);
+  font-size: 12.5px; line-height: 1.5; color: var(--neg);
+}
+
+/* ── Chip input ───────────────────────────────────────────────────────────
+   Looks like .input and behaves like one -- the border, radius and focus ring
+   are the field's, not the text box's inside it, so the whole thing reads as a
+   single control rather than chips sitting next to an input. */
+.fs-app .llm-tags {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-height: 38px; padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+  transition: border-color .14s ease, box-shadow .14s ease;
+}
+.fs-app .llm-tags:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+/* Full sentences do not fit on a chip rail, so the questions field stacks. */
+.fs-app .llm-tags.stacked { flex-direction: column; align-items: stretch; }
+.fs-app .llm-tags.stacked .llm-tag { justify-content: space-between; }
+
+.fs-app .llm-tag {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  padding: 3px 4px 3px 9px; border-radius: 6px;
+  background: var(--brand-soft); color: var(--brand-deep);
+  font-size: 12.5px; font-weight: 500;
+}
+.fs-app .llm-tag-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .llm-tag-x {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 17px; height: 17px; padding: 0; border: 0; border-radius: 4px;
+  background: transparent; color: inherit; cursor: pointer; opacity: 0.6;
+}
+.fs-app .llm-tag-x:hover { opacity: 1; background: rgba(0, 0, 0, 0.06); }
+.fs-app .llm-tag-x svg { width: 11px; height: 11px; }
+.fs-app .llm-tag-in {
+  flex: 1; min-width: 140px;
+  border: 0; outline: none; background: transparent;
+  padding: 3px 2px; font: inherit; font-size: 13px; color: var(--text);
+}
+.fs-app .llm-tag-in::placeholder { color: var(--text-mute); }
+
+/* ── Suggested prompts ────────────────────────────────────────────────────
+   Grouped by the moment in a buying decision each question belongs to, because
+   a brand can be winning one group and invisible in another -- which is the
+   finding this tool exists to produce, and a flat list of fifteen hides it. */
+.fs-app .llm-sugg-group { display: flex; flex-direction: column; gap: 7px; }
+.fs-app .llm-sugg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.fs-app .llm-sugg-name {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-soft);
+}
+.fs-app .llm-sugg-note { margin: 0; max-width: 62ch; line-height: 1.5; }
+.fs-app .llm-sugg-list { display: flex; flex-direction: column; gap: 6px; margin-top: 3px; }
+/* Full width rather than a chip rail: these are sentences, and wrapping them
+   into a rail makes the rows different heights and the checkboxes stop lining
+   up -- which is the one thing a list of checkboxes has to get right. */
+.fs-app .field label.llm-sugg,
+.fs-app label.llm-sugg {
+  display: flex; align-items: flex-start; gap: 10px;
+  width: 100%; padding: 9px 12px;
+}
+.fs-app .llm-sugg .engine-box { margin-top: 1px; }
+.fs-app .llm-sugg-txt { min-width: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
+
+/* ── Assistants ───────────────────────────────────────────────────────────── */
+.fs-app .field label.llm-wiz-eng { align-items: flex-start; padding: 10px 13px; }
+.fs-app .llm-wiz-eng-id { display: flex; flex-direction: column; gap: 1px; line-height: 1.3; }
+
+/* ── The bill ─────────────────────────────────────────────────────────────
+   Two lines, and they are different claims: the first is arithmetic the reader
+   can check, the second is money. Keeping them in one box, in that order, is
+   what makes the price feel derived rather than asserted. */
+.fs-app .llm-wiz-sum {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 13px 15px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--bg-sub);
+}
+.fs-app .llm-wiz-sum-line { font-size: 13px; color: var(--text-soft); }
+.fs-app .llm-wiz-sum-line strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.fs-app .llm-wiz-cost { font-size: 12.5px; line-height: 1.5; color: var(--text-mute); }
+.fs-app .llm-wiz-cost strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.fs-app .llm-wiz-cost[data-short="true"],
+.fs-app .llm-wiz-cost[data-short="true"] strong { color: var(--warn); }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.fs-app .llm-wiz-f {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 13px 20px;
+  border-top: 1px solid var(--border); background: var(--bg-sub);
+}
+.fs-app .llm-wiz-f-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fs-app .llm-wiz-saved { display: inline-flex; align-items: center; gap: 5px; }
+.fs-app .llm-wiz-saved svg { color: var(--pos); flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  /* The labels are what make the rail worth its height, but four of them plus
+     three connectors do not fit a phone. Keep the current one -- which is the
+     only one that answers "where am I" -- and let the rest be dots. */
+  .fs-app .llm-wiz-rail { padding: 12px 14px; }
+  .fs-app .llm-wiz-step:not([data-state="current"]) .llm-wiz-lbl { display: none; }
+  .fs-app .llm-wiz-b { padding: 20px 14px; }
+  .fs-app .llm-wiz-f { padding: 12px 14px; }
+  .fs-app .llm-wiz-f .row { width: 100%; }
+  .fs-app .llm-wiz-f .row .btn { flex: 1; justify-content: center; }
+}
