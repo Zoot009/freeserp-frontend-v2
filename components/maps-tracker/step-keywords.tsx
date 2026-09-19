@@ -76,25 +76,35 @@ export function KeywordsStep({
         // .row is a flex row with no wrapping, so a third keyword ran off the
         // side of the rail and the rest were unreachable — the remove buttons
         // with them.
-        <div className="row" style={{ gap: 5, marginTop: 10, flexWrap: "wrap" }}>
+        <div className="row" style={{ gap: 5, marginTop: 10, flexWrap: "wrap", minWidth: 0 }}>
           {keywords.map((k, i) => (
             <span
               key={k}
               className="chip"
               style={{
                 gap: 6,
+                // .chip is white-space:nowrap with no ceiling, so a long
+                // keyword became a chip wider than the rail. Capped here and
+                // not on .chip, which is shared with marks that are two
+                // characters wide and must never be clipped.
+                maxWidth: "100%",
+                minWidth: 0,
                 // A duplicate isn't an error, it's already done — point at the
                 // chip that has it instead of showing a message.
                 outline: flashIndex === i ? "2px solid var(--brand)" : undefined,
                 transition: "outline-color .2s ease",
               }}
             >
-              {k}
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={k}>
+                {k}
+              </span>
               <button
                 type="button"
                 onClick={() => onChange(keywords.filter((_, idx) => idx !== i))}
                 aria-label={`Remove ${k}`}
-                style={{ border: "none", background: "none", padding: 0, color: "inherit", display: "inline-flex", cursor: "pointer" }}
+                // flex:none, or the button is what gets squeezed out of a
+                // truncated chip and the keyword becomes unremovable.
+                style={{ border: "none", background: "none", padding: 0, color: "inherit", display: "inline-flex", cursor: "pointer", flex: "none" }}
               >
                 <Icon.close />
               </button>

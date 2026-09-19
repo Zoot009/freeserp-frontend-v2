@@ -46,7 +46,13 @@
 .fs-app .mt-rail {
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: 8px; align-self: start;
+  /* A grid item defaults to min-width:auto, so anything inside with a wider
+     min-content -- a long address, a long keyword -- pushes the rail past its
+     352px track and out of the panel. Children truncate individually; this is
+     the backstop so one that does not cannot drag the whole column with it. */
+  min-width: 0;
 }
+.fs-app .mt-step { min-width: 0; }
 .fs-app .mt-step { padding: 14px; border-radius: var(--r-md); }
 .fs-app .mt-step + .mt-step { border-top: 1px solid var(--mt-line-soft); }
 /* Several steps are open at once, so the tint can't just mean "expanded" or

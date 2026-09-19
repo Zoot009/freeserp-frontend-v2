@@ -172,9 +172,24 @@ export function BusinessStep({
                     style={{ flex: 1, textAlign: "left", minWidth: 0 }}
                     onClick={() => onSelect(l)}
                   >
-                    <span style={{ display: "block", minWidth: 0 }}>
-                      <span style={{ display: "block", fontWeight: 500 }}>{l.name}</span>
-                      <span className="tiny muted" style={{ display: "block" }}>{sub ?? l.address}</span>
+                    <span style={{ display: "block", minWidth: 0, overflow: "hidden" }}>
+                      {/* .dd-item is white-space:nowrap, so these need the
+                          ellipsis themselves -- a shop address is long enough
+                          to leave the rail on almost every listing. The full
+                          text stays available on hover. */}
+                      <span
+                        style={{ display: "block", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis" }}
+                        title={l.name}
+                      >
+                        {l.name}
+                      </span>
+                      <span
+                        className="tiny muted"
+                        style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis" }}
+                        title={sub ?? l.address}
+                      >
+                        {sub ?? l.address}
+                      </span>
                     </span>
                   </button>
                   <button
