@@ -27,7 +27,14 @@ import { Link } from "@/i18n/navigation"
 import { Plus } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { HiddenWidgets, WidgetProvider, useWidgets, type WidgetDef } from "@/components/dashboard/widget"
+import {
+  HiddenWidgets,
+  WidgetProvider,
+  useWidgetHidden,
+  useWidgets,
+  type WidgetDef,
+} from "@/components/dashboard/widget"
+import { cn } from "@/lib/utils"
 import { DashboardGridSkeleton } from "@/components/dashboard/shell-skeleton"
 import { ProjectSwitcher } from "@/components/dashboard/project-switcher"
 import { SiteCrawlCard } from "@/components/dashboard/site-crawl-card"
@@ -212,6 +219,34 @@ function DashboardFooter({ refreshed }: { refreshed: string | null }) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+
+/**
+ * The two main columns, with the second one only there when it holds cards.
+ *
+ * Both narrow-column widgets are dismissable, and with both gone the grid kept
+ * a 1fr track of nothing beside the wide one -- a third of the page reserved
+ * for cards the reader had explicitly removed.
+ *
+ * Its own component because useWidgetHidden reads the WidgetProvider's context
+ * and the page itself RENDERS that provider: a hook called up there would be
+ * asking a context it is standing outside of.
+ */
+function MainColumns({ wide, narrow }: { wide: React.ReactNode; narrow: React.ReactNode }) {
+  const narrowEmpty = useWidgetHidden("site-crawl") && useWidgetHidden("keyword-movement")
+  return (
+    <div
+      className={cn(
+        "grid items-start gap-4",
+        narrowEmpty ? "lg:grid-cols-1" : "lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]",
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-4">{wide}</div>
+      {/* Dropped entirely rather than left empty: a flex column with no
+          children still contributes the grid's gap. */}
+      {!narrowEmpty && <div className="flex min-w-0 flex-col gap-4">{narrow}</div>}
+    </div>
+  )
+}
 
 export default function SeoDashboardPage() {
   const t = useTranslations("dashOverview.page")
@@ -638,7 +673,20 @@ export default function SeoDashboardPage() {
                 wants the AI prompt nudge can drop just that one and keep the
                 rest. "Your tools" at the foot of the page is the full list;
                 these six are the ones worth interrupting for. */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {/* Flex-wrap, not a grid with a fixed column count.
+
+                A grid reserves its cells whether or not anything is in them, so
+                the moment the number of cards stopped dividing by three -- one
+                dismissed with its x, one removed from the code -- the last row
+                kept two empty thirds of the page beside a single card. Every
+                card here is dismissable, so that is not an edge case, it is the
+                normal state after a week of use.
+
+                With flex-wrap the cards on the final row grow to share whatever
+                is left, so the block ends flush at any count: five wraps 3 + 2
+                at half each, four wraps 3 + 1 full width, and dismissing one
+                reflows the rest instead of leaving a hole where it was. */}
+            <div className="flex flex-wrap gap-4">
               {/* The promo stands down once the real card is on the page: an
                   offer to "set up" a tool whose results are already above it
                   reads as the dashboard not knowing what the account has. */}
@@ -733,9 +781,9 @@ export default function SeoDashboardPage() {
               longer line up card-for-card, which is the point — nothing waits on
               a neighbour it has no relationship to.
             */}
-            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
-              {/* Wide column. */}
-              <div className="flex min-w-0 flex-col gap-4">
+            <MainColumns
+              wide={
+                <>
                 {/* Wide column, not narrow: the grid and the keyword table sit
                     side by side, and at the narrow column's width they stack into
                     a very tall card. Rendered only once a scan has a reading --
@@ -760,11 +808,10 @@ export default function SeoDashboardPage() {
                   scope={m.scope}
                   keywords={m.topKeywords}
                 />
-              </div>
-
-              {/* Narrow column. Both cards render their own <Widget>, so hiding
-                  one just drops it out of the stack and the other moves up. */}
-              <div className="flex min-w-0 flex-col gap-4">
+                </>
+              }
+              narrow={
+                <>
                 <SiteCrawlCard projectId={projectId} />
                 <KeywordMovementCard
                   projectId={projectId}
@@ -776,8 +823,9 @@ export default function SeoDashboardPage() {
                   tracked={m.tracked}
                   rangeLabel={t(RANGE_LABEL_KEY[range])}
                 />
-              </div>
-            </div>
+                </>
+              }
+            />
 
             {/* Full width, below both columns. A time series is the one thing on
                 this page that gets genuinely better with horizontal room: in the

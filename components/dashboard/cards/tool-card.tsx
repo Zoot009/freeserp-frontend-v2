@@ -44,9 +44,11 @@ export function ToolCard({ id, title, description, href, cta, hint, points, stat
       id={id}
       title={title}
       hint={hint}
-      // h-full so the card fills its (now equal-height) grid cell rather than
-      // shrinking to its text.
-      className="h-full [&>div:first-child]:px-3.5 [&>div:first-child]:py-2.5 [&_h2]:text-[13.5px]"
+      // basis-[320px] is the wrap point, grow lets the last row share out what
+      // is left rather than leaving a hole, and min-w-0 stops a long title from
+      // holding a card wider than its share. h-full keeps the cards on a row
+      // the same height as each other rather than each shrinking to its text.
+      className="h-full min-w-0 flex-1 basis-[320px] [&>div:first-child]:px-3.5 [&>div:first-child]:py-2.5 [&_h2]:text-[13.5px]"
       bodyClassName="flex flex-1 flex-col gap-3 p-3.5 pt-3"
     >
       <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
