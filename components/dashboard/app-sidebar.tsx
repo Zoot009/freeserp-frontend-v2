@@ -85,6 +85,18 @@ const MAPS: Item[] = [
 // alphabetically and not in the backend's array order: a nav list is read, not
 // iterated, and the one most people came to check belongs at the top of it.
 const AI_PLATFORMS: Item[] = [
+  // The way back to all four at once. /dashboard/ai-prompt-tracker already
+  // lists every brand with its score on each assistant -- the cross-assistant
+  // view this group otherwise has no entrance to. Its nav entry was dropped
+  // when the four platform pages were added, which left the hub reachable
+  // only from buttons INSIDE those pages: you had to already be somewhere to
+  // get to the thing that shows you everywhere.
+  //
+  // Named "All Assistants", not "AI Overview". AI Overview is Google's SERP
+  // feature and already means that in this product -- a column on the keyword
+  // table, a tab on the keyword page, a band on the maps grid. Two different
+  // things under one name in one sidebar is a bug waiting to be reported.
+  { key: "aiAllAssistants", url: "/dashboard/ai-prompt-tracker", icon: LayoutDashboard },
   { key: "platformChatgpt", url: "/dashboard/ai-platforms/chatgpt", icon: ChatGptMarkIcon },
   { key: "platformGemini", url: "/dashboard/ai-platforms/gemini", icon: GeminiMarkIcon },
   { key: "platformClaude", url: "/dashboard/ai-platforms/claude", icon: ClaudeMarkIcon },

@@ -162,7 +162,6 @@ function useWidgetDefs(): WidgetDef[] {
       { id: "keyword-movement", label: t("widgetKeywordMovement") },
       { id: "tool-maps-tracker", label: tt("mapsTitle") },
       { id: "tool-keyword-magic", label: tt("magicTitle") },
-      { id: "tool-ai-prompts", label: tt("aiTitle") },
       { id: "tool-competitor-spy", label: tt("spyTitle") },
       { id: "tool-youtube-tracker", label: tt("ytTitle") },
       { id: "tool-quick-serp", label: tt("serpTitle") },
@@ -673,18 +672,10 @@ export default function SeoDashboardPage() {
                 // there.
                 cta={tTool("open")}
               />
-              <ToolCard
-                id="tool-ai-prompts"
-                title={tTool("aiTitle")}
-                description={tTool("aiDesc")}
-                href="/dashboard/ai-prompt-tracker"
-                hint={tTool("aiHint")}
-                points={[
-                  tTool("aiP1"),
-                  tTool("aiP2"),
-                  tTool("aiP3"),
-                ]}
-              />
+              {/* The AI Prompt Tracker promo lived here. It has its own group in
+                  the sidebar now -- four assistants plus the cross-assistant
+                  view -- so a card on the Overview offering to introduce it was
+                  the third place on one screen pointing at the same tool. */}
               <ToolCard
                 id="tool-competitor-spy"
                 title={tTool("spyTitle")}
