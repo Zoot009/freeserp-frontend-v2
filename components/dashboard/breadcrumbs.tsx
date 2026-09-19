@@ -103,9 +103,16 @@ const humanize = (s: string) =>
     .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
     .join(" ")
 
-// /dashboard/project/<id>/… → the project id, else null.
-function projectIdFrom(pathname: string): string | null {
-  const m = pathname.match(/^\/dashboard\/project\/([^/]+)/)
+/**
+ * The id of the thing a page is about, for routes that are about one thing.
+ *
+ * The crumb store is a plain id -> name map; only this extractor was ever
+ * project-shaped. An AI brand is the same shape of fact -- a cuid in the url
+ * that a human knows by name -- so it reads from the same store rather than
+ * growing a second one beside it.
+ */
+function namedIdFrom(pathname: string): string | null {
+  const m = pathname.match(/^\/dashboard\/(?:project|ai-prompt-tracker)\/([^/]+)/)
   return m ? m[1]! : null
 }
 
@@ -132,6 +139,17 @@ function pathCrumbs(
   // home (its keywords list) so it's a working link rather than a dead label.
   if (matched === "/dashboard/project" && tail.length > 0) {
     base[base.length - 1]!.href = `/dashboard/project/${tail[0]}/keywords`
+  }
+
+  // A brand page is two levels deep but its id is skipped as an id segment,
+  // so the trail used to stop at "AI Prompt Tracker" -- claiming you were on
+  // the list while you were inside one of its brands, with the crumb that
+  // would take you back rendered as dead text because it was the leaf.
+  if (matched === "/dashboard/ai-prompt-tracker" && tail.length > 0) {
+    base[base.length - 1]!.href = matched
+    if (projectName) {
+      base.push({ label: projectName, href: `${matched}/${tail[0]}`, clamp: true })
+    }
   }
 
   const extra: Crumb[] = []
@@ -188,11 +206,11 @@ export function DashboardBreadcrumb({ className }: { className?: string }) {
   // Locale-agnostic, so the route table above needs no per-locale entries.
   const pathname = usePathname() || "/dashboard"
   const tNav = useTranslations("dashboardNav")
-  const projectName = useProjectCrumb(projectIdFrom(pathname))
+  const namedCrumb = useProjectCrumb(namedIdFrom(pathname))
   const detail = useDetailCrumb()
   // Which assistant page this was opened from, when it was opened from one.
   const platform = useSearchParams()?.get("platform")
-  const base = crumbsFor(pathname, tNav, projectName, platform)
+  const base = crumbsFor(pathname, tNav, namedCrumb, platform)
 
   // A page-published leaf extends the trail by one. The crumb it lands on is no
   // longer the page you are on, so it takes the page's own way back — the

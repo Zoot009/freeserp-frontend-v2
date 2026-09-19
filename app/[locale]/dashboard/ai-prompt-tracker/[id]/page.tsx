@@ -7,6 +7,7 @@
 // a tick or a cross, which would flip between runs and destroy trust.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -132,6 +133,11 @@ export default function LlmPromptListPage() {
         )
         setProject(data.project)
         setPrompts(data.prompts)
+        // The breadcrumb only has a cuid to work with until the page says what
+        // that id is called. Mirrored to sessionStorage by the store, so a hard
+        // refresh deep in a brand still shows its name rather than stopping at
+        // the section above it.
+        setProjectCrumb(projectId, data.project.name)
       } catch (err: unknown) {
         if (err instanceof ApiError && err.status === 404) {
           router.replace("/dashboard/ai-prompt-tracker")
