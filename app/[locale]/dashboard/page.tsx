@@ -35,6 +35,8 @@ import { KeywordSetupCard } from "@/components/dashboard/cards/keyword-setup-car
 import { StatStrip } from "@/components/dashboard/cards/stat-strip"
 import { type GscState } from "@/components/dashboard/gsc"
 import { ToolCard } from "@/components/dashboard/cards/tool-card"
+import { MapsTrackerCard } from "@/components/dashboard/cards/maps-tracker-card"
+import type { ScanHistoryItem } from "@/components/maps-tracker/types"
 import { PositionTrackingCard, type Band, type TopKeyword } from "@/components/dashboard/cards/position-tracking-card"
 import { TrafficCard, type TrafficPoint } from "@/components/dashboard/cards/traffic-card"
 import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-movement-card"
@@ -239,6 +241,9 @@ export default function SeoDashboardPage() {
   // A failed list request must not read as "you have no projects" — the two
   // states look identical otherwise, and the API does fail (quota, network).
   const [projectsError, setProjectsError] = useState<string | null>(null)
+  // Maps scans belong to the ACCOUNT, not to a project -- a business is a place,
+  // not a website -- so this is fetched once rather than per selected project.
+  const [mapScans, setMapScans] = useState<ScanHistoryItem[] | null>(null)
   const [rowsLoading, setRowsLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
   // Creating a project no longer means leaving this page for the Rank Tracker.
@@ -341,6 +346,18 @@ export default function SeoDashboardPage() {
     if (projectId) void loadDetail(projectId).then((d) => d && setDetail(d))
   }, [projectId, loadDetail])
 
+  // The newest grid scan, for the Maps card. Failure is silent and leaves
+  // mapScans null, which simply falls back to the set-up promo -- a dashboard
+  // must not surface an error for a tool the account may never have touched.
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .get<{ scans: ScanHistoryItem[] }>("/api/maps-tracker/scans")
+      .then((r) => { if (!cancelled) setMapScans(r.scans) })
+      .catch(() => { if (!cancelled) setMapScans([]) })
+    return () => { cancelled = true }
+  }, [refreshTick])
+
   // Coverage stats + the two time series, re-fetched whenever the range changes.
   useEffect(() => {
     if (!projectId) return
@@ -359,6 +376,14 @@ export default function SeoDashboardPage() {
     })
     return () => { cancelled = true }
   }, [projectId, range, refreshTick])
+
+  // The newest scan carrying a real reading. A scan still running, or one that
+  // failed every point, has nothing to put on a card -- and falling back to the
+  // promo in that case is right: there is genuinely nothing to show yet.
+  const latestScan = useMemo(
+    () => mapScans?.find((s) => s.keywords.some((k) => k.solv != null)) ?? null,
+    [mapScans],
+  )
 
   // ── Derived metrics ───────────────────────────────────────────────────────
   const m = useMemo(() => {
@@ -611,6 +636,10 @@ export default function SeoDashboardPage() {
                 rest. "Your tools" at the foot of the page is the full list;
                 these six are the ones worth interrupting for. */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {/* The promo stands down once the real card is on the page: an
+                  offer to "set up" a tool whose results are already above it
+                  reads as the dashboard not knowing what the account has. */}
+              {!latestScan && (
               <ToolCard
                 id="tool-maps-tracker"
                 title={tTool("mapsTitle")}
@@ -623,6 +652,7 @@ export default function SeoDashboardPage() {
                   tTool("mapsP3"),
                 ]}
               />
+              )}
               <ToolCard
                 id="tool-keyword-magic"
                 title={tTool("magicTitle")}
@@ -711,6 +741,12 @@ export default function SeoDashboardPage() {
             <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
               {/* Wide column. */}
               <div className="flex min-w-0 flex-col gap-4">
+                {/* Wide column, not narrow: the grid and the keyword table sit
+                    side by side, and at the narrow column's width they stack into
+                    a very tall card. Rendered only once a scan has a reading --
+                    until then the set-up promo below is what speaks for this tool,
+                    and two cards about one untouched tool is one too many. */}
+                {latestScan && <MapsTrackerCard scan={latestScan} loading={false} />}
                 <PositionTrackingCard
                   projectId={projectId}
                   loading={rowsLoading || statsLoading}
