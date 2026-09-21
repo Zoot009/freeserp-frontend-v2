@@ -426,7 +426,7 @@ export function OnboardingWizard({
                   // orange as the Claude page, from one definition.
                   <div key={id} className="llm-eng llm-wiz-side-row" data-engine={id}>
                     <span className="llm-wiz-mark">
-                      <PlatformMark id={id} size={17} />
+                      <PlatformMark id={id} size={20} />
                     </span>
                     <span className="llm-wiz-side-id">
                       <span className="llm-wiz-side-nm">{PLATFORM_LABEL[id]}</span>
@@ -606,20 +606,22 @@ export function OnboardingWizard({
                       <input type="checkbox" checked={on} onChange={() => togglePlatform(id)} />
                       <span className="llm-wiz-engine-h">
                         <span className="llm-wiz-mark">
-                          <PlatformMark id={id} size={18} />
+                          <PlatformMark id={id} size={26} />
                         </span>
-                        <span className="llm-wiz-engine-nm">{PLATFORM_LABEL[id]}</span>
+                        <span className="llm-wiz-engine-id">
+                          <span className="llm-wiz-engine-nm">{PLATFORM_LABEL[id]}</span>
+                          {/* Marked as the dear pair rather than left to
+                              arithmetic: it is the only thing on this card that
+                              can surprise you on the bill. */}
+                          <span className={"llm-wiz-rate" + (rate === 3 ? " dear" : "")}>
+                            {rate} credit{rate === 1 ? "" : "s"} an answer
+                          </span>
+                        </span>
                         <span className="llm-wiz-tick" aria-hidden>
                           {on && <Icon.check size={11} />}
                         </span>
                       </span>
                       <span className="llm-wiz-engine-note">{ENGINE_NOTE[id]}</span>
-                      {/* Marked as the dear pair rather than left to arithmetic:
-                          it is the only thing on this card that can surprise you
-                          on the bill. */}
-                      <span className={"llm-wiz-rate" + (rate === 3 ? " dear" : "")}>
-                        {rate} credit{rate === 1 ? "" : "s"} an answer
-                      </span>
                     </label>
                   )
                 })}
@@ -667,12 +669,21 @@ export function OnboardingWizard({
             </div>
 
             <div className="llm-wiz-sum">
-              <div className="llm-wiz-sum-line">
-                <strong>{chosenPrompts.length}</strong> prompt{chosenPrompts.length === 1 ? "" : "s"} ×{" "}
-                <strong>{platforms.length}</strong> assistant{platforms.length === 1 ? "" : "s"} ×{" "}
-                <strong>{samples}</strong> sample{samples === 1 ? "" : "s"} ={" "}
-                <strong>{answers}</strong> answers a run
-              </div>
+              {/* With nothing ticked the arithmetic read "x 0 assistants = 0
+                  answers a run", which states a price for a run that cannot
+                  happen. Say what is missing instead. */}
+              {platforms.length === 0 ? (
+                <div className="llm-wiz-sum-line none">
+                  Pick at least one assistant above — there is nobody to ask yet.
+                </div>
+              ) : (
+                <div className="llm-wiz-sum-line">
+                  <strong>{chosenPrompts.length}</strong> prompt
+                  {chosenPrompts.length === 1 ? "" : "s"} × <strong>{platforms.length}</strong> assistant
+                  {platforms.length === 1 ? "" : "s"} × <strong>{samples}</strong> sample
+                  {samples === 1 ? "" : "s"} = <strong>{answers}</strong> answers a run
+                </div>
+              )}
               <RunCost
                 base={chosenPrompts.length * flat * samples}
                 pricey={chosenPrompts.length * pricey * samples}
