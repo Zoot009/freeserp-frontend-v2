@@ -45,6 +45,7 @@ import {
 } from "@/lib/ai-tracker"
 import { ENGINES, ENGINE_NOTE, ENGINE_ORDER } from "@/lib/ai-engines"
 import { BrandSettingsModal } from "@/components/dashboard/ai-tracker/brand-settings"
+import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
 // Platform, RunSummary, PromptRow and the status vocabulary live in
@@ -110,6 +111,9 @@ export default function LlmPromptListPage() {
   /** Prompt id whose platform editor is open — the "also ask Claude this one"
    *  path, which did not exist while platforms were fixed at creation. */
   const [editPlatforms, setEditPlatforms] = useState<string | null>(null)
+  /** The prompt the delete dialog is asking about, by id. */
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   /**
    * Set while the server is re-scoring this brand's history after a settings
@@ -417,10 +421,24 @@ export default function LlmPromptListPage() {
     }
   }
 
+  /**
+   * Delete a prompt, and put it back if the server refuses.
+   *
+   * The optimistic removal was already here; what was missing is the other half
+   * of it. There was no catch, so a failed delete left the row gone from the
+   * table with nothing said -- it reappeared a moment later when load() finished
+   * and looked like a glitch rather than a refusal. And because the caller did
+   * `void deletePrompt(...)`, the rejection had nowhere to go at all.
+   */
   const deletePrompt = async (promptId: string) => {
+    const before = prompts
     setPrompts((prev) => prev.filter((p) => p.id !== promptId))
     try {
       await api.delete(`/api/llm-tracker/projects/${projectId}/prompts/${promptId}`)
+      toast.success("Prompt deleted.")
+    } catch (err: unknown) {
+      setPrompts(before)
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete the prompt.")
     } finally {
       void load(true)
     }
@@ -431,6 +449,12 @@ export default function LlmPromptListPage() {
   const editing = useMemo(
     () => prompts.find((p) => p.id === editPlatforms) ?? null,
     [prompts, editPlatforms],
+  )
+  // Same reason: if a poll removes the row out from under an open dialog, the
+  // dialog goes rather than confirming a delete of something already gone.
+  const pendingDelete = useMemo(
+    () => prompts.find((p) => p.id === confirmDelete) ?? null,
+    [prompts, confirmDelete],
   )
 
   const summary = useMemo(() => {
@@ -741,7 +765,16 @@ export default function LlmPromptListPage() {
                               >
                                 <Icon.refresh />
                               </button>
-                              <button className="icon-btn" title="Remove" onClick={() => void deletePrompt(p.id)}>
+                              {/* Asks first. This button used to delete on the
+                                  single click, and it sits directly beside Run
+                                  now in a dense table -- so the cheapest misclick
+                                  in the product destroyed a prompt and every
+                                  answer collected for it. */}
+                              <button
+                                className="icon-btn"
+                                title="Remove"
+                                onClick={() => setConfirmDelete(p.id)}
+                              >
                                 <Icon.trash size={13} />
                               </button>
                             </div>
@@ -756,6 +789,39 @@ export default function LlmPromptListPage() {
           </div>
         )}
       </div>
+
+      {/* What deleting actually costs is the history, not the row: the answers
+          were paid for once and there is no way to collect them again for a
+          date that has passed. So the dialog counts them rather than asking
+          "are you sure?" about nothing in particular. */}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        danger
+        busy={deleting}
+        title="Delete this prompt?"
+        confirmLabel="Delete prompt"
+        body={
+          pendingDelete ? (
+            <>
+              &ldquo;{pendingDelete.prompt}&rdquo;
+              {(() => {
+                const done = pendingDelete.runs.filter((r) => r.status === "COMPLETED").length
+                return done > 0
+                  ? ` — this also deletes ${done} completed run${done === 1 ? "" : "s"} and the answers behind them. Credits already spent aren't refunded, and a past date can't be collected again.`
+                  : " — it hasn't been run yet, so there's no history to lose."
+              })()}
+            </>
+          ) : null
+        }
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setDeleting(true)
+          await deletePrompt(pendingDelete.id)
+          setDeleting(false)
+          setConfirmDelete(null)
+        }}
+      />
 
       {editing && (
         <PlatformsModal
