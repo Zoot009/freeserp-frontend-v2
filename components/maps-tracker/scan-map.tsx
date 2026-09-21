@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Map, AdvancedMarker } from "@vis.gl/react-google-maps"
 import {
   bandKeyFor,
   deriveSpacingMeters,
@@ -41,83 +41,6 @@ const DEFAULT_MAP_ID = "DEMO_MAP_ID"
  * @vis.gl/react-google-maps 1.9.
  */
 const CENTRE_ANCHOR = { anchorLeft: "-50%", anchorTop: "-50%" } as const
-
-// Halo tuning. Named and kept together because these are the two numbers that
-// decide whether the map reads as a coverage cloud or as scattered dots, and
-// they want adjusting against real scans rather than reasoning.
-//
-// The ratio is against the grid SPACING, so the cloud keeps its density at any
-// grid size or radius. Above ~1.0 each circle reaches its neighbour's centre
-// and the field becomes continuous; below ~0.8 the points read separately.
-const HALO_RADIUS_RATIO = 1.15;
-// Low, because overlap is what does the work: where neighbouring points agree
-// the fills stack and darken on their own. Raising this instead of the ratio
-// makes individual discs obvious and muddies the overlaps.
-const HALO_OPACITY = 0.16;
-// Must stay visible, or a band filter looks like the halo layer was switched
-// off rather than filtered.
-const HALO_OPACITY_DIMMED = 0.03;
-
-/**
- * The coverage cloud: one translucent circle per scored point, drawn under the
- * pins.
- *
- * `google.maps.Circle` rather than CSS, and the radius in METRES, because a
- * halo sized in pixels stays the same size as the user zooms — which would make
- * the cloud silently misstate how much ground each point represents. That is
- * the one thing a geo-grid tool cannot get wrong. Circles scale with zoom
- * natively; a radial-gradient on a marker does not.
- *
- * Overlapping low-opacity fills darken where points agree, which IS the effect.
- * No blur filter, no compositing tricks.
- *
- * FAILED points get no halo at all: the search never ran there, and painting
- * coverage over a hole would render our own outage as data.
- */
-function HaloLayer({
-  pins,
-  spacingMeters,
-  dimBand,
-  rankFor,
-}: {
-  pins: MapPinData[]
-  spacingMeters: number
-  dimBand: RankBandKey | null
-  /** Which rank to colour a pin by — the target's, or a compared competitor's. */
-  rankFor: (pin: MapPinData) => number | null
-}) {
-  const map = useMap()
-  const circlesRef = useRef<google.maps.Circle[]>([])
-
-  useEffect(() => {
-    if (!map || typeof google === "undefined" || !google.maps?.Circle) return
-
-    const circles = pins
-      .filter((p) => p.status === "SUCCEEDED")
-      .map((p) => {
-        const rank = rankFor(p)
-        const dimmed = dimBand != null && bandKeyFor(rank, p.status) !== dimBand
-        return new google.maps.Circle({
-          map,
-          center: { lat: p.lat, lng: p.lng },
-          radius: spacingMeters * HALO_RADIUS_RATIO,
-          fillColor: rankColor(rank, p.status).bg,
-          fillOpacity: dimmed ? HALO_OPACITY_DIMMED : HALO_OPACITY,
-          strokeWeight: 0,
-          clickable: false,
-          zIndex: 0,
-        })
-      })
-
-    circlesRef.current = circles
-    return () => {
-      for (const c of circles) c.setMap(null)
-      circlesRef.current = []
-    }
-  }, [map, pins, spacingMeters, dimBand, rankFor])
-
-  return null
-}
 
 function CenterMarker({
   lat,
@@ -244,7 +167,6 @@ export function ScanMap({
   unit = "IMPERIAL",
   interactive = true,
   rankOverride = null,
-  haloes = true,
 }: {
   centerLat: number
   centerLng: number
@@ -269,18 +191,16 @@ export function ScanMap({
   interactive?: boolean
   /**
    * "Compare on map": `row:col` -> that competitor's rank at the point. When
-   * set, every pin and halo is drawn from THIS instead of the target's own
+   * set, every pin is drawn from THIS instead of the target's own
    * rank. A key that is absent means the competitor was not in the top 20
    * there — a real not-found, drawn exactly as the target's would be.
    */
   rankOverride?: Map<string, number | null> | null
-  /** Off for the pre-scan preview, where there is nothing to shade. */
-  haloes?: boolean
 }) {
   const spacingMeters = deriveSpacingMeters(gridSize, radiusMeters)
 
-  // Stable identity so HaloLayer's effect doesn't tear down and rebuild every
-  // circle on each two-second poll.
+  // Stable identity so the pins don't re-render needlessly on each two-second
+  // poll.
   const rankFor = useCallback(
     (pin: MapPinData): number | null =>
       rankOverride ? (rankOverride.get(`${pin.row}:${pin.col}`) ?? null) : pin.rank,
@@ -360,9 +280,6 @@ export function ScanMap({
     >
       {showCenterMarker && (
         <CenterMarker lat={centerLat} lng={centerLng} onCenterChange={interactive ? onCenterChange : undefined} />
-      )}
-      {haloes && (
-        <HaloLayer pins={previewPins} spacingMeters={spacingMeters} dimBand={dimBand} rankFor={rankFor} />
       )}
       {previewPins.map((p) => (
         <GridPin
