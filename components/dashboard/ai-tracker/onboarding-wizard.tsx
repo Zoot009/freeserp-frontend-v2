@@ -42,6 +42,7 @@ import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
+import { PlatformMark } from "@/components/dashboard/platform-marks"
 import { CREDIT_ACTION_KEYS, formatCredits, useCreditQuote } from "@/lib/credits"
 import { FREQUENCY_OPTIONS, PLATFORM_LABEL, runsPerMonth, type Platform } from "@/lib/ai-tracker"
 import { ENGINE_NOTE, ENGINE_ORDER, ENGINES } from "@/lib/ai-engines"
@@ -78,6 +79,19 @@ function dirty(next: BrandBody, prev: BrandBody | null): boolean {
 }
 
 const STEPS = ["Brand", "Market", "Prompts", "Assistants"] as const
+
+/**
+ * Sample counts, as the same dropdown the cadence field uses.
+ *
+ * It was a native <select>, which on Windows opens the OS list -- a blue
+ * highlight and a system chevron dropped into the middle of a themed form, and
+ * the only control on the page that ignored dark mode.
+ */
+const SAMPLE_OPTIONS = [
+  { value: "1", label: "1 sample" },
+  { value: "3", label: "3 samples (recommended)" },
+  { value: "5", label: "5 samples" },
+]
 
 type GroupName = "Category" | "Head to head" | "Alternatives" | "Brand"
 type Suggestion = { id: string; group: GroupName; text: string }
@@ -342,15 +356,19 @@ export function OnboardingWizard({
 
       <div className="llm-wiz-b">
         {step === 1 && (
-          <>
-            <h2 className="llm-wiz-h">Which brand should we listen for?</h2>
-            <p className="llm-wiz-sub">
-              We ask ChatGPT, Gemini, Perplexity and Claude the questions your buyers ask, then read
-              every answer looking for you. To do that we need to know what &ldquo;you&rdquo; looks like
-              in a sentence.
-            </p>
+          // Split, with the four assistants down the side. The step needs two
+          // short fields and nothing else, so the width was going to be spent on
+          // something -- and what a new account most needs to see on the screen
+          // it lands on is WHO is being asked. Four marks say "this reads real
+          // AI assistants" faster than the paragraph that used to say it alone.
+          <div className="llm-wiz-split">
+            <div className="llm-wiz-main">
+              <h2 className="llm-wiz-h">Which brand should we listen for?</h2>
+              <p className="llm-wiz-sub">
+                We ask the assistants the questions your buyers ask, then read every answer looking
+                for you. To do that we need to know what &ldquo;you&rdquo; looks like in a sentence.
+              </p>
 
-            <div className="llm-wiz-grid">
               <div className="field">
                 <label htmlFor="wiz-brand">Brand name</label>
                 <input
@@ -380,24 +398,48 @@ export function OnboardingWizard({
                 />
                 <div className="tiny muted">
                   Optional, but it is the one name nobody else can use by accident — and it is what
-                  separates a <em>citation</em>, where the assistant linked to you, from a passing mention.
-                  A brand made of ordinary words (&ldquo;Free SERP&rdquo;) can only be tracked with one.
+                  separates a <em>citation</em>, where the assistant linked to you, from a passing
+                  mention. A brand made of ordinary words (&ldquo;Free SERP&rdquo;) can only be tracked
+                  with one.
                 </div>
               </div>
+
+              <ul className="llm-wiz-notes">
+                <li>
+                  <Icon.zap /> No credits used until the last step
+                </li>
+                <li>
+                  <Icon.clock /> About a minute
+                </li>
+                <li>
+                  <Icon.settings /> Everything here is editable later
+                </li>
+              </ul>
             </div>
 
-            <ul className="llm-wiz-notes">
-              <li>
-                <Icon.zap /> No credits used until the last step
-              </li>
-              <li>
-                <Icon.clock /> About a minute
-              </li>
-              <li>
-                <Icon.settings /> Everything here is editable later
-              </li>
-            </ul>
-          </>
+            <aside className="llm-wiz-side">
+              <div className="llm-wiz-side-h">Who we ask</div>
+              <div className="llm-wiz-side-list">
+                {ENGINE_ORDER.map((id) => (
+                  // .llm-eng is what carries the per-assistant accent tokens.
+                  // Reusing it means the orange next to Claude here is the same
+                  // orange as the Claude page, from one definition.
+                  <div key={id} className="llm-eng llm-wiz-side-row" data-engine={id}>
+                    <span className="llm-wiz-mark">
+                      <PlatformMark id={id} size={17} />
+                    </span>
+                    <span className="llm-wiz-side-id">
+                      <span className="llm-wiz-side-nm">{PLATFORM_LABEL[id]}</span>
+                      <span className="tiny muted">{ENGINE_NOTE[id]}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="tiny muted llm-wiz-side-foot">
+                You pick which of these to run on the last step. Nothing is asked until then.
+              </p>
+            </aside>
+          </div>
         )}
 
         {step === 2 && (
@@ -451,23 +493,51 @@ export function OnboardingWizard({
 
         {step === 3 && (
           <>
-            <h2 className="llm-wiz-h">Which questions should we ask?</h2>
-            <p className="llm-wiz-sub">
-              {suggestions.length} suggestions, written from your category and competitors. Untick
-              anything your buyers would not actually type, and add the ones only you know about.
-            </p>
+            <div className="llm-wiz-head">
+              <div>
+                <h2 className="llm-wiz-h">Which questions should we ask?</h2>
+                <p className="llm-wiz-sub">
+                  {suggestions.length} suggestions, written from your category and competitors. Untick
+                  anything your buyers would not actually type, and add the ones only you know about.
+                </p>
+              </div>
+              {/* The running count, where the decision is being made. It used to
+                  appear only on the next screen, so "have I picked too many?"
+                  could not be answered on the screen that asks. */}
+              <div className="llm-wiz-tally">
+                <span className="llm-wiz-tally-n">{chosenPrompts.length}</span>
+                <span className="tiny muted">selected</span>
+              </div>
+            </div>
 
             {GROUP_ORDER.map((group) => {
               const items = suggestions.filter((s) => s.group === group)
               if (items.length === 0) return null
               const on = items.filter((s) => picks.has(s.text)).length
+              const all = on === items.length
               return (
                 <div className="llm-sugg-group" key={group}>
                   <div className="llm-sugg-head">
                     <span className="llm-sugg-name">{group}</span>
-                    <span className="tiny muted">
+                    <span className="llm-sugg-count" data-on={on > 0 ? "true" : undefined}>
                       {on} of {items.length}
                     </span>
+                    {/* Four groups of three or four: ticking them one at a time
+                        is the common case and it is tedious. */}
+                    <button
+                      type="button"
+                      className="llm-sugg-all"
+                      onClick={() => {
+                        const next = new Set(picks)
+                        for (const s of items) {
+                          if (all) next.delete(s.text)
+                          else next.add(s.text)
+                        }
+                        setPicked(next)
+                      }}
+                    >
+                      {all ? "Clear" : "Select all"}
+                    </button>
                   </div>
                   <p className="tiny muted llm-sugg-note">{GROUP_NOTE[group]}</p>
                   <div className="llm-sugg-list">
@@ -517,25 +587,38 @@ export function OnboardingWizard({
 
             <div className="field">
               <label>Assistants</label>
-              <div className="engine-row">
+              {/* A card each, with the assistant's own mark and its own accent.
+                  They were four identical grey chips before, which made the one
+                  screen that is entirely about WHICH AI look like a form about
+                  nothing in particular -- and hid that the four are not
+                  interchangeable. The mark and the rate are the two facts that
+                  decide this, so both are on the face of the card. */}
+              <div className="llm-wiz-engines">
                 {ENGINE_ORDER.map((id) => {
                   const on = platforms.includes(id)
+                  const rate = ENGINES[id].creditsPerAnswer
                   return (
                     <label
                       key={id}
-                      className={"engine-card llm-wiz-eng" + (on ? " selected" : "")}
-                      title={ENGINE_NOTE[id]}
+                      className={"llm-eng llm-wiz-engine" + (on ? " on" : "")}
+                      data-engine={id}
                     >
                       <input type="checkbox" checked={on} onChange={() => togglePlatform(id)} />
-                      <span className={`engine-box${on ? " on" : ""}`} aria-hidden>
-                        {on && <Icon.check size={12} />}
-                      </span>
-                      <span className="llm-wiz-eng-id">
-                        <span className="nm">{PLATFORM_LABEL[id]}</span>
-                        <span className="tiny muted">
-                          {ENGINES[id].creditsPerAnswer} credit
-                          {ENGINES[id].creditsPerAnswer === 1 ? "" : "s"} an answer
+                      <span className="llm-wiz-engine-h">
+                        <span className="llm-wiz-mark">
+                          <PlatformMark id={id} size={18} />
                         </span>
+                        <span className="llm-wiz-engine-nm">{PLATFORM_LABEL[id]}</span>
+                        <span className="llm-wiz-tick" aria-hidden>
+                          {on && <Icon.check size={11} />}
+                        </span>
+                      </span>
+                      <span className="llm-wiz-engine-note">{ENGINE_NOTE[id]}</span>
+                      {/* Marked as the dear pair rather than left to arithmetic:
+                          it is the only thing on this card that can surprise you
+                          on the bill. */}
+                      <span className={"llm-wiz-rate" + (rate === 3 ? " dear" : "")}>
+                        {rate} credit{rate === 1 ? "" : "s"} an answer
                       </span>
                     </label>
                   )
@@ -549,20 +632,16 @@ export function OnboardingWizard({
 
             <div className="llm-wiz-grid">
               <div className="field">
-                <label htmlFor="wiz-samples">Samples per assistant</label>
-                <select
-                  id="wiz-samples"
-                  className="input"
-                  value={samples}
-                  onChange={(e) => setSamples(Number(e.target.value))}
-                >
-                  {[1, 3, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                      {n === 3 ? " (recommended)" : ""}
-                    </option>
-                  ))}
-                </select>
+                {/* No htmlFor: the control below is a button, not an input, so
+                    the label has nothing to point at and says so via ariaLabel. */}
+                <label>Samples per assistant</label>
+                <Dropdown
+                  ariaLabel="Samples per assistant"
+                  value={String(samples)}
+                  options={SAMPLE_OPTIONS}
+                  onChange={(v) => setSamples(Number(v))}
+                  block
+                />
                 <div className="tiny muted">
                   The same question asked twice does not give the same answer. Asking {samples} time
                   {samples === 1 ? "" : "s"} turns a coin-flip into a rate — at 1 the number moves every
@@ -571,7 +650,7 @@ export function OnboardingWizard({
               </div>
 
               <div className="field">
-                <label htmlFor="wiz-freq">Run automatically</label>
+                <label>Run automatically</label>
                 <Dropdown
                   ariaLabel="Run frequency"
                   value={freq}
