@@ -310,7 +310,10 @@
 .fs-app .mt-sheet { max-width: 1040px; margin: 0 auto; padding: 48px 88px 64px; }
 .fs-app .mt-sheet h2 { font-size: 34px; line-height: 1.12; letter-spacing: -0.035em; margin: 0 0 12px; }
 .fs-app .mt-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-mute); }
-.fs-app .mt-mark { width: 26px; height: 26px; border-radius: 8px; background: var(--brand); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+/* The FreeSERP logo mark on the shared report header. It is the real
+   /logo.png — the blue tile and starburst are in the image itself, so this
+   only sizes and rounds it. */
+.fs-app .mt-mark { width: 26px; height: 26px; border-radius: 8px; object-fit: contain; display: block; flex-shrink: 0; }
 .fs-app .mt-rstats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .fs-app .mt-rstats > div { padding: 22px 24px; }
 .fs-app .mt-rstats > div + div { border-left: 1px solid var(--border); }
