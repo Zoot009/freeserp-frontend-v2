@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { useParams } from "next/navigation"
 import { APIProvider } from "@vis.gl/react-google-maps"
 import { api, ApiError } from "@/lib/api"
@@ -81,7 +82,7 @@ export default function ScanReportPage() {
       <div className="mt-sheet">
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 40 }}>
           <div className="row" style={{ gap: 9 }}>
-            <span className="mt-mark">F</span>
+            <Image src="/logo.png" alt="FreeSERP" width={26} height={26} className="mt-mark" priority />
             <span style={{ fontSize: 14.5, fontWeight: 600 }}>FreeSERP Rank Tracker</span>
           </div>
           <div className="tiny muted tabular">
