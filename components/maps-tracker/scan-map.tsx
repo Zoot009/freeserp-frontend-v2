@@ -77,6 +77,35 @@ function CenterMarker({
   )
 }
 
+/**
+ * Pin diameter, by how many pins share the map.
+ *
+ * One fixed size cannot serve both ends of the grid range. 26px was chosen so
+ * that 121 pins at 11x11 do not read as a wall of circles — but the same pin on
+ * a 3x3, which spreads nine points over a mile and a half, is a speck sitting
+ * on a city block, and the rank inside it is barely legible.
+ *
+ * So it scales with the grid. Small grids have the room and take it; dense
+ * grids keep roughly what they had. The idle and live variants derive from the
+ * same number at the ratios they already used (12/26 and 16/26), so the three
+ * states stay in proportion at every size.
+ */
+function pinScale(gridSize: number): { scored: number; font: number; idle: number; live: number } {
+  const scored =
+    gridSize <= 5 ? 38
+    : gridSize <= 7 ? 34
+    : gridSize <= 9 ? 30
+    : gridSize <= 11 ? 28
+    : gridSize <= 15 ? 26
+    : 24
+  return {
+    scored,
+    font: Math.round(scored * 0.44 * 10) / 10,
+    idle: Math.round(scored * 0.46),
+    live: Math.round(scored * 0.62),
+  }
+}
+
 function GridPin({
   pin,
   rank,
@@ -120,10 +149,29 @@ function GridPin({
   // The scale on :hover lives on this element, while the library applies the
   // anchor offset as a transform on the wrapper it renders around it. Putting
   // both on one node would make the pin jump off its coordinate on hover.
+  // Size is inline rather than a CSS class because it varies per scan. The
+  // stylesheet still carries the defaults, so a pin renders correctly even if
+  // this is ever bypassed.
+  const size = pinScale(gridSize)
+  // "20+" is the only three-character label and the one a weak scan is full
+  // of, so it gets a slightly smaller face rather than touching its ring.
+  const fontSize = color.label.length >= 3 ? Math.round(size.font * 0.82 * 10) / 10 : size.font
   const content = (
     <span
       className={cls}
-      style={scored ? { background: color.bg, color: color.fg } : undefined}
+      style={
+        scored
+          ? {
+              background: color.bg,
+              color: color.fg,
+              width: size.scored,
+              height: size.scored,
+              fontSize,
+            }
+          : idle
+            ? { width: size.idle, height: size.idle }
+            : { width: size.live, height: size.live }
+      }
       title={`${what} · ${where}`}
     >
       {scored ? color.label : ""}
