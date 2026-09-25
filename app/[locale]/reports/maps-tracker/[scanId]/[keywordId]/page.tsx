@@ -98,7 +98,7 @@ export default function ScanReportPage() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 640, marginBottom: 32 }}>
+        <div style={{ maxWidth: 680, marginBottom: 36 }}>
           <div className="mt-eyebrow" style={{ marginBottom: 10 }}>Google Maps · &ldquo;{keyword.keyword}&rdquo;</div>
           <h2>
             {keyword.solv != null
@@ -122,9 +122,12 @@ export default function ScanReportPage() {
             style={{
               // Square, because the thing being shown is a square grid. On a
               // 16:9 box the grid sits in the middle with dead map either side.
+              // Full sheet width: the map is the report's evidence, and at 720
+              // it sat narrower than the stat row above it, which read as an
+              // inset rather than the main exhibit.
               margin: "32px auto 0",
               aspectRatio: "1 / 1",
-              maxWidth: 720,
+              width: "100%",
               borderRadius: "var(--r-md)",
               overflow: "hidden",
               border: "1px solid var(--border)",
@@ -141,9 +144,10 @@ export default function ScanReportPage() {
                 // Same as the results screen: the centre already has a scored
                 // pin, and the marker would cover its rank.
                 showCenterMarker={false}
-                // A report is read, not driven — no panning, no zooming, no
-                // map controls. Pins still open, though; that is onPinClick's
-                // job, not this flag's.
+                // A report is read, not driven — no panning, no map-type or
+                // street-view controls. Pins still open and the map still
+                // zooms; those are onPinClick's and zoomable's jobs, not this
+                // flag's.
                 interactive={false}
                 openPointId={openPointId}
                 onPinClick={(pin) => {
@@ -154,6 +158,16 @@ export default function ScanReportPage() {
                 // around in, and there are no map controls in the corners to
                 // sit under.
                 framePadding={0.045}
+                // Read-only, but still zoomable: a 1.5km-radius grid covers a
+                // whole district, and a reader will want to look closer at one
+                // corner of it. The +/- buttons are the only affordance, since
+                // cooperative gesture handling lets a bare scroll pass through
+                // to the page.
+                zoomable
+                // Bigger than the dashboard's. The report gives the map the
+                // full sheet width with nothing beside it, so the pins can
+                // afford to carry the page.
+                pinBoost={1.3}
               />
             </APIProvider>
           </div>

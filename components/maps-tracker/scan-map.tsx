@@ -104,20 +104,24 @@ function CenterMarker({
  * same number at the ratios they already used (12/26 and 16/26), so the three
  * states stay in proportion at every size.
  */
-function pinScale(gridSize: number): {
+function pinScale(gridSize: number, boost = 1): {
   scored: number
   font: number
   ring: number
   idle: number
   live: number
 } {
-  const scored =
+  const base =
     gridSize <= 5 ? 38
     : gridSize <= 7 ? 34
     : gridSize <= 9 ? 30
     : gridSize <= 11 ? 28
     : gridSize <= 15 ? 26
     : 24
+  // `boost` is for contexts with more room than the dashboard's map card —
+  // the report, which gives the map the full sheet width and has no rail
+  // beside it competing for attention.
+  const scored = Math.round(base * boost)
   return {
     scored,
     font: Math.round(scored * 0.46 * 10) / 10,
@@ -140,6 +144,7 @@ function GridPin({
   dimmed,
   open,
   onClick,
+  pinBoost,
 }: {
   pin: MapPinData
   /** Whose rank is being drawn — the target's, or a compared competitor's. */
@@ -150,6 +155,7 @@ function GridPin({
   dimmed: boolean
   open: boolean
   onClick?: () => void
+  pinBoost?: number
 }) {
   const color = rankColor(rank, pin.status)
   const idle = pin.status === "PENDING"
@@ -177,7 +183,7 @@ function GridPin({
   // Size is inline rather than a CSS class because it varies per scan. The
   // stylesheet still carries the defaults, so a pin renders correctly even if
   // this is ever bypassed.
-  const size = pinScale(gridSize)
+  const size = pinScale(gridSize, pinBoost)
   // "20+" is the only three-character label and the one a weak scan is full
   // of, so it gets a slightly smaller face rather than touching its ring.
   const fontSize = color.label.length >= 3 ? Math.round(size.font * 0.82 * 10) / 10 : size.font
@@ -242,6 +248,8 @@ export function ScanMap({
   interactive = true,
   rankOverride = null,
   framePadding = 0.08,
+  pinBoost = 1,
+  zoomable = false,
 }: {
   centerLat: number
   centerLng: number
@@ -274,6 +282,11 @@ export function ScanMap({
    *  Lower frames tighter. The report uses a small value; the interactive map
    *  keeps more, since its corners hold Google's own controls. */
   framePadding?: number
+  /** Multiplies pin diameter. For surfaces with more room than the dashboard card. */
+  pinBoost?: number
+  /** Lets a non-interactive map still be zoomed — a report is read-only but
+   *  a reader still wants to look closer at a corner of the grid. */
+  zoomable?: boolean
   rankOverride?: Map<string, number | null> | null
 }) {
   const spacingMeters = deriveSpacingMeters(gridSize, radiusMeters)
@@ -358,8 +371,12 @@ export function ScanMap({
       // "cooperative" requires Ctrl/Cmd+scroll to zoom the map (shows a small
       // hint overlay) and passes a plain wheel-scroll through to the page —
       // the standard fix for an embedded map inside a scrollable page.
-      gestureHandling={interactive ? "cooperative" : "none"}
+      gestureHandling={interactive || zoomable ? "cooperative" : "none"}
       disableDefaultUI={!interactive}
+      // A read-only map with zoom still needs the +/- buttons: "cooperative"
+      // gesture handling means a bare scroll wheel scrolls the PAGE, so
+      // without the buttons there is no discoverable way to zoom at all.
+      zoomControl={interactive || zoomable}
       // Google's POI pins are the same shape and size as our rank pins and sit
       // in the same places, so on a busy high street they compete with the
       // thing the map exists to show. This stops them being interactive; it
@@ -378,6 +395,7 @@ export function ScanMap({
           pin={p}
           rank={rankFor(p)}
           gridSize={gridSize}
+          pinBoost={pinBoost}
           spacingMeters={spacingMeters}
           unit={unit}
           dimmed={dimBand != null && bandKeyFor(rankFor(p), p.status) !== dimBand}
