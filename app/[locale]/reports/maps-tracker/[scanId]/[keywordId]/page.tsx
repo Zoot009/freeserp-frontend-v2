@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
 import { RankLegend } from "@/components/maps-tracker/rank-distribution"
 import { CompetitorTable } from "@/components/maps-tracker/competitor-table"
-import { MILES_TO_METERS, KM_TO_METERS } from "@/components/maps-tracker/grid"
+import { MILES_TO_METERS, KM_TO_METERS, deriveSpacingMeters, formatDistance } from "@/components/maps-tracker/grid"
 import type { Scan, CompetitorLeaderboard } from "@/components/maps-tracker/types"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -110,7 +110,18 @@ export default function ScanReportPage() {
         </div>
 
         {GOOGLE_MAPS_API_KEY ? (
-          <div style={{ margin: "32px 0 14px", height: 460, borderRadius: "var(--r-md)", overflow: "hidden", border: "1px solid var(--border)" }}>
+          <div
+            style={{
+              // Square, because the thing being shown is a square grid. On a
+              // 16:9 box the grid sits in the middle with dead map either side.
+              margin: "32px auto 0",
+              aspectRatio: "1 / 1",
+              maxWidth: 720,
+              borderRadius: "var(--r-md)",
+              overflow: "hidden",
+              border: "1px solid var(--border)",
+            }}
+          >
             <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
               <ScanMap
                 centerLat={scan.centerLat}
@@ -132,6 +143,21 @@ export default function ScanReportPage() {
             Map unavailable — NEXT_PUBLIC_GOOGLE_MAPS_API_KEY isn&apos;t configured.
           </div>
         )}
+
+        {/* States the scale of the map above. Without it a reader has no way
+            to tell a grid covering four streets from one covering a county —
+            the pins look identical either way. */}
+        <div
+          className="tiny muted"
+          style={{
+            textAlign: "center",
+            textTransform: "uppercase",
+            letterSpacing: ".08em",
+            margin: "14px 0 24px",
+          }}
+        >
+          {formatDistance(deriveSpacingMeters(scan.gridSize, scan.radiusMeters), scan.displayUnit)} between map pins
+        </div>
 
         {/* The one legend. It reads from the same bands as the pins above it. */}
         <div style={{ marginBottom: 40 }}>

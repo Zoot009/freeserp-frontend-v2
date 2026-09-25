@@ -24,9 +24,23 @@ export interface MapPinData {
   pointId?: string
 }
 
-// Google's publicly documented placeholder Map ID — works out of the box for
-// Advanced Markers without a custom map style. Override with
-// NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID once a styled map is configured.
+/**
+ * Google's publicly documented placeholder Map ID. It renders the full default
+ * basemap: every POI icon, every business label, saturated parks and water.
+ *
+ * That is the wrong basemap for this tool. A rank pin is a coloured circle, and
+ * so is a Google POI pin, so on a busy high street the two compete and the grid
+ * is hard to read — which is why Local Falcon and the rest ship a desaturated,
+ * label-light map.
+ *
+ * Fixing that is NOT a code change. Advanced Markers require a Map ID, and when
+ * a Map ID is present the Maps JS API ignores an inline `styles` array
+ * entirely — styling has to come from a cloud map style attached to the ID.
+ * So: create a style in Google Cloud Console (Map Styles → new style →
+ * turn Points of interest, Business and Transit labels/icons off, drop the
+ * saturation), attach it to a Map ID, and set that ID as
+ * NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID. Every map in the app picks it up from here.
+ */
 const DEFAULT_MAP_ID = "DEMO_MAP_ID"
 
 /**
@@ -334,6 +348,11 @@ export function ScanMap({
       // the standard fix for an embedded map inside a scrollable page.
       gestureHandling={interactive ? "cooperative" : "none"}
       disableDefaultUI={!interactive}
+      // Google's POI pins are the same shape and size as our rank pins and sit
+      // in the same places, so on a busy high street they compete with the
+      // thing the map exists to show. This stops them being interactive; it
+      // does NOT hide them — that needs a cloud map style, see DEFAULT_MAP_ID.
+      clickableIcons={false}
       onIdle={(e) => setMapInstance(e.map)}
       onDragstart={() => setUserMoved(true)}
       style={{ width: "100%", height: "100%" }}
