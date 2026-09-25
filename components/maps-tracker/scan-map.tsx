@@ -241,6 +241,7 @@ export function ScanMap({
   unit = "IMPERIAL",
   interactive = true,
   rankOverride = null,
+  framePadding = 0.08,
 }: {
   centerLat: number
   centerLng: number
@@ -269,6 +270,10 @@ export function ScanMap({
    * rank. A key that is absent means the competitor was not in the top 20
    * there — a real not-found, drawn exactly as the target's would be.
    */
+  /** Fraction of the map's smaller side left as margin when framing the grid.
+   *  Lower frames tighter. The report uses a small value; the interactive map
+   *  keeps more, since its corners hold Google's own controls. */
+  framePadding?: number
   rankOverride?: Map<string, number | null> | null
 }) {
   const spacingMeters = deriveSpacingMeters(gridSize, radiusMeters)
@@ -326,13 +331,20 @@ export function ScanMap({
     if (grid.length === 0) return
     const bounds = new google.maps.LatLngBounds()
     for (const p of grid) bounds.extend({ lat: p.lat, lng: p.lng })
+    // fitBounds snaps to a WHOLE zoom level unless fractional zoom is on, and
+    // it always rounds down — so a grid that needs zoom 15.8 is drawn at 15,
+    // i.e. framed almost a full level wider than asked for. That, more than
+    // the padding, is why the grid used to sit small inside a lot of map.
+    mapInstance.setOptions({ isFractionalZoomEnabled: true })
     // Padding scales with the viewport rather than the old flat 48px, which was
     // tuned when the map was a ~400px card. On the full-height canvas a fixed
     // 48 left a large grid as a speck with empty map all around it; on a phone
     // the same 48 ate most of the width. Proportional, then clamped.
     const el = mapInstance.getDiv()
     const smaller = el ? Math.min(el.clientWidth, el.clientHeight) : 400
-    const pad = Math.round(Math.max(28, Math.min(96, smaller * 0.08)))
+    const pad = Math.round(
+      Math.max(framePadding * 220, Math.min(96, smaller * framePadding)),
+    )
     mapInstance.fitBounds(bounds, pad)
   }, [mapInstance, centerLat, centerLng, gridSize, radiusMeters, sizeTick, userMoved])
 

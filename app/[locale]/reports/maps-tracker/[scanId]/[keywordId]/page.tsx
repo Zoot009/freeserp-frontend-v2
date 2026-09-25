@@ -135,6 +135,11 @@ export default function ScanReportPage() {
                 showCenterMarker={false}
                 // A report is read, not driven.
                 interactive={false}
+                // Tighter than the dashboard's. Nobody pans a report, so the
+                // grid should fill the frame rather than leave room to move
+                // around in, and there are no map controls in the corners to
+                // sit under.
+                framePadding={0.045}
               />
             </APIProvider>
           </div>
