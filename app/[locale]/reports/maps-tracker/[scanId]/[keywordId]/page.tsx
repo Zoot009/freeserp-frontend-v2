@@ -90,8 +90,14 @@ export default function ScanReportPage() {
       <div className="mt-sheet">
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 40 }}>
           <div className="row" style={{ gap: 9 }}>
-            <Image src="/logo.png" alt="FreeSERP" width={26} height={26} className="mt-mark" priority />
-            <span style={{ fontSize: 14.5, fontWeight: 600 }}>FreeSERP Rank Tracker</span>
+            {/* Same mark and wordmark as the dashboard sidebar: 32px logo,
+                semibold "FreeSERP". The sidebar's second line ("Rank
+                Tracker") is dropped — the report already says what it is in
+                its eyebrow and headline, so repeating it in the brand lockup
+                made the header the loudest thing on a page whose point is the
+                result. */}
+            <Image src="/logo.png" alt="FreeSERP" width={32} height={32} className="mt-mark" priority />
+            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.01em" }}>FreeSERP</span>
           </div>
           <div className="tiny muted tabular">
             {new Date(scan.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }).toUpperCase()}

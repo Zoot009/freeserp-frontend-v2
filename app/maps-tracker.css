@@ -333,7 +333,7 @@
 /* The FreeSERP logo mark on the shared report header. It is the real
    /logo.png — the blue tile and starburst are in the image itself, so this
    only sizes and rounds it. */
-.fs-app .mt-mark { width: 26px; height: 26px; border-radius: 8px; object-fit: contain; display: block; flex-shrink: 0; }
+.fs-app .mt-mark { width: 32px; height: 32px; border-radius: 8px; object-fit: contain; display: block; flex-shrink: 0; }
 .fs-app .mt-rstats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .fs-app .mt-rstats > div { padding: 22px 24px; }
 .fs-app .mt-rstats > div + div { border-left: 1px solid var(--border); }
