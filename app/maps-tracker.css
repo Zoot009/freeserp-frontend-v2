@@ -153,23 +153,26 @@
   background: #fff; border: 2px solid #4B5563;
   box-shadow: 0 1px 3px rgba(0,0,0,.35);
 }
-.fs-app .mt-pin--live { width: 16px; height: 16px; border-radius: 999px; background: #9CA3AF; border: 2px solid #fff; }
-/* The ring and the shadow are doing two different jobs and are tuned apart.
-   The white ring separates the fill from whatever it lands on — a road casing,
-   a park, a building. The shadow lifts the whole pin off the tile: a tight,
-   dark one (this was 0 1px 3px / .22) hugs the edge and reads as grime around
-   the ring rather than as depth, so it is wider, softer and lighter, over a
-   hairline that keeps the white ring from dissolving into pale tiles.
-   Width, ring width and font-size are set inline per scan — see pinScale(). */
+.fs-app .mt-pin--live { width: 16px; height: 16px; border-radius: 999px; background: #9CA3AF; }
+/* No ring. It used to carry a white one to hold the fill apart from whatever
+   it landed on — a road casing, a park, a building — which was necessary
+   while the basemap was Google's default, saturated and covered in POI pins.
+   The cloud map style removed that problem at the source: on a desaturated,
+   label-light map a solid rank colour already separates itself, and the ring
+   just read as a halo stuck around the circle.
+
+   The shadow stays. It is doing the other job — lifting the pin off the tile
+   — and is the only thing left keeping a dark pin from sitting flat on a pale
+   one. Width and font-size are set inline per scan; see pinScale(). */
 .fs-app .mt-pin--scored {
   width: 26px; height: 26px; border-radius: 999px;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(11,13,18,.18), 0 0 0 .5px rgba(11,13,18,.07);
+  border: none;
+  box-shadow: 0 2px 6px rgba(11,13,18,.20);
   cursor: pointer;
 }
 .fs-app .mt-pin--scored:hover {
   transform: scale(1.18);
-  box-shadow: 0 4px 10px rgba(11,13,18,.24), 0 0 0 .5px rgba(11,13,18,.07);
+  box-shadow: 0 4px 10px rgba(11,13,18,.26);
 }
 .fs-app .mt-pin--centre { width: 16px; height: 16px; border-radius: 999px; background: var(--brand); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(11,13,18,.3); }
 /* Selected. Keeps the brand halo, but picks up the same softer ambient shadow

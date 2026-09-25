@@ -107,7 +107,6 @@ function CenterMarker({
 function pinScale(gridSize: number, boost = 1): {
   scored: number
   font: number
-  ring: number
   idle: number
   live: number
 } {
@@ -124,12 +123,11 @@ function pinScale(gridSize: number, boost = 1): {
   const scored = Math.round(base * boost)
   return {
     scored,
-    font: Math.round(scored * 0.46 * 10) / 10,
-    // The white ring is what holds the pin apart from the map underneath, so
-    // it wants to grow with the pin. It cannot grow on the small ones though:
-    // box-sizing is border-box, so every extra pixel of ring is two fewer of
-    // fill, and at 24px a 3px ring starts squeezing the number.
-    ring: scored >= 30 ? 3 : 2,
+    // 0.42, not the 0.46 it was while the pin carried a 2-3px white ring.
+    // box-sizing is border-box, so dropping the ring handed the fill those
+    // pixels back; holding the old ratio would have left the number looking
+    // crowded against the edge of its own circle.
+    font: Math.round(scored * 0.42 * 10) / 10,
     idle: Math.round(scored * 0.46),
     live: Math.round(scored * 0.62),
   }
@@ -185,7 +183,7 @@ function GridPin({
   // this is ever bypassed.
   const size = pinScale(gridSize, pinBoost)
   // "20+" is the only three-character label and the one a weak scan is full
-  // of, so it gets a slightly smaller face rather than touching its ring.
+  // of, so it gets a slightly smaller face rather than touching the edge.
   const fontSize = color.label.length >= 3 ? Math.round(size.font * 0.82 * 10) / 10 : size.font
   const content = (
     <span
@@ -197,7 +195,6 @@ function GridPin({
               color: color.fg,
               width: size.scored,
               height: size.scored,
-              borderWidth: size.ring,
               fontSize,
             }
           : idle
