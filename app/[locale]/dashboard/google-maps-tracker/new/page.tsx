@@ -35,11 +35,20 @@ const LIST = "/dashboard/google-maps-tracker"
 // grid", landing on 7 x 7. That is 49 points and 8 credits before anyone has
 // seen what a scan even produces.
 //
-// 3 x 3 over the same 1.5 miles is 3 credits and pins a mile and a half apart:
-// a real picture of the area, at the cheapest it can be drawn. Anyone who wants
-// it finer raises it from the dropdown, having seen what they are buying.
+// 3 x 3 stays: 3 credits, the cheapest a scan can be drawn.
+//
+// The radius came back down from 1.5 miles to 0.5 because 1.5 overshot in the
+// other direction. On a 3 x 3 the radius IS the pin spacing, so 1.5 put the
+// corners three miles apart — and a map framed to three miles renders at a
+// zoom with no streets or buildings on it, which is what makes a report look
+// like a diagram of nowhere. Half a mile spans one mile corner to corner:
+// streets legible, still a genuine neighbourhood rather than one block.
+//
+// Radius is free. Credits are a function of grid size and point count alone,
+// so this costs exactly what 1.5 did. Anyone covering a wider service area
+// raises it, having seen what a scan produces first.
 const DEFAULT_GRID_SIZE = 3
-const DEFAULT_RADIUS = 1.5
+const DEFAULT_RADIUS = 0.5
 // Geographic center of the continental US — just a reasonable starting view
 // before any location is picked; the map re-centers via fitBounds once one is.
 const DEFAULT_MAP_CENTER = { lat: 39.8283, lng: -98.5795 }
