@@ -384,7 +384,13 @@ export function ScanMap({
           open={openPointId != null && p.pointId === openPointId}
           // Only SUCCEEDED pins have a top-results payload to show — only
           // those look/act clickable, so hover state doesn't lie.
-          onClick={interactive && onPinClick && p.status === "SUCCEEDED" ? () => onPinClick(p) : undefined}
+          //
+          // Deliberately NOT gated on `interactive`. That flag is about
+          // driving the MAP — panning, zooming, the default controls — and a
+          // report wants none of that while still letting a reader open a
+          // point to see what ranked there. Whether pins are clickable is
+          // decided by whether a caller passed onPinClick.
+          onClick={onPinClick && p.status === "SUCCEEDED" ? () => onPinClick(p) : undefined}
         />
       ))}
     </Map>

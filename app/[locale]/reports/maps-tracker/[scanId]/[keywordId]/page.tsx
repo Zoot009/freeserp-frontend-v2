@@ -8,6 +8,7 @@ import { api, ApiError } from "@/lib/api"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
 import { RankLegend } from "@/components/maps-tracker/rank-distribution"
 import { CompetitorTable } from "@/components/maps-tracker/competitor-table"
+import { PointDrawer } from "@/components/maps-tracker/point-drawer"
 import { MILES_TO_METERS, KM_TO_METERS, deriveSpacingMeters, formatDistance } from "@/components/maps-tracker/grid"
 import type { Scan, CompetitorLeaderboard } from "@/components/maps-tracker/types"
 
@@ -28,6 +29,10 @@ export default function ScanReportPage() {
   const [scan, setScan] = useState<Scan | null>(null)
   const [leaderboard, setLeaderboard] = useState<CompetitorLeaderboard | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Which point's drawer is open. A report is read-only for the MAP, but the
+  // pins still open -- "what actually ranked here?" is the first question a
+  // reader has, and the data is already fetched per point on demand.
+  const [openPointId, setOpenPointId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -73,8 +78,11 @@ export default function ScanReportPage() {
   const unitLabel = scan.displayUnit === "IMPERIAL" ? "mi" : "km"
   const radiusInUnit = scan.radiusMeters / (scan.displayUnit === "IMPERIAL" ? MILES_TO_METERS : KM_TO_METERS)
 
+  // pointId is what makes a pin openable — without it the drawer has nothing
+  // to fetch, which is why clicking a pin on this page used to do nothing.
   const pins: MapPinData[] = keyword.points.map((p) => ({
     row: p.row, col: p.col, lat: p.latitude, lng: p.longitude, status: p.status, rank: p.rank,
+    pointId: p.id,
   }))
 
   return (
@@ -133,8 +141,14 @@ export default function ScanReportPage() {
                 // Same as the results screen: the centre already has a scored
                 // pin, and the marker would cover its rank.
                 showCenterMarker={false}
-                // A report is read, not driven.
+                // A report is read, not driven — no panning, no zooming, no
+                // map controls. Pins still open, though; that is onPinClick's
+                // job, not this flag's.
                 interactive={false}
+                openPointId={openPointId}
+                onPinClick={(pin) => {
+                  if (pin.status === "SUCCEEDED" && pin.pointId) setOpenPointId(pin.pointId)
+                }}
                 // Tighter than the dashboard's. Nobody pans a report, so the
                 // grid should fill the frame rather than leave room to move
                 // around in, and there are no map controls in the corners to
@@ -181,6 +195,18 @@ export default function ScanReportPage() {
           Prepared by FreeSERP · every figure measured from the {keyword.scoredPoints} searches above
         </div>
       </div>
+
+      {/* The top 20 Google returned at one coordinate. Same drawer the
+          dashboard uses, so the report cannot drift from it. */}
+      {openPointId && (
+        <PointDrawer
+          scanId={params.scanId}
+          pointId={openPointId}
+          keyword={keyword.keyword}
+          unit={scan.displayUnit}
+          onClose={() => setOpenPointId(null)}
+        />
+      )}
     </div>
   )
 }
