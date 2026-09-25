@@ -90,7 +90,13 @@ function CenterMarker({
  * same number at the ratios they already used (12/26 and 16/26), so the three
  * states stay in proportion at every size.
  */
-function pinScale(gridSize: number): { scored: number; font: number; idle: number; live: number } {
+function pinScale(gridSize: number): {
+  scored: number
+  font: number
+  ring: number
+  idle: number
+  live: number
+} {
   const scored =
     gridSize <= 5 ? 38
     : gridSize <= 7 ? 34
@@ -100,7 +106,12 @@ function pinScale(gridSize: number): { scored: number; font: number; idle: numbe
     : 24
   return {
     scored,
-    font: Math.round(scored * 0.44 * 10) / 10,
+    font: Math.round(scored * 0.46 * 10) / 10,
+    // The white ring is what holds the pin apart from the map underneath, so
+    // it wants to grow with the pin. It cannot grow on the small ones though:
+    // box-sizing is border-box, so every extra pixel of ring is two fewer of
+    // fill, and at 24px a 3px ring starts squeezing the number.
+    ring: scored >= 30 ? 3 : 2,
     idle: Math.round(scored * 0.46),
     live: Math.round(scored * 0.62),
   }
@@ -166,6 +177,7 @@ function GridPin({
               color: color.fg,
               width: size.scored,
               height: size.scored,
+              borderWidth: size.ring,
               fontSize,
             }
           : idle
