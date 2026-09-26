@@ -55,6 +55,29 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       .catch(() => setHasWebsite(true))
   }, [loading, user?.emailVerified, user?.occupationRole])
 
+  // Tell the server we've reached the dashboard, so it can send the welcome
+  // email — which used to go out at signup, beside the verification OTP,
+  // before anyone had actually joined anything. Same guard as the effect above:
+  // verified, and through /flow (the redirect above keeps everyone else out).
+  //
+  // The server decides whether a welcome is due and makes it exactly-once, so
+  // this is only "I'm here". The sessionStorage mark just avoids repeating that
+  // on every reload of a session; storage can throw (private mode), in which
+  // case one redundant, harmless call per load is fine.
+  useEffect(() => {
+    if (loading || !user?.emailVerified || !user?.occupationRole) return
+    const key = `fs-welcome-reported:${user.id}`
+    try {
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, "1")
+    } catch {
+      /* storage unavailable — fall through and report anyway */
+    }
+    api.post("/api/me/welcome", {}).catch(() => {
+      /* best-effort: a missed report only delays the welcome to the next visit */
+    })
+  }, [loading, user?.id, user?.emailVerified, user?.occupationRole])
+
   useEffect(() => {
     const open = () => setShowAdd(true)
     const added = () => setHasWebsite(true)

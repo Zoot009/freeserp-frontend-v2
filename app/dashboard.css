@@ -4247,33 +4247,154 @@
 }
 
 /*
-  The "finding your keywords" bar.
+  The "finding your keywords" progress panel (KeywordDiscoveryProgress).
 
-  Indeterminate on purpose: the run is a homepage crawl plus a model call, and
-  neither reports progress. A percentage would have to be invented, and an
-  invented one that sticks at 80% is worse than an honest sweep.
+  This used to be a deliberately indeterminate 3px sweep, because the run
+  reported no progress and any percentage would have been invented. That
+  premise changed: the worker now marks the crawl and the model call as each
+  finishes, so the panel shows real steps and a bar that fills ONLY as they
+  complete. The shimmer across the bar is the activity signal — it moves while
+  the bar itself stays honest — and the elapsed clock proves the page is live.
 */
-.fs-app .kd-finding-bar {
-  width: 220px;
-  height: 3px;
+.fs-app .kd-disc {
+  width: 100%;
+  max-width: 460px;
+  text-align: left;
+}
+.fs-app .kd-disc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.fs-app .kd-disc-orb {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  background: var(--brand-soft);
+  animation: kd-disc-pulse 2s ease-in-out infinite;
+}
+.fs-app .kd-disc-titles { flex: 1; min-width: 0; }
+.fs-app .kd-disc-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.fs-app .kd-disc-sub { font-size: 13px; line-height: 1.5; color: var(--text-soft); margin-top: 2px; }
+.fs-app .kd-disc-sub b { color: var(--text); font-weight: 600; }
+.fs-app .kd-disc-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-mute);
+  padding: 3px 8px;
   border-radius: 999px;
-  background: var(--border);
+  background: var(--bg-inset);
+  font-variant-numeric: tabular-nums;
+}
+
+.fs-app .kd-disc-steps {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fs-app .kd-disc-steps li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  color: var(--text-mute);
+  transition: color 0.2s ease;
+}
+.fs-app .kd-disc-steps li[data-state="active"] { color: var(--text); font-weight: 500; }
+.fs-app .kd-disc-steps li[data-state="done"] { color: var(--text-soft); }
+.fs-app .kd-disc-mark {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border-strong);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.fs-app .kd-disc-steps li[data-state="done"] .kd-disc-mark {
+  background: var(--pos);
+  border-color: var(--pos);
+  color: #fff;
+}
+.fs-app .kd-disc-steps li[data-state="active"] .kd-disc-mark { border-color: transparent; }
+/* The spinning ring for the active step. `.spin` supplies the rotation. */
+.fs-app .kd-disc-ring {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid var(--brand-soft);
+  border-top-color: var(--brand);
+}
+
+.fs-app .kd-disc-bar {
+  position: relative;
+  margin-top: 20px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-inset);
   overflow: hidden;
 }
-.fs-app .kd-finding-bar > span {
+.fs-app .kd-disc-bar > span {
+  position: relative;
   display: block;
-  width: 40%;
   height: 100%;
   border-radius: inherit;
   background: var(--brand);
-  animation: kd-finding-sweep 1.4s ease-in-out infinite;
+  overflow: hidden;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes kd-finding-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(250%); }
+.fs-app .kd-disc-bar > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-100%);
+  animation: kd-disc-sheen 1.6s ease-in-out infinite;
+}
+
+.fs-app .kd-disc-slow {
+  margin-top: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.fs-app .kd-disc-foot {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-mute);
+}
+
+@keyframes kd-disc-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 28%, transparent); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand) 0%, transparent); }
+}
+@keyframes kd-disc-sheen {
+  to { transform: translateX(100%); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fs-app .kd-finding-bar > span { animation: none; width: 100%; opacity: 0.5; }
+  .fs-app .kd-disc-orb,
+  .fs-app .kd-disc-bar > span::after { animation: none; }
+  /* The ring still needs to read as "in progress" without spinning. */
+  .fs-app .kd-disc-ring.spin { animation: none; border-color: var(--brand); }
 }
 
 

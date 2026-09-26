@@ -16,6 +16,7 @@ import { knownGeoCountry, prefetchGeoCountry, useGeoCountry } from "@/hooks/use-
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
+import { KeywordDiscoveryProgress, type KeywordDiscovery } from "@/components/dashboard/keyword-discovery-progress"
 import { EnginePicker } from "@/components/dashboard/engine-picker"
 import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
@@ -1087,8 +1088,8 @@ export default function ProjectKeywordsPage() {
   // Keywords today's plan budget couldn't cover on the last run — shown locked
   // with an upgrade prompt rather than silently left unchecked.
   const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
-  /** A keyword run is in flight for a project that has none yet. */
-  const [findingKeywords, setFindingKeywords] = useState(false)
+  /** The keyword-discovery run for a project that has none yet; null when no run is live. */
+  const [discovery, setDiscovery] = useState<KeywordDiscovery | null>(null)
   // Keyword IDs with a per-keyword refresh in flight (drives the ↻ spinner).
   const [refreshingKw, setRefreshingKw] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -1561,42 +1562,72 @@ export default function ProjectKeywordsPage() {
    * by holding the user on "Finding your keywords…" with nothing to look at.
    *
    * Only while the project has NO keywords and a run is actually in flight, so
-   * a genuinely empty project polls twice and stops rather than forever.
+   * a genuinely empty project polls once and stops rather than forever.
+   *
+   * Each tick also reads the run's progress markers (crawlMethod, tokensUsed —
+   * written by the worker the moment each step finishes) so the progress panel
+   * can show which real step it is on.
+   *
+   * Keyed on `hasNoKeywords`, NOT on `project`. It used to depend on `project`
+   * and assumed "the keywords land with the run, so one reload is enough" —
+   * but the worker adds them a moment AFTER marking the run complete. That
+   * reload then returned a still-empty project, the new object re-triggered
+   * this effect with no delay, and a run that finished with nothing to add
+   * reloaded in a tight loop forever. Now a completed run keeps reloading on a
+   * 2s interval until the keywords arrive, and gives up after ~20s.
    */
+  const hasNoKeywords = !!project && project.keywords.length === 0
   useEffect(() => {
-    if (!project || project.keywords.length > 0) {
-      setFindingKeywords(false)
+    if (!hasNoKeywords) {
+      setDiscovery(null)
       return
     }
     let stop = false
+    let reloadsAfterComplete = 0
     const tick = async () => {
       if (stop) return
+      let status: string | undefined
       try {
-        const { run } = await api.get<{ run: { status?: string } | null }>(
-          `/api/projects/${projectId}/keyword-suggestions`,
-        )
-        const inFlight = run?.status === "PENDING" || run?.status === "PROCESSING" || run?.status === "RUNNING"
-        // Drives the empty state: "we are finding them" rather than "there are
-        // none", which are the same screen and opposite meanings.
-        setFindingKeywords(inFlight)
-        if (run?.status === "COMPLETED") {
-          // The keywords land with the run, so one reload is enough.
-          await load(true)
+        const { run } = await api.get<{
+          run: { status?: string; crawlMethod?: string | null; tokensUsed?: number; createdAt?: string } | null
+        }>(`/api/projects/${projectId}/keyword-suggestions`)
+        status = run?.status
+        const live = status === "PENDING" || status === "PROCESSING" || status === "RUNNING"
+        if (!run || !(live || status === "COMPLETED")) {
+          // No run, or it failed: nothing is coming, and the empty state is
+          // honest. Stop rather than poll a project that simply has no keywords.
+          setDiscovery(null)
           stop = true
           return
         }
-        // No run, or it failed: nothing is coming, and the empty state is
-        // honest. Stop rather than poll a project that simply has no keywords.
-        if (!inFlight) stop = true
+        // Drives the panel: "we are finding them" rather than "there are none",
+        // which are the same screen and opposite meanings.
+        setDiscovery({
+          status: status === "COMPLETED" ? "COMPLETED" : status === "PENDING" ? "PENDING" : "PROCESSING",
+          crawled: !!run.crawlMethod,
+          analysed: (run.tokensUsed ?? 0) > 0,
+          startedAt: run.createdAt ? Date.parse(run.createdAt) : Date.now(),
+        })
+        if (status === "COMPLETED") {
+          await load(true)
+          // A run that finished with nothing trackable would otherwise wait
+          // forever; after ~20s, fall back to the honest empty state.
+          if (++reloadsAfterComplete >= 10) {
+            setDiscovery(null)
+            stop = true
+            return
+          }
+        }
       } catch {
         stop = true
-        setFindingKeywords(false)
+        setDiscovery(null)
+        return
       }
-      if (!stop) setTimeout(() => void tick(), 3000)
+      if (!stop) setTimeout(() => void tick(), status === "COMPLETED" ? 2000 : 3000)
     }
     void tick()
     return () => { stop = true }
-  }, [project, projectId, load])
+  }, [hasNoKeywords, projectId, load])
 
   // Poll while any keyword is PENDING or PROCESSING — drives status dot
   // transitions without a manual refresh. Stops once everything is terminal.
@@ -2752,27 +2783,13 @@ export default function ProjectKeywordsPage() {
                 second while reading the first, which says the thing you just
                 paid for did not happen.
               */}
-              {findingKeywords ? (
-                <>
-                  <div className="eyebrow" style={{ justifyContent: "center" }}>
-                    <span className="spark"><Icon.spark /></span> FINDING YOUR KEYWORDS
-                  </div>
-                  <div className="b" style={{ fontSize: 16, marginTop: 4 }}>
-                    Reading your site…
-                  </div>
-                  <div className="tiny muted" style={{ marginTop: 6, maxWidth: 340 }}>
-                    We&apos;re analysing your homepage and picking the keywords worth tracking.
-                    They&apos;ll appear here on their own — this usually takes under a minute.
-                  </div>
-                  <div className="kd-finding-bar" style={{ marginTop: 18 }} aria-hidden="true">
-                    <span />
-                  </div>
-                  {/* Still offered: someone who knows their keywords should not
-                      have to wait for ours. */}
-                  <button className="btn" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
-                    <Icon.plus /> {t("addKeywords")}
-                  </button>
-                </>
+              {discovery ? (
+                <KeywordDiscoveryProgress
+                  discovery={discovery}
+                  domain={project.domain}
+                  onAddKeywords={() => setShowAddKw(true)}
+                  addLabel={t("addKeywords")}
+                />
               ) : (
                 <>
                   <div className="eyebrow" style={{ justifyContent: "center" }}>
