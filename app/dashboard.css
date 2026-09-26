@@ -32,24 +32,6 @@
   --meter-checks: #2D5BFF;
   --meter-ai: #0D9488;
 
-  /* SERP feature chips — one hue per feature, so a row of them is read as a
-     pattern rather than decoded glyph by glyph.
-
-     These are FILLS with a white glyph knocked out, so each is deep enough to
-     carry white at 4.5:1 or better. That is what pins the shade: the cheerful
-     mid-tone greens and teals sit at 3:1 against white and were stepped down
-     until they held. */
-  --feat-ai: #7C3AED;
-  --feat-fs: #0F766E;
-  --feat-paa: #B45309;
-  --feat-vid: #DC2626;
-  --feat-img: #DB2777;
-  --feat-local: #15803D;
-  --feat-kg: #4F46E5;
-  --feat-shop: #C2410C;
-  --feat-news: #475569;
-  --feat-cited: #2D5BFF;
-
   --black: #0B0D12;
   --white: #FFFFFF;
 
@@ -142,14 +124,6 @@
      elevated surface (#14181F). */
   --meter-checks: #5B7DFF;
   --meter-ai: #0FA896;
-
-  /* A filled chip brings its own contrast, so most of these carry over. Only
-     the three that were dark enough to sink into the #14181F surface are
-     lifted — a chip you cannot find is worse than one that shouts. */
-  --feat-fs: #0D9488;
-  --feat-local: #16A34A;
-  --feat-news: #64748B;
-  --feat-cited: #3B6BFF;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
@@ -2044,19 +2018,38 @@
 /* SERP feature chips. Icon-only, so the horizontal text padding would leave the
    glyph off-centre in a chip twice as wide as it needs to be.
 
-   Solid, in the feature's own colour, with the glyph knocked out in white. The
-   outlined version put the accent in a 1px ring around mostly table background,
-   which gave the colour no area to be seen in — six of them read as six empty
-   boxes. currentColor is therefore the WHITE here; --feat-fill is the colour. */
+   Neutral: a grey glyph on the inset surface, the way SERP-feature columns
+   look in the tools people already know. These were solid chips in one hue per
+   feature, which made a keyword table the loudest thing on the page — a row of
+   orange, pink, violet and red badges beside every keyword, reading as
+   decoration rather than data. The per-feature glyphs (./serp-icons) are drawn
+   with distinct silhouettes precisely so they can be told apart without
+   colour, and the tooltip names each one.
+
+   Colour is kept for the one chip that reports on YOUR site rather than on the
+   page: being cited in the AI Overview. Everything else describes what Google
+   showed; that one is a result, so it alone gets the brand tint.
+
+   --feat-fill must equal the background. The AI-cited glyph draws its tick in
+   --feat-fill so the tick reads as a hole cut out of the badge, which only
+   works if that colour is the chip's own. */
 .fs-app .chip.feat {
   /* The glyphs are drawn to the edge of their 16px box, so the fill needs a
-     margin of its own or the white runs into the corner radius. */
+     margin of its own or the glyph runs into the corner radius. */
   padding: 4px 5px;
   gap: 1px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 6px;
+  --feat-fill: var(--bg-inset);
   background: var(--feat-fill);
-  color: #fff;
+  color: var(--text-soft);
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.fs-app .chip.feat:hover { color: var(--text); border-color: var(--border-strong); }
+.fs-app .chip.feat.cited {
+  --feat-fill: var(--brand-soft);
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 25%, transparent);
 }
 .fs-app .chip.feat svg { display: block; }
 /* Clickable list rows (e.g. saved-analysis history lists) */

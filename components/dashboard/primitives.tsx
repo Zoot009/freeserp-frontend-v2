@@ -647,36 +647,30 @@ export function trendToSparkline(trend: MonthlySearch[] | null | undefined): num
  * a miniature of the block it stands for, with silhouettes — solid bars, an
  * outlined card, a pin, a star — that differ before the detail is even legible.
  *
- * Colour carries the rest of the load. One accent per feature means a row of
- * chips is recognised as a PATTERN rather than decoded left to right, which is
- * the only way a set of icons beats a set of words at this size.
- *
- * The colour is the FILL, not a tint on a hairline outline. Outlined, each chip
- * was a 1px ring around mostly table background: the accent had almost no area
- * to be seen in, and six of them read as six empty boxes. Filled, the chip is
- * the colour and the glyph is knocked out of it in white — the same trick the
- * tooltip plays, and it holds up on either theme because a solid chip brings its
- * own contrast rather than borrowing the surface's.
+ * Then one solid colour per feature, with the glyph knocked out in white, so a
+ * row of chips read as a pattern. It did — but a keyword table became a wall of
+ * orange, pink, violet and red badges, the loudest thing on the page, reading
+ * as decoration rather than data. The chips are neutral now (see .chip.feat in
+ * dashboard.css): the silhouettes above are distinct enough to carry
+ * recognition without colour. Colour is kept for AICITED alone, the one chip
+ * that reports on the user's own site rather than on what Google showed.
  *
  * The name is still the whole explanation, in the app's own tooltip rather than
  * the OS one — `title` waits a second, ignores the styling, and never appears
  * for keyboard or touch users — and it is the chip's accessible name, so a
  * screen reader gets the full phrase where the acronym gave it "P A A".
  */
-const FEAT_STYLE: Record<
-  string,
-  { Glyph: (p: { size?: number }) => React.ReactElement; fill: string }
-> = {
-  AI: { Glyph: AiOverviewGlyph, fill: "var(--feat-ai)" },
-  AICITED: { Glyph: AiCitedGlyph, fill: "var(--feat-cited)" },
-  FS: { Glyph: SnippetGlyph, fill: "var(--feat-fs)" },
-  PAA: { Glyph: PaaGlyph, fill: "var(--feat-paa)" },
-  VID: { Glyph: VideoGlyph, fill: "var(--feat-vid)" },
-  IMG: { Glyph: ImagePackGlyph, fill: "var(--feat-img)" },
-  LOCAL: { Glyph: LocalGlyph, fill: "var(--feat-local)" },
-  KG: { Glyph: KnowledgeGlyph, fill: "var(--feat-kg)" },
-  SHOP: { Glyph: ShoppingGlyph, fill: "var(--feat-shop)" },
-  NEWS: { Glyph: NewsGlyph, fill: "var(--feat-news)" },
+const FEAT_STYLE: Record<string, { Glyph: (p: { size?: number }) => React.ReactElement }> = {
+  AI: { Glyph: AiOverviewGlyph },
+  AICITED: { Glyph: AiCitedGlyph },
+  FS: { Glyph: SnippetGlyph },
+  PAA: { Glyph: PaaGlyph },
+  VID: { Glyph: VideoGlyph },
+  IMG: { Glyph: ImagePackGlyph },
+  LOCAL: { Glyph: LocalGlyph },
+  KG: { Glyph: KnowledgeGlyph },
+  SHOP: { Glyph: ShoppingGlyph },
+  NEWS: { Glyph: NewsGlyph },
 }
 
 export function FeatChip({ f }: { f: string }) {
@@ -687,18 +681,16 @@ export function FeatChip({ f }: { f: string }) {
   // A label out of place beats a blank square that could mean anything.
   if (!style) return <span className="chip outline" title={f}>{f}</span>
 
-  const { Glyph, fill } = style
+  const { Glyph } = style
   const title = t(`feat.${f}`)
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className="chip feat"
-          // Published as a custom property rather than `background`, because the
-          // one glyph that knocks a shape OUT of the chip (AI cited) has to
-          // paint that shape in the chip's own fill to make a hole in it.
-          style={{ "--feat-fill": fill } as React.CSSProperties}
+          // The one coloured chip — see the comment above FEAT_STYLE. Its fill,
+          // like every other chip's, comes from .chip.feat in dashboard.css.
+          className={f === "AICITED" ? "chip feat cited" : "chip feat"}
           aria-label={title}
         >
           <Glyph size={14} />
