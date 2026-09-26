@@ -4801,3 +4801,143 @@
   .fs-app .llm-wiz-f .row { width: 100%; }
   .fs-app .llm-wiz-f .row .btn { flex: 1; justify-content: center; }
 }
+/* ── Locked share link (free account) ────────────────────────────────────
+   What a recipient sees when the owner is on the free plan. The server sends
+   no ranking values for these links, so every number-shaped thing here is a
+   neutral placeholder bar — there is nothing on the page to un-blur. The real
+   keyword names stay crisp above the locked zone; the upgrade panel sits on
+   faded skeleton rows BELOW them so it never hides the one readable thing. */
+.fs-app .share-bar {
+  display: inline-block;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  vertical-align: middle;
+}
+/* Stat tiles: a lock + bar where the number would be. Min-height matches
+   .stat .val (28px x 1.1) so locked and unlocked tiles line up. */
+.fs-app .share-lock-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  margin: 2px 0;
+  color: var(--text-mute);
+}
+.fs-app .share-locked-zone {
+  position: relative;
+  border-top: 1px solid var(--border);
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+}
+.fs-app .share-locked-skeleton {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Rows fade out toward the bottom, so the zone reads as "more, locked"
+     rather than as a second table that failed to load. */
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 92%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 92%);
+}
+.fs-app .share-locked-skel-row {
+  display: grid;
+  /* Roughly the table's column proportions above, so the skeleton continues
+     the table instead of starting a new pattern. */
+  grid-template-columns: 1.7fr 0.7fr 0.8fr 0.7fr 2fr 0.8fr;
+  gap: 16px;
+  align-items: center;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.fs-app .share-locked-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  padding: 24px 24px 22px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 16px 40px -16px rgba(15, 26, 60, 0.22);
+}
+.fs-app .share-locked-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  margin-bottom: 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.fs-app .share-locked-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.fs-app .share-locked-body { margin: 6px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--text-soft); }
+.fs-app .share-locked-body b { color: var(--text); font-weight: 600; }
+.fs-app .share-locked-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.fs-app .share-locked-actions a { text-decoration: none; }
+@media (max-width: 640px) {
+  .fs-app .share-locked-skel-row { grid-template-columns: 2fr 1fr 1fr; }
+  .fs-app .share-locked-skel-row > :nth-child(n + 4) { display: none; }
+}
+
+/* ── Share-link modal ──────────────────────────────────────────────────── */
+.fs-app .share-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
+}
+.fs-app .share-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--pos);
+  box-shadow: 0 0 0 3px var(--pos-soft);
+}
+.fs-app .share-link-field { display: flex; gap: 8px; align-items: stretch; }
+.fs-app .share-link-field .input { flex: 1; min-width: 0; font-size: 12px; font-family: var(--font-mono); }
+.fs-app .share-link-field .icon-btn { flex-shrink: 0; }
+/* Free-plan notice: informative, not alarming — the brand tint, not warn. */
+.fs-app .share-plan-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.fs-app .share-plan-note > svg { flex-shrink: 0; margin-top: 2px; }
+.fs-app .share-plan-note .b { color: var(--text); }
+.fs-app .share-plan-note .muted { color: var(--text-soft); margin-top: 2px; }
+.fs-app .share-plan-cta {
+  display: inline-block;
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+.fs-app .share-plan-cta:hover { text-decoration: underline; }
+/* "Turn off link": a quiet text-style action. Red only on hover — it is
+   destructive, but it is not what this dialog is for. */
+.fs-app .btn.share-disable {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-mute);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.fs-app .btn.share-disable:hover:not(:disabled) { color: var(--neg); background: var(--neg-soft); }

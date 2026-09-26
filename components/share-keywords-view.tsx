@@ -40,10 +40,28 @@ interface ShareKeyword {
   pageScoreLabel: string | null
 }
 
+/** One keyword as a free account's locked link names it: what, where — no data. */
+interface SharePreviewKeyword {
+  keyword: string
+  location: string
+  locationLabel?: string | null
+  locationCountry?: string | null
+  device: string | null
+}
+
 export interface ShareKeywordsData {
   name: string
   domain: string
+  /** Full rankings (paid owner). Always [] on a locked link. */
   keywords: ShareKeyword[]
+  /**
+   * Shared from a free account. The server withholds every ranking field and
+   * sends only a keyword count and a few names; see the share endpoint.
+   * Absent on payloads from before this existed, which were always full.
+   */
+  locked?: boolean
+  keywordCount?: number
+  preview?: SharePreviewKeyword[]
 }
 
 // Deterministic accent colour for the favicon fallback (mirrors projectColor on
@@ -111,6 +129,179 @@ function ScoreBadge({ score, grade, label }: { score: number | null; grade: stri
 }
 
 export function ShareKeywordsView({ data }: { data: ShareKeywordsData }) {
+  // Two separate components rather than an early return, so neither view's
+  // hooks are ever skipped on a render.
+  return data.locked ? <LockedShareView data={data} /> : <FullShareView data={data} />
+}
+
+// Deterministic widths for the placeholder bars, so the locked table reads as
+// a table of varied values instead of identical stripes. Purely visual: no
+// real data exists on this page to draw them from.
+const BAR_WIDTHS = [36, 54, 28, 46, 60, 40, 32, 50]
+const bar = (row: number, col: number) => BAR_WIDTHS[(row * 3 + col) % BAR_WIDTHS.length]
+
+// Skeleton rows in the locked zone under the preview. The upgrade panel sits on
+// these rather than on the table above, so it never covers the keyword names —
+// the one real, readable thing a free link shows.
+const LOCKED_ZONE_ROWS = 5
+
+/**
+ * A link shared from a free account.
+ *
+ * The recipient gets a rough idea of the project — its name, how many
+ * keywords it tracks, the first few of them — and a plain statement that the
+ * rankings unlock when the owner upgrades. Everything that would be a number
+ * is a placeholder bar: the server never sent the real values (see the share
+ * endpoint), so there is nothing here to un-blur.
+ */
+function LockedShareView({ data }: { data: ShareKeywordsData }) {
+  const color = domainColor(data.domain)
+  const total = data.keywordCount ?? 0
+  const preview = data.preview ?? []
+  const more = Math.max(0, total - preview.length)
+
+  return (
+    <div className="fs-app" translate="no" style={{ minHeight: "100vh", background: "var(--bg-sub)" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "clamp(20px, 4vw, 28px) clamp(14px, 4vw, 24px) 64px" }}>
+        {/* Header — identical to the full view: the recipient should recognise
+            the project before anything tells them it is locked. */}
+        <div className="page-h" style={{ alignItems: "flex-start" }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="row" style={{ marginBottom: 8 }}>
+              <Favicon domain={data.domain} size={36} fallbackColor={color} />
+              <div style={{ minWidth: 0 }}>
+                <h1 style={{ margin: 0 }}>{data.name}</h1>
+                <div className="tiny muted mono">{data.domain}</div>
+              </div>
+            </div>
+            <div className="sub">
+              {total} keyword{total !== 1 ? "s" : ""} tracked
+            </div>
+          </div>
+        </div>
+
+        {/* Stat tiles: the count is real and useful; the rest is locked. */}
+        <div className="grid g-3" style={{ marginBottom: 14 }}>
+          <div className="stat">
+            <div className="lbl">Keywords tracked</div>
+            <div className="val tabular">{total.toLocaleString()}</div>
+            <span className="tiny muted">on this project</span>
+          </div>
+          {["Average position", "In top 10"].map((lbl) => (
+            <div className="stat" key={lbl}>
+              <div className="lbl">{lbl}</div>
+              <div className="share-lock-val" aria-label={`${lbl} — locked`}>
+                <Icon.lock size={14} />
+                <span className="share-bar" style={{ width: 52 }} />
+              </div>
+              <span className="tiny muted">Available on a paid plan</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="tbl" style={{ minWidth: 900 }}>
+              <thead>
+                <tr>
+                  <th>Keyword</th>
+                  <th>Position</th>
+                  <th style={{ whiteSpace: "nowrap" }}>First check</th>
+                  <th>Volume</th>
+                  <th>URL</th>
+                  <th>Keyword score</th>
+                  <th>Last checked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((kw, i) => (
+                  <tr key={`${kw.keyword}-${i}`}>
+                    <td>
+                      <span className="row" style={{ gap: 8, alignItems: "center" }}>
+                        <Flag
+                          code={kw.locationCountry ?? kw.location}
+                          title={kw.locationLabel ?? kw.location?.toUpperCase()}
+                        />
+                        <span className="kw" title={kw.keyword}>{kw.keyword}</span>
+                      </span>
+                    </td>
+                    {/* Six cells: position, first check, volume, URL, score, last
+                        checked. The URL column is wider in the real table, so
+                        its bar is too. */}
+                    {[0, 1, 2, 3, 4, 5].map((c) => (
+                      <td key={c} aria-label="Locked">
+                        <span className="share-bar" style={{ width: c === 3 ? bar(i, c) * 3 : bar(i, c) }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {more > 0 && (
+                  <tr>
+                    <td colSpan={7} className="tiny muted">
+                      + {more.toLocaleString()} more keyword{more !== 1 ? "s" : ""}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* The locked zone: faded skeleton rows with the upgrade panel on top.
+              The panel is written for BOTH people who see it — a recipient
+              needs to know why the numbers are missing and that it is not
+              their doing; an owner opening their own link needs to know the
+              fix. */}
+          <div className="share-locked-zone">
+            <div className="share-locked-skeleton" aria-hidden="true">
+              {Array.from({ length: LOCKED_ZONE_ROWS }, (_, i) => (
+                <div className="share-locked-skel-row" key={i}>
+                  <span className="share-bar" style={{ width: 150 + bar(i, 0) }} />
+                  <span className="share-bar" style={{ width: bar(i, 1) }} />
+                  <span className="share-bar" style={{ width: bar(i, 2) }} />
+                  <span className="share-bar" style={{ width: bar(i, 3) }} />
+                  <span className="share-bar" style={{ width: 120 + bar(i, 4) }} />
+                  <span className="share-bar" style={{ width: bar(i, 5) }} />
+                </div>
+              ))}
+            </div>
+            <div className="share-locked-panel" role="region" aria-label="Rankings locked">
+              <span className="share-locked-icon" aria-hidden="true">
+                <Icon.lock size={18} />
+              </span>
+              <div className="share-locked-title">Rankings are locked on this link</div>
+              <p className="share-locked-body">
+                <b>{data.name}</b> is shared from a free FreeSERP account. Positions, ranking pages
+                and history{total > 0 ? ` for all ${total.toLocaleString()} keywords` : ""} unlock when
+                the owner upgrades.
+              </p>
+              <div className="share-locked-actions">
+                <a className="btn primary" href="/pricing">
+                  See plans
+                </a>
+                <a className="btn" href="/signup">
+                  Track your own keywords free
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer — branding */}
+        <div
+          className="row between"
+          style={{ marginTop: 36, paddingTop: 16, borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: 8 }}
+        >
+          <span className="tiny muted">Powered by FreeSERP</span>
+          <a href="https://freeserp.com" target="_blank" rel="noopener noreferrer" className="tiny muted" style={{ textDecoration: "none" }}>
+            freeserp.com
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FullShareView({ data }: { data: ShareKeywordsData }) {
   const [filter, setFilter] = useState("")
   const [deviceTab, setDeviceTab] = useState<"desktop" | "mobile">("desktop")
   const [engineTab, setEngineTab] = useState<string>(DEFAULT_ENGINE)

@@ -3758,38 +3758,80 @@ export default function ProjectKeywordsPage() {
             <div className="modal-b">
               {project.shareToken ? (
                 <>
-                  <div className="tiny muted" style={{ marginBottom: 8 }}>
-                    Anyone with this link can view a read-only, live snapshot of this project&apos;s keyword rankings — no login required.
+                  <div className="share-live">
+                    <span className="share-live-dot" aria-hidden="true" />
+                    <span className="b">Link is live</span>
+                    <span className="muted">· read-only, no login needed</span>
                   </div>
-                  <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
-                    <input className="input" readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} style={{ flex: 1, fontSize: 12 }} />
-                    <button type="button" className="btn" onClick={handleCopyShare} style={{ whiteSpace: "nowrap" }}>
-                      {shareCopied ? <><Icon.check /> Copied</> : "Copy"}
+                  <div className="share-link-field">
+                    <input
+                      className="input"
+                      readOnly
+                      value={shareUrl}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-label="Public link"
+                    />
+                    <button type="button" className="btn primary" onClick={handleCopyShare} style={{ whiteSpace: "nowrap" }}>
+                      {shareCopied ? <><Icon.check /> Copied</> : "Copy link"}
                     </button>
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <a href={shareUrl} target="_blank" rel="noreferrer" className="tiny" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      Open link <Icon.external />
+                    <a
+                      href={shareUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="icon-btn"
+                      title="Open in a new tab"
+                      aria-label="Open link in a new tab"
+                    >
+                      <Icon.external />
                     </a>
                   </div>
                 </>
               ) : (
                 <div className="tiny muted">
-                  Generate a public link to share a read-only, live view of this project&apos;s keyword rankings. You can disable it any time.
+                  Create a link anyone can open to see this project&apos;s rankings — read-only, no
+                  login needed. You can turn it off at any time.
+                </div>
+              )}
+              {/* Free accounts share a locked preview: the server sends the
+                  project name and a few keyword names, never the rankings. Said
+                  here, before and after the link exists, so the owner is never
+                  surprised by what their recipient sees. Same test the server
+                  uses (plan === "paid"); hidden while the user is still loading
+                  rather than guessed. */}
+              {user && user.plan !== "paid" && (
+                <div className="share-plan-note">
+                  <Icon.lock size={14} />
+                  <div>
+                    <div className="b">Viewers will see a preview</div>
+                    <div className="muted">
+                      On the free plan, this link shows the project name and a few keyword names.
+                      Positions, ranking pages and history stay locked until you upgrade.
+                    </div>
+                    <Link href="/dashboard/billing" className="share-plan-cta">
+                      Upgrade to share full rankings →
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="modal-f">
+            <div className={project.shareToken ? "modal-f split" : "modal-f"}>
               {project.shareToken ? (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleDisableShare}
-                  disabled={shareBusy}
-                  style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
-                >
-                  {shareBusy ? "Disabling…" : "Disable sharing"}
-                </button>
+                <>
+                  {/* Quiet on purpose. It used to be the ONLY footer action, in
+                      red — the most prominent thing on a dialog whose job is
+                      handing out a link. */}
+                  <button
+                    type="button"
+                    className="btn share-disable"
+                    onClick={handleDisableShare}
+                    disabled={shareBusy}
+                  >
+                    {shareBusy ? "Turning off…" : "Turn off link"}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setShowShare(false)}>
+                    Done
+                  </button>
+                </>
               ) : (
                 <button type="button" className="btn primary" onClick={handleCreateShare} disabled={shareBusy}>
                   {shareBusy ? "Creating…" : "Create public link"}
