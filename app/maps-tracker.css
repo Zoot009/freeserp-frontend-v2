@@ -337,7 +337,19 @@
 .fs-app .mt-pos { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; background: var(--bg-inset); color: var(--text-soft); flex-shrink: 0; }
 
 /* ── Report ─────────────────────────────────────────────────────────────── */
-.fs-app .mt-report { background: #fff; }
+/* A document: always light, like its map and like the page it prints to,
+   whatever theme the dashboard is in. Without the light tokens re-declared
+   here, dark mode turned its text white on its white sheet. */
+.fs-app .mt-report { background: #fff; min-height: 100vh; }
+.dark .fs-app .mt-report {
+  color-scheme: light; color: #0B0D12;
+  --brand: #2D5BFF; --brand-soft: #EEF2FF; --brand-deep: #1E40D8;
+  --bg: #FFFFFF; --bg-sub: #F7F8FA; --bg-elev: #FFFFFF; --bg-inset: #F2F4F7;
+  --border: #E7E9EE; --border-strong: #D7DBE3;
+  --text: #0B0D12; --text-soft: #4B5363; --text-mute: #8A93A4;
+  --pos: #16A34A; --pos-soft: #E8F7EE; --neg: #DC2626; --neg-soft: #FCEBEB; --warn: #C28B00; --warn-soft: #FBF3DC;
+  --hairline: color-mix(in srgb, var(--border) 62%, transparent);
+}
 .fs-app .mt-sheet { max-width: 1040px; margin: 0 auto; padding: 48px 88px 64px; }
 .fs-app .mt-sheet h2 { font-size: 34px; line-height: 1.12; letter-spacing: -0.035em; margin: 0 0 12px; }
 .fs-app .mt-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-mute); }
@@ -358,6 +370,7 @@
 .fs-app .mt-legend i { width: 9px; height: 9px; border-radius: 3px; }
 
 @media print {
+  .fs-app .mt-rbar, .fs-app .mt-rbar-kws { display: none; }
   .fs-app .mt-sheet { padding: 0; max-width: none; }
   .fs-app .mt-report { background: #fff; }
 }
@@ -391,21 +404,22 @@
 .fs-app .mt-rsec .mt-cmp-list > .mt-cmp:last-child { border-bottom: none; }
 .fs-app .mt-rsec .mt-cmp-summary { padding: 0 0 12px; border-bottom: none; font-size: 12.5px; }
 
-/* ── Scan view: the report, inside the dashboard ───────────────────────── */
-.fs-app .mt-sheet.in-app { max-width: 1040px; padding: 4px 0 56px; }
-.fs-app .mt-rhead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 32px; }
-.fs-app .mt-rhead-back {
-  width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center;
-  border-radius: 10px; border: 1px solid var(--border); color: var(--text-soft);
+/* ── Report page controls ─────────────────────────────────────────────────
+   The owner's bar above the letterhead: back to the scans, export, scan again.
+   Controls, not content — left out of print (see @media print). */
+.fs-app .mt-rbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: -16px 0 36px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
 }
-.fs-app .mt-rhead-back:hover { background: var(--bg-sub); color: var(--text); }
-.fs-app .mt-rhead-id { flex: 1; min-width: 0; }
-.fs-app .mt-rhead-id .t { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fs-app .mt-rhead-id .s { margin-top: 2px; font-size: 12px; color: var(--text-mute); }
-.fs-app .mt-rhead-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.fs-app .mt-rhead-acts .btn { gap: 6px; }
+.fs-app .mt-rbar-back {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 8px;
+  border-radius: var(--r-sm); font-size: 13px; font-weight: 500; color: var(--text-soft);
+}
+.fs-app .mt-rbar-back:hover { background: var(--bg-sub); color: var(--text); }
+.fs-app .mt-rbar-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fs-app .mt-rbar-acts .btn { gap: 6px; }
+.fs-app .mt-rbar-kws { margin: -12px 0 28px; }
 .fs-app .mt-rbanner { margin-bottom: 24px; border-radius: var(--r-md); overflow: hidden; }
-.fs-app .mt-rlive { display: flex; flex-direction: column; }
 
 /* ── Narrow ─────────────────────────────────────────────────────────────── */
 @container mt (max-width: 1180px) {

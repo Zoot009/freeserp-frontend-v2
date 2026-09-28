@@ -166,9 +166,9 @@ export default function GoogleMapsTrackerPage() {
         ) : (
           <ScanHistory
             scans={scans}
-            onOpen={(scanId, keywordId) =>
-              router.push(`/dashboard/google-maps-tracker/${scanId}?k=${keywordId}`)
-            }
+            // Straight to the report — the page a scan is read on — rather than
+            // through the old scan url, which only forwards there now.
+            onOpen={(scanId, keywordId) => router.push(`/reports/maps-tracker/${scanId}/${keywordId}`)}
           />
         )}
       </div>
