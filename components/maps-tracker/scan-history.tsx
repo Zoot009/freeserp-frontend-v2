@@ -2,7 +2,7 @@
 
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
-import { RANK_BANDS, rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
+import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
 import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
 
 const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === "PARTIAL"
@@ -195,23 +195,6 @@ function ReportCard({
           <FileText size={13} />
         </Link>
       )}
-    </div>
-  )
-}
-
-/**
- * What the pin colours mean — the same bands, labels and colours as the scan
- * map and the report, so the key learned here holds everywhere.
- */
-export function RankKey() {
-  return (
-    <div className="mt-legend dots" aria-label="Rank colours">
-      {RANK_BANDS.map((b) => (
-        <span key={b.key}>
-          <i style={{ background: b.color }} aria-hidden />
-          {b.label}
-        </span>
-      ))}
     </div>
   )
 }

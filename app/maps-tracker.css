@@ -356,8 +356,6 @@
 .fs-app .mt-legend { display: flex; gap: 14px; flex-wrap: wrap; }
 .fs-app .mt-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-soft); }
 .fs-app .mt-legend i { width: 9px; height: 9px; border-radius: 3px; }
-/* Round swatches where the key sits beside round pins. */
-.fs-app .mt-legend.dots i { border-radius: 999px; }
 
 @media print {
   .fs-app .mt-sheet { padding: 0; max-width: none; }
