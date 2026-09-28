@@ -243,76 +243,81 @@
 .fs-app .mt-spinner { width: 14px; height: 14px; border-radius: 999px; border: 2px solid var(--border); border-top-color: var(--brand); animation: fs-spin 1s linear infinite; flex-shrink: 0; }
 
 /* ── History ──────────────────────────────────────────────────────────────
-   Grouped by the run that produced the readings: the scan states its date,
-   business and settings once in a header, and its keywords are rows beneath.
-   The header strip and the keyword rows share one column template so the
-   labels sit over the values they name. */
-.fs-app .mt-hist { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+   One card per keyword reading. The top of each card is the scan's grid drawn
+   like the map itself — the same pins, colours and rank numbers — so a card
+   says WHERE the business ranks before a single number is read, and the
+   labelled numbers underneath say how much. */
+.fs-app .mt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.fs-app .mt-card-wrap { position: relative; min-width: 0; }
+.fs-app .mt-card {
+  display: flex; flex-direction: column; width: 100%; padding: 0; overflow: hidden;
+  font: inherit; text-align: left; color: inherit; cursor: pointer;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.fs-app .mt-card:hover {
+  border-color: var(--border-strong); transform: translateY(-1px);
+  box-shadow: 0 12px 30px -20px rgba(11, 13, 18, .35);
+}
+.fs-app .mt-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-.fs-app .mt-hist-head,
-.fs-app .mt-kwrow {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 76px 76px 34px;
-  gap: 14px; align-items: center;
+/* The map tile: a soft street-grid ground, so the pins read as places on a
+   map rather than as a chart. */
+.fs-app .mt-card-map {
+  position: relative; display: grid; place-items: center; height: 176px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, .8), rgba(255, 255, 255, 0) 60%),
+    repeating-linear-gradient(0deg, transparent 0 21px, rgba(100, 116, 139, .1) 21px 22px),
+    repeating-linear-gradient(90deg, transparent 0 21px, rgba(100, 116, 139, .1) 21px 22px),
+    #EDF1F6;
 }
-.fs-app .mt-hist-head {
-  padding: 9px 18px; background: var(--bg-sub); border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--text-mute);
+.dark .fs-app .mt-card-map {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, .05), rgba(255, 255, 255, 0) 60%),
+    repeating-linear-gradient(0deg, transparent 0 21px, rgba(148, 163, 184, .07) 21px 22px),
+    repeating-linear-gradient(90deg, transparent 0 21px, rgba(148, 163, 184, .07) 21px 22px),
+    #10151D;
 }
+.fs-app .mt-card-grid { display: grid; width: 140px; height: 140px; }
+.fs-app .mt-card-grid i {
+  display: grid; place-items: center; min-width: 0; min-height: 0;
+  font-style: normal; font-family: var(--font-mono); font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1;
+}
+/* Pins: round, lifted a touch off the ground like the map's. */
+.fs-app .mt-card-grid.dot i { border-radius: 999px; box-shadow: 0 1px 2px rgba(11, 13, 18, .22); }
+.fs-app .mt-card-grid.tile i { border-radius: 1px; }
+.fs-app .mt-card-grid-empty { font-size: 12px; color: var(--text-mute); }
+/* Grid size and radius, where a map carries its scale. */
+.fs-app .mt-card-size {
+  position: absolute; left: 10px; bottom: 10px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; color: var(--text-soft);
+  background: var(--bg-elev); border: 1px solid var(--border);
+}
+.fs-app .mt-card-report { position: absolute; top: 10px; right: 10px; background: var(--bg-elev); box-shadow: 0 1px 3px rgba(11, 13, 18, .12); }
 
-.fs-app .mt-scan + .mt-scan { border-top: 1px solid var(--border); }
-.fs-app .mt-scan-h {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; padding: 14px 18px 6px;
+.fs-app .mt-card-b { display: flex; flex-direction: column; gap: 12px; padding: 13px 15px 14px; }
+.fs-app .mt-card-t { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.fs-app .mt-card-kw { display: block; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .mt-card-biz { display: block; margin-top: 2px; font-size: 12px; color: var(--text-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .mt-card-verdict {
+  flex-shrink: 0; margin-left: auto; padding: 3px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
 }
-.fs-app .mt-scan-date { font-size: 12.5px; font-weight: 600; }
-.fs-app .mt-scan-biz { font-size: 12.5px; color: var(--text-soft); margin-left: 8px; }
+.fs-app .mt-card-verdict.pos { color: var(--pos); background: var(--pos-soft); }
+.fs-app .mt-card-verdict.warn { color: var(--warn); background: var(--warn-soft); }
+.fs-app .mt-card-verdict.neg { color: var(--neg); background: var(--neg-soft); }
+.fs-app .mt-card-verdict.mute { color: var(--text-mute); background: var(--bg-inset); }
+.fs-app .mt-card-verdict.brand { color: var(--brand); background: var(--brand-soft); }
 
-.fs-app .mt-kwrow-wrap { position: relative; }
-.fs-app .mt-kwrow {
-  width: 100%; padding: 7px 18px; border: none; background: none;
-  text-align: left; color: inherit; cursor: pointer;
-}
-.fs-app .mt-kwrow:hover { background: var(--bg-sub); }
-.fs-app .mt-scan > .mt-kwrow-wrap:last-child .mt-kwrow { padding-bottom: 14px; }
-.fs-app .mt-kwrow-name { display: block; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Carries the run's date, business and settings for a single-keyword scan,
-   which would otherwise need a header line of its own. */
-.fs-app .mt-kwrow-meta {
-  display: block; margin-top: 2px; font-size: 11.5px; color: var(--text-mute);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.fs-app .mt-kwrow-v { font-size: 13px; font-weight: 600; text-align: right; }
-.fs-app .mt-kwrow-report { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); }
-
-/* The scan's grid in miniature. Same footprint whatever the grid size — the
-   cells divide the box rather than each being a fixed size, so the column
-   never goes ragged. Gap and cell shape are set per grid size in the
-   component; the box only frames them. */
-.fs-app .mt-minigrid {
-  display: grid; width: 48px; height: 48px; padding: 4px; box-sizing: border-box;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev);
-}
-.fs-app .mt-minigrid i { display: block; min-width: 0; min-height: 0; border-radius: 999px; }
-.fs-app .mt-minigrid.tiles i { border-radius: 1px; }
-.fs-app .mt-minigrid.solid i { border-radius: 0; }
-/* Searched, and not there. Grey, not the map's dark red: absence should
-   recede on a list, and #7F1D1D does the opposite on every weak row. */
-.fs-app .mt-minigrid i.none { background: var(--border-strong); }
-/* No answer yet, or the search failed — no finding either way. A hollow ring
-   rather than a fill, so it can't pass for the grey of "not found": a running
-   scan visibly fills in, and a failed one reads as empty. */
-.fs-app .mt-minigrid i.wait { background: none; box-shadow: inset 0 0 0 1px var(--border-strong); }
-/* Too small for a ring to read on the dense grids — the faintest fill instead. */
-.fs-app .mt-minigrid.tiles i.wait,
-.fs-app .mt-minigrid.solid i.wait { box-shadow: none; background: var(--bg-inset); }
-/* Holds the column open for a scan with nothing to place, without drawing a
-   grid that reads as a result. */
-.fs-app .mt-mini-none {
-  display: block; width: 48px; height: 48px; border-radius: 10px;
-  border: 1px dashed var(--border-strong);
-}
+.fs-app .mt-card-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px 0 0; border-top: 1px solid var(--border); }
+.fs-app .mt-card-stats > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: help; }
+.fs-app .mt-card-stats > span + span { padding-left: 12px; border-left: 1px solid var(--border); }
+.fs-app .mt-card-stats .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-mute); }
+.fs-app .mt-card-stats .v { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.fs-app .mt-card-when { font-size: 11.5px; color: var(--text-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
 /* ── Point drawer ───────────────────────────────────────────────────────── */
@@ -351,6 +356,8 @@
 .fs-app .mt-legend { display: flex; gap: 14px; flex-wrap: wrap; }
 .fs-app .mt-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-soft); }
 .fs-app .mt-legend i { width: 9px; height: 9px; border-radius: 3px; }
+/* Round swatches where the key sits beside round pins. */
+.fs-app .mt-legend.dots i { border-radius: 999px; }
 
 @media print {
   .fs-app .mt-sheet { padding: 0; max-width: none; }
@@ -361,9 +368,6 @@
 @container mt (max-width: 1180px) {
   .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
   .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
-  .fs-app .mt-hist-head { display: none; }
-  .fs-app .mt-kwrow { grid-template-columns: 48px minmax(0, 1fr) 64px; }
-  .fs-app .mt-kwrow > :nth-child(4) { display: none; }
 }
 @media (max-width: 640px) {
   .fs-app .mt-drawer { width: 100%; }

@@ -1,96 +1,109 @@
 "use client"
 
-import type { ReactNode } from "react"
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
-import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
-import type { ScanHistoryItem, ScanHistoryKeyword, ScanHistoryPoint, ScanStatus } from "./types"
+import { RANK_BANDS, rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
+import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
 
 const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === "PARTIAL"
 const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUNNING"
 
-/** Gap between cells, shrinking as the grid grows so the cells keep their size. */
-const gapFor = (n: number) => (n <= 3 ? 4 : n <= 5 ? 3 : n <= 7 ? 2 : n <= 11 ? 1 : 0)
-
-/** Dots while they're big enough to read as dots; tiles, then a heatmap, past that. */
-const shapeFor = (n: number) => (n <= 7 ? "" : n <= 11 ? " tiles" : " solid")
-
-/** A point's cell: its rank colour, grey for searched-and-absent, faint for no answer yet. */
-function cellFor(p: ScanHistoryPoint): { className?: string; background?: string } {
-  if (p.status !== "SUCCEEDED") return { className: "wait" }
-  if (p.rank == null) return { className: "none" }
-  return { background: rankColor(p.rank, p.status).bg }
+/**
+ * How the tile draws a grid of `n` × `n`.
+ *
+ * The tile is one fixed size, so everything else scales with the grid: the gap
+ * narrows as points multiply, the rank number is printed only while a pin is
+ * big enough to hold it (3 × 3 and 5 × 5), and past 15 × 15 the pins become
+ * edge-to-edge tiles — a heatmap, rather than a speckle of dots too small to
+ * see.
+ */
+function layoutFor(n: number): { size: number; gap: number; font: number | null; shape: "dot" | "tile" } {
+  // A little smaller for the smallest grids, whose nine pins would otherwise
+  // be the heaviest thing on the page.
+  if (n <= 3) return { size: 116, gap: 12, font: 12, shape: "dot" }
+  if (n <= 5) return { size: 132, gap: 6, font: 9, shape: "dot" }
+  if (n <= 7) return { size: 140, gap: 4, font: null, shape: "dot" }
+  if (n <= 11) return { size: 140, gap: 2, font: null, shape: "dot" }
+  if (n <= 15) return { size: 140, gap: 1, font: null, shape: "tile" }
+  return { size: 140, gap: 0, font: null, shape: "tile" }
 }
 
 /**
- * The scan's grid in miniature: one cell per point, where it sits on the map —
- * row 0 is north, column 0 is west, as the map draws them — in the map's own
- * rank colours. Where a keyword is strong reads at a glance, which is what the
- * report one click away then shows in full.
- *
- * This column was a thumbnail once and became a bar, because one fixed box drew
- * a 3 × 3 scan as three fat squares and a 21 × 21 one as speckle. Both are now
- * handled in the drawing rather than by dropping the grid: the box stays the
- * same size, the gap shrinks as the grid grows, and the cells go from dots to
- * tiles past 7 × 7 and to an edge-to-edge heatmap past 11 × 11.
- *
- * NOT FOUND IS GREY, not the map's #7F1D1D. On a list, a business missing from
- * most of its grid would otherwise put a dark red block on every row — which is
- * why the bar stopped drawing it. Grey reads as what it is, nothing there, and
- * lets the ranked cells stand out. Points still waiting, or whose search failed,
- * are fainter again: no finding either way.
+ * The scan's grid, drawn the way the scan map draws it: the same pins, the same
+ * colours and the same rank numbers (rankColor), each where it sits — row 0 is
+ * north, column 0 is west. A card therefore reads as a small copy of a map the
+ * user already knows, which is what makes it understandable without a key:
+ * green where they're in the top 3, "20+" where they're not found at all.
  */
-function MiniGrid({ scan, keyword }: { scan: ScanHistoryItem; keyword: ScanHistoryKeyword }) {
+function MapTile({ scan, keyword }: { scan: ScanHistoryItem; keyword: ScanHistoryKeyword }) {
   const n = scan.gridSize
-  // Nothing to place yet — hold the column open without drawing an empty grid
-  // that reads as a result.
-  if (!n || keyword.points.length === 0) return <span className="mt-mini-none" aria-hidden />
-
-  const scored = keyword.points.filter((p) => p.status === "SUCCEEDED")
-  const found = scored.filter((p) => p.rank != null).length
-  const top3 = scored.filter((p) => p.rank != null && p.rank <= 3).length
-  const label =
-    scored.length === 0
-      ? `${n} × ${n} grid, no results yet`
-      : `${n} × ${n} grid: found at ${found} of ${scored.length} points, top 3 at ${top3}`
-
+  const layout = layoutFor(n)
   return (
-    <span
-      className={`mt-minigrid${shapeFor(n)}`}
-      style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gridTemplateRows: `repeat(${n}, 1fr)`, gap: gapFor(n) }}
-      role="img"
-      aria-label={label}
-      title={label}
-    >
-      {keyword.points.map((p) => {
-        const cell = cellFor(p)
-        return (
-          <i
-            key={`${p.row}-${p.col}`}
-            className={cell.className}
-            style={{ gridRow: p.row + 1, gridColumn: p.col + 1, background: cell.background }}
-          />
-        )
-      })}
+    <span className="mt-card-map" aria-hidden>
+      {keyword.points.length > 0 ? (
+        <span
+          className={`mt-card-grid ${layout.shape}`}
+          style={{
+            width: layout.size,
+            height: layout.size,
+            gridTemplateColumns: `repeat(${n}, 1fr)`,
+            gridTemplateRows: `repeat(${n}, 1fr)`,
+            gap: layout.gap,
+          }}
+        >
+          {keyword.points.map((p) => {
+            const pin = rankColor(p.rank, p.status)
+            return (
+              <i
+                key={`${p.row}-${p.col}`}
+                style={{
+                  gridRow: p.row + 1,
+                  gridColumn: p.col + 1,
+                  background: pin.bg,
+                  color: pin.fg,
+                  fontSize: layout.font ?? undefined,
+                }}
+              >
+                {layout.font ? pin.label : null}
+              </i>
+            )
+          })}
+        </span>
+      ) : (
+        <span className="mt-card-grid-empty">Waiting to start</span>
+      )}
+      {/* Where a map carries its scale. */}
+      <span className="mt-card-size">
+        {n} × {n} · {radiusOf(scan)}
+      </span>
     </span>
   )
 }
 
-/** Only states worth reacting to get a colour. "Complete" is the norm, and
- *  colouring the norm is what stops the exceptions standing out. */
-function statusNote(scan: ScanHistoryItem): { label: string; color: string } | null {
-  const { status } = scan
-  if (isRunning(status)) return { label: "Scanning…", color: "var(--brand)" }
-  if (status === "PARTIAL") {
-    return { label: `${scan.totalPoints - scan.pointsDone} points failed`, color: "var(--warn)" }
+type Tone = "pos" | "warn" | "neg" | "mute" | "brand"
+
+/**
+ * One word for how the keyword is doing, so the card answers "is this good?"
+ * before anyone reads a percentage. Driven by the same two facts the numbers
+ * below show: the top-3 share, and how much of the grid the business appears
+ * in at all.
+ */
+function verdictOf(scan: ScanHistoryItem, keyword: ScanHistoryKeyword): { label: string; tone: Tone } | null {
+  if (isRunning(scan.status)) {
+    const pct = scan.totalPoints ? Math.round((scan.pointsDone / scan.totalPoints) * 100) : 0
+    return { label: `Scanning ${pct}%`, tone: "brand" }
   }
-  if (status === "FAILED") {
-    // The reason beats the word. "Failed" alone leaves someone staring at two
-    // dashes with nothing to do about it.
-    return { label: scan.errorMessage ?? "Failed — credits were returned", color: "var(--neg)" }
-  }
-  if (status === "CANCELLED") return { label: "Cancelled", color: "var(--text-mute)" }
-  return null
+  if (scan.status === "FAILED") return { label: "Failed", tone: "neg" }
+  if (scan.status === "CANCELLED") return { label: "Cancelled", tone: "mute" }
+
+  const scored = keyword.points.filter((p) => p.status === "SUCCEEDED")
+  if (scored.length === 0) return null
+  const found = scored.filter((p) => p.rank != null).length
+  const top3 = keyword.solv ?? 0
+  if (found === 0) return { label: "Not ranking", tone: "neg" }
+  if (top3 >= 50) return { label: "Strong", tone: "pos" }
+  if (top3 >= 15 || found / scored.length >= 0.5) return { label: "Mixed", tone: "warn" }
+  return { label: "Weak", tone: "neg" }
 }
 
 const solvColor = (solv: number | null) =>
@@ -101,48 +114,81 @@ const radiusOf = (scan: ScanHistoryItem) =>
     ? `${(scan.radiusMeters / MILES_TO_METERS).toFixed(2)} mi`
     : `${(scan.radiusMeters / KM_TO_METERS).toFixed(2)} km`
 
-const settingsOf = (scan: ScanHistoryItem) =>
-  `${scan.gridSize} × ${scan.gridSize} · ${radiusOf(scan)} · ${scan.totalPoints} points`
-
 const stampOf = (scan: ScanHistoryItem) =>
   `${new Date(scan.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ` +
   `${new Date(scan.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
 
-/** The five cells every row shares, so the header labels sit over their values. */
-function Row({
+/** Only states worth reacting to get a note; "complete" is the norm. */
+function noteOf(scan: ScanHistoryItem): { label: string; color: string } | null {
+  if (scan.status === "PARTIAL") {
+    return { label: `${scan.totalPoints - scan.pointsDone} points failed`, color: "var(--warn)" }
+  }
+  if (scan.status === "FAILED") {
+    // The reason beats the word — "Failed" alone leaves nothing to do about it.
+    return { label: scan.errorMessage ?? "Credits were returned", color: "var(--neg)" }
+  }
+  return null
+}
+
+function ReportCard({
   scan,
   keyword,
-  meta,
   onOpen,
 }: {
   scan: ScanHistoryItem
   keyword: ScanHistoryKeyword
-  meta?: ReactNode
   onOpen: () => void
 }) {
-  const scored = hasResults(scan.status)
+  const withResults = hasResults(scan.status)
+  const scored = keyword.points.filter((p) => p.status === "SUCCEEDED")
+  const found = scored.filter((p) => p.rank != null).length
+  const verdict = verdictOf(scan, keyword)
+  const note = noteOf(scan)
+
   return (
-    <div className="mt-kwrow-wrap">
-      <button type="button" className="mt-kwrow" onClick={onOpen}>
-        {/* Drawn while the scan runs too: cells fill in as points land, and
-            the list's own polling keeps it moving. */}
-        <MiniGrid scan={scan} keyword={keyword} />
-        <span style={{ minWidth: 0 }}>
-          <span className="mt-kwrow-name">{keyword.keyword}</span>
-          {meta && <span className="mt-kwrow-meta">{meta}</span>}
+    <div className="mt-card-wrap">
+      <button type="button" className="mt-card" onClick={onOpen}>
+        <MapTile scan={scan} keyword={keyword} />
+        <span className="mt-card-b">
+          <span className="mt-card-t">
+            <span style={{ minWidth: 0 }}>
+              <span className="mt-card-kw">{keyword.keyword}</span>
+              <span className="mt-card-biz">{scan.location.name}</span>
+            </span>
+            {verdict && <span className={`mt-card-verdict ${verdict.tone}`}>{verdict.label}</span>}
+          </span>
+
+          {/* Labelled, with the definition on hover: three numbers nobody has
+              to already know the jargon for. */}
+          <span className="mt-card-stats">
+            <span title="Share of the grid where you rank in the top 3 on Google Maps">
+              <span className="k">Top 3</span>
+              <span className="v tabular" style={{ color: solvColor(keyword.solv) }}>
+                {keyword.solv != null ? `${keyword.solv.toFixed(0)}%` : "—"}
+              </span>
+            </span>
+            <span title="Your average position, counting only the points where you appear">
+              <span className="k">Avg rank</span>
+              <span className="v tabular">{keyword.arp != null ? keyword.arp.toFixed(1) : "—"}</span>
+            </span>
+            <span title="Grid points where you appear in the top 20, out of those searched">
+              <span className="k">Found</span>
+              <span className="v tabular">{scored.length ? `${found}/${scored.length}` : "—"}</span>
+            </span>
+          </span>
+
+          <span className="mt-card-when">
+            {stampOf(scan)}
+            {note && <span style={{ color: note.color }}> · {note.label}</span>}
+          </span>
         </span>
-        <span className="tabular mt-kwrow-v" style={{ color: solvColor(keyword.solv) }}>
-          {keyword.solv != null ? `${keyword.solv.toFixed(0)}%` : "—"}
-        </span>
-        <span className="tabular mt-kwrow-v">{keyword.arp != null ? keyword.arp.toFixed(1) : "—"}</span>
-        <span />
       </button>
       {/* No report for a scan with no results — it would open an empty one. */}
-      {scored && (
+      {withResults && (
         <Link
           href={`/reports/maps-tracker/${scan.id}/${keyword.id}`}
           target="_blank"
-          className="icon-btn mt-kwrow-report"
+          className="icon-btn mt-card-report"
           title="Open the shareable report"
           aria-label={`Open the shareable report for "${keyword.keyword}"`}
         >
@@ -154,13 +200,29 @@ function Row({
 }
 
 /**
- * Past scans.
+ * What the pin colours mean — the same bands, labels and colours as the scan
+ * map and the report, so the key learned here holds everywhere.
+ */
+export function RankKey() {
+  return (
+    <div className="mt-legend dots" aria-label="Rank colours">
+      {RANK_BANDS.map((b) => (
+        <span key={b.key}>
+          <i style={{ background: b.color }} aria-hidden />
+          {b.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Past scans, one card per keyword reading, newest first.
  *
- * A run of several keywords states its date, business and settings once and
- * lists its readings beneath — repeating all of that per keyword was noise.
- * But most runs have a single keyword, and for those a group header plus one
- * row is two lines to say what fits on one, so they collapse: the settings
- * ride along under the keyword instead.
+ * A card rather than a table row, because the most useful thing about a scan
+ * is its shape — where on the map the business is strong — and that needs room
+ * to be drawn as a map rather than squeezed into a thumbnail. A run of several
+ * keywords is several cards, each carrying its own business and date.
  */
 export function ScanHistory({
   scans,
@@ -180,63 +242,12 @@ export function ScanHistory({
   }
 
   return (
-    <div className="mt-hist">
-      {/* Said once, rather than reprinted on every row. */}
-      <div className="mt-hist-head">
-        <span />
-        <span>Keyword</span>
-        <span style={{ textAlign: "right" }}>Top 3</span>
-        <span style={{ textAlign: "right" }}>Avg rank</span>
-        <span />
-      </div>
-
-      {scans.map((scan) => {
-        const note = statusNote(scan)
-        const single = scan.keywords.length === 1
-
-        if (single && scan.keywords[0]) {
-          const k = scan.keywords[0]
-          return (
-            <section className="mt-scan" key={scan.id}>
-              <Row
-                scan={scan}
-                keyword={k}
-                onOpen={() => onOpen(scan.id, k.id)}
-                meta={
-                  <>
-                    {stampOf(scan)} · {scan.location.name} · {settingsOf(scan)}
-                    {note && <span style={{ color: note.color }}> · {note.label}</span>}
-                  </>
-                }
-              />
-            </section>
-          )
-        }
-
-        return (
-          <section className="mt-scan" key={scan.id}>
-            <header className="mt-scan-h">
-              <div style={{ minWidth: 0 }}>
-                <span className="mt-scan-date">{stampOf(scan)}</span>
-                <span className="mt-scan-biz">{scan.location.name}</span>
-              </div>
-              <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                <span className="chip outline">{scan.gridSize} × {scan.gridSize}</span>
-                <span className="chip outline">{radiusOf(scan)}</span>
-                <span className="chip outline">
-                  {hasResults(scan.status) || !isRunning(scan.status)
-                    ? `${scan.totalPoints} points`
-                    : `${scan.pointsDone} of ${scan.totalPoints} points`}
-                </span>
-                {note && <span className="tiny" style={{ color: note.color }}>{note.label}</span>}
-              </div>
-            </header>
-            {scan.keywords.map((k) => (
-              <Row key={k.id} scan={scan} keyword={k} onOpen={() => onOpen(scan.id, k.id)} />
-            ))}
-          </section>
-        )
-      })}
+    <div className="mt-cards">
+      {scans.flatMap((scan) =>
+        scan.keywords.map((k) => (
+          <ReportCard key={k.id} scan={scan} keyword={k} onOpen={() => onOpen(scan.id, k.id)} />
+        )),
+      )}
     </div>
   )
 }

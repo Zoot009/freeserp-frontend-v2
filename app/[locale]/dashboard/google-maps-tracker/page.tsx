@@ -6,7 +6,7 @@ import { useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
-import { ScanHistory } from "@/components/maps-tracker/scan-history"
+import { RankKey, ScanHistory } from "@/components/maps-tracker/scan-history"
 import type { ScanHistoryItem } from "@/components/maps-tracker/types"
 
 const NEW_SCAN = "/dashboard/google-maps-tracker/new"
@@ -128,7 +128,7 @@ export default function GoogleMapsTrackerPage() {
       )}
 
       <div style={{ marginTop: 18 }}>
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+        <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600 }}>
             {reportCount} {reportCount === 1 ? "report" : "reports"}
             {scans.length > 0 && (
@@ -137,6 +137,8 @@ export default function GoogleMapsTrackerPage() {
               </span>
             )}
           </div>
+          {/* The key to every card's pins, said once for the whole list. */}
+          {scans.length > 0 && <RankKey />}
         </div>
 
         {failed && history == null ? (
