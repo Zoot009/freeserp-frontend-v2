@@ -3,64 +3,75 @@
 import type { ReactNode } from "react"
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
-import { RANK_BANDS, bandKeyFor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
-import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
+import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
+import type { ScanHistoryItem, ScanHistoryKeyword, ScanHistoryPoint, ScanStatus } from "./types"
 
 const hasResults = (status: ScanStatus) => status === "COMPLETED" || status === "PARTIAL"
 const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUNNING"
 
+/** Gap between cells, shrinking as the grid grows so the cells keep their size. */
+const gapFor = (n: number) => (n <= 3 ? 4 : n <= 5 ? 3 : n <= 7 ? 2 : n <= 11 ? 1 : 0)
+
+/** Dots while they're big enough to read as dots; tiles, then a heatmap, past that. */
+const shapeFor = (n: number) => (n <= 7 ? "" : n <= 11 ? " tiles" : " solid")
+
+/** A point's cell: its rank colour, grey for searched-and-absent, faint for no answer yet. */
+function cellFor(p: ScanHistoryPoint): { className?: string; background?: string } {
+  if (p.status !== "SUCCEEDED") return { className: "wait" }
+  if (p.rank == null) return { className: "none" }
+  return { background: rankColor(p.rank, p.status).bg }
+}
+
 /**
- * How much of the grid a keyword actually holds, as one bar.
+ * The scan's grid in miniature: one cell per point, where it sits on the map —
+ * row 0 is north, column 0 is west, as the map draws them — in the map's own
+ * rank colours. Where a keyword is strong reads at a glance, which is what the
+ * report one click away then shows in full.
  *
- * Every bar is the same width, so two runs compare by eye straight down the
- * column — which is the question this screen exists to answer, and the thing a
- * 52px thumbnail of the grid could never do at either end of its range (three
- * fat squares at 3 × 3, speckle at 21 × 21).
+ * This column was a thumbnail once and became a bar, because one fixed box drew
+ * a 3 × 3 scan as three fat squares and a 21 × 21 one as speckle. Both are now
+ * handled in the drawing rather than by dropping the grid: the box stays the
+ * same size, the gap shrinks as the grid grows, and the cells go from dots to
+ * tiles past 7 × 7 and to an edge-to-edge heatmap past 11 × 11.
  *
- * NOT-FOUND IS NOT DRAWN. It was, in the band's own #7F1D1D, and on a business
- * ranking nowhere that is eight ninths of the bar — every row came out a heavy
- * red pill and the list read worse than the thumbnails it replaced. Absence is
- * not a colour: the ranked points fill from the left and the rest stays empty
- * track, so a keyword holding one point in nine LOOKS like one point in nine.
- * Weak scans go quiet and strong ones fill up, which is the right way round.
- *
- * What is given up is WHERE in the grid the strength sits. That was already
- * unreadable at this size, and the report one click away draws it properly.
+ * NOT FOUND IS GREY, not the map's #7F1D1D. On a list, a business missing from
+ * most of its grid would otherwise put a dark red block on every row — which is
+ * why the bar stopped drawing it. Grey reads as what it is, nothing there, and
+ * lets the ranked cells stand out. Points still waiting, or whose search failed,
+ * are fainter again: no finding either way.
  */
-function MiniBands({ keyword }: { keyword: ScanHistoryKeyword }) {
-  // Only points the search actually reached. A FAILED point is our error, not
-  // a finding about the business, so it is out of the denominator entirely.
+function MiniGrid({ scan, keyword }: { scan: ScanHistoryItem; keyword: ScanHistoryKeyword }) {
+  const n = scan.gridSize
+  // Nothing to place yet — hold the column open without drawing an empty grid
+  // that reads as a result.
+  if (!n || keyword.points.length === 0) return <span className="mt-mini-none" aria-hidden />
+
   const scored = keyword.points.filter((p) => p.status === "SUCCEEDED")
-  if (scored.length === 0) return <span className="mt-mini-none" aria-hidden />
-
-  // Ranked bands only, in band order. `none` is deliberately absent: it is the
-  // empty remainder of the track, not a segment.
-  const bands = RANK_BANDS.filter((b) => b.key !== "none")
-    .map((b) => ({
-      key: b.key,
-      label: b.label,
-      color: b.color,
-      count: scored.filter((p) => bandKeyFor(p.rank, p.status) === b.key).length,
-    }))
-    .filter((b) => b.count > 0)
-
-  const ranked = bands.reduce((sum, b) => sum + b.count, 0)
-  const missing = scored.length - ranked
-  const title = [
-    ...bands.map((b) => `${b.label}: ${b.count}`),
-    missing > 0 ? `Not found: ${missing}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ")
+  const found = scored.filter((p) => p.rank != null).length
+  const top3 = scored.filter((p) => p.rank != null && p.rank <= 3).length
+  const label =
+    scored.length === 0
+      ? `${n} × ${n} grid, no results yet`
+      : `${n} × ${n} grid: found at ${found} of ${scored.length} points, top 3 at ${top3}`
 
   return (
-    <span className="mt-bands" title={title}>
-      {bands.map((b) => (
-        <span
-          key={b.key}
-          style={{ width: `${(b.count / scored.length) * 100}%`, background: b.color }}
-        />
-      ))}
+    <span
+      className={`mt-minigrid${shapeFor(n)}`}
+      style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gridTemplateRows: `repeat(${n}, 1fr)`, gap: gapFor(n) }}
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      {keyword.points.map((p) => {
+        const cell = cellFor(p)
+        return (
+          <i
+            key={`${p.row}-${p.col}`}
+            className={cell.className}
+            style={{ gridRow: p.row + 1, gridColumn: p.col + 1, background: cell.background }}
+          />
+        )
+      })}
     </span>
   )
 }
@@ -113,9 +124,9 @@ function Row({
   return (
     <div className="mt-kwrow-wrap">
       <button type="button" className="mt-kwrow" onClick={onOpen}>
-        {/* A scan that never ran has no distribution to show. A grey bar in
-            its place looks like a result, which is worse than an empty cell. */}
-        {scored ? <MiniBands keyword={keyword} /> : <span className="mt-mini-none" aria-hidden />}
+        {/* Drawn while the scan runs too: cells fill in as points land, and
+            the list's own polling keeps it moving. */}
+        <MiniGrid scan={scan} keyword={keyword} />
         <span style={{ minWidth: 0 }}>
           <span className="mt-kwrow-name">{keyword.keyword}</span>
           {meta && <span className="mt-kwrow-meta">{meta}</span>}

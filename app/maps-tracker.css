@@ -252,7 +252,7 @@
 .fs-app .mt-hist-head,
 .fs-app .mt-kwrow {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 76px 76px 34px;
+  grid-template-columns: 48px minmax(0, 1fr) 76px 76px 34px;
   gap: 14px; align-items: center;
 }
 .fs-app .mt-hist-head {
@@ -286,25 +286,31 @@
 .fs-app .mt-kwrow-v { font-size: 13px; font-weight: 600; text-align: right; }
 .fs-app .mt-kwrow-report { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); }
 
-/* Same footprint whatever the grid size — the cells divide the box rather
-   than each being a fixed size, so the column never goes ragged. */
-/* How much of the grid a keyword holds. Fixed width on purpose: identical
-   tracks are what let two runs be compared straight down the column.
-
-   6px rather than 10px, because at 10px a filled bar reads as a badge -- a
-   thing with a status -- instead of a measurement. The empty remainder is
-   the not-found share, which is why the track is a plain inset and not a
-   colour: absence should recede, and #7F1D1D does the opposite. */
-.fs-app .mt-bands {
-  display: flex; width: 72px; height: 6px;
-  border-radius: 3px; overflow: hidden;
-  background: var(--bg-inset);
+/* The scan's grid in miniature. Same footprint whatever the grid size — the
+   cells divide the box rather than each being a fixed size, so the column
+   never goes ragged. Gap and cell shape are set per grid size in the
+   component; the box only frames them. */
+.fs-app .mt-minigrid {
+  display: grid; width: 48px; height: 48px; padding: 4px; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev);
 }
-.fs-app .mt-bands span { display: block; height: 100%; }
-/* Holds the column open for a scan that never ran, without drawing a track
-   that reads as a measured zero. */
+.fs-app .mt-minigrid i { display: block; min-width: 0; min-height: 0; border-radius: 999px; }
+.fs-app .mt-minigrid.tiles i { border-radius: 1px; }
+.fs-app .mt-minigrid.solid i { border-radius: 0; }
+/* Searched, and not there. Grey, not the map's dark red: absence should
+   recede on a list, and #7F1D1D does the opposite on every weak row. */
+.fs-app .mt-minigrid i.none { background: var(--border-strong); }
+/* No answer yet, or the search failed — no finding either way. A hollow ring
+   rather than a fill, so it can't pass for the grey of "not found": a running
+   scan visibly fills in, and a failed one reads as empty. */
+.fs-app .mt-minigrid i.wait { background: none; box-shadow: inset 0 0 0 1px var(--border-strong); }
+/* Too small for a ring to read on the dense grids — the faintest fill instead. */
+.fs-app .mt-minigrid.tiles i.wait,
+.fs-app .mt-minigrid.solid i.wait { box-shadow: none; background: var(--bg-inset); }
+/* Holds the column open for a scan with nothing to place, without drawing a
+   grid that reads as a result. */
 .fs-app .mt-mini-none {
-  display: block; width: 72px; height: 6px; border-radius: 3px;
+  display: block; width: 48px; height: 48px; border-radius: 10px;
   border: 1px dashed var(--border-strong);
 }
 
@@ -356,7 +362,7 @@
   .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
   .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
   .fs-app .mt-hist-head { display: none; }
-  .fs-app .mt-kwrow { grid-template-columns: 52px minmax(0, 1fr) 64px; }
+  .fs-app .mt-kwrow { grid-template-columns: 48px minmax(0, 1fr) 64px; }
   .fs-app .mt-kwrow > :nth-child(4) { display: none; }
 }
 @media (max-width: 640px) {
