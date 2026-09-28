@@ -79,6 +79,14 @@ export function CompetitorList({
       {/* What the standalone "Where you stand" card used to say, as one line. */}
       {summary && <div className="mt-cmp-summary">{summary}</div>}
       <div className="mt-cmp-list" ref={scrollRef}>
+        {/* Said once, on the same column grid as the rows, so each label sits
+            straight over its figures. Hidden where the rows fold to a stack. */}
+        <div className="mt-cmp-cols" aria-hidden>
+          <span className="c-biz">Business</span>
+          <span className="c-num">Found in</span>
+          <span className="c-num">Top 3</span>
+          <span className="c-vis">Visibility</span>
+        </div>
         {body}
       </div>
     </>

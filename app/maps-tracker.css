@@ -345,17 +345,11 @@
 }
 .fs-app .mt-rsec { margin-bottom: 40px; }
 .fs-app .mt-rsec-t { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-/* The competitor list, drawn for a narrow rail, kept to a reading width here
-   so its visibility bars stay a scale rather than a page-wide stripe. */
-.fs-app .mt-rsec .mt-cmp-list,
-.fs-app .mt-rsec .mt-cmp-summary {
-  max-width: 760px;
-}
+/* The competitor list, framed and full sheet width, so its edges line up with
+   the map and every other block of the report. */
 .fs-app .mt-rsec .mt-cmp-list {
   border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
 }
-.fs-app .mt-rsec .mt-cmp-list > .mt-cmp:last-child { border-bottom: none; }
-.fs-app .mt-rsec .mt-cmp-summary { padding: 0 0 12px; border-bottom: none; font-size: 12.5px; }
 
 /* ── Report page controls ─────────────────────────────────────────────────
    The owner's bar above the letterhead: back to the scans, export, scan again.

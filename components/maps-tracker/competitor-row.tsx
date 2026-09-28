@@ -24,22 +24,18 @@ export function googleMapsUrl(row: Row): string {
 }
 
 /**
- * One business in the leaderboard, collapsed to a scannable line and expanding
- * in place.
+ * One business in the report's competitor list, expanding in place.
  *
- * A list, not a table: at 380px a five-column table either wraps into
- * unreadable columns or scrolls sideways, and the detail a person wants after
- * spotting a name — how visible they are, where they beat you — does not fit a
- * cell anyway.
+ * Laid out in columns on the report's full width — who they are, then where
+ * they were found, how often they were top 3, and how visible they are across
+ * the grid — so each figure sits straight under its header and the list reads
+ * down a column rather than row by row. On a narrow screen the columns fold
+ * back into the stacked layout (see the container query in position-map.css).
  *
- * ONE number per row, not two. The list is ordered by SoLV while the badge
- * shows average rank, so an ordinal column counting 1, 2, 3 beside badges
- * reading 3, 1, 3 looked like a bug. The badge is the number; position is
- * carried by the order itself, which is what an ordered list is for.
- *
- * The per-row visibility bar is what makes the list scannable vertically: every
- * bar is drawn on the same 0-100 scale, so the shape of the column answers
- * "who actually owns this area" before any of the numbers are read.
+ * The badge is the business's average rank, in the pins' own colours; the
+ * order of the list is the server's (share of top-3 spots). The visibility bar
+ * is drawn on the same 0-100 scale on every row, so the shape of that column
+ * answers "who actually owns this area" before any number is read.
  */
 export function CompetitorRowItem({
   row,
@@ -65,7 +61,7 @@ export function CompetitorRowItem({
     <div className="mt-cmp" data-target={row.isTarget || undefined} data-expanded={expanded || undefined}>
       <button type="button" className="mt-cmp-head" aria-expanded={expanded} onClick={onToggle}>
         <RankBadge arp={row.arp} size={30} />
-        <BusinessAvatar name={row.name} imageUrl={row.imageUrl} size={40} />
+        <BusinessAvatar name={row.name} imageUrl={row.imageUrl} size={44} />
 
         <span className="mt-cmp-id">
           <span className="nm">
@@ -77,17 +73,25 @@ export function CompetitorRowItem({
             {row.category && <span className="ct">{row.category}</span>}
           </span>
           <RatingStars rating={row.rating} reviewCount={row.reviewCount} />
-
-          {/* The row's own visibility, on the same scale as every other row. */}
-          <span className="mt-cmp-bar" title={`Visible at ${Math.round(pct)}% across this grid`}>
-            <span className="track">
-              <i style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: fill }} />
-            </span>
-            <span className="pct">{row.visibility != null ? `${Math.round(row.visibility)}%` : "—"}</span>
-          </span>
         </span>
 
-        <ChevronDown size={14} className="chev" aria-hidden />
+        <span className="mt-cmp-num" data-label="Found in" title="Grid points where they appear in the top 20">
+          {row.foundPoints}
+          <span className="of"> / {row.scoredPoints}</span>
+        </span>
+        <span className="mt-cmp-num" data-label="Top 3" title="Share of the grid where they rank in the top 3">
+          {row.solv != null ? `${Math.round(row.solv)}%` : "—"}
+        </span>
+
+        {/* The row's own visibility, on the same scale as every other row. */}
+        <span className="mt-cmp-bar" title={`Visible at ${Math.round(pct)}% across this grid`}>
+          <span className="track">
+            <i style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: fill }} />
+          </span>
+          <span className="pct">{row.visibility != null ? `${Math.round(row.visibility)}%` : "—"}</span>
+        </span>
+
+        <ChevronDown size={15} className="chev" aria-hidden />
       </button>
 
       {expanded && (

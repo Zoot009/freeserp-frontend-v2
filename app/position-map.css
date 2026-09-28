@@ -75,37 +75,50 @@
 .fs-app .mt-delta[data-dir="down"] { color: var(--neg); }
 .fs-app .mt-delta[data-dir="flat"] { color: var(--text-mute); }
 
-/* ── Competitor list ────────────────────────────────────────────────────── */
+/* ── Competitor list ──────────────────────────────────────────────────────
+   Columns on the report's full width: business, found in, top 3, visibility.
+   The header strip and every row share ONE grid template (--mt-cmp-cols), so
+   each figure sits straight under its label. Below ~900px the columns fold
+   back into a stack (container query at the end of this section). */
+.fs-app .mt-cmp-list {
+  --mt-cmp-cols: 30px 44px minmax(0, 1fr) 80px 64px 150px 16px;
+  position: relative;
+}
 .fs-app .mt-cmp-summary {
-  font-size: 11.5px; color: var(--text-soft); line-height: 1.5;
-  padding: 0 14px 10px; border-bottom: 1px solid var(--mt-line-soft);
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.5; padding: 0 0 12px;
 }
 .fs-app .mt-cmp-note { font-size: 12px; color: var(--text-mute); padding: 20px 14px; text-align: center; }
-.fs-app .mt-cmp-list { position: relative; }
+
+.fs-app .mt-cmp-cols {
+  display: grid; grid-template-columns: var(--mt-cmp-cols); column-gap: 14px; align-items: center;
+  padding: 9px 18px; background: var(--bg-sub); border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-mute);
+}
+/* "Business" starts over the rank badge, where the row itself starts. */
+.fs-app .mt-cmp-cols .c-biz { grid-column: 1 / 4; }
+.fs-app .mt-cmp-cols .c-num { text-align: right; }
+.fs-app .mt-cmp-cols .c-vis { grid-column: 6 / 8; }
 
 .fs-app .mt-cmp { border-bottom: 1px solid var(--mt-line-soft); background: var(--bg-elev); }
+.fs-app .mt-cmp:last-child { border-bottom: none; }
 .fs-app .mt-cmp[data-target] { background: var(--brand-soft); }
 .fs-app .mt-cmp-head {
-  display: flex; align-items: flex-start; gap: 10px; width: 100%;
-  padding: 11px 14px; cursor: pointer; text-align: left; background: none; border: none;
+  display: grid; grid-template-columns: var(--mt-cmp-cols); column-gap: 14px; align-items: center;
+  width: 100%; padding: 13px 18px; cursor: pointer; text-align: left;
+  background: none; border: none;
   /* A button does not inherit text colour or font unless told to. */
   color: inherit; font: inherit;
 }
 .fs-app .mt-cmp-head:hover { background: var(--bg-sub); }
 .fs-app .mt-cmp[data-target] .mt-cmp-head:hover { background: transparent; }
-/* The badge and avatar sit against the first text line rather than centred on
-   the whole row, which is now three lines tall. */
-.fs-app .mt-cmp-head > .mt-rankbadge,
-.fs-app .mt-cmp-head > .mt-avatar { margin-top: 1px; }
 
-.fs-app .mt-cmp-id { min-width: 0; flex: 1; }
+.fs-app .mt-cmp-id { min-width: 0; }
 .fs-app .mt-cmp-id .nm {
-  display: block; font-size: 13px; font-weight: 600; line-height: 1.3;
-  /* Two lines before truncating: at 380px most local business names do not fit
-     on one, and "Delish - The Fresh Bake ..." tells a reader less than the
-     second line would have. */
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: 13.5px; font-weight: 600; line-height: 1.3;
+  /* Two lines before truncating: long local business names say more on their
+     second line than an ellipsis does. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .fs-app .mt-cmp-id .nm .you {
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
@@ -115,38 +128,54 @@
 /* Address and category on ONE line, the address giving way first — the
    category is the shorter, more comparable fact of the two. */
 .fs-app .mt-cmp-id .sub {
-  display: flex; align-items: baseline; gap: 6px; margin-top: 2px;
-  font-size: 11px; color: var(--text-mute); min-width: 0;
+  display: flex; align-items: baseline; gap: 6px; margin-top: 3px;
+  font-size: 11.5px; color: var(--text-mute); min-width: 0;
 }
-.fs-app .mt-cmp-id .sub .ad {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.fs-app .mt-cmp-id .sub .ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fs-app .mt-cmp-id .sub .ct { flex-shrink: 0; opacity: .85; }
 .fs-app .mt-cmp-id .sub .ct::before { content: "· "; }
-.fs-app .mt-cmp-id .mt-stars { margin-top: 3px; }
+.fs-app .mt-cmp-id .mt-stars { margin-top: 4px; }
+
+.fs-app .mt-cmp-num {
+  text-align: right; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; cursor: help;
+}
+.fs-app .mt-cmp-num .of { font-size: 12px; font-weight: 500; color: var(--text-mute); }
 
 /* The scale that makes the column readable top to bottom. */
-.fs-app .mt-cmp-bar { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.fs-app .mt-cmp-bar { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .fs-app .mt-cmp-bar .track {
   flex: 1; min-width: 0; height: 6px; border-radius: 999px;
   background: var(--bg-inset); overflow: hidden;
 }
 .fs-app .mt-cmp-bar .track i { display: block; height: 100%; border-radius: 999px; }
 .fs-app .mt-cmp-bar .pct {
-  flex-shrink: 0; font-size: 12px; font-weight: 700;
+  flex-shrink: 0; width: 36px; text-align: right; font-size: 13px; font-weight: 700;
   font-variant-numeric: tabular-nums; color: var(--text);
 }
 
-.fs-app .mt-cmp-head .chev { flex-shrink: 0; margin-top: 2px; color: var(--text-mute); transition: transform .16s ease; }
+.fs-app .mt-cmp-head .chev { justify-self: end; color: var(--text-mute); transition: transform .16s ease; }
 .fs-app .mt-cmp[data-expanded] .mt-cmp-head .chev { transform: rotate(180deg); }
 
-.fs-app .mt-cmp-body { padding: 0 14px 14px; }
-.fs-app .mt-cmp-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 4px; }
+/* The detail lines up under the business's name, not under its badge. */
+.fs-app .mt-cmp-body { padding: 0 18px 16px calc(18px + 30px + 14px + 44px + 14px); }
+.fs-app .mt-cmp-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 120px)); gap: 10px; margin-top: 2px; }
 .fs-app .mt-cmp-fact .l { display: block; font-size: 10px; color: var(--text-mute); text-transform: uppercase; letter-spacing: .05em; }
-.fs-app .mt-cmp-fact .v { display: block; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
-.fs-app .mt-cmp-diff { margin-top: 11px; }
+.fs-app .mt-cmp-fact .v { display: block; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.fs-app .mt-cmp-diff { margin-top: 12px; }
 .fs-app .mt-cmp-acts { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
 .fs-app .mt-cmp-acts .btn { gap: 5px; }
+
+/* Narrow: the columns fold into a stack — name, then the visibility bar under
+   it. Found-in and Top-3 move to the expanded detail, where they already are. */
+@container mt (max-width: 900px) {
+  .fs-app .mt-cmp-cols { display: none; }
+  .fs-app .mt-cmp-head { grid-template-columns: 30px 40px minmax(0, 1fr) 16px; row-gap: 8px; padding: 12px 14px; }
+  .fs-app .mt-cmp-head .mt-cmp-num { display: none; }
+  .fs-app .mt-cmp-head .mt-cmp-bar { grid-column: 3 / 4; grid-row: 2; }
+  .fs-app .mt-cmp-head .chev { grid-column: 4; grid-row: 1; }
+  .fs-app .mt-cmp-body { padding: 0 14px 14px; }
+  .fs-app .mt-cmp-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 
 /* ── AI panel, in the report ────────────────────────────────────────────── */
 /* The report's type sizes, and each recommendation as a bordered card. The
