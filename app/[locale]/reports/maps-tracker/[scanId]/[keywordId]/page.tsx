@@ -3,36 +3,20 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { useParams } from "next/navigation"
-import { APIProvider } from "@vis.gl/react-google-maps"
 import { api, ApiError } from "@/lib/api"
-import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
-import { RankLegend } from "@/components/maps-tracker/rank-distribution"
-import { CompetitorTable } from "@/components/maps-tracker/competitor-table"
-import { PointDrawer } from "@/components/maps-tracker/point-drawer"
-import { MILES_TO_METERS, KM_TO_METERS, deriveSpacingMeters, formatDistance } from "@/components/maps-tracker/grid"
-import type { Scan, CompetitorLeaderboard } from "@/components/maps-tracker/types"
+import { ScanReport } from "@/components/maps-tracker/scan-report"
+import { useCompetitors } from "@/components/maps-tracker/use-competitors"
+import type { Scan } from "@/components/maps-tracker/types"
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-function Stat({ label, value, acronym }: { label: string; value: string; acronym: string }) {
-  return (
-    <div>
-      <div className="tiny" style={{ color: "var(--text-soft)" }}>{label}</div>
-      <div className="val">{value}</div>
-      <div className="tiny muted tabular">{acronym}</div>
-    </div>
-  )
-}
-
+/**
+ * The shareable, printable report: the same ScanReport the dashboard opens a
+ * scan into, on a clean sheet with the FreeSERP letterhead instead of the
+ * dashboard around it.
+ */
 export default function ScanReportPage() {
   const params = useParams<{ scanId: string; keywordId: string }>()
   const [scan, setScan] = useState<Scan | null>(null)
-  const [leaderboard, setLeaderboard] = useState<CompetitorLeaderboard | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // Which point's drawer is open. A report is read-only for the MAP, but the
-  // pins still open -- "what actually ranked here?" is the first question a
-  // reader has, and the data is already fetched per point on demand.
-  const [openPointId, setOpenPointId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -49,23 +33,9 @@ export default function ScanReportPage() {
     }
   }, [params.scanId])
 
-  // Separate fetch: the leaderboard is its own on-demand computation, so a
-  // slow one never blocks the rest of the report from rendering, and a failed
-  // one still leaves a readable report.
-  useEffect(() => {
-    let cancelled = false
-    api
-      .get<CompetitorLeaderboard>(`/api/maps-tracker/scans/${params.scanId}/keywords/${params.keywordId}/competitors`)
-      .then((data) => {
-        if (!cancelled) setLeaderboard(data)
-      })
-      .catch(() => {
-        /* non-fatal */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [params.scanId, params.keywordId])
+  // Its own fetch: the leaderboard is computed on demand, so a slow one never
+  // holds up the rest of the report, and a failed one still leaves it readable.
+  const { leaderboard, loading } = useCompetitors(params.scanId, params.keywordId, scan != null)
 
   if (error) return <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">{error}</div>
   if (!scan) return <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">Loading report…</div>
@@ -75,27 +45,12 @@ export default function ScanReportPage() {
     return <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">This keyword isn&apos;t part of this scan.</div>
   }
 
-  const unitLabel = scan.displayUnit === "IMPERIAL" ? "mi" : "km"
-  const radiusInUnit = scan.radiusMeters / (scan.displayUnit === "IMPERIAL" ? MILES_TO_METERS : KM_TO_METERS)
-
-  // pointId is what makes a pin openable — without it the drawer has nothing
-  // to fetch, which is why clicking a pin on this page used to do nothing.
-  const pins: MapPinData[] = keyword.points.map((p) => ({
-    row: p.row, col: p.col, lat: p.latitude, lng: p.longitude, status: p.status, rank: p.rank,
-    pointId: p.id,
-  }))
-
   return (
     <div className="mt-page mt-report">
       <div className="mt-sheet">
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 40 }}>
           <div className="row" style={{ gap: 9 }}>
-            {/* Same mark and wordmark as the dashboard sidebar: 32px logo,
-                semibold "FreeSERP". The sidebar's second line ("Rank
-                Tracker") is dropped — the report already says what it is in
-                its eyebrow and headline, so repeating it in the brand lockup
-                made the header the loudest thing on a page whose point is the
-                result. */}
+            {/* Same mark and wordmark as the dashboard sidebar. */}
             <Image src="/logo.png" alt="FreeSERP" width={32} height={32} className="mt-mark" priority />
             <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.01em" }}>FreeSERP</span>
           </div>
@@ -104,129 +59,12 @@ export default function ScanReportPage() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 680, marginBottom: 36 }}>
-          <div className="mt-eyebrow" style={{ marginBottom: 10 }}>Google Maps · &ldquo;{keyword.keyword}&rdquo;</div>
-          <h2>
-            {keyword.solv != null
-              ? `Top 3 across ${keyword.solv.toFixed(0)}% of the neighbourhood`
-              : "Local ranking across the neighbourhood"}
-          </h2>
-          <p className="mt-lede">
-            {scan.location.name}, {scan.location.address}. {keyword.scoredPoints} searches on a {scan.gridSize} × {scan.gridSize} grid,
-            {" "}{radiusInUnit.toFixed(2)}{unitLabel} radius, each one a real Google Maps query from that coordinate.
-          </p>
-        </div>
-
-        <div className="mt-rstats">
-          <Stat label="Top-3 coverage" value={keyword.solv != null ? `${keyword.solv.toFixed(0)}%` : "—"} acronym="SOLV" />
-          <Stat label="Average rank where found" value={keyword.arp != null ? keyword.arp.toFixed(1) : "—"} acronym="ARP" />
-          <Stat label="Average rank across grid" value={keyword.atrp != null ? keyword.atrp.toFixed(1) : "—"} acronym="ATRP" />
-        </div>
-
-        {GOOGLE_MAPS_API_KEY ? (
-          <div
-            style={{
-              // Square, because the thing being shown is a square grid. On a
-              // 16:9 box the grid sits in the middle with dead map either side.
-              // Full sheet width: the map is the report's evidence, and at 720
-              // it sat narrower than the stat row above it, which read as an
-              // inset rather than the main exhibit.
-              margin: "32px auto 0",
-              aspectRatio: "1 / 1",
-              width: "100%",
-              borderRadius: "var(--r-md)",
-              overflow: "hidden",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-              <ScanMap
-                centerLat={scan.centerLat}
-                centerLng={scan.centerLng}
-                gridSize={scan.gridSize}
-                radiusMeters={scan.radiusMeters}
-                pins={pins}
-                unit={scan.displayUnit}
-                // Same as the results screen: the centre already has a scored
-                // pin, and the marker would cover its rank.
-                showCenterMarker={false}
-                // A report is read, not driven — no panning, no map-type or
-                // street-view controls. Pins still open and the map still
-                // zooms; those are onPinClick's and zoomable's jobs, not this
-                // flag's.
-                interactive={false}
-                openPointId={openPointId}
-                onPinClick={(pin) => {
-                  if (pin.status === "SUCCEEDED" && pin.pointId) setOpenPointId(pin.pointId)
-                }}
-                // Tighter than the dashboard's. Nobody pans a report, so the
-                // grid should fill the frame rather than leave room to move
-                // around in, and there are no map controls in the corners to
-                // sit under.
-                framePadding={0.045}
-                // Read-only, but still zoomable: a 1.5km-radius grid covers a
-                // whole district, and a reader will want to look closer at one
-                // corner of it. The +/- buttons are the only affordance, since
-                // cooperative gesture handling lets a bare scroll pass through
-                // to the page.
-                zoomable
-                // Bigger than the dashboard's. The report gives the map the
-                // full sheet width with nothing beside it, so the pins can
-                // afford to carry the page.
-                pinBoost={1.3}
-              />
-            </APIProvider>
-          </div>
-        ) : (
-          <div className="tiny muted" style={{ textAlign: "center", padding: 24 }}>
-            Map unavailable — NEXT_PUBLIC_GOOGLE_MAPS_API_KEY isn&apos;t configured.
-          </div>
-        )}
-
-        {/* States the scale of the map above. Without it a reader has no way
-            to tell a grid covering four streets from one covering a county —
-            the pins look identical either way. */}
-        <div
-          className="tiny muted"
-          style={{
-            textAlign: "center",
-            textTransform: "uppercase",
-            letterSpacing: ".08em",
-            margin: "14px 0 24px",
-          }}
-        >
-          {formatDistance(deriveSpacingMeters(scan.gridSize, scan.radiusMeters), scan.displayUnit)} between map pins
-        </div>
-
-        {/* The one legend. It reads from the same bands as the pins above it. */}
-        <div style={{ marginBottom: 40 }}>
-          <RankLegend points={keyword.points} />
-        </div>
-
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Who else appears in this grid</div>
-        <div className="tiny muted" style={{ marginBottom: 14 }}>Ranked by how often each business lands in the top 3</div>
-        {leaderboard ? (
-          <CompetitorTable rows={leaderboard.rows} />
-        ) : (
-          <div className="tiny muted" style={{ padding: 24, textAlign: "center" }}>Loading the competitor comparison…</div>
-        )}
+        <ScanReport scan={scan} keyword={keyword} leaderboard={leaderboard} leaderboardLoading={loading} />
 
         <div className="tiny muted" style={{ marginTop: 40, paddingTop: 18, borderTop: "1px solid var(--border)" }}>
           Prepared by FreeSERP · every figure measured from the {keyword.scoredPoints} searches above
         </div>
       </div>
-
-      {/* The top 20 Google returned at one coordinate. Same drawer the
-          dashboard uses, so the report cannot drift from it. */}
-      {openPointId && (
-        <PointDrawer
-          scanId={params.scanId}
-          pointId={openPointId}
-          keyword={keyword.keyword}
-          unit={scan.displayUnit}
-          onClose={() => setOpenPointId(null)}
-        />
-      )}
     </div>
   )
 }

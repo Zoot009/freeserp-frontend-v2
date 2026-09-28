@@ -362,6 +362,51 @@
   .fs-app .mt-report { background: #fff; }
 }
 
+/* ── Report body (ScanReport) ─────────────────────────────────────────────
+   Shared by the dashboard's scan view and the standalone report. */
+.fs-app .mt-rmap {
+  /* Square, because the thing shown is a square grid; full sheet width, as the
+     report's main exhibit. */
+  margin: 32px auto 0; aspect-ratio: 1 / 1; width: 100%;
+  border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--border);
+}
+.fs-app .mt-rscale { text-align: center; text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 24px; }
+/* Says why the pins just changed colour, and how to get yours back. */
+.fs-app .mt-rcompare {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 24px;
+  padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--brand-soft); color: var(--text); font-size: 13px;
+}
+.fs-app .mt-rsec { margin-bottom: 40px; }
+.fs-app .mt-rsec-t { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+/* The competitor list, drawn for a narrow rail, kept to a reading width here
+   so its visibility bars stay a scale rather than a page-wide stripe. */
+.fs-app .mt-rsec .mt-cmp-list,
+.fs-app .mt-rsec .mt-cmp-summary {
+  max-width: 760px;
+}
+.fs-app .mt-rsec .mt-cmp-list {
+  border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
+}
+.fs-app .mt-rsec .mt-cmp-list > .mt-cmp:last-child { border-bottom: none; }
+.fs-app .mt-rsec .mt-cmp-summary { padding: 0 0 12px; border-bottom: none; font-size: 12.5px; }
+
+/* ── Scan view: the report, inside the dashboard ───────────────────────── */
+.fs-app .mt-sheet.in-app { max-width: 1040px; padding: 4px 0 56px; }
+.fs-app .mt-rhead { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 32px; }
+.fs-app .mt-rhead-back {
+  width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: 10px; border: 1px solid var(--border); color: var(--text-soft);
+}
+.fs-app .mt-rhead-back:hover { background: var(--bg-sub); color: var(--text); }
+.fs-app .mt-rhead-id { flex: 1; min-width: 0; }
+.fs-app .mt-rhead-id .t { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-app .mt-rhead-id .s { margin-top: 2px; font-size: 12px; color: var(--text-mute); }
+.fs-app .mt-rhead-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fs-app .mt-rhead-acts .btn { gap: 6px; }
+.fs-app .mt-rbanner { margin-bottom: 24px; border-radius: var(--r-md); overflow: hidden; }
+.fs-app .mt-rlive { display: flex; flex-direction: column; }
+
 /* ── Narrow ─────────────────────────────────────────────────────────────── */
 @container mt (max-width: 1180px) {
   .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
