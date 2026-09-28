@@ -16,8 +16,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
-import { AlertTriangle, Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
+import { AlertTriangle, ArrowRight, Check, ChevronDown, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
+import { Link } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,6 +40,9 @@ type SiteAudit = {
   status: "NONE" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"
   domain: string
   pagesFound?: number
+  /** The Full Website Audit report this crawl was saved as. Absent on backends
+   *  that predate it, and null before a crawl has been saved. */
+  reportId?: string | null
   /** When the last WHOLE-site crawl landed. A failed-page retry doesn't move it. */
   fullCrawlAt?: string | null
   /** When this cached result is re-crawled automatically. */
@@ -852,7 +856,18 @@ export function SiteCrawlCard({
             )}
           </div>
 
-          {(audit.pages?.length ?? 0) > 0 && (
+          {/* The crawl is saved as a Full Website Audit report, so the full
+              report is that page — every check, issue and page it found, not
+              the status list this card has room for. The inline list stays
+              only as the fallback for a crawl with no saved report. */}
+          {audit.reportId ? (
+            <Button asChild variant="outline" size="sm" className="mt-4 h-7 gap-1.5 text-xs">
+              <Link href={`/dashboard/page-audit/${audit.reportId}`}>
+                {t("viewFullReport")}
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          ) : (audit.pages?.length ?? 0) > 0 && (
             <>
               <Button variant="outline" size="sm" className="mt-4 h-7 gap-1.5 text-xs" onClick={() => setShowPages((s) => !s)}>
                 {showPages ? t("hidePages") : t("viewFullReport")}
