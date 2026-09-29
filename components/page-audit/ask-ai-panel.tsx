@@ -274,7 +274,7 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
           className="group fixed bottom-5 right-5 z-40 flex h-12 animate-[ask-float_3.5s_ease-in-out_infinite] items-center gap-2 rounded-full bg-primary pl-4 pr-5 text-sm font-medium text-primary-foreground shadow-lg transition-transform duration-200 hover:scale-[1.05] hover:animate-none active:scale-95"
         >
           <Sparkles className="h-4 w-4 animate-[ask-twinkle_2.2s_ease-in-out_infinite] transition-transform duration-300 group-hover:rotate-[18deg] group-hover:scale-110" />
-          Ask from AI
+          Ask AI
         </button>
       )}
 

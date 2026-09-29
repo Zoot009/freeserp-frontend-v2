@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadFailed } from "@/components/page-audit/site-issues"
+import { Hint } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
 
 export type AuditListItem = {
@@ -68,7 +69,10 @@ const PAGE_SIZE = 10
  * One column template for both views, so the header lines up either way and
  * switching doesn't shift the table under the reader.
  */
-const COLS = "grid-cols-[32px_minmax(0,1fr)_72px_116px_52px_80px_28px]"
+const COLS =
+  "grid-cols-[minmax(0,1fr)_48px_36px_16px] sm:grid-cols-[32px_minmax(0,1fr)_72px_116px_52px_80px_28px]"
+/** Cells that only fit from the sm breakpoint; on a phone their facts move under the name. */
+const WIDE_ONLY = "max-sm:hidden"
 
 /** Bands match the report's own colour language, so a 74 reads the same in both. */
 function scoreTone(score: number): string {
@@ -151,23 +155,40 @@ function SiteFavicon({ host, lookUp = true }: { host: string; lookUp?: boolean }
  */
 function IssuesCell({ r }: { r: AuditListItem }) {
   if (r.status !== "COMPLETED" || r.issueCount == null) {
-    return <span className="text-right text-xs text-muted-foreground/50">—</span>
+    return <span className={cn("text-right text-xs text-muted-foreground/50", WIDE_ONLY)}>—</span>
   }
   const critical = r.criticalCount ?? 0
   return (
-    <span
-      className={cn(
-        "text-right text-xs tabular-nums",
-        critical > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground",
+    <Hint text={critical > 0 ? `${r.issueCount} issues, ${critical} critical` : `${r.issueCount} issues`}>
+      <span
+        className={cn(
+          "text-right text-xs tabular-nums",
+          WIDE_ONLY,
+          critical > 0 ? "font-semibold text-red-600 dark:text-red-400" : "text-muted-foreground",
+        )}
+      >
+        {r.issueCount}
+      </span>
+    </Hint>
+  )
+}
+
+/** On a phone, the Issues and date columns don't fit — so they sit under the name. */
+function PhoneFacts({ r }: { r: AuditListItem }) {
+  const issues =
+    r.status === "COMPLETED" && r.issueCount != null
+      ? `${r.issueCount} ${r.issueCount === 1 ? "issue" : "issues"}`
+      : null
+  return (
+    <div className="truncate text-xs text-muted-foreground sm:hidden">
+      {issues && (
+        <span className={cn((r.criticalCount ?? 0) > 0 && "font-semibold text-red-600 dark:text-red-400")}>
+          {issues}
+        </span>
       )}
-      title={
-        critical > 0
-          ? `${r.issueCount} issues, ${critical} critical`
-          : `${r.issueCount} issues`
-      }
-    >
-      {r.issueCount}
-    </span>
+      {issues && " · "}
+      {shortDate(r.createdAt)}
+    </div>
   )
 }
 
@@ -230,12 +251,11 @@ function ScoreCell({ r }: { r: AuditListItem }) {
     )
   }
   return (
-    <span
-      className="whitespace-nowrap text-xs text-muted-foreground"
-      title={r.status === "FAILED" ? r.errorMessage ?? undefined : undefined}
-    >
-      {r.status === "FAILED" ? failureLabel(r.errorMessage) : "Running"}
-    </span>
+    <Hint text={r.status === "FAILED" ? r.errorMessage : null}>
+      <span className="whitespace-nowrap text-xs text-muted-foreground">
+        {r.status === "FAILED" ? failureLabel(r.errorMessage) : "Running"}
+      </span>
+    </Hint>
   )
 }
 
@@ -407,7 +427,7 @@ export function AuditHistory({
         {/* Controls share one row and one height. The search field used to be
             w-full, which made it claim the whole line the moment the header
             wrapped and pushed the toggle onto a line of its own. */}
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <div
             role="tablist"
             aria-label="History grouping"
@@ -432,7 +452,7 @@ export function AuditHistory({
             ))}
           </div>
 
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
@@ -442,7 +462,7 @@ export function AuditHistory({
               }}
               placeholder="Search by URL"
               aria-label="Search audits by URL"
-              className="h-9 w-48 rounded-lg pl-8 pr-8 text-[13px] sm:w-60"
+              className="h-9 w-full rounded-lg pl-8 pr-8 text-[13px] sm:w-60"
             />
             {/* A filter you can't see the edge of is a filter people forget is
                 on, then read the shortened list as lost history. */}
@@ -465,16 +485,16 @@ export function AuditHistory({
 
       <div
         className={cn(
-          "grid items-center gap-3 border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+          "grid items-center gap-2 border-b px-4 py-2 text-[11px] sm:gap-3 font-semibold uppercase tracking-wide text-muted-foreground",
           COLS,
         )}
       >
-        <span>#</span>
+        <span className={WIDE_ONLY}>#</span>
         <span>{view === "sites" ? "Site" : "Website"}</span>
-        <span className="text-right">Issues</span>
+        <span className={cn("text-right", WIDE_ONLY)}>Issues</span>
         <span className="text-right">Score</span>
         <span className="text-right">Grade</span>
-        <span className="text-right">{view === "sites" ? "Last run" : "When"}</span>
+        <span className={cn("text-right", WIDE_ONLY)}>{view === "sites" ? "Last run" : "When"}</span>
         <span />
       </div>
 
@@ -517,11 +537,11 @@ export function AuditHistory({
                   }
                 }}
                 className={cn(
-                  "grid cursor-pointer items-center gap-3 px-4 py-2.5 text-[13px] transition-colors hover:bg-muted",
+                  "grid cursor-pointer items-center gap-2 px-4 py-2.5 text-[13px] sm:gap-3 transition-colors hover:bg-muted",
                   COLS,
                 )}
               >
-                <span className="tabular-nums text-muted-foreground">
+                <span className={cn("tabular-nums text-muted-foreground", WIDE_ONLY)}>
                   {page * PAGE_SIZE + i + 1}
                 </span>
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -529,11 +549,12 @@ export function AuditHistory({
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className="truncate font-semibold">{g.host}</span>
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <span className={cn("shrink-0 text-xs tabular-nums text-muted-foreground", WIDE_ONLY)}>
                         {g.audits === 1 ? "1 audit" : `${g.audits} audits`}
                       </span>
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">{g.latest.url}</div>
+                    <div className={cn("truncate text-xs text-muted-foreground", WIDE_ONLY)}>{g.latest.url}</div>
+                    <PhoneFacts r={g.latest} />
                   </div>
                 </div>
                 <IssuesCell r={g.latest} />
@@ -543,7 +564,7 @@ export function AuditHistory({
                 <span className={cn("text-right font-semibold", gradeTone(g.latest.overallScore))}>
                   {g.latest.overallGrade ?? "—"}
                 </span>
-                <span className="text-right text-xs text-muted-foreground">
+                <span className={cn("text-right text-xs text-muted-foreground", WIDE_ONLY)}>
                   {shortDate(g.latest.createdAt)}
                 </span>
                 <span className="flex justify-end">
@@ -587,15 +608,15 @@ export function AuditHistory({
                           }
                         }}
                         className={cn(
-                          "grid items-center gap-3 rounded-md py-1.5 text-[13px]",
+                          "grid items-center gap-2 rounded-md py-1.5 text-[13px] sm:gap-3",
                           COLS,
                           openable(r)
                             ? "cursor-pointer transition-colors hover:bg-background"
                             : "opacity-70",
                         )}
                       >
-                        <span />
-                        <div className="flex min-w-0 items-baseline gap-2 pl-9">
+                        <span className={WIDE_ONLY} />
+                        <div className="flex min-w-0 items-baseline gap-2 pl-9 max-sm:pl-0">
                           <span className="truncate text-xs text-muted-foreground">
                             {shortDate(r.createdAt)}
                           </span>
@@ -614,7 +635,7 @@ export function AuditHistory({
                         >
                           {r.overallGrade ?? "—"}
                         </span>
-                        <span />
+                        <span className={WIDE_ONLY} />
                         <span className="flex justify-end">
                           {openable(r) && (
                             <ExternalLink className="size-3.5 text-muted-foreground" />
@@ -642,12 +663,12 @@ export function AuditHistory({
               }
             }}
             className={cn(
-              "grid items-center gap-3 border-b px-4 py-2.5 text-[13px] last:border-0",
+              "grid items-center gap-2 border-b px-4 py-2.5 text-[13px] last:border-0 sm:gap-3",
               COLS,
               openable(r) ? "cursor-pointer transition-colors hover:bg-muted" : "opacity-70",
             )}
           >
-            <span className="tabular-nums text-muted-foreground">
+            <span className={cn("tabular-nums text-muted-foreground", WIDE_ONLY)}>
               {page * PAGE_SIZE + i + 1}
             </span>
             {/* Favicon inside the website cell, not as its own grid column, so
@@ -662,12 +683,13 @@ export function AuditHistory({
                 <div className="flex items-baseline gap-2">
                   <span className="truncate font-semibold">{hostOf(r.url)}</span>
                   {pagesLabel(r) && (
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <span className={cn("shrink-0 text-xs tabular-nums text-muted-foreground", WIDE_ONLY)}>
                       {pagesLabel(r)}
                     </span>
                   )}
                 </div>
-                <div className="truncate text-xs text-muted-foreground">{r.url}</div>
+                <div className={cn("truncate text-xs text-muted-foreground", WIDE_ONLY)}>{r.url}</div>
+                <PhoneFacts r={r} />
               </div>
             </div>
             <IssuesCell r={r} />
@@ -677,7 +699,7 @@ export function AuditHistory({
             <span className={cn("text-right font-semibold", gradeTone(r.overallScore))}>
               {r.overallGrade ?? "—"}
             </span>
-            <span className="text-right text-xs text-muted-foreground">
+            <span className={cn("text-right text-xs text-muted-foreground", WIDE_ONLY)}>
               {shortDate(r.createdAt)}
             </span>
             <span className="flex justify-end">
