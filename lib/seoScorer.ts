@@ -92,16 +92,32 @@ function blendTotal(onPageNorm: number, offPageNorm: number, offMax: number): nu
   return Math.round((onPageNorm * 30 + offPageNorm * 70))
 }
 
+// Keyword words match as whole words. \b can't do that beyond ASCII: JS treats
+// "é", "Ü" and every Cyrillic letter as non-word characters, so "café" never
+// matched (no boundary after the "é"), "école" and "Übersetzung" never matched
+// at all, and a Russian keyword scored zero on every on-page check. These
+// lookarounds count any letter, combining mark, digit or underscore as part of
+// a word, and NFC on both sides makes a decomposed "e"+U+0301 and a precomposed
+// "é" the same text. Mirrored in the backend's competitor-analysis/lib/
+// seoScore.ts — keep the two identical, or the report and the keywords table
+// disagree again.
+function norm(text: string): string {
+  return text.toLowerCase().normalize('NFC')
+}
+
+function hasWord(text: string, word: string): boolean {
+  const w = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{M}\\p{N}_])${w}(?![\\p{L}\\p{M}\\p{N}_])`, 'u').test(text)
+}
+
 function getKwWords(keyword: string): string[] {
-  return keyword.toLowerCase().split(/\s+/).filter(w => w.length > 0 && !STOP_WORDS.has(w))
+  return norm(keyword).split(/\s+/).filter(w => w.length > 0 && !STOP_WORDS.has(w))
 }
 
 function countKwWordsFound(text: string, kwWords: string[]): number {
   if (!text || kwWords.length === 0) return 0
-  const t = text.toLowerCase()
-  return kwWords.filter(w =>
-    new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(t)
-  ).length
+  const t = norm(text)
+  return kwWords.filter(w => hasWord(t, w)).length
 }
 
 // Award up to maxPts scaled by fraction of keyword words found.
@@ -135,7 +151,9 @@ export function computeSeoScore(
     try {
       const parsed = new URL(url.startsWith('http') ? url : `https://${url}`)
       const hostname = parsed.hostname.replace(/^www\./, '')
-      const pathname = parsed.pathname
+      // Decoded, or an accented slug (/caf%C3%A9-paris) could never match "café".
+      let pathname = parsed.pathname
+      try { pathname = decodeURIComponent(pathname) } catch { /* malformed escape — keep it encoded */ }
 
       // Keyword in domain (max 2)
       const domainFound = countKwWordsFound(hostname, kwWords)
@@ -207,11 +225,10 @@ export function computeSeoScore(
   else if (h2Tags.length >= 1) headingScore += 1
 
   if (kwWords.length > 0) {
-    const re = (w: string) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
-    const h2Text = h2Tags.join(' ').toLowerCase()
-    const h3Text = h3Tags.join(' ').toLowerCase()
-    if (kwWords.some(w => re(w).test(h2Text))) headingScore += 1
-    if (kwWords.some(w => re(w).test(h3Text))) headingScore += 1
+    const h2Text = norm(h2Tags.join(' '))
+    const h3Text = norm(h3Tags.join(' '))
+    if (kwWords.some(w => hasWord(h2Text, w))) headingScore += 1
+    if (kwWords.some(w => hasWord(h3Text, w))) headingScore += 1
   }
 
   // ── 6. Images (5 pts) ─────────────────────────────────────────────────────
@@ -224,7 +241,7 @@ export function computeSeoScore(
 
   if (crawlData?.imageAnalysis?.images && kwWords.length > 0) {
     const hasKwAlt = crawlData.imageAnalysis.images.some(
-      (img: { alt?: string }) => kwWords.some(w => img.alt?.toLowerCase().includes(w))
+      (img: { alt?: string }) => kwWords.some(w => !!img.alt && norm(img.alt).includes(w))
     )
     if (hasKwAlt) imageScore += 2
   }
@@ -308,10 +325,8 @@ export function computeSeoScore(
   if (footerLinks >= 1) anchorScore += 1
 
   if (kwWords.length > 0) {
-    const allAnchorText = internalLinksArr.map(l => l.text ?? '').join(' ')
-    const hasKw = kwWords.some(w =>
-      new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(allAnchorText.toLowerCase())
-    )
+    const allAnchorText = norm(internalLinksArr.map(l => l.text ?? '').join(' '))
+    const hasKw = kwWords.some(w => hasWord(allAnchorText, w))
     if (hasKw) anchorScore += 1
   }
 

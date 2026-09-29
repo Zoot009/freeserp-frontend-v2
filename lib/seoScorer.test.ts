@@ -102,3 +102,51 @@ describe('computeSeoScore — off-page blend (DA/PA + backlinks), on-page 30% / 
     expect(s.offPageScore).toBe(75)      // da 30 of (30+10) present
   })
 })
+
+// Accented and non-Latin keywords used to score zero on every keyword check:
+// \b only knows ASCII word characters, so "café" had no boundary after its last
+// letter and "école"/"Übersetzung" none before their first. The same cases run
+// against the backend's seoScore.ts (tests/unit/seo-score-unicode.spec.ts) — the
+// two scorers must agree. `titleLength: 10` takes the length points out of the
+// title bucket, so the title score is exactly the keyword share (6 = all found).
+const titleScore = (title: string, keyword: string) =>
+  computeSeoScore({ metaTags: { title, titleLength: 10 } } as unknown as CrawlData, keyword, null).title
+
+describe('computeSeoScore — keyword matching beyond ASCII', () => {
+  it.each([
+    ['café', 'Le meilleur café de Paris'],
+    ['école', 'Une école à Lyon'],
+    ['qualité', 'Contrôle qualité des produits'],
+    ['Übersetzung', 'Professionelle Übersetzung online'],
+    ['купить диван', 'Купить диван недорого в Москве'],
+    ['blue widgets', 'Blue Widgets Guide'],
+  ])('finds "%s" in "%s"', (keyword, title) => {
+    expect(titleScore(title, keyword)).toBe(6)
+  })
+
+  it('still matches whole words only', () => {
+    expect(titleScore('Cafés et thés', 'café')).toBe(0)
+    expect(titleScore('Le meilleur café', 'cafe')).toBe(0)
+    expect(titleScore('Диваны недорого', 'диван')).toBe(0)
+  })
+
+  it('treats decomposed and precomposed accents as the same text', () => {
+    expect(titleScore('Le meilleur café de Paris', 'café')).toBe(6)
+    expect(titleScore('Le meilleur café de Paris', 'café')).toBe(6)
+  })
+
+  it('matches in headings, anchors and an accented URL slug too', () => {
+    const s = computeSeoScore(
+      {
+        headings: { h1: [], h2: ['Notre école'], h3: ['Pourquoi une école ?'] },
+        linkAnalysis: { internalLinks: [{ url: '/a', text: 'Inscription école', section: 'main' }] },
+      } as unknown as CrawlData,
+      'école',
+      'https://example.fr/%C3%A9cole-lyon',
+    )
+    expect(s.headings).toBe(3) // one h2 (+1), keyword in h2 (+1) and h3 (+1)
+    expect(s.anchors).toBe(2)  // one main-section link (+1), keyword in anchors (+1)
+    expect(s.links).toBe(4)    // one internal link (+1), keyword in anchor text (+3)
+    expect(s.url).toBe(3)      // keyword in the decoded path
+  })
+})
