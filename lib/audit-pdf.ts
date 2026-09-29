@@ -183,17 +183,36 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
 
   // ── Recommendations (priority badges) ──
   if (!hidden.has(SECTION_RECOMMENDATIONS)) {
-  const issues = [...(report.issues ?? [])].sort(
-    (a, b) => sevOrder(a.severity) - sevOrder(b.severity),
-  )
-  ensure(50)
-  sectionTitle(doc, `Recommendations (${issues.length})`, margin, y)
+  const issues = report.issues ?? []
+  // One row per PROBLEM, not per page it appears on. A 100-page site audit
+  // listed "Images Missing Alt Text" a hundred times and ran this table to
+  // eleven pages; grouped, the same findings fit on one, each with how many
+  // pages it affects.
+  const groups = groupIssues(issues)
+  ensure(64)
+  sectionTitle(doc, `Recommendations (${groups.length})`, margin, y)
   y += 6
-  if (issues.length > 0) {
+  if (groups.length > 0) {
+    if (groups.length < issues.length) {
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(8.5)
+      doc.setTextColor(...MUTED)
+      doc.text(
+        `${issues.length} issues, grouped by problem. "Pages" is how many pages each one affects.`,
+        margin,
+        y + 12,
+      )
+      y += 14
+    }
     autoTable(doc, {
       startY: y + 6,
-      head: [["Recommendation", "Category", "Priority"]],
-      body: issues.map((i) => [i.title, prettyCategory(i.category), priorityOf(i.severity).label]),
+      head: [["Recommendation", "Category", "Pages", "Priority"]],
+      body: groups.map((g) => [
+        pdfText(g.title),
+        prettyCategory(g.category),
+        g.pages > 0 ? String(g.pages) : "Site-wide",
+        priorityOf(g.severity).label,
+      ]),
       theme: "plain",
       margin: { left: margin, right: margin },
       styles: { fontSize: 9.5, cellPadding: { top: 7, bottom: 7, left: 4, right: 4 }, valign: "middle" },
@@ -201,11 +220,13 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
       bodyStyles: { textColor: INK, lineWidth: { bottom: 0.5 }, lineColor: HAIR },
       columnStyles: {
         1: { cellWidth: 100, textColor: MUTED, fontSize: 8.5 },
-        2: { cellWidth: 96, halign: "center", fontStyle: "bold", fontSize: 8 },
+        2: { cellWidth: 58, halign: "center", fontStyle: "bold", fontSize: 9 },
+        3: { cellWidth: 96, halign: "center", fontStyle: "bold", fontSize: 8 },
       },
       didParseCell: (data) => {
-        if (data.section === "body" && data.column.index === 2) {
-          const p = priorityOf(issues[data.row.index].severity)
+        if (data.section === "head" && data.column.index >= 2) data.cell.styles.halign = "center"
+        if (data.section === "body" && data.column.index === 3) {
+          const p = priorityOf(groups[data.row.index].severity)
           data.cell.styles.fillColor = p.fill
           data.cell.styles.textColor = p.text
         }
@@ -653,6 +674,49 @@ function gradeTagline(grade: string): string {
 
 function sevOrder(sev: string): number {
   return { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 }[sev] ?? 5
+}
+
+type IssueGroup = { title: string; category: string; severity: string; pages: number; count: number }
+
+/**
+ * A title without its per-page detail: "High external link ratio (78%
+ * external)." and "(91% external)." are the same problem on two pages, and
+ * must group as one.
+ */
+function baseTitle(title: string): string {
+  return title.replace(/\s*\([^)]*\)\s*\.?\s*$/, "").replace(/\.\s*$/, "").trim() || title
+}
+
+/**
+ * The report's issues as problems: one entry per rule and title, carrying the
+ * number of distinct pages it was found on (0 for a site-wide finding that
+ * belongs to no one page). Highest priority first, then the most widespread.
+ */
+function groupIssues(issues: AuditReport["issues"]): IssueGroup[] {
+  const byKey = new Map<string, IssueGroup & { urls: Set<string> }>()
+  for (const i of issues ?? []) {
+    const title = baseTitle(i.title)
+    const key = `${i.category}|${i.type}|${title.toLowerCase()}`
+    const g = byKey.get(key)
+    if (g) {
+      g.count++
+      if (i.pageUrl) g.urls.add(i.pageUrl)
+      // A group is as urgent as its most urgent instance.
+      if (sevOrder(i.severity) < sevOrder(g.severity)) g.severity = i.severity
+    } else {
+      byKey.set(key, {
+        title,
+        category: i.category,
+        severity: i.severity,
+        pages: 0,
+        count: 1,
+        urls: new Set(i.pageUrl ? [i.pageUrl] : []),
+      })
+    }
+  }
+  return [...byKey.values()]
+    .map(({ urls, ...g }) => ({ ...g, pages: urls.size }))
+    .sort((a, b) => sevOrder(a.severity) - sevOrder(b.severity) || b.pages - a.pages || a.title.localeCompare(b.title))
 }
 
 function prettyCategory(key: string): string {
