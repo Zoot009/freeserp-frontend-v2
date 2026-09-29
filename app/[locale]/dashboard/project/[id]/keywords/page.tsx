@@ -1199,6 +1199,10 @@ export default function ProjectKeywordsPage() {
   const [showShare, setShowShare] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  // The dialog's own error line. The page's banner sits behind the dialog's
+  // backdrop, where a failed create or turn-off went unseen.
+  const [shareError, setShareError] = useState("")
+  const shareInputRef = useRef<HTMLInputElement | null>(null)
   const [pausing, setPausing] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
   const [historyKeywordId, setHistoryKeywordId] = useState<string | null>(null)
@@ -1901,36 +1905,40 @@ export default function ProjectKeywordsPage() {
   // and clicking again just returns the existing token.
   const handleCreateShare = async () => {
     if (!project) return
-    setShareBusy(true); setError("")
+    setShareBusy(true); setShareError("")
     try {
       const data = await api.post<{ shareToken: string }>(`/api/projects/${project.id}/share`)
       setProject((prev) => (prev ? { ...prev, shareToken: data.shareToken } : prev))
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create share link")
+      setShareError(err instanceof Error ? err.message : "Couldn't create the link — please try again.")
     } finally { setShareBusy(false) }
   }
 
   // Revoke the link — the public page 404s afterwards.
   const handleDisableShare = async () => {
     if (!project) return
-    setShareBusy(true); setError("")
+    setShareBusy(true); setShareError("")
     try {
       await api.delete(`/api/projects/${project.id}/share`)
       setProject((prev) => (prev ? { ...prev, shareToken: null } : prev))
       setShareCopied(false)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to disable sharing")
+      setShareError(err instanceof Error ? err.message : "Couldn't turn the link off — please try again.")
     } finally { setShareBusy(false) }
   }
 
   const handleCopyShare = async () => {
     if (!shareUrl) return
+    setShareError("")
     try {
       await navigator.clipboard.writeText(shareUrl)
       setShareCopied(true)
       setTimeout(() => setShareCopied(false), 2000)
     } catch {
-      // Clipboard blocked (insecure context / permissions) — non-fatal.
+      // Clipboard blocked (insecure context, permissions). The button used to
+      // do nothing at all; select the link so copying it is one keystroke.
+      shareInputRef.current?.select()
+      setShareError("Couldn't copy automatically. The link is selected — press Ctrl+C (⌘C on a Mac) to copy it.")
     }
   }
 
@@ -2471,7 +2479,7 @@ export default function ProjectKeywordsPage() {
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => setShowShare(true)}
+                onClick={() => { setShareError(""); setShowShare(true) }}
                 aria-label={t("share")}
               >
                 <Icon.globe />
@@ -3792,6 +3800,7 @@ export default function ProjectKeywordsPage() {
                   </div>
                   <div className="share-link-field">
                     <input
+                      ref={shareInputRef}
                       className="input"
                       readOnly
                       value={shareUrl}
@@ -3838,6 +3847,15 @@ export default function ProjectKeywordsPage() {
                       Upgrade to share full rankings →
                     </Link>
                   </div>
+                </div>
+              )}
+              {shareError && (
+                <div
+                  role="alert"
+                  className="card tight"
+                  style={{ marginTop: 12, borderColor: "var(--neg)", background: "var(--neg-soft)", color: "var(--neg)", fontSize: 12 }}
+                >
+                  {shareError}
                 </div>
               )}
             </div>

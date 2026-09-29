@@ -48,6 +48,8 @@ export default function ScanReportPage() {
   // Apart from `error`, which every good poll clears: a failed Cancel must stay
   // on screen while the scan it didn't stop carries on.
   const [cancelError, setCancelError] = useState<string | null>(null)
+  // Several polls in a row have failed: what's on screen may no longer be live.
+  const [unreachable, setUnreachable] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -63,6 +65,7 @@ export default function ScanReportPage() {
     // One request at a time: a slow one no longer stacks ten more behind it.
     let inFlight = false
     let terminalSince: number | null = null
+    let failedPolls = 0
 
     const tick = async (first = false) => {
       if (inFlight) return
@@ -74,6 +77,8 @@ export default function ScanReportPage() {
         // older answer landing after the newer one.
         setScan((prev) => (prev && isTerminal(prev.status) && !isTerminal(updated.status) ? prev : updated))
         setError(null)
+        failedPolls = 0
+        setUnreachable(false)
         if (!isTerminal(updated.status)) return
         terminalSince ??= Date.now()
         // The AI report comes AFTER the scan finishes: its job is queued once
@@ -91,12 +96,19 @@ export default function ScanReportPage() {
         if (aiSettled || Date.now() - terminalSince > AI_WAIT_MS) stopPolling()
       } catch (err) {
         if (cancelled) return
-        // Only the first fetch can say "this scan isn't here"; after that a
-        // failed poll is transient and good data is already on screen.
         if (first) {
           if (err instanceof ApiError && err.status === 404) setNotFound(true)
           else setError(err instanceof ApiError ? err.message : "Couldn't load this report.")
           stopPolling()
+        } else if (err instanceof ApiError && err.status === 404) {
+          // Deleted since it loaded.
+          setNotFound(true)
+          stopPolling()
+        } else if (++failedPolls >= 3) {
+          // Keep polling, but stop letting the last good answer pass for a live
+          // one: with the backend down this sat on "Scanning · 12 of 49" for good,
+          // with nothing to say it had stopped updating.
+          setUnreachable(true)
         }
       } finally {
         inFlight = false
@@ -233,6 +245,12 @@ export default function ScanReportPage() {
         {banner && <div className="mt-rbanner">{banner}</div>}
         {(cancelError ?? error) && (
           <div className="mt-pm-banner mt-rbanner" data-tone="neg" role="alert">{cancelError ?? error}</div>
+        )}
+        {unreachable && (
+          <div className="mt-pm-banner mt-rbanner" data-tone="warn" role="status">
+            Can&apos;t reach FreeSERP right now, so this page has stopped updating.
+            {running ? " Your scan carries on regardless." : ""} It will catch up on its own once the connection is back.
+          </div>
         )}
 
         {running || isCancelled ? (

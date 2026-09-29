@@ -854,6 +854,15 @@ export function SiteCrawlCard({
                 <span>{t("onePageOnly")}</span>
               </p>
             )}
+            {/* What a finished crawl couldn't do, in the backend's words — pages
+                lost to our own unblocking outage, or still unread after a retry.
+                Without it those pages sit in "Blocked" as if the site refused us. */}
+            {audit.error && (
+              <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-snug text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="mt-px size-3.5 shrink-0" strokeWidth={2.5} />
+                <span>{audit.error}</span>
+              </p>
+            )}
           </div>
 
           {/* The crawl is saved as a Full Website Audit report, so the full
