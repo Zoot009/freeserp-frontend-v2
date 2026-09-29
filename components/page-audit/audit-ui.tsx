@@ -4034,7 +4034,6 @@ export function AuditReportResults({
 }) {
   const t = useTranslations("pageAudit")
   const [downloadingPdf, setDownloadingPdf] = useState(false)
-  const [pdfError, setPdfError] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
@@ -4131,6 +4130,7 @@ export function AuditReportResults({
       ? `${window.location.origin}/audit/shared/${shareToken}`
       : ""
 
+  const [pdfError, setPdfError] = useState<string | null>(null)
   async function handleDownloadPdf() {
     if (downloadingPdf) return
     setDownloadingPdf(true)
