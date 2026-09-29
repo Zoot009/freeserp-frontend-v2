@@ -123,7 +123,11 @@ export default function ScanReportPage() {
     }
   }, [params.scanId, stopPolling])
 
-  const keyword = scan?.keywords.find((k) => k.id === params.keywordId) ?? null
+  // The keyword on screen. Switching is local state plus a history.replaceState
+  // of the url: routing to the new [keywordId] remounted the whole page — a
+  // "Loading report…" flash and a fresh fetch of a scan already in hand.
+  const [keywordId, setKeywordId] = useState(params.keywordId)
+  const keyword = scan?.keywords.find((k) => k.id === keywordId) ?? null
   const running = scan != null && !isTerminal(scan.status)
   // Not CANCELLED: a cancelled scan is never finalised, so its keywords carry
   // no figures — as a report it read "0 searches" beside a map full of ranks.
@@ -133,7 +137,7 @@ export default function ScanReportPage() {
 
   // Its own fetch: the leaderboard is computed on demand, so a slow one never
   // holds up the rest of the report, and a failed one still leaves it readable.
-  const { leaderboard, loading } = useCompetitors(params.scanId, params.keywordId, hasResults)
+  const { leaderboard, loading } = useCompetitors(params.scanId, keywordId, hasResults)
 
   // The map while points are landing — above the early returns, so the hook
   // count never changes between renders.
@@ -170,7 +174,12 @@ export default function ScanReportPage() {
 
   if (notFound) return message("That scan isn't here. It may have been removed, or it belongs to another account.")
   if (!scan) {
-    return error ? message(error) : <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">Loading report…</div>
+    // On the report's own light sheet, so dark mode doesn't flash dark first.
+    return error ? message(error) : (
+      <div className="mt-page mt-report">
+        <div style={{ padding: 60, textAlign: "center" }} className="tiny muted">Loading report…</div>
+      </div>
+    )
   }
   if (!keyword) return message("This keyword isn't part of this scan.")
 
@@ -237,7 +246,13 @@ export default function ScanReportPage() {
             <KeywordChips
               keywords={scan.keywords}
               activeId={keyword.id}
-              onChange={(id) => router.replace(`/reports/maps-tracker/${scan.id}/${id}`, { scroll: false })}
+              onChange={(id) => {
+                setKeywordId(id)
+                // The url's last segment is the keyword; the locale prefix, if
+                // any, stays as it is.
+                const path = window.location.pathname.replace(/[^/]+$/, encodeURIComponent(id))
+                window.history.replaceState(null, "", path + window.location.search)
+              }}
             />
           </div>
         )}

@@ -13,40 +13,40 @@ import type { CompetitorLeaderboard } from "./types"
  * of the results are still worth reading without it.
  */
 export function useCompetitors(scanId: string | null, keywordId: string | null, enabled: boolean) {
-  const [leaderboard, setLeaderboard] = useState<CompetitorLeaderboard | null>(null)
-  const [loading, setLoading] = useState(false)
+  // Kept with the key it answers, so switching keyword can never show the
+  // last keyword's list for a render.
+  const [result, setResult] = useState<{ key: string; data: CompetitorLeaderboard } | null>(null)
+  const [failedKey, setFailedKey] = useState<string | null>(null)
   const cache = useRef(new Map<string, CompetitorLeaderboard>())
+  const key = enabled && scanId && keywordId ? `${scanId}:${keywordId}` : null
 
   useEffect(() => {
-    if (!enabled || !scanId || !keywordId) {
-      setLeaderboard(null)
-      return
-    }
-    const key = `${scanId}:${keywordId}`
+    if (!key) return
     const hit = cache.current.get(key)
     if (hit) {
-      setLeaderboard(hit)
+      setResult({ key, data: hit })
       return
     }
     let cancelled = false
-    setLoading(true)
-    setLeaderboard(null)
     api
       .get<CompetitorLeaderboard>(`/api/maps-tracker/scans/${scanId}/keywords/${keywordId}/competitors`)
       .then((data) => {
         cache.current.set(key, data)
-        if (!cancelled) setLeaderboard(data)
+        if (!cancelled) setResult({ key, data })
       })
       .catch(() => {
-        /* non-fatal — the results still render without the leaderboard */
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        // Non-fatal — the results still render without the leaderboard.
+        if (!cancelled) setFailedKey(key)
       })
     return () => {
       cancelled = true
     }
-  }, [scanId, keywordId, enabled])
+  }, [key, scanId, keywordId])
 
+  const leaderboard = key && result?.key === key ? result.data : null
+  // Derived rather than a flag set inside the effect: on the render the results
+  // first arrived in, that flag was still false, and the list read "no
+  // leaderboard, not loading" as a failure — a flash of "Couldn't load".
+  const loading = key != null && leaderboard == null && failedKey !== key
   return { leaderboard, loading }
 }
