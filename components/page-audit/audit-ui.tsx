@@ -184,6 +184,10 @@ export interface AuditReport {
   /** Why a FAILED audit failed. Null on anything that didn't. */
   errorMessage?: string | null
   pagesAnalyzed: number
+  /** Pages the crawl found but couldn't load — a partial crawl. */
+  pagesFailed?: number | null
+  /** Why a crawl stopped short or came back partial, in words. */
+  crawlNote?: string | null
   /** Which audit produced this: one URL, or a crawl outward from it. */
   mode?: "SINGLE" | "SITE"
 
@@ -414,6 +418,8 @@ export function transformReport(data: Record<string, unknown>): AuditReport {
     status: data.status as AuditReport["status"],
     errorMessage: (data.errorMessage as string | null) ?? null,
     pagesAnalyzed: data.pagesAnalyzed as number,
+    pagesFailed: (data.pagesFailed as number | null) ?? null,
+    crawlNote: (data.crawlNote as string | null) ?? null,
     mode: (data.mode as AuditReport["mode"]) ?? undefined,
     scoring: {
       overall: {
@@ -4554,7 +4560,9 @@ export function AuditReportResults({
         <div className={showToc ? "lg:grid lg:grid-cols-[196px_minmax(0,1fr)] lg:gap-8" : ""}>
           {showToc && <QuickLinks items={navItems} />}
           <div className="min-w-0 space-y-6">
-        {!shared && <AskAiPanel report={report} />}
+        {/* Finished reports only. A failed or unfinished one has nothing to
+            ask about, and each question costs a credit. */}
+        {!shared && report.status === "COMPLETED" && <AskAiPanel report={report} />}
         {/* A caller can put its own panel in the Recommendations slot. Site
             audits do: the rollup by problem belongs exactly where the
             per-recommendation list would have been, and that list is empty here

@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { api, ApiError } from "@/lib/api"
 import type { AuditReport } from "@/components/page-audit/audit-ui"
+import { buildAskContext, type AskIssueGroup } from "@/components/page-audit/ask-ai-context"
 /**
  * Answered by POST /api/page-audit/ask, backed by DeepSeek.
  *
@@ -38,7 +39,7 @@ type AuditAskResponse = { output: string }
  * docked chat widget. The same chat layout is used at both sizes — the
  * maximize button just scales it up to a near-fullscreen overlay.
  *
- * Sends the audit's scores + top issues + categories to the backend along with
+ * Sends a summary of the audit (see buildAskContext) to the backend along with
  * a free-form question and renders the response as live markdown. Single-shot
  * per message — no server-side memory; each ask is re-seeded with full context.
  */
@@ -64,6 +65,25 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
   const canSaveRef = useRef(false)
 
   const auditReportId = report.id
+
+  /**
+   * The site's problems with their real page counts, fetched once — and only
+   * when needed: the report carries at most 300 issue rows, and counting a
+   * capped list would put a problem found on 400 pages at a dozen. Null (the
+   * context then counts the rows it has) if the rollup can't be read.
+   */
+  const issueGroups = useRef<Promise<AskIssueGroup[] | null> | null>(null)
+  function siteIssueGroups(): Promise<AskIssueGroup[] | null> {
+    const capped = (report.totals?.issues ?? 0) > (report.issues?.length ?? 0)
+    if (report.mode !== "SITE" || !capped) return Promise.resolve(null)
+    issueGroups.current ??= api
+      .get<{ groups?: AskIssueGroup[] }>(`/api/page-audit/reports/${report.id}/issue-groups`)
+      .then(
+        (d) => d.groups ?? null,
+        () => null,
+      )
+    return issueGroups.current
+  }
 
   useEffect(() => {
     sessionIdRef.current = sessionId
@@ -203,10 +223,9 @@ export function AskAiPanel({ report }: { report: AuditReport }) {
       let data: AuditAskResponse | { error: string }
       try {
         data = await api.post<AuditAskResponse>("/api/page-audit/ask", {
-          // Serialised, not passed as an object: the endpoint takes context as
-          // text (it goes straight into the prompt). Sending the object failed
-          // validation on arrival, so every question answered "Validation failed".
-          context: JSON.stringify(buildContext(report)),
+          // Text, written to fit: the endpoint puts it straight into the
+          // prompt and keeps only the first 24,000 characters.
+          context: buildAskContext(report, await siteIssueGroups()),
           question: trimmed,
         })
       } catch (err) {
@@ -662,83 +681,3 @@ const SUGGESTED_QUESTIONS = [
   { label: "Help me improve", prompt: "What's the single biggest win I can ship today?" },
   { label: "Any critical issues?", prompt: "Are there any critical issues I should fix immediately?" },
 ]
-
-/**
- * Trim the full AuditReport down to the shape the backend's audit-ask
- * endpoint expects — scores + issues + category labels, not the full nested
- * check details.
- */
-function buildContext(report: AuditReport) {
-  return {
-    url: report.url,
-    pagesAnalyzed: report.pagesAnalyzed,
-    passingCount: report.passingChecks?.length ?? 0,
-    overall: {
-      score: report.scoring?.overall?.score ?? null,
-      grade: report.scoring?.overall?.grade ?? null,
-    },
-    categories: Object.entries(report.scoring?.categories ?? {}).map(([key, val]) => ({
-      key,
-      label: key,
-      score: val?.score ?? null,
-      grade: val?.grade ?? null,
-    })),
-    issues: (report.issues ?? []).map((i) => ({
-      severity: i.severity,
-      title: i.title,
-      description: i.description,
-      category: i.category,
-    })),
-    // Every individual check with its actual finding — this is what lets the AI
-    // answer about any single signal (title tag, robots.txt, schema, etc.).
-    checks: (report.checks ?? []).map((c) => ({
-      name: c.name,
-      category: c.category,
-      status: c.passed === true ? "pass" : c.passed === false ? "fail" : "info",
-      score: c.score,
-      maxScore: c.maxScore,
-      finding: c.shortAnswer || c.answer || "",
-      value: c.value ?? null,
-      recommendation: c.recommendation ?? null,
-    })),
-    passingChecks: (report.passingChecks ?? []).map((p) => ({
-      title: p.title,
-      category: p.category,
-    })),
-    internalLinks: report.linkGraph?.metadata
-      ? {
-          pagesCrawled: report.linkGraph.metadata.totalPages,
-          totalLinks: report.linkGraph.metadata.totalLinks,
-          orphanPages: report.linkGraph.metadata.orphanPages,
-          hubPages: report.linkGraph.metadata.hubPages,
-          authorityPages: report.linkGraph.metadata.authorityPages,
-          avgLinksPerPage: report.linkGraph.metadata.averageLinksPerPage,
-          maxDepth: report.linkGraph.metadata.maxDepth,
-          confidence: report.linkGraph.orphanData?.confidence ?? null,
-          topLinkedPages: (report.linkGraph.metadata.topLinkedPages ?? [])
-            .slice(0, 10)
-            .map((p) => ({ url: p.url, title: p.title, inboundLinks: p.inboundLinks })),
-        }
-      : null,
-    // Off-page backlink profile (DataForSEO summary + top backlinks).
-    backlinks: report.backlinks
-      ? {
-          domain: report.backlinks.target,
-          domainRank: report.backlinks.rank,
-          totalBacklinks: report.backlinks.backlinks,
-          referringDomains: report.backlinks.referringDomains,
-          referringIps: report.backlinks.referringIps,
-          brokenBacklinks: report.backlinks.brokenBacklinks,
-          dofollow: report.backlinks.dofollow,
-          nofollow: report.backlinks.nofollow,
-          topBacklinks: (report.backlinks.topBacklinks ?? []).slice(0, 10).map((b) => ({
-            domainStrength: b.domainStrength,
-            from: b.urlFrom,
-            pageTitle: b.pageTitle,
-            anchor: b.anchor,
-            dofollow: b.dofollow,
-          })),
-        }
-      : null,
-  }
-}
