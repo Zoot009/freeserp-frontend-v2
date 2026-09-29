@@ -43,7 +43,8 @@ type PageRow = {
   url: string
   title: string | null
   statusCode: number
-  loadTime: number
+  /** Null when it wasn't measured (pages read without a browser). */
+  loadTime: number | null
   wordCount: number | null
   issueCount: number
 }
@@ -275,8 +276,15 @@ export function SiteIssues({
                   </span>
                   {/* The number that makes this view worth having: one problem, N pages. */}
                   <span className="shrink-0 text-right">
-                    <span className="block text-[13px] font-semibold tabular-nums">{g.affectedPages.toLocaleString()}</span>
-                    <span className="block text-[11px] text-muted-foreground">{g.affectedPages === 1 ? "page" : "pages"}</span>
+                    {g.affectedPages > 0 ? (
+                      <>
+                        <span className="block text-[13px] font-semibold tabular-nums">{g.affectedPages.toLocaleString()}</span>
+                        <span className="block text-[11px] text-muted-foreground">{g.affectedPages === 1 ? "page" : "pages"}</span>
+                      </>
+                    ) : (
+                      // A finding about the site, not about any one page.
+                      <span className="block text-[12px] font-semibold text-muted-foreground">Site-wide</span>
+                    )}
                   </span>
                 </button>
                 {isOpen && <AffectedPages reportId={reportId} type={g.type} />}

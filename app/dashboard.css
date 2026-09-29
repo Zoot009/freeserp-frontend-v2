@@ -2022,7 +2022,7 @@
    look in the tools people already know. These were solid chips in one hue per
    feature, which made a keyword table the loudest thing on the page — a row of
    orange, pink, violet and red badges beside every keyword, reading as
-   decoration rather than data. The per-feature glyphs (./serp-icons) are drawn
+   decoration rather than data. The per-feature glyphs (components/dashboard/serp-icons.tsx) are drawn
    with distinct silhouettes precisely so they can be told apart without
    colour, and the tooltip names each one.
 

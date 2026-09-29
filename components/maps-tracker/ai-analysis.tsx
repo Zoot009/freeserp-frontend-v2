@@ -11,11 +11,10 @@ const PRIO_CLASS: Record<string, string> = {
 /**
  * "What this means" — the generated read of the scan.
  *
- * Deliberately rendered OUTSIDE the keyword tabs. The backend generates one
- * report per keyword, keeps only the one with the most complete data, and does
- * not record which keyword that was, so pinning this card to whichever tab is
- * open would be a lie. When a scan has several keywords the card says so
- * instead of guessing.
+ * One per SCAN, not per keyword: the backend generates a report per keyword,
+ * keeps only the one with the most complete data, and does not record which
+ * keyword that was. So it reads the same under every keyword of the report,
+ * and when a scan has several keywords the card says so instead of guessing.
  */
 export function AiAnalysis({ scan }: { scan: Scan }) {
   if (!scan.aiAnalysisRequested) return null

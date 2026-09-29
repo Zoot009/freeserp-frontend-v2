@@ -127,7 +127,9 @@ export default function ScanReportPage() {
   // of the url: routing to the new [keywordId] remounted the whole page — a
   // "Loading report…" flash and a fresh fetch of a scan already in hand.
   const [keywordId, setKeywordId] = useState(params.keywordId)
-  const keyword = scan?.keywords.find((k) => k.id === keywordId) ?? null
+  // A url naming a keyword this scan doesn't have — an old ?k= link, a typo —
+  // opens its first keyword rather than an error page.
+  const keyword = scan?.keywords.find((k) => k.id === keywordId) ?? scan?.keywords[0] ?? null
   const running = scan != null && !isTerminal(scan.status)
   // Not CANCELLED: a cancelled scan is never finalised, so its keywords carry
   // no figures — as a report it read "0 searches" beside a map full of ranks.
@@ -137,7 +139,7 @@ export default function ScanReportPage() {
 
   // Its own fetch: the leaderboard is computed on demand, so a slow one never
   // holds up the rest of the report, and a failed one still leaves it readable.
-  const { leaderboard, loading } = useCompetitors(params.scanId, keywordId, hasResults)
+  const { leaderboard, loading } = useCompetitors(params.scanId, keyword?.id ?? null, hasResults)
 
   // The map while points are landing — above the early returns, so the hook
   // count never changes between renders.
@@ -181,7 +183,7 @@ export default function ScanReportPage() {
       </div>
     )
   }
-  if (!keyword) return message("This keyword isn't part of this scan.")
+  if (!keyword) return message("This scan has no keywords to report on.")
 
   // Counted from the points: pointsDone counts every point that finished,
   // failed ones included, so a partial scan read "49 of 49".

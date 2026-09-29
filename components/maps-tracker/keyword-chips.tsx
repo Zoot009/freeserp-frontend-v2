@@ -6,12 +6,11 @@ import type { ScanKeyword } from "./types"
  * One keyword's worth of data at a time — never a mix.
  *
  * Replaces the tab strip. Tabs imply a small fixed set on one line; a scan can
- * carry ten keywords, and at 380px of rail they have to wrap. Chips wrap
- * honestly, tabs would either overflow or shrink the text to nothing.
+ * carry ten keywords, and chips wrap honestly where tabs would overflow or
+ * shrink the text to nothing.
  *
- * Unlike the old tab strip this renders for a single keyword too. With tabs, a
- * lone tab was noise; as a chip it is the label that tells you which keyword
- * every number below belongs to, which the rail otherwise never says.
+ * The report shows them only for a scan with more than one keyword; with one,
+ * the report's own heading already names it.
  */
 export function KeywordChips({
   keywords,

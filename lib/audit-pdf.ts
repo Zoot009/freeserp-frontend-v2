@@ -192,6 +192,10 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
   // eleven pages; grouped, the same findings fit on one, each with how many
   // pages it affects.
   const groups = grouped ?? groupIssues(report.issues ?? [])
+  // One page audited, and every row would read "1": the column only means
+  // something on a site audit.
+  const showPages = report.mode === "SITE"
+  const priorityCol = showPages ? 3 : 2
   ensure(64)
   sectionTitle(doc, `Recommendations (${groups.length})`, margin, y)
   y += 6
@@ -201,7 +205,7 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
       doc.setFontSize(8.5)
       doc.setTextColor(...MUTED)
       doc.text(
-        `${issueTotal} issues, grouped by problem. "Pages" is how many pages each one affects.`,
+        `${issueTotal} issues, grouped by problem.${showPages ? ' "Pages" is how many pages each one affects.' : ""}`,
         margin,
         y + 12,
       )
@@ -209,11 +213,11 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
     }
     autoTable(doc, {
       startY: y + 6,
-      head: [["Recommendation", "Category", "Pages", "Priority"]],
+      head: [showPages ? ["Recommendation", "Category", "Pages", "Priority"] : ["Recommendation", "Category", "Priority"]],
       body: groups.map((g) => [
         pdfText(g.title),
         prettyCategory(g.category),
-        g.pages > 0 ? String(g.pages) : "Site-wide",
+        ...(showPages ? [g.pages > 0 ? String(g.pages) : "Site-wide"] : []),
         priorityOf(g.severity).label,
       ]),
       theme: "plain",
@@ -223,12 +227,12 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
       bodyStyles: { textColor: INK, lineWidth: { bottom: 0.5 }, lineColor: HAIR },
       columnStyles: {
         1: { cellWidth: 100, textColor: MUTED, fontSize: 8.5 },
-        2: { cellWidth: 58, halign: "center", fontStyle: "bold", fontSize: 9 },
-        3: { cellWidth: 96, halign: "center", fontStyle: "bold", fontSize: 8 },
+        ...(showPages ? { 2: { cellWidth: 58, halign: "center" as const, fontStyle: "bold" as const, fontSize: 9 } } : {}),
+        [priorityCol]: { cellWidth: 96, halign: "center", fontStyle: "bold", fontSize: 8 },
       },
       didParseCell: (data) => {
         if (data.section === "head" && data.column.index >= 2) data.cell.styles.halign = "center"
-        if (data.section === "body" && data.column.index === 3) {
+        if (data.section === "body" && data.column.index === priorityCol) {
           const p = priorityOf(groups[data.row.index].severity)
           data.cell.styles.fillColor = p.fill
           data.cell.styles.textColor = p.text

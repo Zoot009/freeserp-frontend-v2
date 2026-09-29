@@ -12,10 +12,10 @@ import type { SVGProps } from "react"
  * differ — solid bars, an outlined card, a pin, a star — rather than ten
  * variations on a 1.5px stroke.
  *
- * Drawn on a 16×16 grid, sized by the caller, painted in `currentColor` — which
- * on a filled chip is the knocked-out white, not the feature's colour. Secondary
- * shapes drop their opacity instead of taking a second colour, so they read as
- * the fill showing through. Everything is `aria-hidden`: the chip
+ * Drawn on a 16×16 grid, sized by the caller, painted in `currentColor` — the
+ * chip's own text colour, now that the chips are neutral rather than filled per
+ * feature. Secondary shapes drop their opacity instead of taking a second
+ * colour, so they read as the same ink, lighter. Everything is `aria-hidden`: the chip
  * carries the accessible name, and a glyph that also announced itself would say
  * it twice.
  */
