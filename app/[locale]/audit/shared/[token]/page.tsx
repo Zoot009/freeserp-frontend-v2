@@ -28,6 +28,8 @@ export default function SharedAuditPage() {
   const params = useParams()
   const token = String(params.token ?? "")
   const [report, setReport] = useState<AuditReport | null>(null)
+  /** Sections the owner left out. The server already removed their data. */
+  const [hiddenSections, setHiddenSections] = useState<string[]>([])
   /**
    * Why there is no report.
    *
@@ -52,7 +54,11 @@ export default function SharedAuditPage() {
         if (!res.ok) throw new Error(String(res.status))
         return res.json()
       })
-      .then((data) => { if (!cancelled) setReport(transformReport(data)) })
+      .then((data) => {
+        if (cancelled) return
+        setReport(transformReport(data))
+        setHiddenSections(Array.isArray(data.hiddenSections) ? data.hiddenSections : [])
+      })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error && err.message === "404" ? "gone" : "unavailable")
       })
@@ -109,6 +115,7 @@ export default function SharedAuditPage() {
           report={report}
           onNewAudit={() => { window.location.href = "/" }}
           shared
+          hiddenSections={hiddenSections}
         />
       </div>
     </main>

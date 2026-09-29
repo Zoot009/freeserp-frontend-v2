@@ -188,6 +188,8 @@ export interface AuditReport {
   pagesFailed?: number | null
   /** Why a crawl stopped short or came back partial, in words. */
   crawlNote?: string | null
+  /** Sections the owner hid from this report's share link (owner's view only). */
+  sharedHiddenSections?: string[]
   /** Which audit produced this: one URL, or a crawl outward from it. */
   mode?: "SINGLE" | "SITE"
 
@@ -420,6 +422,7 @@ export function transformReport(data: Record<string, unknown>): AuditReport {
     pagesAnalyzed: data.pagesAnalyzed as number,
     pagesFailed: (data.pagesFailed as number | null) ?? null,
     crawlNote: (data.crawlNote as string | null) ?? null,
+    sharedHiddenSections: Array.isArray(data.sharedHiddenSections) ? (data.sharedHiddenSections as string[]) : [],
     mode: (data.mode as AuditReport["mode"]) ?? undefined,
     scoring: {
       overall: {
@@ -3777,12 +3780,12 @@ export function shareableSections(report: AuditReport): ShareSection[] {
   const out: ShareSection[] = []
   if (buildRecommendations(report).length > 0)
     out.push({ key: SECTION_RECOMMENDATIONS, label: "Recommendations" })
-  if (report.linkGraph?.metadata)
-    out.push({ key: SECTION_INTERNAL_LINKS, label: "Internal Link Analysis" })
+  // Listed whether or not they hold data: without it they still render, as a
+  // "couldn't be collected" note, and the owner may not want that on the link.
+  out.push({ key: SECTION_INTERNAL_LINKS, label: "Internal Link Analysis" })
   for (const d of CATEGORY_SCORES_DEF) {
     out.push({ key: sectionKeyForCategory(d.key), label: `${d.label} Results` })
-    if (d.key === "LINKS" && report.backlinks)
-      out.push({ key: SECTION_BACKLINKS, label: "Backlink Profile" })
+    if (d.key === "LINKS") out.push({ key: SECTION_BACKLINKS, label: "Backlink Profile" })
   }
   return out
 }
@@ -3802,7 +3805,10 @@ function RecommendationsSection({ report }: { report: AuditReport }) {
       <div className="border-b border-border/40 px-6 pb-5 pt-6">
         <h2 className="text-lg font-bold">{t("recommendations")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {items.length} {items.length === 1 ? "issue" : "issues"} to fix, ordered by priority.
+          {/* The rows stop at 300 (the most severe first); the total is the server's. */}
+          {(report.totals?.issues ?? 0) > items.length
+            ? `The ${items.length} most important of ${report.totals!.issues.toLocaleString()} issues, ordered by priority.`
+            : `${items.length} ${items.length === 1 ? "issue" : "issues"} to fix, ordered by priority.`}
         </p>
       </div>
       <div className="overflow-x-auto">
@@ -4039,88 +4045,60 @@ export function AuditReportResults({
   const [shareLoading, setShareLoading] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  // Whether the signed-in owner has white-label branding enabled (set in
-  // Settings) — used only for the share-dialog status. The PDF download is never
-  // white-labeled; it always uses the standard report styling.
-  const [brandingOn, setBrandingOn] = useState<boolean | null>(null)
   const { user: authUser, loading: authLoading } = useAuth()
   const authStatus = authLoading ? "loading" : authUser ? "authenticated" : "unauthenticated"
   const router = useRouter()
 
-  useEffect(() => {
-    if (shared || authStatus !== "authenticated") return
-    let cancelled = false
-    fetch("/api/user-branding")
-      .then((r) => r.json())
-      .then((d: { branding?: { enabled?: boolean } | null }) => {
-        if (!cancelled) setBrandingOn(!!d.branding?.enabled)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [shared, authStatus])
-
-  // ── Per-share section curation ────────────────────────────────────────────
-  // The report sections an owner can include/exclude, and the set hidden from
-  // THIS share link. Rendering on the shared view uses the `hiddenSections`
-  // prop; the dialog below edits the selection for the current token.
+  // ── Per-link section curation ─────────────────────────────────────────────
+  // The sections an owner can leave out of the share link. Saved on the report
+  // and enforced by the server: the link is sent the report without them, and
+  // its `hiddenSections` only tells that page which headings to drop too.
+  //
+  // This used to post to a /api/share-selection store that was never ported, so
+  // every change showed "Saved" and none of them reached the link.
   const sections = shareableSections(report)
-  const [hiddenSecs, setHiddenSecs] = useState<Set<string>>(new Set())
+  const [hiddenSecs, setHiddenSecs] = useState<Set<string>>(() => new Set(report.sharedHiddenSections ?? []))
   const [secSaving, setSecSaving] = useState(false)
   const [secSaved, setSecSaved] = useState(false)
+  const [secError, setSecError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
-  // Load any saved selection once the share token exists.
-  useEffect(() => {
-    if (!shareToken) return
-    let cancelled = false
-    fetch(`/api/share-selection/${shareToken}`)
-      .then((r) => r.json())
-      .then((d: { hiddenKeys?: string[] }) => {
-        if (!cancelled) setHiddenSecs(new Set(d.hiddenKeys ?? []))
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [shareToken])
-
-  // Persist the hidden set (auto-save — no separate "save" step to forget).
+  // Auto-save — no separate "save" step to forget. One at a time (the controls
+  // are disabled while it runs), since each save sends the whole set.
   async function persistSelection(next: Set<string>) {
-    if (!shareToken) return
+    const previous = hiddenSecs
+    setHiddenSecs(next)
     setSecSaving(true)
     setSecSaved(false)
+    setSecError(null)
     try {
-      await fetch("/api/share-selection", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: shareToken, hiddenKeys: [...next] }),
-      })
+      await api.put(`/api/page-audit/reports/${report.id}/share/sections`, { hiddenSections: [...next] })
       setSecSaved(true)
       setTimeout(() => setSecSaved(false), 1500)
-    } catch {
-      /* best-effort; the visible state still reflects the intent */
+    } catch (err) {
+      // Back to what the link really shows, and say so: "Saved" on a change
+      // that never reached the server is the one thing this must not do.
+      setHiddenSecs(previous)
+      setSecError(err instanceof ApiError ? err.message : t("networkError"))
     } finally {
       setSecSaving(false)
     }
   }
 
   function toggleSection(key: string) {
+    if (secSaving) return
     const next = new Set(hiddenSecs)
     if (next.has(key)) next.delete(key)
     else next.add(key)
-    setHiddenSecs(next)
     void persistSelection(next)
   }
 
   function setAllSections(hideAll: boolean) {
-    const next = hideAll ? new Set(sections.map((s) => s.key)) : new Set<string>()
-    setHiddenSecs(next)
-    void persistSelection(next)
+    if (secSaving) return
+    void persistSelection(hideAll ? new Set(sections.map((s) => s.key)) : new Set<string>())
   }
 
-  const shownSecCount = sections.length - hiddenSecs.size
+  const shownSecCount = sections.filter((s) => !hiddenSecs.has(s.key)).length
 
   // Sections omitted from THIS view (shared link only).
   const hidden = new Set(hiddenSections ?? [])
@@ -4153,6 +4131,8 @@ export function AuditReportResults({
       return
     }
     setShareOpen(true)
+    setSecError(null)
+    setStopError(null)
     if (!shareToken) void createShareLink()
   }
 
@@ -4180,24 +4160,24 @@ export function AuditReportResults({
     }
   }
 
+  const [stopError, setStopError] = useState<string | null>(null)
   async function stopSharing() {
     setShareLoading(true)
-    const token = shareToken
+    setStopError(null)
     try {
       await api.delete(`/api/page-audit/reports/${report.id}/share`)
-      // The package also cleaned up per-share "which sections to include"
-      // curation here. That lives in its own /api/share-selection store, which
-      // wasn't ported, so there is nothing to drop — a revoked token simply
-      // stops resolving.
-      void token
-    } catch {
-      /* best-effort */
-    } finally {
+      // Off on the server: the link stops resolving, and its hidden sections
+      // are cleared there too, so a new link starts with everything shown.
       setShareToken(null)
       setHiddenSecs(new Set())
       setPickerOpen(false)
-      setShareLoading(false)
       setShareOpen(false)
+    } catch (err) {
+      // Still shared. This used to close as if it weren't, telling the owner a
+      // link was dead that anyone holding it could still open.
+      setStopError(err instanceof ApiError ? err.message : t("networkError"))
+    } finally {
+      setShareLoading(false)
     }
   }
 
@@ -4219,7 +4199,9 @@ export function AuditReportResults({
   const overallScore = report.scoring?.overall?.score ?? report.summary?.overall?.score ?? 0
   const overallGrade = report.scoring?.overall?.grade ?? report.summary?.overall?.grade ?? "N/A"
 
-  const categoryScores = CATEGORY_SCORES_DEF.map(({ key, label, category }) => {
+  // A category hidden from a share link is hidden everywhere on it — its ring
+  // and radar axis too, not only its section. (The overall grade still counts it.)
+  const categoryScores = CATEGORY_SCORES_DEF.filter(({ key }) => !hidden.has(sectionKeyForCategory(key))).map(({ key, label, category }) => {
     const catScore = report.scoring?.categories?.[category as keyof typeof report.scoring.categories]
     const catDetail = report.categoryDetails?.find((c: CategoryDetail) => c.category === key)
     return {
@@ -4280,6 +4262,13 @@ export function AuditReportResults({
                     {report.pagesAnalyzed === 1 ? "1 page" : `${report.pagesAnalyzed} pages`}
                   </span>
                 )}
+                {(report.pagesFailed ?? 0) > 0 && (
+                  <span className="shrink-0 text-xs tabular-nums text-amber-600 dark:text-amber-400">
+                    {/* One string: this SWC drops the space after {expr} when the text
+                        that follows holds an entity like &apos; (multi-line JSX). */}
+                    {`· ${report.pagesFailed} couldn't be read`}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -4338,6 +4327,18 @@ export function AuditReportResults({
             </p>
           )}
 
+          {/* A partial crawl says so, in the crawler's words — the owner's view
+              only: the reason can name internal errors a recipient can't act on. */}
+          {!shared && report.crawlNote && (
+            <p className="mb-6 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-foreground">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+              <span>
+                This crawl was partial. {report.crawlNote.replace(/[\s.]*$/, ".")}
+                {onRunFresh && " Use Run fresh to try those pages again."}
+              </span>
+            </p>
+          )}
+
           {/* Hero row: grade ring + screenshot */}
           <div className="mb-8 grid grid-cols-1 gap-10 sm:grid-cols-2 sm:items-center">
             <div className="flex flex-col items-center gap-4">
@@ -4382,7 +4383,7 @@ export function AuditReportResults({
                   )
                 })}
               </div>
-              <RadarChart categories={categoryScores} />
+              {categoryScores.length >= 3 && <RadarChart categories={categoryScores} />}
             </div>
           </div>
 
@@ -4436,28 +4437,6 @@ export function AuditReportResults({
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
-              {/* White-label branding is configured once in Settings and
-                  applied automatically to every report you share. */}
-              {brandingOn ? (
-                <p className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-xs text-foreground">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                  <span>
-                    Your white-label branding is applied to this report.{" "}
-                    <Link href="/dashboard/settings" className="font-medium text-accent hover:underline">
-                      {t("editBranding")}
-                    </Link>
-                  </span>
-                </p>
-              ) : (
-                <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
-                  Want your own logo and colors on shared reports?{" "}
-                  <Link href="/dashboard/settings" className="font-medium text-accent hover:underline">
-                    {t("setUpBranding")}
-                  </Link>{" "}
-                  in Settings — it applies to every report you share.
-                </p>
-              )}
-
               {/* Per-link section curation */}
               {sections.length > 0 && (
                 <div className="rounded-lg border border-border/60 bg-muted/20">
@@ -4476,6 +4455,11 @@ export function AuditReportResults({
                           : `${shownSecCount} of ${sections.length} sections shown`}
                         {secSaving ? " · Saving…" : secSaved ? " · Saved" : ""}
                       </span>
+                      {secError && (
+                        <span role="alert" className="mt-0.5 block text-xs text-destructive">
+                          {secError}
+                        </span>
+                      )}
                     </span>
                     {pickerOpen ? (
                       <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -4494,14 +4478,16 @@ export function AuditReportResults({
                           <button
                             type="button"
                             onClick={() => setAllSections(false)}
-                            className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10"
+                            disabled={secSaving}
+                            className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10 disabled:opacity-50"
                           >
                             All
                           </button>
                           <button
                             type="button"
                             onClick={() => setAllSections(true)}
-                            className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
+                            disabled={secSaving}
+                            className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
                           >
                             None
                           </button>
@@ -4518,6 +4504,7 @@ export function AuditReportResults({
                               <input
                                 type="checkbox"
                                 checked={shown}
+                                disabled={secSaving}
                                 onChange={() => toggleSection(sec.key)}
                                 className="h-4 w-4 shrink-0 accent-accent"
                               />
@@ -4537,6 +4524,11 @@ export function AuditReportResults({
                 </div>
               )}
 
+              {stopError && (
+                <p role="alert" className="text-xs text-destructive">
+                  Sharing is still on: {stopError}
+                </p>
+              )}
               <div className="flex items-center justify-between border-t border-border/50 pt-3">
                 <p className="text-xs text-muted-foreground">{t("shareOn")}</p>
                 <Button

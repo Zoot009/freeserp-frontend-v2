@@ -77,7 +77,11 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
   const hidden = new Set(hiddenSections ?? [])
   const grouped = await siteIssueGroups(report)
   // Every issue row the audit found — not just the ones the report ships.
-  const issueTotal = grouped ? grouped.reduce((n, g) => n + g.count, 0) : (report.issues?.length ?? 0)
+  // Without the rollup (a shared link can't read it), the server's total: the
+  // rows stop at 300.
+  const issueTotal = grouped
+    ? grouped.reduce((n, g) => n + g.count, 0)
+    : (report.totals?.issues ?? report.issues?.length ?? 0)
 
   let y = 0
   const ensure = (needed: number) => {
@@ -163,13 +167,16 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
   y = blockBottom + 30
 
   // ── Category mini-rings row ──
+  // Only the categories the share link shows: a hidden one keeps its grade off
+  // the page, not just its section.
+  const ringCats = CATEGORY_SCORES_DEF.filter((d) => !hidden.has(sectionKeyForCategory(d.key)))
   ensure(90)
   doc.setFillColor(249, 250, 251)
   doc.setDrawColor(...HAIR)
   doc.roundedRect(margin, y, contentW, 86, 10, 10, "FD")
-  const n = CATEGORY_SCORES_DEF.length
+  const n = Math.max(ringCats.length, 1)
   const cellW = (contentW - 24) / n
-  CATEGORY_SCORES_DEF.forEach((d, i) => {
+  ringCats.forEach((d, i) => {
     const cat = report.scoring?.categories?.[d.category as keyof typeof report.scoring.categories]
     const grade = cat?.grade ?? "—"
     const cx = margin + 12 + cellW * (i + 0.5)
