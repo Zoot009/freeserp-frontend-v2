@@ -27,6 +27,10 @@ type AnalysisListItem = {
   completedAt: string | null
 }
 
+// One page of history. The API pages at 50, newest first; `total` comes with
+// the first page only.
+type HistoryPage = { analyses: AnalysisListItem[]; nextCursor?: string; total?: number }
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
 
@@ -103,13 +107,21 @@ function KeywordAnalysisContent() {
 
   const [history, setHistory] = useState<AnalysisListItem[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
+  // Only the first 50 used to be fetched, and the header called that "50 saved".
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [total, setTotal] = useState<number | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await api.get<{ analyses: AnalysisListItem[] }>("/api/keyword-analysis")
-        if (!cancelled) setHistory(data.analyses ?? [])
+        const data = await api.get<HistoryPage>("/api/keyword-analysis")
+        if (!cancelled) {
+          setHistory(data.analyses ?? [])
+          setNextCursor(data.nextCursor ?? null)
+          setTotal(data.total ?? null)
+        }
       } catch {
         /* history is non-critical — leave it empty */
       } finally {
@@ -118,6 +130,20 @@ function KeywordAnalysisContent() {
     })()
     return () => { cancelled = true }
   }, [])
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const data = await api.get<HistoryPage>("/api/keyword-analysis", { query: { cursor: nextCursor } })
+      setHistory((prev) => [...prev, ...(data.analyses ?? [])])
+      setNextCursor(data.nextCursor ?? null)
+    } catch {
+      /* leave the button up to try again */
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const canSubmit = url.trim().length > 0 && keyword.trim().length > 0 && !submitting
 
@@ -267,7 +293,7 @@ function KeywordAnalysisContent() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="card-h" style={{ padding: "14px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
           <div className="b">Recent analyses</div>
-          {history.length > 0 && <span className="tiny muted">{history.length} saved</span>}
+          {history.length > 0 && <span className="tiny muted">{total ?? history.length} saved</span>}
         </div>
 
         {loadingHistory ? (
@@ -306,6 +332,14 @@ function KeywordAnalysisContent() {
               </li>
             ))}
           </ul>
+        )}
+
+        {!loadingHistory && nextCursor && (
+          <div style={{ padding: 12, display: "flex", justifyContent: "center" }}>
+            <button type="button" className="btn sm" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Loading…</> : "Load more"}
+            </button>
+          </div>
         )}
       </div>
     </div>
