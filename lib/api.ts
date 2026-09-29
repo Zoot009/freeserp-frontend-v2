@@ -95,6 +95,9 @@ const PUBLIC_AUTH_ROUTES = [
   "/verify-email",
   "/auth",
   "/share",
+  // Shared audit reports — read by people with no account. A stray 401 there
+  // (the report's screenshot fetch was one) must not send them to a login page.
+  "/audit/shared",
 ]
 
 const LOCALE_PREFIX = /^\/(?:en|es|fr|de)(?=\/|$)/

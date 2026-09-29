@@ -562,11 +562,12 @@ const screenshotPromises = new Map<string, Promise<ScreenshotData>>()
  * Subsequent WebsiteScreenshot mounts read from the cache instead of refetching.
  * Callers can await this to gate UI transitions on the screenshot being ready.
  *
- * If `auditReportId` is provided, the backend persists the result on the
- * AuditReport row so refreshing the page returns the cached screenshots
- * instantly instead of recapturing them.
+ * `auditReportId` is required: the endpoint captures that report's own URL —
+ * only for its owner — and caches the result on the row, so refreshing the
+ * page returns the stored screenshots instead of recapturing them. It used to
+ * take any URL with the report optional, and no longer accepts a call without.
  */
-export function prefetchScreenshot(url: string, auditReportId?: string): Promise<ScreenshotData> {
+export function prefetchScreenshot(url: string, auditReportId: string): Promise<ScreenshotData> {
   const cached = screenshotCache.get(url)
   if (cached) return Promise.resolve(cached)
   const inFlight = screenshotPromises.get(url)
@@ -579,7 +580,7 @@ export function prefetchScreenshot(url: string, auditReportId?: string): Promise
       // attaches the JWT and refreshes it.
       const data = await api.post<{ screenshots?: { desktop?: string | null; mobile?: string | null } }>(
         "/api/page-audit/screenshots",
-        auditReportId ? { url, auditReportId } : { url },
+        { url, auditReportId },
       )
       const result: ScreenshotData = {
         desktop: data.screenshots?.desktop ?? null,
@@ -601,20 +602,39 @@ export function WebsiteScreenshot({
   url,
   auditReportId,
   initial,
+  capture = true,
 }: {
   url: string
-  auditReportId?: string
+  auditReportId: string
   /** Screenshots persisted on the AuditReport — skip fetching when present. */
   initial?: { desktop?: string | null; mobile?: string | null } | null
+  /**
+   * Whether this viewer may ask the server for a capture. False on the public
+   * shared view: the endpoint is sign-in only and scoped to the caller's own
+   * reports, so there it can only ever fail.
+   */
+  capture?: boolean
 }) {
   const t = useTranslations("pageAudit")
   // Seed the module-level cache from the persisted report data, so callers
   // of prefetchScreenshot() (e.g. the audit page's loading gate) also benefit.
-  if (initial && (initial.desktop || initial.mobile) && !screenshotCache.has(url)) {
-    screenshotCache.set(url, {
-      desktop: initial.desktop ?? null,
-      mobile: initial.mobile ?? null,
-    })
+  if (!screenshotCache.has(url)) {
+    if (initial && (initial.desktop || initial.mobile)) {
+      screenshotCache.set(url, {
+        desktop: initial.desktop ?? null,
+        mobile: initial.mobile ?? null,
+      })
+    } else if (!capture) {
+      /**
+       * Nothing stored and no way to capture: settle on "unavailable" now.
+       *
+       * Cached rather than just skipped, so the PDF download — which asks
+       * prefetchScreenshot for this same URL — doesn't try either. On a shared
+       * link both used to POST as a signed-out visitor: a 401, a failed token
+       * refresh, and the recipient bounced to /login.
+       */
+      screenshotCache.set(url, { desktop: null, mobile: null, failed: true })
+    }
   }
   const cached = screenshotCache.get(url)
   const [data, setData] = useState<ScreenshotData | null>(cached ?? null)
@@ -4297,6 +4317,7 @@ export function AuditReportResults({
               url={report.url}
               auditReportId={report.id}
               initial={report.screenshots}
+              capture={!shared}
             />
           </div>
 
