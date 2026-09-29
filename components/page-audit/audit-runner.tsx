@@ -22,8 +22,9 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
-import { Link, useRouter } from "@/i18n/navigation"
+import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
+import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
@@ -125,21 +126,25 @@ const COPY = {
  * the queue on every page load. The cost is that it does not follow you to
  * another browser — where the audit still completes and still appears in the
  * history, which is the same outcome as before.
+ *
+ * Per user too. The storage belongs to the browser, not the account, so a
+ * mode-only key let whoever signed in next on the same machine pick up — and
+ * sit watching — the previous person's crawl.
  */
-const RUNNING_KEY = (mode: AuditMode) => `fs.audit.running.${mode}`
+const RUNNING_KEY = (userId: string, mode: AuditMode) => `fs.audit.running.${userId}.${mode}`
 
 type RunningRun = { jobId: string; url: string; startedAt: number; timeoutMs: number }
 
-function readRunning(mode: AuditMode): RunningRun | null {
+function readRunning(key: string): RunningRun | null {
   try {
-    const raw = localStorage.getItem(RUNNING_KEY(mode))
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     const run = JSON.parse(raw) as RunningRun
     if (!run?.jobId || typeof run.startedAt !== "number") return null
     // Past its own deadline: the job is finished, failed, or gone. Resuming
     // would poll a jobId BullMQ has already retired and show a spinner forever.
     if (Date.now() - run.startedAt > run.timeoutMs) {
-      localStorage.removeItem(RUNNING_KEY(mode))
+      localStorage.removeItem(key)
       return null
     }
     return run
@@ -149,10 +154,11 @@ function readRunning(mode: AuditMode): RunningRun | null {
   }
 }
 
-function writeRunning(mode: AuditMode, run: RunningRun | null): void {
+function writeRunning(key: string | null, run: RunningRun | null): void {
+  if (!key) return
   try {
-    if (run) localStorage.setItem(RUNNING_KEY(mode), JSON.stringify(run))
-    else localStorage.removeItem(RUNNING_KEY(mode))
+    if (run) localStorage.setItem(key, JSON.stringify(run))
+    else localStorage.removeItem(key)
   } catch {
     /* storage unavailable — the run simply won't survive a reload */
   }
@@ -170,6 +176,11 @@ export function AuditRunner({
   autoFresh?: boolean
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  // The dashboard shell renders nothing until the user is known, so this is
+  // set from the first render; the null case only satisfies the types.
+  const { user } = useAuth()
+  const runKey = user ? RUNNING_KEY(user.id, mode) : null
   const copy = COPY[mode]
   const [historyKey, setHistoryKey] = useState(0)
   const [url, setUrl] = useState(initialUrl)
@@ -178,17 +189,14 @@ export function AuditRunner({
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   /** Set once the mount-time resume has decided; gates the auto-fresh start. */
   const resumed = useRef(false)
   /** Set once a run has been started or adopted, so neither happens twice. */
   const autoStarted = useRef(false)
-  /** stopPolling is defined below; the resume effect needs it by reference. */
-  const stopPollingRef = useRef<(() => void) | null>(null)
   const startedAt = useRef(0)
-  // Held in a ref rather than read from `limits` inside poll: poll is a
-  // useCallback the interval closes over, and adding a dependency that arrives
-  // asynchronously would rebuild it mid-run.
+  // Held in a ref rather than read from `limits` inside the polling effect: a
+  // resumed run brings its own deadline, and a dependency that arrives
+  // asynchronously would restart the interval mid-run.
   const pollTimeout = useRef(pollTimeoutFor(undefined))
 
   // Non-fatal: without it the form just doesn't name a page count, and the
@@ -203,17 +211,6 @@ export function AuditRunner({
     return () => { cancelled = true }
   }, [])
 
-  const stopPolling = useCallback(() => {
-    if (timer.current) clearInterval(timer.current)
-    timer.current = null
-    // Every path into here is an end state — completed, failed, or timed out —
-    // so this is the one place that has to forget the run.
-    writeRunning(mode, null)
-  }, [mode])
-
-  useEffect(() => stopPolling, [stopPolling])
-  stopPollingRef.current = stopPolling
-
   const loadReport = useCallback(async (reportId: string) => {
     try {
       const data = await api.get<Record<string, unknown>>(`/api/page-audit/reports/${reportId}`)
@@ -223,32 +220,84 @@ export function AuditRunner({
     }
   }, [])
 
-  const poll = useCallback(
-    async (jobId: string) => {
+  /**
+   * Poll the running job — as an effect of there being one.
+   *
+   * This was an interval threaded through start, resume and every end state,
+   * cleared by a stopPolling that ALSO forgot the saved run. Unmounting called
+   * it, and so did the resume itself, so a reload or a trip to another page
+   * wiped the run mid-crawl. Back on a "Run fresh" link (?fresh=1) there was
+   * then nothing to say a crawl was already going, and the page started — and
+   * charged for — a second one.
+   *
+   * Now the interval lives and dies with the job it polls. Leaving the page
+   * stops it and nothing more; the saved run is forgotten only when the audit
+   * really ends. `live` also drops a response that lands after that, so a late
+   * "still running" can't re-lock a form a failure has just unlocked.
+   */
+  const pollingId = job?.status === "PROCESSING" ? job.jobId : null
+
+  useEffect(() => {
+    if (!pollingId) return
+    let live = true
+
+    /** A real end state: forget the run so a reload doesn't reattach to it. */
+    const end = (message: string) => {
+      writeRunning(runKey, null)
+      // Clearing the job is what unlocks the form: `running` reads its status.
+      setJob(null)
+      setError(message)
+      // A failed audit still writes a row, so the table needs to know.
+      setHistoryKey((k) => k + 1)
+    }
+
+    const tick = async () => {
       if (Date.now() - startedAt.current > pollTimeout.current) {
-        stopPolling()
+        // Not an end state — the audit may yet finish — so the saved run
+        // stays; a reload past this deadline finds it expired (readRunning).
+        setJob(null)
         setError("This audit is taking longer than expected. It may still finish — check back shortly.")
         return
       }
       try {
-        const next = await api.get<JobState>(`/api/page-audit/jobs/${jobId}`)
-        setJob(next)
+        const next = await api.get<JobState>(`/api/page-audit/jobs/${pollingId}`)
+        if (!live) return
         if (next.status === "COMPLETED" && next.reportId) {
-          stopPolling()
+          writeRunning(runKey, null)
+          setJob(next)
           await loadReport(next.reportId)
         } else if (next.status === "FAILED" || next.state === "failed") {
-          stopPolling()
-          setError(next.error ?? "The audit failed.")
-          // A failed audit still writes a row, so the table needs to know.
-          setHistoryKey((k) => k + 1)
+          end(next.error ?? "The audit failed.")
+        } else {
+          // Never backwards for the same job. The worker reports coarse stage
+          // numbers and a finer crawl percentage, and responses can land out
+          // of order; either way a bar that jumps back reads as a restart.
+          setJob((prev) =>
+            prev?.jobId === next.jobId && prev.progress > next.progress
+              ? { ...next, progress: prev.progress }
+              : next,
+          )
         }
-      } catch {
-        // A single failed poll is not a failed audit — the next tick retries.
-        // Only the timeout above ends it.
+      } catch (err) {
+        if (!live) return
+        // The queue has let go of the job and no report was written for it:
+        // there is nothing left to wait for, and polling on would spin until
+        // the timeout.
+        if (err instanceof ApiError && err.status === 404) {
+          end("This audit is no longer running and didn't produce a report. Please run it again.")
+        }
+        // Anything else is one failed poll, not a failed audit — the next
+        // tick retries.
       }
-    },
-    [loadReport, stopPolling],
-  )
+    }
+
+    const id = setInterval(() => void tick(), POLL_MS)
+    void tick()
+    return () => {
+      live = false
+      clearInterval(id)
+    }
+  }, [pollingId, runKey, loadReport])
 
   /**
    * Pick the run back up after a reload.
@@ -257,18 +306,14 @@ export function AuditRunner({
    * ?fresh=1 and then refreshing reattaches to the crawl already running rather
    * than starting a second one and spending the credits twice.
    *
-   * No deps but the ones that make it possible: this is a mount-time recovery,
-   * not something to redo when state changes.
+   * Once per mount: setting the job is all it does — polling follows from that.
    */
   useEffect(() => {
-    if (resumed.current) return
-    const run = readRunning(mode)
-    if (!run) {
-      // Nothing to resume — release the auto-start.
-      resumed.current = true
-      return
-    }
+    if (resumed.current || !runKey) return
     resumed.current = true
+    const run = readRunning(runKey)
+    // Nothing to resume — the auto-start is released.
+    if (!run) return
     autoStarted.current = true // never auto-start over a run already in flight
     setUrl(run.url)
     startedAt.current = run.startedAt
@@ -281,11 +326,7 @@ export function AuditRunner({
       status: "PROCESSING",
       error: null,
     })
-    stopPollingRef.current?.()
-    timer.current = setInterval(() => void poll(run.jobId), POLL_MS)
-    void poll(run.jobId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [runKey])
 
   /**
    * Arrived from "Run fresh" on a report: start immediately, past the cache.
@@ -293,13 +334,23 @@ export function AuditRunner({
    * Once only, and only with a URL to run — a re-render or a back-navigation
    * must not spend another 500 credits. Waits for `limits`, because the
    * progress poll's timeout is derived from the page budget.
+   *
+   * The flag is spent as soon as it has been acted on — by starting the run,
+   * or by finding one already going. Left in the address bar, a reload or a
+   * Back to this page read ?fresh=1 again. Replaced before the POST resolves,
+   * so even a start that times out on our side but was queued on the server
+   * can't be sent twice. The url stays, so the form still shows the target.
    */
   useEffect(() => {
-    if (!resumed.current || !autoFresh || autoStarted.current || !initialUrl.trim() || !limits) return
-    autoStarted.current = true
-    void start({ forceRecrawl: true })
+    if (!resumed.current || !autoFresh) return
+    if (!autoStarted.current) {
+      if (!initialUrl.trim() || !limits) return
+      autoStarted.current = true
+      void start({ forceRecrawl: true })
+    }
+    router.replace(`${pathname}?url=${encodeURIComponent(initialUrl.trim())}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoFresh, initialUrl, limits, job])
+  }, [autoFresh, initialUrl, limits, runKey])
 
   const start = async (opts: { forceRecrawl?: boolean } = {}) => {
     if (!url.trim() || starting) return
@@ -325,16 +376,14 @@ export function AuditRunner({
       startedAt.current = Date.now()
       // A single-page audit is one page whatever the plan allows.
       pollTimeout.current = pollTimeoutFor(mode === "site" ? limits?.maxPages : 1)
-      setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
-      stopPolling()
-      writeRunning(mode, {
+      writeRunning(runKey, {
         jobId: res.jobId,
         url: url.trim(),
         startedAt: startedAt.current,
         timeoutMs: pollTimeout.current,
       })
-      timer.current = setInterval(() => void poll(res.jobId), POLL_MS)
-      void poll(res.jobId)
+      // Polling starts from this — see the job effect above.
+      setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
     } catch (err) {
       // The backend refuses with a specific reason (bad URL, too many running),
       // and each is worth showing verbatim.
