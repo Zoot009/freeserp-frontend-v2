@@ -243,6 +243,7 @@ export function AuditRunner({
 
     /** A real end state: forget the run so a reload doesn't reattach to it. */
     const end = (message: string) => {
+      live = false
       writeRunning(runKey, null)
       // Clearing the job is what unlocks the form: `running` reads its status.
       setJob(null)
@@ -252,9 +253,14 @@ export function AuditRunner({
     }
 
     const tick = async () => {
+      // Closed by an end state below, not only by the cleanup: a second poll
+      // already in flight could otherwise land before React has re-rendered
+      // and put the finished job back.
+      if (!live) return
       if (Date.now() - startedAt.current > pollTimeout.current) {
         // Not an end state — the audit may yet finish — so the saved run
         // stays; a reload past this deadline finds it expired (readRunning).
+        live = false
         setJob(null)
         setError("This audit is taking longer than expected. It may still finish — check back shortly.")
         return
@@ -263,6 +269,7 @@ export function AuditRunner({
         const next = await api.get<JobState>(`/api/page-audit/jobs/${pollingId}`)
         if (!live) return
         if (next.status === "COMPLETED" && next.reportId) {
+          live = false
           writeRunning(runKey, null)
           setJob(next)
           await loadReport(next.reportId)
