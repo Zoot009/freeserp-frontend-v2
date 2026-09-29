@@ -9,7 +9,7 @@
 // is i18n'd via next-intl; a follow-up should move these into a `dashKeywordMagic`
 // message namespace across en/de/es/fr.
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
@@ -22,8 +22,13 @@ import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { rowStats, viewRows, type SortKey, type SortState } from "@/lib/keyword-magic"
 
 type MatchType = "broad" | "related"
+
+// The backend refuses longer seeds (keywordMagic.routes.ts), and a zod 400 only
+// says "Validation failed". The input stops here instead, and says why.
+const SEED_MAX = 120
 
 type KwRow = {
   keyword: string
@@ -66,11 +71,12 @@ const MATCH_TABS: { key: MatchType; labelKey: string }[] = [
 ]
 
 // intent → compact badge, mirroring how Semrush shows a single letter per row.
-const INTENT: Record<string, { label: string; bg: string; fg: string }> = {
-  informational: { label: "I", bg: "var(--brand-soft)", fg: "var(--brand)" },
-  navigational: { label: "N", bg: "var(--bg-sub)", fg: "var(--text-soft)" },
-  commercial: { label: "C", bg: "var(--warn-soft)", fg: "var(--warn)" },
-  transactional: { label: "T", bg: "var(--pos-soft)", fg: "var(--pos)" },
+// nameKey labels the intent filter.
+const INTENT: Record<string, { label: string; nameKey: string; bg: string; fg: string }> = {
+  informational: { label: "I", nameKey: "kmIntentInformational", bg: "var(--brand-soft)", fg: "var(--brand)" },
+  navigational: { label: "N", nameKey: "kmIntentNavigational", bg: "var(--bg-sub)", fg: "var(--text-soft)" },
+  commercial: { label: "C", nameKey: "kmIntentCommercial", bg: "var(--warn-soft)", fg: "var(--warn)" },
+  transactional: { label: "T", nameKey: "kmIntentTransactional", bg: "var(--pos-soft)", fg: "var(--pos)" },
 }
 
 // SERP feature type → short tag; unmapped types fall back to a trimmed label.
@@ -114,6 +120,38 @@ function serpTag(t: string): string {
   return SERP_ABBR[t] ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+/** A number-filter input's value, or null when it's empty or not a number. */
+function numOrNull(s: string): number | null {
+  const n = Number(s)
+  return s.trim() === "" || !Number.isFinite(n) ? null : n
+}
+
+/** A sortable metric heading. The caret shows only on the active column. */
+function SortTh({ label, col, sort, onSort, width }: {
+  label: string
+  col: SortKey
+  sort: SortState
+  onSort: (k: SortKey) => void
+  width: number
+}) {
+  const active = sort?.key === col
+  return (
+    <th
+      style={{ width, textAlign: "right" }}
+      aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+      >
+        {label}
+        <span aria-hidden style={{ fontSize: 9, opacity: active ? 1 : 0 }}>{active && sort!.dir === "asc" ? "▲" : "▼"}</span>
+      </button>
+    </th>
+  )
+}
+
 export default function KeywordMagicPage() {
   const { credits: creditSummary } = useCredits()
   const creditsMode = creditSummary?.mode
@@ -130,6 +168,10 @@ export default function KeywordMagicPage() {
   // Client-side narrowing of the already-fetched rows — no extra API calls.
   const [filter, setFilter] = useState("")
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
+  const [minVolume, setMinVolume] = useState("")
+  const [maxKd, setMaxKd] = useState("")
+  const [intent, setIntent] = useState("")
+  const [sort, setSort] = useState<SortState>(null)
 
   // Keywords ticked for the rank tracker. Keyed by the keyword itself so the
   // selection survives filtering and group-switching — narrow the list, tick a
@@ -145,26 +187,39 @@ export default function KeywordMagicPage() {
   }, [])
   const outOfSearches = usage != null && usage.remaining <= 0
 
+  // The search in flight, if any. Only the newest may touch the page. Switching
+  // tab mid-search used to start a second charged search, and whichever answer
+  // landed LAST won, so the Related tab could end up showing Broad rows. An older
+  // search is aborted now, and the backend doesn't charge a request whose
+  // browser stopped waiting.
+  const inflight = useRef<{ ctrl: AbortController; match: MatchType } | null>(null)
+
   const run = useCallback(
     async (match: MatchType) => {
       const q = seed.trim()
       if (!q) return
+      inflight.current?.ctrl.abort()
+      const ctrl = new AbortController()
+      inflight.current = { ctrl, match }
       setLoading(true)
       setError(null)
       setPaywalled(false)
       setActiveGroup(null)
       setFilter("")
       try {
-        const res = await api.post<MagicResponse>("/api/keyword-magic", {
-          seed: q,
-          matchType: match,
-          country,
-        })
+        const res = await api.post<MagicResponse>(
+          "/api/keyword-magic",
+          { seed: q, matchType: match, country },
+          { signal: ctrl.signal },
+        )
+        if (inflight.current?.ctrl !== ctrl) return
         setResult(res)
         setUsage(res.usage)
         setMatchType(match)
         setSelected(new Set())
       } catch (err) {
+        // Aborted or superseded: the newer search owns the page now.
+        if (inflight.current?.ctrl !== ctrl) return
         setResult(null)
         if (err instanceof ApiError && err.status === 402) {
           // The api client already fired billing:quota for the global upsell
@@ -180,7 +235,10 @@ export default function KeywordMagicPage() {
           setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
         }
       } finally {
-        setLoading(false)
+        if (inflight.current?.ctrl === ctrl) {
+          inflight.current = null
+          setLoading(false)
+        }
       }
     },
     [seed, country],
@@ -192,23 +250,42 @@ export default function KeywordMagicPage() {
   }
 
   // Switching tab re-runs the search for that match type (a distinct dataset +
-  // a separate cache entry on the backend), but only when there's a seed.
+  // a separate cache entry on the backend), but only when there's a seed. It
+  // never re-runs a tab whose answer is already on screen or already on its way.
   const switchTab = (key: MatchType) => {
-    if (key === matchType && result) return
+    if (inflight.current?.match === key) return
     setMatchType(key)
+    if (result?.matchType === key) {
+      // Back to the answer on screen: drop the other tab's search.
+      inflight.current?.ctrl.abort()
+      inflight.current = null
+      setLoading(false)
+      return
+    }
     if (seed.trim() && (result || loading)) void run(key)
   }
 
-  const rows = useMemo(() => {
-    if (!result) return []
-    const f = filter.trim().toLowerCase()
-    const g = activeGroup
-    return result.keywords.filter((r) => {
-      if (g && !r.keyword.toLowerCase().split(/[^a-z0-9]+/).includes(g)) return false
-      if (f && !r.keyword.toLowerCase().includes(f)) return false
-      return true
-    })
-  }, [result, filter, activeGroup])
+  const rows = useMemo(
+    () =>
+      result
+        ? viewRows(result.keywords, {
+            text: filter,
+            group: activeGroup,
+            minVolume: numOrNull(minVolume),
+            maxKd: numOrNull(maxKd),
+            intent: intent || null,
+            sort,
+          })
+        : [],
+    [result, filter, activeGroup, minVolume, maxKd, intent, sort],
+  )
+  // The tiles say "shown rows", so they total the rows shown, filters included.
+  const stats = useMemo(() => rowStats(rows), [rows])
+
+  // First click: biggest first. Second: smallest first. Third: back to the
+  // database's own order (by volume).
+  const onSort = (key: SortKey) =>
+    setSort((s) => (s?.key !== key ? { key, dir: "desc" } : s.dir === "desc" ? { key, dir: "asc" } : null))
 
   const toggle = (keyword: string) =>
     setSelected((prev) => {
@@ -246,8 +323,11 @@ export default function KeywordMagicPage() {
         {/* The daily-search pill is WORKER-model accounting. A credits account
             has no daily searches — it has a balance, already shown by the
             CreditCost label under the search box — and rendering both put two
-            different currencies on one screen. */}
-        {usage && creditsMode !== "credits" && (
+            different currencies on one screen. Shown only once the account is
+            KNOWN to be worker: `!== "credits"` also passed when the credits
+            request failed, putting "3 of 3 searches left" in front of credits
+            users. */}
+        {usage && creditsMode === "worker" && (
           <div
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
@@ -300,6 +380,7 @@ export default function KeywordMagicPage() {
               style={{ paddingLeft: 36, width: "100%" }}
               placeholder={t("kmSeedPlaceholder")}
               value={seed}
+              maxLength={SEED_MAX}
               onChange={(e) => setSeed(e.target.value)}
               autoFocus
             />
@@ -324,15 +405,24 @@ export default function KeywordMagicPage() {
           </button>
         </div>
 
+        {/* At the limit the input simply stops typing. Say so, or a pasted
+            seed just looks cut off. */}
+        {seed.length >= SEED_MAX && (
+          <div className="tiny" style={{ marginTop: 8, color: "var(--warn)" }}>
+            {t("kmSeedTooLong", { max: SEED_MAX })}
+          </div>
+        )}
+
         {/* The price, before the search runs. The variant matters: a free
             search pulls 100 rows, a paid one 1,000, and they cost 3 and 15
-            credits respectively. */}
-        <div style={{ marginTop: 8 }}>
-          <CreditCost
-            action={CREDIT_ACTION_KEYS.keywordMagicSearch}
-            variant={usage?.plan === "free" ? "free" : "paid"}
-          />
-        </div>
+            credits respectively. It waits for the usage answer that says
+            which. Guessing "paid" when that request failed quoted free users
+            15 credits for a 3-credit search. */}
+        {usage && (
+          <div style={{ marginTop: 8 }}>
+            <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />
+          </div>
+        )}
 
         {/* Match-type tabs */}
         <div className="pill-toggle" style={{ marginTop: 12, display: "inline-flex" }}>
@@ -416,9 +506,11 @@ export default function KeywordMagicPage() {
               tip={`Showing ${result.fetchedCount.toLocaleString()} of ${result.totalCount.toLocaleString()}`}
               icon={<Icon.key />}
             />
-            <StatTile lbl="Total volume" val={fmtNum(result.totalVolume)} tip="Monthly searches, shown rows" icon={<Icon.chart />} />
-            <StatTile lbl="Average KD" val={result.avgDifficulty != null ? `${result.avgDifficulty}%` : "—"} tip="Keyword difficulty, shown rows" icon={<Icon.shield />} />
-            <StatTile lbl="Match" val={matchType === "broad" ? "Broad" : "Related"} tip={`Market: ${result.location.toUpperCase()}`} icon={<Icon.filter />} />
+            <StatTile lbl="Total volume" val={fmtNum(stats.totalVolume)} tip="Monthly searches, shown rows" icon={<Icon.chart />} />
+            <StatTile lbl="Average KD" val={stats.avgDifficulty != null ? `${stats.avgDifficulty}%` : "—"} tip="Keyword difficulty, shown rows" icon={<Icon.shield />} />
+            {/* The answer's own match type: while another tab loads, the tab
+                strip has already moved on but these rows haven't. */}
+            <StatTile lbl="Match" val={result.matchType === "broad" ? "Broad" : "Related"} tip={`Market: ${result.location.toUpperCase()}`} icon={<Icon.filter />} />
           </div>
 
           <div className="km-layout">
@@ -448,8 +540,8 @@ export default function KeywordMagicPage() {
 
             {/* Results table */}
             <div className="card" style={{ padding: 0 }}>
-              <div className="row" style={{ padding: "12px 14px", gap: 10, alignItems: "center", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0 }}>
+              <div className="row" style={{ padding: "12px 14px", gap: 10, alignItems: "center", flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ position: "relative", flex: "1 1 200px", minWidth: 0 }}>
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-mute)", display: "inline-flex" }}>
                     <Icon.search />
                   </span>
@@ -461,6 +553,40 @@ export default function KeywordMagicPage() {
                     onChange={(e) => setFilter(e.target.value)}
                   />
                 </div>
+                {/* The volume, difficulty and intent filters the tool's card promises. */}
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  style={{ width: 120 }}
+                  placeholder={t("kmMinVolume")}
+                  aria-label={t("kmMinVolume")}
+                  value={minVolume}
+                  onChange={(e) => setMinVolume(e.target.value)}
+                />
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={100}
+                  inputMode="numeric"
+                  style={{ width: 100 }}
+                  placeholder={t("kmMaxKd")}
+                  aria-label={t("kmMaxKd")}
+                  value={maxKd}
+                  onChange={(e) => setMaxKd(e.target.value)}
+                />
+                <Dropdown
+                  value={intent}
+                  options={[
+                    { value: "", label: t("kmAllIntents") },
+                    ...Object.entries(INTENT).map(([value, i]) => ({ value, label: t(i.nameKey) })),
+                  ]}
+                  onChange={setIntent}
+                  ariaLabel={t("kmIntent")}
+                  style={{ flex: "0 0 150px" }}
+                />
                 {activeGroup && (
                   <button className="chip" onClick={() => setActiveGroup(null)} title={t("kmClearGroupFilter")}>
                     {activeGroup} <Icon.close />
@@ -495,9 +621,9 @@ export default function KeywordMagicPage() {
                       </th>
                       <th>{t("kmKeyword")}</th>
                       <th style={{ width: 60, textAlign: "center" }}>{t("kmIntent")}</th>
-                      <th style={{ width: 110, textAlign: "right" }}>{t("kmVolume")}</th>
-                      <th style={{ width: 80, textAlign: "right" }}>KD %</th>
-                      <th style={{ width: 90, textAlign: "right" }}>CPC</th>
+                      <SortTh label={t("kmVolume")} col="volume" sort={sort} onSort={onSort} width={110} />
+                      <SortTh label="KD %" col="difficulty" sort={sort} onSort={onSort} width={80} />
+                      <SortTh label="CPC" col="cpc" sort={sort} onSort={onSort} width={90} />
                       <th style={{ width: 220 }}>{t("kmSerpFeatures")}</th>
                     </tr>
                   </thead>
@@ -563,7 +689,8 @@ export default function KeywordMagicPage() {
                     {rows.length === 0 && (
                       <tr>
                         <td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-mute)" }}>
-                          {t("kmNoMatch")}
+                          {/* No rows at all is the database's answer, not the filter's. */}
+                          {result.keywords.length === 0 ? t("kmNoData") : t("kmNoMatch")}
                         </td>
                       </tr>
                     )}
