@@ -96,29 +96,68 @@ function Pager({
   )
 }
 
+/**
+ * A list that failed to load, said as such, with a way to ask again.
+ *
+ * These lists used to turn a failed request into an empty one, so an outage
+ * read as "No issues found across this site" — good news that wasn't true.
+ * The audit history uses it too; it had the same problem.
+ */
+export function LoadFailed({
+  message,
+  onRetry,
+  className,
+}: {
+  message: string
+  onRetry: () => void
+  className?: string
+}) {
+  return (
+    <div role="alert" className={cn("text-center", className)}>
+      <p className="text-[13px] text-muted-foreground">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-1.5 text-xs font-semibold text-primary hover:underline"
+      >
+        Try again
+      </button>
+    </div>
+  )
+}
+
 // ── Issues, grouped by problem ───────────────────────────────────────────────
 
 /** The pages one problem affects — fetched only when its row is expanded. */
 function AffectedPages({ reportId, type }: { reportId: string; type: string }) {
   const [items, setItems] = useState<AffectedPage[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [page, setPage] = useState(0)
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     setItems(null)
+    setFailed(false)
     api
       .get<{ items: AffectedPage[]; total: number }>(
         `/api/page-audit/reports/${reportId}/issues/${encodeURIComponent(type)}/pages?limit=${NESTED_PAGE_SIZE}&offset=${page * NESTED_PAGE_SIZE}`,
       )
       .then((d) => { if (!cancelled) { setItems(d.items ?? []); setTotal(d.total ?? 0) } })
-      .catch(() => { if (!cancelled) setItems([]) })
+      .catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
-  }, [reportId, type, page])
+  }, [reportId, type, page, attempt])
 
   return (
     <div className="bg-bg-inset px-4 pb-3 pl-11">
-      {!items ? (
+      {failed ? (
+        <LoadFailed
+          message="Couldn't load the pages with this issue."
+          onRetry={() => setAttempt((n) => n + 1)}
+          className="py-3"
+        />
+      ) : !items ? (
         <div className="space-y-1.5 py-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-6 w-full rounded" />)}</div>
       ) : (
         <>
@@ -162,26 +201,32 @@ export function SiteIssues({
   // fetched once and paged in the browser. Paging this server-side would cost a
   // request per click for data already in hand.
   const [groups, setGroups] = useState<Group[] | null>(null)
+  const [groupsFailed, setGroupsFailed] = useState(false)
+  const [groupsAttempt, setGroupsAttempt] = useState(0)
   const [issuePage, setIssuePage] = useState(0)
   const [openType, setOpenType] = useState<string | null>(null)
 
   // Pages: server-paged and filtered — this one really is 500 rows.
   const [pages, setPages] = useState<PageRow[] | null>(null)
+  const [pagesFailed, setPagesFailed] = useState(false)
   const [pageTotal, setPageTotal] = useState(0)
   const [pagePage, setPagePage] = useState(0)
   const [q, setQ] = useState("")
 
   useEffect(() => {
     let cancelled = false
+    setGroups(null)
+    setGroupsFailed(false)
     api
       .get<{ groups: Group[] }>(`/api/page-audit/reports/${reportId}/issue-groups`)
       .then((d) => { if (!cancelled) setGroups(d.groups ?? []) })
-      .catch(() => { if (!cancelled) setGroups([]) })
+      .catch(() => { if (!cancelled) setGroupsFailed(true) })
     return () => { cancelled = true }
-  }, [reportId])
+  }, [reportId, groupsAttempt])
 
   const loadPages = useCallback(async (p: number, query: string) => {
     setPages(null)
+    setPagesFailed(false)
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(p * PAGE_SIZE) })
     if (query.trim()) params.set("q", query.trim())
     try {
@@ -191,7 +236,7 @@ export function SiteIssues({
       setPages(d.items ?? [])
       setPageTotal(d.total ?? 0)
     } catch {
-      setPages([])
+      setPagesFailed(true)
       setPageTotal(0)
     }
   }, [reportId])
@@ -253,7 +298,13 @@ export function SiteIssues({
       </div>
 
       {tab === "issues" ? (
-        !groups ? (
+        groupsFailed ? (
+          <LoadFailed
+            message="Couldn't load this site's issues."
+            onRetry={() => setGroupsAttempt((n) => n + 1)}
+            className="px-4 py-10"
+          />
+        ) : !groups ? (
           <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}</div>
         ) : groups.length === 0 ? (
           <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">No issues found across this site.</p>
@@ -300,7 +351,13 @@ export function SiteIssues({
             <span className="text-right">Issues</span>
             <span className="text-right">Words</span>
           </div>
-          {!pages ? (
+          {pagesFailed ? (
+            <LoadFailed
+              message="Couldn't load this site's pages."
+              onRetry={() => void loadPages(pagePage, q)}
+              className="px-4 py-10"
+            />
+          ) : !pages ? (
             <div className="space-y-1.5 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded" />)}</div>
           ) : pages.length === 0 ? (
             <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">

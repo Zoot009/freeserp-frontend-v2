@@ -28,6 +28,7 @@ import { api } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { LoadFailed } from "@/components/page-audit/site-issues"
 import { cn } from "@/lib/utils"
 
 export type AuditListItem = {
@@ -258,15 +259,25 @@ export function AuditHistory({
   const [page, setPage] = useState(0)
   const [q, setQ] = useState("")
   const [loading, setLoading] = useState(true)
+  // The last load failed. Said as such: shown as an empty list, an outage read
+  // as "No whole-site audits yet" to someone with dozens.
+  const [failed, setFailed] = useState(false)
+  /**
+   * How many runs the by-site view grouped, when that hit the backend's scan
+   * limit. Past it, older sites are missing and per-site counts stop short.
+   */
+  const [scanCap, setScanCap] = useState<number | null>(null)
 
   // Runs belonging to an expanded site, keyed by host. Fetched on demand: a
   // grouped list of 7 sites should not pay for every run behind all of them.
+  // undefined = loading, null = the fetch failed.
   const [openHost, setOpenHost] = useState<string | null>(null)
-  const [runsByHost, setRunsByHost] = useState<Record<string, AuditListItem[]>>({})
+  const [runsByHost, setRunsByHost] = useState<Record<string, AuditListItem[] | null | undefined>>({})
 
   const load = useCallback(
     async (pageIdx: number, query: string, kind: "single" | "site" | undefined, grouped: boolean) => {
       setLoading(true)
+      setFailed(false)
       try {
         const params = new URLSearchParams({
           limit: String(PAGE_SIZE),
@@ -276,11 +287,15 @@ export function AuditHistory({
         if (kind) params.set("mode", kind)
 
         if (grouped) {
-          const data = await api.get<{ items: SiteGroup[]; total: number }>(
-            `/api/page-audit/reports/grouped?${params.toString()}`,
-          )
+          const data = await api.get<{
+            items: SiteGroup[]
+            total: number
+            scanned?: number
+            truncated?: boolean
+          }>(`/api/page-audit/reports/grouped?${params.toString()}`)
           setGroups(data.items ?? [])
           setTotal(data.total ?? 0)
+          setScanCap(data.truncated ? (data.scanned ?? null) : null)
         } else {
           const data = await api.get<{ items: AuditListItem[]; total: number }>(
             `/api/page-audit/reports?${params.toString()}`,
@@ -289,6 +304,7 @@ export function AuditHistory({
           setTotal(data.total ?? 0)
         }
       } catch {
+        setFailed(true)
         setGroups([])
         setItems([])
         setTotal(0)
@@ -320,14 +336,9 @@ export function AuditHistory({
    * a per-site route — `q` is already a substring match on the audited URL,
    * which is exactly this query.
    */
-  const toggleHost = useCallback(
+  const loadRuns = useCallback(
     async (host: string) => {
-      if (openHost === host) {
-        setOpenHost(null)
-        return
-      }
-      setOpenHost(host)
-      if (runsByHost[host]) return
+      setRunsByHost((prev) => ({ ...prev, [host]: undefined }))
       try {
         const params = new URLSearchParams({ limit: "50", offset: "0", q: host })
         if (mode) params.set("mode", mode)
@@ -340,10 +351,24 @@ export function AuditHistory({
         const exact = (data.items ?? []).filter((r) => hostOf(r.url) === host)
         setRunsByHost((prev) => ({ ...prev, [host]: exact }))
       } catch {
-        setRunsByHost((prev) => ({ ...prev, [host]: [] }))
+        // Null, not []: a failure cached as an empty list was never asked for
+        // again, however many times the row was reopened.
+        setRunsByHost((prev) => ({ ...prev, [host]: null }))
       }
     },
-    [openHost, runsByHost, mode],
+    [mode],
+  )
+
+  const toggleHost = useCallback(
+    (host: string) => {
+      if (openHost === host) {
+        setOpenHost(null)
+        return
+      }
+      setOpenHost(host)
+      if (!runsByHost[host]) void loadRuns(host)
+    },
+    [openHost, runsByHost, loadRuns],
   )
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -374,7 +399,8 @@ export function AuditHistory({
           <h2 className="mt-0.5 text-[15px] font-semibold leading-tight">
             {/* Named for what is actually on screen. "All audits (3)" over a
                 filtered or grouped list misreports how much history exists. */}
-            {heading} <span className="font-normal text-muted-foreground">({total})</span>
+            {heading}{" "}
+            {!failed && <span className="font-normal text-muted-foreground">({total})</span>}
           </h2>
         </div>
 
@@ -458,6 +484,12 @@ export function AuditHistory({
             <Skeleton key={i} className="h-11 w-full rounded-md" />
           ))}
         </div>
+      ) : failed ? (
+        <LoadFailed
+          message="Couldn't load your audit history."
+          onRetry={() => void load(page, q, mode, view === "sites")}
+          className="px-4 py-10"
+        />
       ) : (view === "sites" ? groups.length : items.length) === 0 ? (
         <p className="px-4 py-10 text-center text-[13px] text-muted-foreground">
           {q
@@ -526,14 +558,20 @@ export function AuditHistory({
 
               {expanded && (
                 <div className="bg-muted/30 px-4 pb-2">
-                  {!runs ? (
+                  {runs === undefined ? (
                     <div className="space-y-1 py-2">
                       <Skeleton className="h-8 w-full rounded-md" />
                       <Skeleton className="h-8 w-full rounded-md" />
                     </div>
+                  ) : runs === null ? (
+                    <LoadFailed
+                      message="Couldn't load this site's runs."
+                      onRetry={() => void loadRuns(g.host)}
+                      className="py-3"
+                    />
                   ) : runs.length === 0 ? (
                     <p className="py-3 text-center text-xs text-muted-foreground">
-                      Couldn&apos;t load this site&apos;s runs.
+                      No runs found for this site.
                     </p>
                   ) : (
                     runs.map((r) => (
@@ -647,6 +685,24 @@ export function AuditHistory({
             </span>
           </div>
         ))
+      )}
+
+      {/* The by-site view groups a bounded window of runs, and the backend
+          says when it hit that bound. Unsaid, a site whose runs all fell
+          outside it simply wasn't in the list. */}
+      {view === "sites" && !loading && !failed && scanCap != null && (
+        <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
+          Grouped from your {scanCap.toLocaleString()} most recent audits, so older sites and runs
+          may be missing.{" "}
+          <button
+            type="button"
+            onClick={() => setView("runs")}
+            className="font-semibold text-primary hover:underline"
+          >
+            Every run
+          </button>{" "}
+          lists them all.
+        </p>
       )}
 
       {total > 0 && (
