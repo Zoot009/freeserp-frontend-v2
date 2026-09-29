@@ -202,6 +202,12 @@ export interface AuditReport {
   categoryDetails: CategoryDetail[]
   issues: Issue[]
   passingChecks: PassingCheck[]
+  /**
+   * The server's true counts. `issues` is capped (300 rows) on a long crawl,
+   * so its length is not how many issues the audit found. Absent on older
+   * responses.
+   */
+  totals?: { pages: number; issues: number } | null
 
   sectionScores?: SectionScore[]
   checks?: SEOAuditCheck[]
@@ -437,6 +443,7 @@ export function transformReport(data: Record<string, unknown>): AuditReport {
     categoryDetails: [],
     issues: (data.issues as Issue[]) || [],
     passingChecks: (data.passingChecks as PassingCheck[]) || [],
+    totals: (data.totals as AuditReport["totals"]) ?? null,
     sectionScores: data.sectionScores as SectionScore[] | undefined,
     checks: data.checks as SEOAuditCheck[] | undefined,
     screenshots: (data.screenshots as AuditReport["screenshots"]) ?? null,
@@ -2591,10 +2598,14 @@ export function CategoryResultSection({
               (check.data?.missing as number) ??
               samples.filter((s) => !s.hasAlt).length
             if (samples.length > 0) {
+              // These three custom rows carry the same check-<id> anchor as
+              // every other row. Without it their Quick-links entries (Image
+              // Alt Text, Keyword Consistency, H2–H6) scrolled nowhere.
               return (
                 <div
                   key={check.id}
-                  className="border-b border-border/40 last:border-0"
+                  id={`check-${check.id}`}
+                  className="scroll-mt-28 border-b border-border/40 last:border-0"
                 >
                   <ImageAltTextBreakdown
                     total={total}
@@ -2618,7 +2629,8 @@ export function CategoryResultSection({
               return (
                 <div
                   key={check.id}
-                  className="border-b border-border/40 last:border-0"
+                  id={`check-${check.id}`}
+                  className="scroll-mt-28 border-b border-border/40 last:border-0"
                 >
                   <KeywordConsistencyBreakdown
                     keywords={keywords}
@@ -2641,7 +2653,8 @@ export function CategoryResultSection({
               return (
                 <div
                   key={check.id}
-                  className="border-b border-border/40 last:border-0"
+                  id={`check-${check.id}`}
+                  className="scroll-mt-28 border-b border-border/40 last:border-0"
                 >
                   <HeadingsBreakdown
                     counts={counts}
@@ -3337,12 +3350,19 @@ interface InternalLinkGraphData {
  *
  * There is nothing for the browser to retry here. Either the worker stored a
  * graph or it didn't, so say which.
+ *
+ * And don't say "re-run the audit": a re-run inside the two-week reuse window
+ * hands back this same report, graph still missing. Only "Run fresh" crawls
+ * again, so that is what's pointed to — where the page offers it.
  */
 function InternalLinkSection({
   initial,
+  canRunFresh = false,
 }: {
   /** Link graph persisted on the AuditReport by the audit worker. */
   initial?: InternalLinkGraphData | null
+  /** The page has a "Run fresh" button to point to. Not on a shared link. */
+  canRunFresh?: boolean
 }) {
   const t = useTranslations("pageAudit")
   const linkGraph = initial ?? null
@@ -3357,6 +3377,7 @@ function InternalLinkSection({
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <span>
             {t("noLinkData")}
+            {canRunFresh && <> {t("runFreshHint")}</>}
           </span>
         </div>
       </div>
@@ -3690,8 +3711,9 @@ export type Recommendation = {
 
 /**
  * The canonical, prioritized recommendation list for a report — the SAME list
- * the hero ("N issues found"), the PDF, and the share-selection editor all use,
- * so keys and counts always line up. Built from issues (preferred) or failed
+ * the PDF and the share-selection editor use, so their keys always line up.
+ * (The hero's "N issues found" is the server's total instead: this list is
+ * built from the capped issue rows.) Built from issues (preferred) or failed
  * checks (older reports). Sorted High → Low.
  */
 export function buildRecommendations(report: AuditReport): Recommendation[] {
@@ -4003,6 +4025,7 @@ export function AuditReportResults({
 }) {
   const t = useTranslations("pageAudit")
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
@@ -4102,8 +4125,13 @@ export function AuditReportResults({
   async function handleDownloadPdf() {
     if (downloadingPdf) return
     setDownloadingPdf(true)
+    setPdfError(null)
     try {
       await downloadAuditPdf(report, hiddenSections)
+    } catch {
+      // It used to fail in silence: the spinner stopped and nothing arrived,
+      // which reads as "the button doesn't work".
+      setPdfError("Couldn't create the PDF. Please try again.")
     } finally {
       setDownloadingPdf(false)
     }
@@ -4175,9 +4203,9 @@ export function AuditReportResults({
     }
   }
 
-  const sortedIssues = [...(report.issues ?? [])].sort(
-    (a, b) => (SEVERITY_META[a.severity]?.order ?? 5) - (SEVERITY_META[b.severity]?.order ?? 5)
-  )
+  // The server's count, not the list's: the list stops at 300 rows, so a site
+  // with thousands of issues was reported as "300 issues found".
+  const issueCount = report.totals?.issues ?? report.issues?.length ?? 0
 
   const overallScore = report.scoring?.overall?.score ?? report.summary?.overall?.score ?? 0
   const overallGrade = report.scoring?.overall?.grade ?? report.summary?.overall?.grade ?? "N/A"
@@ -4294,6 +4322,12 @@ export function AuditReportResults({
               )}
             </div>
           </div>
+          {/* Pulled up under the buttons it belongs to (the bar above has mb-8). */}
+          {pdfError && (
+            <p role="alert" className="-mt-6 mb-6 text-right text-xs text-destructive">
+              {pdfError}
+            </p>
+          )}
 
           {/* Hero row: grade ring + screenshot */}
           <div className="mb-8 grid grid-cols-1 gap-10 sm:grid-cols-2 sm:items-center">
@@ -4305,9 +4339,9 @@ export function AuditReportResults({
                   <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${gradeBgColor(overallGrade)} ${gradeColor(overallGrade)}`}>
                     Grade {overallGrade}
                   </span>
-                  {sortedIssues.length > 0 && (
+                  {issueCount > 0 && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-600 dark:text-orange-400">
-                      {sortedIssues.length} {sortedIssues.length === 1 ? "issue" : "issues"} found
+                      {issueCount.toLocaleString()} {issueCount === 1 ? "issue" : "issues"} found
                     </span>
                   )}
                 </div>
@@ -4530,7 +4564,7 @@ export function AuditReportResults({
           ))}
         {!hidden.has(SECTION_INTERNAL_LINKS) && (
           <div id="sec-internal-links" className="scroll-mt-32">
-            <InternalLinkSection initial={report.linkGraph} />
+            <InternalLinkSection initial={report.linkGraph} canRunFresh={!!onRunFresh} />
           </div>
         )}
         {(() => {
@@ -4553,8 +4587,24 @@ export function AuditReportResults({
                   checks={checks}
                   pageSpeedPending={pageSpeedPending}
                   footer={
-                    key === "LINKS" && report.backlinks && !hidden.has(SECTION_BACKLINKS) ? (
-                      <BacklinksView data={report.backlinks} embedded />
+                    key === "LINKS" && !hidden.has(SECTION_BACKLINKS) ? (
+                      report.backlinks ? (
+                        <BacklinksView data={report.backlinks} embedded />
+                      ) : (
+                        // Said, not skipped. A failed backlink fetch stores
+                        // null, and the section used to vanish with nothing
+                        // to say it had ever been part of the report.
+                        <div>
+                          <h2 className="text-lg font-bold text-foreground">{t("backlinkProfile")}</h2>
+                          <p className="mt-1.5 flex items-start gap-3 text-sm text-muted-foreground">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                            <span>
+                              {t("noBacklinkData")}
+                              {onRunFresh && <> {t("runFreshHint")}</>}
+                            </span>
+                          </p>
+                        </div>
+                      )
                     ) : undefined
                   }
                 />
