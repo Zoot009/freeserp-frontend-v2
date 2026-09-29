@@ -9,7 +9,7 @@
 // is i18n'd via next-intl; a follow-up should move these into a `dashKeywordMagic`
 // message namespace across en/de/es/fr.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
@@ -18,6 +18,7 @@ import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { StatTile } from "@/components/dashboard/primitives"
+import { Hint } from "@/components/dashboard/widget"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { CreditCost } from "@/components/dashboard/credit-cost"
@@ -126,7 +127,15 @@ function numOrNull(s: string): number | null {
   return s.trim() === "" || !Number.isFinite(n) ? null : n
 }
 
-/** A sortable metric heading. The caret shows only on the active column. */
+/**
+ * A sortable metric heading, built like the rank tracker's SortHeader: the
+ * whole cell is the click target and the arrow shows only on the active column.
+ *
+ * No <button> inside. Buttons reset text-transform, so these read "Volume"
+ * beside "KEYWORD". The span takes the keyboard stop instead, with the button
+ * role on it rather than on the <th>, which has to stay a column header for
+ * aria-sort to mean anything.
+ */
 function SortTh({ label, col, sort, onSort, width }: {
   label: string
   col: SortKey
@@ -137,19 +146,41 @@ function SortTh({ label, col, sort, onSort, width }: {
   const active = sort?.key === col
   return (
     <th
-      style={{ width, textAlign: "right" }}
+      onClick={() => onSort(col)}
       aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : "none"}
+      style={{ width, textAlign: "right", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
     >
-      <button
-        type="button"
-        onClick={() => onSort(col)}
-        style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "inherit", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+      <span
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return
+          e.preventDefault()
+          onSort(col)
+        }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, verticalAlign: "middle" }}
       >
         {label}
-        <span aria-hidden style={{ fontSize: 9, opacity: active ? 1 : 0 }}>{active && sort!.dir === "asc" ? "▲" : "▼"}</span>
-      </button>
+        {active && <span aria-hidden style={{ color: "var(--brand)" }}>{sort!.dir === "asc" ? "↑" : "↓"}</span>}
+      </span>
     </th>
   )
+}
+
+/**
+ * Hint, mounted when the pointer first reaches the element; until then the
+ * child renders as it is. A row carries up to six (intent plus SERP tags) and
+ * a paid search returns 1,000 rows. 6,000 Radix tooltips took seconds to
+ * render, and every tick of a checkbox re-rendered them all.
+ *
+ * It opens on the pointer's next move, like any Hint. Forcing it open on
+ * arrival would strand it open whenever the pointer had left by the time it
+ * mounted.
+ */
+function LazyHint({ text, children }: { text: string; children: React.ReactElement<React.HTMLAttributes<HTMLElement>> }) {
+  const [armed, setArmed] = useState(false)
+  if (armed) return <Hint text={text}>{children}</Hint>
+  return cloneElement(children, { onPointerEnter: () => setArmed(true) })
 }
 
 export default function KeywordMagicPage() {
@@ -328,21 +359,22 @@ export default function KeywordMagicPage() {
             request failed, putting "3 of 3 searches left" in front of credits
             users. */}
         {usage && creditsMode === "worker" && (
-          <div
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
-              padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap",
-              border: "1px solid " + (outOfSearches ? "var(--neg)" : "var(--border)"),
-              background: outOfSearches ? "var(--neg-soft)" : "var(--brand-soft)",
-              color: outOfSearches ? "var(--neg)" : "var(--brand)",
-            }}
-            title={`${usage.plan === "paid" ? "Paid" : "Free"} plan · ${usage.keywordLimit} keywords per search`}
-          >
-            {outOfSearches ? <Icon.lock /> : <Icon.zap />}
-            {outOfSearches
-              ? `${usage.limit} of ${usage.limit} searches used`
-              : `${usage.remaining} of ${usage.limit} searches left today`}
-          </div>
+          <Hint text={`${usage.plan === "paid" ? "Paid" : "Free"} plan · ${usage.keywordLimit} keywords per search`}>
+            <div
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+                padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap",
+                border: "1px solid " + (outOfSearches ? "var(--neg)" : "var(--border)"),
+                background: outOfSearches ? "var(--neg-soft)" : "var(--brand-soft)",
+                color: outOfSearches ? "var(--neg)" : "var(--brand)",
+              }}
+            >
+              {outOfSearches ? <Icon.lock /> : <Icon.zap />}
+              {outOfSearches
+                ? `${usage.limit} of ${usage.limit} searches used`
+                : `${usage.remaining} of ${usage.limit} searches left today`}
+            </div>
+          </Hint>
         )}
       </div>
 
@@ -369,7 +401,7 @@ export default function KeywordMagicPage() {
       {/* Search form */}
       <form className="card" onSubmit={onSubmit} style={{ marginBottom: 16 }}>
         <div className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
-          <div style={{ position: "relative", flex: "1 1 340px", minWidth: 0 }}>
+          <div className="km-seed">
             <span
               style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-mute)", display: "inline-flex" }}
             >
@@ -398,7 +430,7 @@ export default function KeywordMagicPage() {
             }))}
             onChange={setCountry}
             ariaLabel="Database country"
-            style={{ flex: "0 0 200px" }}
+            className="km-country"
           />
           <button type="submit" className="btn primary" disabled={loading || !seed.trim() || outOfSearches} style={{ flex: "0 0 auto" }}>
             {loading ? <><Icon.refresh /> {t("kmSearching")}</> : <><Icon.search /> {t("kmSearch")}</>}
@@ -499,7 +531,7 @@ export default function KeywordMagicPage() {
       {/* Results */}
       {result && (
         <>
-          <div className="grid g-4" style={{ marginBottom: 16 }}>
+          <div className="grid g-4 km-stats" style={{ marginBottom: 16 }}>
             <StatTile
               lbl="Keywords"
               val={fmtNum(result.totalCount)}
@@ -514,34 +546,39 @@ export default function KeywordMagicPage() {
           </div>
 
           <div className="km-layout">
-            {/* Word-group sidebar */}
+            {/* Word-group sidebar. A strip of chips on narrow screens (see the
+                style block). */}
             <div className="card" style={{ padding: 12 }}>
-              <div className="tiny muted" style={{ padding: "4px 8px 8px", fontWeight: 600 }}>{t("kmByKeyword")}</div>
-              <button
-                className="km-group"
-                data-active={activeGroup == null}
-                onClick={() => setActiveGroup(null)}
-              >
-                <span>{t("kmAllKeywords")}</span>
-                <span className="tabular">{result.fetchedCount}</span>
-              </button>
-              {result.groups.map((g) => (
+              <div className="km-group-h tiny muted">{t("kmByKeyword")}</div>
+              <div className="km-group-list fs-quiet-scroll">
                 <button
-                  key={g.word}
                   className="km-group"
-                  data-active={activeGroup === g.word}
-                  onClick={() => setActiveGroup(activeGroup === g.word ? null : g.word)}
+                  data-active={activeGroup == null}
+                  onClick={() => setActiveGroup(null)}
                 >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.word}</span>
-                  <span className="tabular" style={{ color: "var(--text-mute)" }}>{g.count}</span>
+                  <span>{t("kmAllKeywords")}</span>
+                  <span className="tabular">{result.fetchedCount}</span>
                 </button>
-              ))}
+                {result.groups.map((g) => (
+                  <button
+                    key={g.word}
+                    className="km-group"
+                    data-active={activeGroup === g.word}
+                    onClick={() => setActiveGroup(activeGroup === g.word ? null : g.word)}
+                  >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.word}</span>
+                    <span className="tabular" style={{ color: "var(--text-mute)" }}>{g.count}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Results table */}
             <div className="card" style={{ padding: 0 }}>
-              <div className="row" style={{ padding: "12px 14px", gap: 10, alignItems: "center", flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ position: "relative", flex: "1 1 200px", minWidth: 0 }}>
+              {/* The controls' sizes live in the style block, not inline, so the
+                  phone layout there can re-flow them. */}
+              <div className="row km-bar" style={{ padding: "12px 14px", gap: 10, alignItems: "center", flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
+                <div className="km-bar-q">
                   <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-mute)", display: "inline-flex" }}>
                     <Icon.search />
                   </span>
@@ -555,23 +592,21 @@ export default function KeywordMagicPage() {
                 </div>
                 {/* The volume, difficulty and intent filters the tool's card promises. */}
                 <input
-                  className="input"
+                  className="input km-bar-min"
                   type="number"
                   min={0}
                   inputMode="numeric"
-                  style={{ width: 120 }}
                   placeholder={t("kmMinVolume")}
                   aria-label={t("kmMinVolume")}
                   value={minVolume}
                   onChange={(e) => setMinVolume(e.target.value)}
                 />
                 <input
-                  className="input"
+                  className="input km-bar-kd"
                   type="number"
                   min={0}
                   max={100}
                   inputMode="numeric"
-                  style={{ width: 100 }}
                   placeholder={t("kmMaxKd")}
                   aria-label={t("kmMaxKd")}
                   value={maxKd}
@@ -585,24 +620,27 @@ export default function KeywordMagicPage() {
                   ]}
                   onChange={setIntent}
                   ariaLabel={t("kmIntent")}
-                  style={{ flex: "0 0 150px" }}
+                  className="km-bar-intent"
                 />
                 {activeGroup && (
-                  <button className="chip" onClick={() => setActiveGroup(null)} title={t("kmClearGroupFilter")}>
-                    {activeGroup} <Icon.close />
-                  </button>
+                  <Hint text={t("kmClearGroupFilter")}>
+                    <button className="chip" onClick={() => setActiveGroup(null)}>
+                      {activeGroup} <Icon.close />
+                    </button>
+                  </Hint>
                 )}
                 <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>{rows.length.toLocaleString()} shown</span>
-                <button
-                  type="button"
-                  className="btn primary"
-                  style={{ fontSize: 12, whiteSpace: "nowrap" }}
-                  disabled={selected.size === 0}
-                  onClick={() => setShowAddModal(true)}
-                  title={selected.size === 0 ? "Tick the keywords you want to track" : undefined}
-                >
-                  {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
-                </button>
+                <Hint text={selected.size === 0 ? "Tick the keywords you want to track" : null}>
+                  <button
+                    type="button"
+                    className="btn primary km-bar-add"
+                    style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                    disabled={selected.size === 0}
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
+                  </button>
+                </Hint>
               </div>
 
               <div className="tbl-scroll">
@@ -616,7 +654,6 @@ export default function KeywordMagicPage() {
                           disabled={visibleKeywords.length === 0}
                           onChange={toggleAllVisible}
                           aria-label="Select all shown keywords"
-                          title="Select all shown keywords"
                         />
                       </th>
                       <th>{t("kmKeyword")}</th>
@@ -654,18 +691,21 @@ export default function KeywordMagicPage() {
                           </td>
                           <td style={{ textAlign: "center" }}>
                             {intent ? (
-                              <span
-                                className="badge"
-                                title={r.intent ?? undefined}
-                                style={{ background: intent.bg, color: intent.fg, fontWeight: 600 }}
-                              >
-                                {intent.label}
-                              </span>
+                              <LazyHint text={t(intent.nameKey)}>
+                                <span
+                                  className="badge"
+                                  style={{ background: intent.bg, color: intent.fg, fontWeight: 600 }}
+                                >
+                                  {intent.label}
+                                </span>
+                              </LazyHint>
                             ) : (
                               <span style={{ color: "var(--text-mute)" }}>—</span>
                             )}
                           </td>
-                          <td className="tabular" style={{ textAlign: "right" }}>{fmtNum(r.volume)}</td>
+                          {/* Whole figures, the way the rank tracker prints volume.
+                              fmtNum put "301k" above "8,100" in one column. */}
+                          <td className="tabular" style={{ textAlign: "right" }}>{r.volume != null ? r.volume.toLocaleString() : "—"}</td>
                           <td className="tabular" style={{ textAlign: "right" }}>
                             {r.difficulty != null ? (
                               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
@@ -678,9 +718,15 @@ export default function KeywordMagicPage() {
                           <td>
                             <span style={{ display: "inline-flex", gap: 5, flexWrap: "wrap" }}>
                               {feats.map((f) => (
-                                <span key={f} className="tag" title={f.replace(/_/g, " ")}>{serpTag(f)}</span>
+                                <LazyHint key={f} text={f.replace(/_/g, " ")}>
+                                  <span className="tag">{serpTag(f)}</span>
+                                </LazyHint>
                               ))}
-                              {extra > 0 && <span className="tag" title={t("kmMoreFeatures")}>+{extra}</span>}
+                              {extra > 0 && (
+                                <LazyHint text={t("kmMoreFeatures")}>
+                                  <span className="tag">+{extra}</span>
+                                </LazyHint>
+                              )}
                             </span>
                           </td>
                         </tr>
@@ -792,18 +838,23 @@ export default function KeywordMagicPage() {
           font-size: 11px;
         }
 
+        /* Seed row. Sizes here, not inline, so phones can re-flow it. */
+        .km-seed {
+          position: relative;
+          flex: 1 1 340px;
+          min-width: 0;
+        }
+        form :global(.km-country) { flex: 0 0 200px; }
+
         .km-layout {
           display: grid;
           grid-template-columns: 230px minmax(0, 1fr);
           gap: 16px;
           align-items: start;
         }
-        /* Stack the word-group sidebar above the results table on narrow screens
-           so neither overflows. */
-        @media (max-width: 860px) {
-          .km-layout {
-            grid-template-columns: 1fr;
-          }
+        .km-group-h {
+          padding: 4px 8px 8px;
+          font-weight: 600;
         }
         .km-group {
           width: 100%;
@@ -827,6 +878,66 @@ export default function KeywordMagicPage() {
           background: var(--brand-soft);
           color: var(--brand);
           font-weight: 600;
+        }
+
+        /* Filter bar. The search box takes the slack, so on one line the add
+           button's auto margin is zero; it only counts once the bar wraps, and
+           keeps the button at the right edge there. */
+        .km-bar-q {
+          position: relative;
+          flex: 1 1 200px;
+          min-width: 0;
+        }
+        /* input.… to outrank the shared .fs-app .input { width: 100% }. */
+        input.km-bar-min { width: 120px; }
+        input.km-bar-kd { width: 100px; }
+        .km-bar :global(.km-bar-intent) { flex: 0 0 150px; }
+        .km-bar-add { margin-left: auto; }
+
+        /* Narrow screens put the groups above the table. minmax(0, …), not 1fr:
+           a bare 1fr can't shrink below the table's 680px min-width, which ran
+           both cards ~700px wide on a phone. The table scrolls in .tbl-scroll
+           instead. And as a list, up to 21 groups pushed the table a screen
+           down, so here they are one row of chips that swipes sideways. */
+        @media (max-width: 860px) {
+          .km-layout { grid-template-columns: minmax(0, 1fr); }
+          .km-group-h { padding: 0 0 8px; }
+          .km-group-list {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            /* Out to the card's edges, so chips scroll away under its border
+               rather than vanishing 12px short of it. */
+            margin: 0 -12px;
+            padding: 0 12px 4px;
+          }
+          .km-group {
+            width: auto;
+            flex: none;
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+          }
+          .km-group[data-active="true"] { border-color: var(--brand); }
+        }
+
+        /* Phones. The seed gets its own line and the country picker fills the
+           next one beside Search; at a fixed 200px it pushed the button onto
+           a line of its own at 360px. Two tiles a row rather than the shared
+           single column, where the four filled the first screen before any
+           keyword (.grid outranks .fs-app .g-4). The filter bar goes to rows:
+           search, the two number filters, intent (three abreast cut their
+           labels off at 360px), then the count and the add button. */
+        @media (max-width: 640px) {
+          .km-seed { flex-basis: 100%; }
+          form :global(.km-country) { flex: 1 1 0; min-width: 0; }
+          form :global(.km-country .dd-trigger),
+          .km-bar :global(.km-bar-intent .dd-trigger) { width: 100%; justify-content: space-between; }
+          .grid.km-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .km-bar-q { flex-basis: 100%; }
+          input.km-bar-min,
+          input.km-bar-kd { flex: 1 1 0; min-width: 0; }
+          .km-bar :global(.km-bar-intent) { flex: 1 1 100%; }
         }
       `}</style>
     </div>
