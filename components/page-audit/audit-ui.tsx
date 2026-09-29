@@ -181,6 +181,8 @@ export interface AuditReport {
   jobId?: string
   url: string
   status: "PROCESSING" | "COMPLETED" | "FAILED"
+  /** Why a FAILED audit failed. Null on anything that didn't. */
+  errorMessage?: string | null
   pagesAnalyzed: number
   /** Which audit produced this: one URL, or a crawl outward from it. */
   mode?: "SINGLE" | "SITE"
@@ -410,6 +412,7 @@ export function transformReport(data: Record<string, unknown>): AuditReport {
     jobId: data.jobId as string | undefined,
     url: data.url as string,
     status: data.status as AuditReport["status"],
+    errorMessage: (data.errorMessage as string | null) ?? null,
     pagesAnalyzed: data.pagesAnalyzed as number,
     mode: (data.mode as AuditReport["mode"]) ?? undefined,
     scoring: {
