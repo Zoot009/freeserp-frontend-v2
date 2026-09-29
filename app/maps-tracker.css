@@ -180,48 +180,6 @@
 .fs-app .mt-pin--open { box-shadow: 0 0 0 3px var(--brand), 0 2px 6px rgba(11,13,18,.18); }
 .fs-app .mt-pin--dim { opacity: .16; pointer-events: none; }
 
-/* ── Results ────────────────────────────────────────────────────────────── */
-.fs-app .mt-results { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: stretch; }
-.fs-app .mt-stack { display: flex; flex-direction: column; gap: 14px; }
-
-.fs-app .mt-kwtabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.fs-app .mt-kwtab {
-  padding: 8px 13px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--bg-elev); color: var(--text-soft); font-size: 13px; font-weight: 500; cursor: pointer;
-}
-.fs-app .mt-kwtab .pct { font-family: var(--font-mono); font-size: 11.5px; opacity: .65; }
-.fs-app .mt-kwtab[aria-selected="true"] { background: var(--brand); border-color: transparent; color: #fff; font-weight: 600; }
-
-.fs-app .mt-hero { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
-.fs-app .mt-hero-big { font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
-.fs-app .mt-bar { height: 8px; border-radius: 999px; background: var(--bg-inset); overflow: hidden; }
-.fs-app .mt-bar > i { display: block; height: 8px; border-radius: 999px; background: var(--pos); }
-
-.fs-app .mt-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.fs-app .mt-tile { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; }
-.fs-app .mt-tile .lbl { font-size: 12.5px; color: var(--text-soft); line-height: 1.4; }
-.fs-app .mt-tile .val { font-family: var(--font-mono); font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-top: 8px; }
-/* The acronym is a caption under the plain-English label, never the label. */
-.fs-app .mt-tile .acr { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--text-mute); margin-top: 2px; }
-
-.fs-app .mt-distbar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; }
-.fs-app .mt-distbar i { display: block; }
-.fs-app .mt-bandrow {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 8px 0; border: none; border-top: 1px solid var(--mt-line-soft);
-  background: none; text-align: left; cursor: pointer; color: inherit;
-}
-.fs-app .mt-bandrow .sw { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.fs-app .mt-bandrow .nm { font-size: 12.5px; flex: 1; }
-.fs-app .mt-bandrow .ct { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-mute); }
-.fs-app .mt-bandrow .pc { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; width: 40px; text-align: right; }
-.fs-app .mt-bandrow:hover .nm { color: var(--brand); }
-.fs-app .mt-bandrow[aria-pressed="true"] .nm { font-weight: 600; color: var(--brand); }
-
-.fs-app .mt-standrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--mt-line-soft); }
-.fs-app .mt-standrow .nm { font-size: 12.5px; color: var(--text-soft); flex: 1; }
-.fs-app .mt-standrow .v { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; }
-
 /* ── AI analysis ────────────────────────────────────────────────────────── */
 .fs-app .mt-ai { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
 .fs-app .mt-ai p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.65; color: var(--text-soft); max-width: 900px; text-wrap: pretty; }
@@ -361,10 +319,6 @@
 .fs-app .mt-rstats > div { padding: 22px 24px; }
 .fs-app .mt-rstats > div + div { border-left: 1px solid var(--border); }
 .fs-app .mt-rstats .val { font-family: var(--font-mono); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
-.fs-app .mt-cmprow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 130px 110px 110px; gap: 12px; padding: 14px 0; border-top: 1px solid var(--mt-line-soft); align-items: center; }
-.fs-app .mt-cmprow.you { background: var(--brand-soft); }
-.fs-app .mt-cmprow .num { width: 26px; height: 26px; border-radius: 999px; background: var(--bg-inset); color: var(--text-soft); display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
-.fs-app .mt-cmprow.you .num { background: var(--brand); color: #fff; }
 .fs-app .mt-legend { display: flex; gap: 14px; flex-wrap: wrap; }
 .fs-app .mt-legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-soft); }
 .fs-app .mt-legend i { width: 9px; height: 9px; border-radius: 3px; }
@@ -375,8 +329,7 @@
   .fs-app .mt-report { background: #fff; }
 }
 
-/* ── Report body (ScanReport) ─────────────────────────────────────────────
-   Shared by the dashboard's scan view and the standalone report. */
+/* ── Report body (ScanReport), used by the report page ──────────────────── */
 .fs-app .mt-rmap {
   /* Square, because the thing shown is a square grid; full sheet width, as the
      report's main exhibit. */
@@ -423,11 +376,11 @@
 
 /* ── Narrow ─────────────────────────────────────────────────────────────── */
 @container mt (max-width: 1180px) {
-  .fs-app .mt-setup, .fs-app .mt-results { grid-template-columns: minmax(0, 1fr); }
+  .fs-app .mt-setup { grid-template-columns: minmax(0, 1fr); }
   .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .fs-app .mt-drawer { width: 100%; }
   .fs-app .mt-sheet { padding: 32px 20px 48px; }
-  .fs-app .mt-tiles, .fs-app .mt-rstats { grid-template-columns: 1fr; }
+  .fs-app .mt-rstats { grid-template-columns: 1fr; }
 }

@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   MAPS TRACKER — pieces shared by the scan view and the report.
+   MAPS TRACKER — pieces the report is built from.
 
    What remains of the old map-first workspace, which the report layout (see
-   "Report body" and "Scan view" in maps-tracker.css) replaced: keyword chips,
+   "Report body" in maps-tracker.css) replaced: keyword chips,
    status banners, the business bits (avatar, rank badge, stars, difficulty),
    the competitor list and the AI analysis. Same tokens, same .fs-app scoping,
    same reuse-before-adding rule as maps-tracker.css.
@@ -148,16 +148,17 @@
 .fs-app .mt-cmp-acts { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
 .fs-app .mt-cmp-acts .btn { gap: 5px; }
 
-/* ── AI panel, inside the 440px sheet ───────────────────────────────────── */
-/* The component was written for a full-width card at the bottom of the old
-   stacked page. In a narrow sheet its rows need to wrap rather than sit
-   side by side. */
+/* ── AI panel, in the report ────────────────────────────────────────────── */
+/* The report's type sizes, and each recommendation as a bordered card. The
+   recommendations keep the panel's own three-up grid (maps-tracker.css; one
+   column on a narrow page): only the old 440px side sheet needed them
+   stacked, and on the full-width report that left two thirds of it empty. */
 .fs-app .mt-aisheet { margin-top: 14px; }
 .fs-app .mt-spinner.sm { width: 12px; height: 12px; border-width: 2px; }
 .fs-app .mt-aisheet .mt-ai { font-size: 13px; line-height: 1.6; }
 .fs-app .mt-aisheet .mt-ai p { margin: 0 0 12px; color: var(--text-soft); }
 .fs-app .mt-aisheet .mt-ai > .row { flex-wrap: wrap; gap: 8px; }
-.fs-app .mt-aisheet .mt-recs { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.fs-app .mt-aisheet .mt-recs { margin-top: 4px; }
 .fs-app .mt-aisheet .mt-rec {
   border: 1px solid var(--border); border-radius: var(--r-md);
   padding: 12px; background: var(--bg-elev);
