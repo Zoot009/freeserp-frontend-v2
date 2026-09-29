@@ -13,10 +13,9 @@ const COLLAPSED_ROW_PX = 92
 /**
  * The ranked list of everyone in this grid.
  *
- * The target appears inline at its own position, marked "You", as well as in
- * its own card above. A leaderboard that hides where you sit among the rows is
- * harder to read than one that shows you in place — the card answers "how am I
- * doing", the inline row answers "who is directly above me".
+ * The target appears inline at its own position, marked "You": a leaderboard
+ * that hides where you sit among the rows is harder to read than one that shows
+ * you in place — the row answers "who is directly above me".
  */
 export function CompetitorList({
   leaderboard,
@@ -27,7 +26,7 @@ export function CompetitorList({
   onCompare,
 }: {
   leaderboard: CompetitorLeaderboard | null
-  /** Already filtered by the caller; ordering is the server's. */
+  /** The leaderboard's rows, in the server's order (SoLV, then ARP). */
   rows: CompetitorRow[]
   loading: boolean
   unit: DistanceUnit
@@ -46,7 +45,7 @@ export function CompetitorList({
     return <div className="mt-cmp-note">Couldn&apos;t load the competitor comparison for this keyword.</div>
   }
   if (rows.length === 0) {
-    return <div className="mt-cmp-note">No businesses match these filters.</div>
+    return <div className="mt-cmp-note">No businesses showed up in this grid.</div>
   }
 
   const body =
@@ -151,13 +150,7 @@ function VirtualRows({
   )
 }
 
-/**
- * The one-line replacement for the old "Where you stand" card.
- *
- * Built from the unfiltered leaderboard on purpose: your position in the market
- * is a fact about the market, and it must not change because the reader ticked
- * a rating filter.
- */
+/** The one-line replacement for the old "Where you stand" card. */
 function standingSentence(leaderboard: CompetitorLeaderboard | null, unit: DistanceUnit): string | null {
   if (!leaderboard) return null
   const all = leaderboard.rows

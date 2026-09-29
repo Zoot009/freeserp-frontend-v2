@@ -101,7 +101,9 @@
 .fs-app .mt-cmp-cols .c-vis { grid-column: 6 / 8; }
 
 .fs-app .mt-cmp { border-bottom: 1px solid var(--mt-line-soft); background: var(--bg-elev); }
-.fs-app .mt-cmp:last-child { border-bottom: none; }
+/* Direct children only: past 50 rows each .mt-cmp sits alone in a virtual-row
+   wrapper, where :last-child would strip every row's divider. */
+.fs-app .mt-cmp-list > .mt-cmp:last-child { border-bottom: none; }
 .fs-app .mt-cmp[data-target] { background: var(--brand-soft); }
 .fs-app .mt-cmp-head {
   display: grid; grid-template-columns: var(--mt-cmp-cols); column-gap: 14px; align-items: center;
