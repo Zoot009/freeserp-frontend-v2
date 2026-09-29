@@ -4,6 +4,7 @@
 // check sections with pass/fail marks. Triggered by the "Download" button.
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
+import { api } from "@/lib/api"
 import {
   CATEGORY_SCORES_DEF,
   prefetchScreenshot,
@@ -74,6 +75,9 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
   const contentW = pageW - margin * 2
   const host = hostnameOf(report.url)
   const hidden = new Set(hiddenSections ?? [])
+  const grouped = await siteIssueGroups(report)
+  // Every issue row the audit found — not just the ones the report ships.
+  const issueTotal = grouped ? grouped.reduce((n, g) => n + g.count, 0) : (report.issues?.length ?? 0)
 
   let y = 0
   const ensure = (needed: number) => {
@@ -131,7 +135,7 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
   const pills: { label: string; fill: RGB; text: RGB }[] = [
     { label: `Grade ${overallGrade}`, fill: tint(gcOverall), text: gcOverall },
     {
-      label: `${report.issues?.length ?? 0} issues found`,
+      label: `${issueTotal} issues found`,
       fill: [255, 237, 213],
       text: [194, 120, 3],
     },
@@ -183,22 +187,21 @@ export async function downloadAuditPdf(report: AuditReport, hiddenSections?: str
 
   // ── Recommendations (priority badges) ──
   if (!hidden.has(SECTION_RECOMMENDATIONS)) {
-  const issues = report.issues ?? []
   // One row per PROBLEM, not per page it appears on. A 100-page site audit
   // listed "Images Missing Alt Text" a hundred times and ran this table to
   // eleven pages; grouped, the same findings fit on one, each with how many
   // pages it affects.
-  const groups = groupIssues(issues)
+  const groups = grouped ?? groupIssues(report.issues ?? [])
   ensure(64)
   sectionTitle(doc, `Recommendations (${groups.length})`, margin, y)
   y += 6
   if (groups.length > 0) {
-    if (groups.length < issues.length) {
+    if (groups.length < issueTotal) {
       doc.setFont("helvetica", "normal")
       doc.setFontSize(8.5)
       doc.setTextColor(...MUTED)
       doc.text(
-        `${issues.length} issues, grouped by problem. "Pages" is how many pages each one affects.`,
+        `${issueTotal} issues, grouped by problem. "Pages" is how many pages each one affects.`,
         margin,
         y + 12,
       )
@@ -714,9 +717,39 @@ function groupIssues(issues: AuditReport["issues"]): IssueGroup[] {
       })
     }
   }
-  return [...byKey.values()]
-    .map(({ urls, ...g }) => ({ ...g, pages: urls.size }))
-    .sort((a, b) => sevOrder(a.severity) - sevOrder(b.severity) || b.pages - a.pages || a.title.localeCompare(b.title))
+  return [...byKey.values()].map(({ urls, ...g }) => ({ ...g, pages: urls.size })).sort(byUrgency)
+}
+
+const byUrgency = (a: IssueGroup, b: IssueGroup) =>
+  sevOrder(a.severity) - sevOrder(b.severity) || b.pages - a.pages || a.title.localeCompare(b.title)
+
+/**
+ * A site audit's problems as the backend groups them, across EVERY issue row.
+ *
+ * The report itself carries at most 300 rows, worst first, and a 100-page
+ * crawl has around 400 — so grouping those undercounted each problem's pages
+ * and could drop the least severe outright. Null when the grouped list can't
+ * be had (a shared report's viewer isn't signed in); the PDF then groups the
+ * rows it has.
+ */
+async function siteIssueGroups(report: AuditReport): Promise<IssueGroup[] | null> {
+  if (report.mode !== "SITE") return null
+  try {
+    const { groups } = await api.get<{
+      groups: Array<{ title: string; category: string; severity: string; occurrences: number; affectedPages: number }>
+    }>(`/api/page-audit/reports/${report.id}/issue-groups`, { skipAuthRedirect: true })
+    return groups
+      .map((g) => ({
+        title: baseTitle(g.title),
+        category: g.category,
+        severity: g.severity,
+        pages: g.affectedPages,
+        count: g.occurrences,
+      }))
+      .sort(byUrgency)
+  } catch {
+    return null
+  }
 }
 
 function prettyCategory(key: string): string {

@@ -18,6 +18,8 @@ import type { Scan } from "@/components/maps-tracker/types"
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 const LIST = "/dashboard/google-maps-tracker"
 const POLL_MS = 2000
+/** How long a finished scan keeps polling for its AI report before leaving it to a reload. */
+const AI_WAIT_MS = 5 * 60_000
 
 function isTerminal(status: string): boolean {
   return status === "COMPLETED" || status === "PARTIAL" || status === "FAILED" || status === "CANCELLED"
@@ -29,18 +31,23 @@ function isTerminal(status: string): boolean {
  * Opening a scan from the list, from the report button, from the overview card
  * or straight after creating one all land here (the old dashboard scan url
  * forwards to it). A clean sheet with the FreeSERP letterhead, no dashboard
- * around it, so it reads, shares and prints as a document.
+ * around it, so it reads and prints as a document. Owner-only: another account
+ * gets a 404.
  *
  * The owner's controls sit in a bar above the letterhead — back to the scans,
- * switch keyword, export, scan again — and that bar is left out of print. While
- * a scan is still running, the page shows its progress and the map filling in,
- * then becomes the report the moment the last point lands.
+ * export, scan again — with the keyword chips under the letterhead; both are
+ * left out of print. While a scan is still running, the page shows its progress
+ * and the map filling in, then becomes the report the moment the last point
+ * lands.
  */
 export default function ScanReportPage() {
   const router = useRouter()
   const params = useParams<{ scanId: string; keywordId: string }>()
   const [scan, setScan] = useState<Scan | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Apart from `error`, which every good poll clears: a failed Cancel must stay
+  // on screen while the scan it didn't stop carries on.
+  const [cancelError, setCancelError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -53,22 +60,35 @@ export default function ScanReportPage() {
 
   useEffect(() => {
     let cancelled = false
+    // One request at a time: a slow one no longer stacks ten more behind it.
+    let inFlight = false
+    let terminalSince: number | null = null
 
     const tick = async (first = false) => {
+      if (inFlight) return
+      inFlight = true
       try {
         const { scan: updated } = await api.get<{ scan: Scan }>(`/api/maps-tracker/scans/${params.scanId}`)
         if (cancelled) return
-        setScan(updated)
+        // Never back from finished to running: that is only ever a slow,
+        // older answer landing after the newer one.
+        setScan((prev) => (prev && isTerminal(prev.status) && !isTerminal(updated.status) ? prev : updated))
         setError(null)
-        // The AI report is generated AFTER the scan finishes, so a terminal
-        // status alone isn't the end — keep polling until a requested AI
-        // report settles too, or its section never notices it finish.
+        if (!isTerminal(updated.status)) return
+        terminalSince ??= Date.now()
+        // The AI report comes AFTER the scan finishes: its job is queued once
+        // the status is final, and the report only exists once a worker picks
+        // that up. So a finished scan with no report yet is still waiting on
+        // it — treating that as settled stopped the polling for good and left
+        // "Writing up…" spinning until a reload. Only a failed or cancelled
+        // scan never gets one.
         const aiSettled =
           !updated.aiAnalysisRequested ||
-          !updated.aiReport ||
-          updated.aiReport.status === "COMPLETED" ||
-          updated.aiReport.status === "FAILED"
-        if (isTerminal(updated.status) && aiSettled) stopPolling()
+          updated.status === "FAILED" ||
+          updated.status === "CANCELLED" ||
+          updated.aiReport?.status === "COMPLETED" ||
+          updated.aiReport?.status === "FAILED"
+        if (aiSettled || Date.now() - terminalSince > AI_WAIT_MS) stopPolling()
       } catch (err) {
         if (cancelled) return
         // Only the first fetch can say "this scan isn't here"; after that a
@@ -78,6 +98,8 @@ export default function ScanReportPage() {
           else setError(err instanceof ApiError ? err.message : "Couldn't load this report.")
           stopPolling()
         }
+      } finally {
+        inFlight = false
       }
     }
 
@@ -91,7 +113,11 @@ export default function ScanReportPage() {
 
   const keyword = scan?.keywords.find((k) => k.id === params.keywordId) ?? null
   const running = scan != null && !isTerminal(scan.status)
-  const hasResults = scan != null && isTerminal(scan.status) && scan.status !== "FAILED"
+  // Not CANCELLED: a cancelled scan is never finalised, so its keywords carry
+  // no figures — as a report it read "0 searches" beside a map full of ranks.
+  // It shows the points it reached instead, like a scan still running.
+  const hasResults = scan?.status === "COMPLETED" || scan?.status === "PARTIAL"
+  const isCancelled = scan?.status === "CANCELLED"
 
   // Its own fetch: the leaderboard is computed on demand, so a slow one never
   // holds up the rest of the report, and a failed one still leaves it readable.
@@ -117,7 +143,7 @@ export default function ScanReportPage() {
       stopPolling()
       router.push(LIST)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't cancel the scan.")
+      setCancelError(err instanceof ApiError ? err.message : "Couldn't cancel the scan.")
     }
   }
 
@@ -136,10 +162,15 @@ export default function ScanReportPage() {
   }
   if (!keyword) return message("This keyword isn't part of this scan.")
 
+  // Counted from the points: pointsDone counts every point that finished,
+  // failed ones included, so a partial scan read "49 of 49".
+  const failedPoints = scan.keywords.reduce((n, k) => n + k.points.filter((p) => p.status === "FAILED").length, 0)
+
   const banner =
     scan.status === "PARTIAL" ? (
       <div className="mt-pm-banner" data-tone="warn">
-        Finished with {scan.pointsDone} of {scan.totalPoints} points. The points that failed were refunded.
+        Finished with {scan.totalPoints - failedPoints} of {scan.totalPoints} points. The {failedPoints} that
+        failed {failedPoints === 1 ? "was" : "were"} refunded.
       </div>
     ) : scan.status === "FAILED" ? (
       <div className="mt-pm-banner" data-tone="neg">
@@ -200,16 +231,21 @@ export default function ScanReportPage() {
         )}
 
         {banner && <div className="mt-rbanner">{banner}</div>}
-        {error && <div className="mt-pm-banner mt-rbanner" data-tone="neg" role="alert">{error}</div>}
+        {(cancelError ?? error) && (
+          <div className="mt-pm-banner mt-rbanner" data-tone="neg" role="alert">{cancelError ?? error}</div>
+        )}
 
-        {running ? (
-          // Still scanning: the progress, and the map filling in as points land.
+        {running || isCancelled ? (
+          // Still scanning, or stopped part-way: the map with the points that
+          // landed. Only a running scan has progress to show.
           <>
             <div style={{ maxWidth: 680, marginBottom: 24 }}>
               <div className="mt-eyebrow" style={{ marginBottom: 10 }}>Google Maps · &ldquo;{keyword.keyword}&rdquo;</div>
-              <h2>Scanning the neighbourhood…</h2>
+              <h2>{running ? "Scanning the neighbourhood…" : "Where it ranked before the scan was cancelled"}</h2>
             </div>
-            <ScanProgress pointsDone={scan.pointsDone} totalPoints={scan.totalPoints} onCancel={() => void cancelScan()} />
+            {running && (
+              <ScanProgress pointsDone={scan.pointsDone} totalPoints={scan.totalPoints} onCancel={() => void cancelScan()} />
+            )}
             {GOOGLE_MAPS_API_KEY && livePins && (
               <div className="mt-rmap">
                 <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>

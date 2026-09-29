@@ -24,13 +24,8 @@ function Stat({ label, value, acronym }: { label: string; value: string; acronym
 
 /**
  * One keyword's reading of a scan, as a report: the headline, three numbers,
- * the map, and who else ranks in the grid.
- *
- * The same document wherever it is read — inside the dashboard, where a scan
- * opens, and on its own at /reports/maps-tracker/…, the page that gets shared
- * and printed. One component, so the two can never drift apart. The page
- * around it supplies the chrome: the dashboard adds its actions, the shared
- * report its letterhead.
+ * the map, and who else ranks in the grid. Rendered by the report page at
+ * /reports/maps-tracker/…, which adds the owner's controls and the letterhead.
  *
  * Still interactive where it helps reading: a pin opens what Google returned
  * at that point, and "Compare on map" in the competitor list recolours the

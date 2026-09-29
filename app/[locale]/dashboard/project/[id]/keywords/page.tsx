@@ -1584,18 +1584,41 @@ export default function ProjectKeywordsPage() {
     }
     let stop = false
     let reloadsAfterComplete = 0
+    // Seen running during this visit, so a COMPLETED after it just finished.
+    let sawLive = false
+    let failedPolls = 0
+    const JUST_FINISHED_MS = 2 * 60_000
     const tick = async () => {
       if (stop) return
       let status: string | undefined
       try {
         const { run } = await api.get<{
-          run: { status?: string; crawlMethod?: string | null; tokensUsed?: number; createdAt?: string } | null
+          run: {
+            status?: string
+            crawlMethod?: string | null
+            tokensUsed?: number
+            createdAt?: string
+            completedAt?: string | null
+            suggestions?: { suggestions?: unknown[] } | null
+          } | null
         }>(`/api/projects/${projectId}/keyword-suggestions`)
+        failedPolls = 0
         status = run?.status
-        const live = status === "PENDING" || status === "PROCESSING" || status === "RUNNING"
-        if (!run || !(live || status === "COMPLETED")) {
-          // No run, or it failed: nothing is coming, and the empty state is
-          // honest. Stop rather than poll a project that simply has no keywords.
+        const live = status === "PENDING" || status === "PROCESSING"
+        if (live) sawLive = true
+        // A finished run is shown only while its keywords may still be landing
+        // — they're added a moment after it completes — and only if it found
+        // some. One long finished, or with nothing to add (a skipped run), has
+        // done all it will: it used to sit here "still running" on a clock
+        // counted from the day it started.
+        const landing =
+          status === "COMPLETED" &&
+          (run?.suggestions?.suggestions?.length ?? 0) > 0 &&
+          (sawLive || (!!run?.completedAt && Date.now() - Date.parse(run.completedAt) < JUST_FINISHED_MS))
+        if (!run || !(live || landing)) {
+          // No run, it failed, or it is long done: nothing is coming, and the
+          // empty state is honest. Stop rather than poll a project that simply
+          // has no keywords.
           setDiscovery(null)
           stop = true
           return
@@ -1619,9 +1642,13 @@ export default function ProjectKeywordsPage() {
           }
         }
       } catch {
-        stop = true
-        setDiscovery(null)
-        return
+        // One failed poll is a blip, not the end of the run. Several in a row,
+        // and the empty state is the better guess.
+        if (++failedPolls >= 3) {
+          stop = true
+          setDiscovery(null)
+          return
+        }
       }
       if (!stop) setTimeout(() => void tick(), status === "COMPLETED" ? 2000 : 3000)
     }

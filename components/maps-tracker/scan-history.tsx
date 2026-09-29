@@ -13,9 +13,9 @@ const isRunning = (status: ScanStatus) => status === "QUEUED" || status === "RUN
  *
  * The tile is one fixed size, so everything else scales with the grid: the gap
  * narrows as points multiply, the rank number is printed only while a pin is
- * big enough to hold it (3 × 3 and 5 × 5), and past 15 × 15 the pins become
- * edge-to-edge tiles — a heatmap, rather than a speckle of dots too small to
- * see.
+ * big enough to hold it (3 × 3 and 5 × 5), and from 13 × 13 the pins become
+ * square tiles, edge to edge past 15 × 15 — a heatmap, rather than a speckle
+ * of dots too small to see.
  */
 function layoutFor(n: number): { size: number; gap: number; font: number | null; shape: "dot" | "tile" } {
   // A little smaller for the smallest grids, whose nine pins would otherwise
@@ -121,7 +121,10 @@ const stampOf = (scan: ScanHistoryItem) =>
 /** Only states worth reacting to get a note; "complete" is the norm. */
 function noteOf(scan: ScanHistoryItem): { label: string; color: string } | null {
   if (scan.status === "PARTIAL") {
-    return { label: `${scan.totalPoints - scan.pointsDone} points failed`, color: "var(--warn)" }
+    // Counted from the points: pointsDone includes the failed ones, so
+    // totalPoints - pointsDone came to 0 on every partial scan.
+    const failed = scan.keywords.reduce((n, k) => n + k.points.filter((p) => p.status === "FAILED").length, 0)
+    return { label: `${failed} point${failed === 1 ? "" : "s"} failed`, color: "var(--warn)" }
   }
   if (scan.status === "FAILED") {
     // The reason beats the word — "Failed" alone leaves nothing to do about it.
@@ -183,14 +186,14 @@ function ReportCard({
           </span>
         </span>
       </button>
-      {/* No report for a scan with no results — it would open an empty one. */}
+      {/* The same report the card opens, in a new tab — for scans with results. */}
       {withResults && (
         <Link
           href={`/reports/maps-tracker/${scan.id}/${keyword.id}`}
           target="_blank"
           className="icon-btn mt-card-report"
-          title="Open the shareable report"
-          aria-label={`Open the shareable report for "${keyword.keyword}"`}
+          title="Open the report in a new tab"
+          aria-label={`Open the report for "${keyword.keyword}" in a new tab`}
         >
           <FileText size={13} />
         </Link>
