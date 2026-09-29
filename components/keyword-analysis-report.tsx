@@ -23,6 +23,20 @@ function fmtMs(value: number | null | undefined): string {
   return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}ms` : "—"
 }
 
+// Standard bands for the speed metrics that have one (TTFB, FCP, LCP, CLS): at
+// or under `good` is good, at or under `fair` needs work, past it is poor.
+function speedTone(value: number | null | undefined, good: number, fair: number): "pos" | "warn" | "neg" | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined
+  return value <= good ? "pos" : value <= fair ? "warn" : "neg"
+}
+
+// "1 hit", "12 hits" — every count on this page takes a plain -s plural. Old
+// rows can be missing a count, which renders as 0.
+function plural(n: number | null | undefined, noun: string): string {
+  const v = n ?? 0
+  return `${v.toLocaleString()} ${noun}${v === 1 ? "" : "s"}`
+}
+
 function CheckRow({ label, ok, detail }: { label: string; ok: boolean; detail?: string }) {
   return (
     <div
@@ -53,13 +67,22 @@ function MiniStat({ label, value, tone: t }: { label: string; value: React.React
   )
 }
 
+// Tiles wrap at `min` wide and grow to fill each row, so a short row stretches
+// across the section and a tile left alone on the last row (a phone's two-up
+// rows) takes the rest of it instead of sitting beside empty space. Flex, not a
+// grid: a grid leaves that last tile at one column wide.
 function TileGrid({ children, min = 120 }: { children: React.ReactNode; min?: number }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))`, gap: 10 }}>
+    <div className="ka-tiles" style={{ ["--tile-min" as string]: `${min}px` }}>
       {children}
     </div>
   )
 }
+
+const TILES_CSS = `
+  .ka-tiles { display: flex; flex-wrap: wrap; gap: 10px; }
+  .ka-tiles > * { flex: 1 1 var(--tile-min); }
+`
 
 function MiniBar({ label, value, max = 100 }: { label: string; value: number; max?: number }) {
   const pct = Math.min(100, (value / max) * 100)
@@ -192,6 +215,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
 
   return (
     <div>
+      <style>{TILES_CSS}</style>
       {/* HTTP Status / Word Count / Crawl Time now live in the ScoreCard's
           "Overview Metrics" card (app/[locale]/dashboard/keyword-analysis/results/page.tsx),
           alongside Domain/Page Authority and backlinks — no need to repeat them here. */}
@@ -267,12 +291,12 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           {crawlData.keywordAnalysis.bySection && Object.keys(crawlData.keywordAnalysis.bySection).length > 0 && (
             <div>
               <SubHeading>Density by Section</SubHeading>
-              <TileGrid min={150}>
+              <TileGrid min={170}>
                 {Object.entries(crawlData.keywordAnalysis.bySection).map(([section, data]) => (
                   <div key={section} className="mini-tile">
                     <div className="mini-tile-lbl">{section}</div>
-                    <div className="tiny">{data.occurrences} hits · {data.density}%</div>
-                    <div className="tiny muted">{data.wordCount} words</div>
+                    <div className="tiny">{plural(data.occurrences, "hit")} · {data.density}%</div>
+                    <div className="tiny muted">{plural(data.wordCount, "word")}</div>
                   </div>
                 ))}
               </TileGrid>
@@ -296,7 +320,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
       <Section
         id="content"
         title="Content Analysis"
-        subtitle={`${(crawlData.content?.wordCount ?? 0).toLocaleString()} words, ${crawlData.content?.readability?.sentenceCount ?? 0} sentences`}
+        subtitle={`${plural(crawlData.content?.wordCount, "word")}, ${plural(crawlData.content?.readability?.sentenceCount, "sentence")}`}
         open={open.has("content")}
         onToggle={toggle}
       >
@@ -324,14 +348,15 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
               {Object.entries(crawlData.pageSections).map(([section, data]) => (
                 <div key={section} className="mini-tile">
                   <div className="tiny b" style={{ marginBottom: 4, textTransform: "capitalize" }}>{section}</div>
-                  <div className="tiny muted">{data.wordCount} words</div>
+                  <div className="tiny muted">{plural(data.wordCount, "word")}</div>
                   <div className="tiny muted">
                     H1: {Array.isArray(data.headings?.h1) ? data.headings.h1.length : (data.headings?.h1 || 0)},{" "}
                     H2: {Array.isArray(data.headings?.h2) ? data.headings.h2.length : (data.headings?.h2 || 0)},{" "}
                     H3: {Array.isArray(data.headings?.h3) ? data.headings.h3.length : (data.headings?.h3 || 0)}
                   </div>
                   <div className="tiny muted">
-                    {Array.isArray(data.links?.internal) ? data.links.internal.length : (data.links?.internal || 0)} internal, {Array.isArray(data.links?.external) ? data.links.external.length : (data.links?.external || 0)} external links
+                    {Array.isArray(data.links?.internal) ? data.links.internal.length : (data.links?.internal || 0)} internal,{" "}
+                    {plural(Array.isArray(data.links?.external) ? data.links.external.length : data.links?.external, "external link")}
                   </div>
                 </div>
               ))}
@@ -348,7 +373,9 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         open={open.has("headings")}
         onToggle={toggle}
       >
-        <TileGrid min={72}>
+        {/* 80px: one row of six on desktop, two even rows of three on a phone
+            (72 made it four and two). */}
+        <TileGrid min={80}>
           {(["h1", "h2", "h3", "h4", "h5", "h6"] as const).map((tag) => {
             const count = crawlData.headings?.[tag]?.length ?? 0
             const warn = tag === "h1" && count !== 1
@@ -426,7 +453,9 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
                   <div key={i} className="row tiny" style={{ gap: 8 }}>
                     <span className="muted" style={{ flexShrink: 0 }}>[{link.section}]</span>
                     <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.text || "(no anchor)"}</span>
-                    <span className="mono muted" style={{ marginLeft: "auto", flexShrink: 0, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.url}</span>
+                    {/* Capped at 40% too, or on a phone the URL takes the whole row
+                        and squeezes the anchor text out. */}
+                    <span className="mono muted" style={{ marginLeft: "auto", flexShrink: 0, maxWidth: "min(220px, 40%)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link.url}</span>
                   </div>
                 ))}
               </div>
@@ -440,7 +469,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         <Section
           id="images"
           title="Image Analysis"
-          subtitle={`${crawlData.imageAnalysis.total ?? 0} images, ${crawlData.imageAnalysis.withoutAlt ?? 0} missing alt`}
+          subtitle={`${plural(crawlData.imageAnalysis.total, "image")}, ${crawlData.imageAnalysis.withoutAlt ?? 0} missing alt`}
           open={open.has("images")}
           onToggle={toggle}
         >
@@ -455,7 +484,10 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
             <div className="mini-tile" style={{ maxHeight: 280, overflowY: "auto" }}>
               <SubHeading>Images (showing {Math.min(15, crawlData.imageAnalysis.images.length)})</SubHeading>
               <div className="col" style={{ gap: 10, marginTop: 8 }}>
-                {crawlData.imageAnalysis.images.slice(0, 15).map((img, i) => (
+                {/* Missing alt text first — those are the ones to fix. Sorted before
+                    the cut so one past the 15th isn't hidden; sort is stable, so
+                    each group keeps page order. */}
+                {[...crawlData.imageAnalysis.images].sort((a, b) => Number(a.hasAlt) - Number(b.hasAlt)).slice(0, 15).map((img, i) => (
                   <div key={i} className="row" style={{ gap: 10, alignItems: "flex-start" }}>
                     {img.src && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -490,13 +522,16 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         {crawlData.performance && (
           <div>
             <SubHeading>Performance</SubHeading>
+            {/* The crawler stores 0 for a timing it couldn't capture, so a 0ms
+                timing (`|| null`) stays uncoloured rather than reading as fast.
+                DOM interactive/loaded have no standard band — left neutral. */}
             <TileGrid min={100}>
-              <MiniStat label="TTFB" value={fmtMs(crawlData.performance.ttfb)} tone={crawlData.performance.ttfb > 600 ? "warn" : undefined} />
+              <MiniStat label="TTFB" value={fmtMs(crawlData.performance.ttfb)} tone={speedTone(crawlData.performance.ttfb || null, 800, 1800)} />
               <MiniStat label="DOM Interactive" value={fmtMs(crawlData.performance.domInteractive)} />
               <MiniStat label="DOM Loaded" value={fmtMs(crawlData.performance.domContentLoaded)} />
-              <MiniStat label="FCP" value={fmtMs(crawlData.performance.webVitals?.fcp)} tone={(crawlData.performance.webVitals?.fcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="LCP" value={fmtMs(crawlData.performance.webVitals?.lcp)} tone={(crawlData.performance.webVitals?.lcp || 0) > 2500 ? "warn" : undefined} />
-              <MiniStat label="CLS" value={(crawlData.performance.webVitals?.cls ?? 0).toFixed(2)} tone={(crawlData.performance.webVitals?.cls || 0) > 0.1 ? "warn" : undefined} />
+              <MiniStat label="FCP" value={fmtMs(crawlData.performance.webVitals?.fcp)} tone={speedTone(crawlData.performance.webVitals?.fcp || null, 1800, 3000)} />
+              <MiniStat label="LCP" value={fmtMs(crawlData.performance.webVitals?.lcp)} tone={speedTone(crawlData.performance.webVitals?.lcp || null, 2500, 4000)} />
+              <MiniStat label="CLS" value={(crawlData.performance.webVitals?.cls ?? 0).toFixed(2)} tone={speedTone(crawlData.performance.webVitals?.cls, 0.1, 0.25)} />
             </TileGrid>
           </div>
         )}

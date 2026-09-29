@@ -10,6 +10,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { Hint } from "@/components/dashboard/widget"
 
 // A saved single-site analysis as returned by GET /api/keyword-analysis (list
 // shape — no crawlData blob).
@@ -48,26 +49,44 @@ function ScoreBadge({ value }: { value: number | null }) {
   }
   const tone = scoreTone(value)
   return (
-    <span
-      className="tabular"
-      title={`Overall score: ${value}/100`}
-      style={{
-        display: "inline-grid",
-        placeItems: "center",
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
-        background: tone.bg,
-        color: tone.color,
-        fontSize: 13,
-        fontWeight: 700,
-        flexShrink: 0,
-      }}
-    >
-      {value}
-    </span>
+    <Hint text={`Overall score: ${value}/100`}>
+      <span
+        className="tabular"
+        style={{
+          display: "inline-grid",
+          placeItems: "center",
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: tone.bg,
+          color: tone.color,
+          fontSize: 13,
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {value}
+      </span>
+    </Hint>
   )
 }
+
+// History rows are one line on a wide card. On a narrow one (a phone, or a
+// tablet beside the sidebar — hence a container query) the date and status
+// drop to a line of their own under the keyword; kept inline they squeezed the
+// keyword down to a letter or two.
+const HISTORY_CSS = `
+  .ka-hist-card { container-type: inline-size; }
+  .ka-hist-row { display: flex; align-items: center; gap: 12px; }
+  .ka-hist-meta { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .ka-hist-date { width: 78px; }
+  .ka-hist-status { width: 76px; }
+  @container (max-width: 520px) {
+    .ka-hist-row { flex-wrap: wrap; row-gap: 4px; }
+    .ka-hist-meta { order: 1; flex-basis: 100%; padding-left: 40px; gap: 10px; }
+    .ka-hist-date, .ka-hist-status { width: auto; }
+  }
+`
 
 function StatusChip({ status }: { status: AnalysisListItem["status"] }) {
   const map: Record<AnalysisListItem["status"], { cls: string; label: string }> = {
@@ -190,7 +209,7 @@ function KeywordAnalysisContent() {
               Back to project
             </button>
           )}
-          <h1>Analyze your page</h1>
+          <h1>Keyword Score Checker</h1>
           <div className="sub">Crawl and score one of your own pages for a target keyword — on-page &amp; off-page SEO, no competitors.</div>
         </div>
       </div>
@@ -240,15 +259,16 @@ function KeywordAnalysisContent() {
                 }}
               />
               {lockedBase && (
-                <span
-                  title="Locked to your project domain"
-                  style={{ position: "absolute", right: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </span>
+                <Hint text="Locked to your project domain">
+                  <span
+                    style={{ position: "absolute", right: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </span>
+                </Hint>
               )}
             </div>
           </Field>
@@ -290,7 +310,8 @@ function KeywordAnalysisContent() {
       </form>
 
       {/* History */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <style>{HISTORY_CSS}</style>
+      <div className="card ka-hist-card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="card-h" style={{ padding: "14px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
           <div className="b">Recent analyses</div>
           {history.length > 0 && <span className="tiny muted">{total ?? history.length} saved</span>}
@@ -316,8 +337,8 @@ function KeywordAnalysisContent() {
                 <button
                   type="button"
                   onClick={() => router.push(`/dashboard/keyword-analysis/results?id=${a.id}`)}
-                  className="list-row"
-                  style={{ display: "flex", width: "100%", textAlign: "left", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderBottom: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}
+                  className="list-row ka-hist-row"
+                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", border: "none", borderBottom: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}
                 >
                   <Favicon domain={displayDomain(a.domain || a.url)} size={28} />
                   <span style={{ minWidth: 0, flex: 1 }}>
@@ -325,8 +346,10 @@ function KeywordAnalysisContent() {
                     <span className="tiny muted mono" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayDomain(a.domain || a.url)}</span>
                   </span>
                   <ScoreBadge value={a.status === "COMPLETED" ? a.overallScore : null} />
-                  <span className="tiny muted tabular" style={{ display: "inline-block", flexShrink: 0, width: 78 }}>{fmtDate(a.createdAt)}</span>
-                  <span style={{ display: "inline-block", flexShrink: 0, width: 76 }}><StatusChip status={a.status} /></span>
+                  <span className="ka-hist-meta">
+                    <span className="tiny muted tabular ka-hist-date">{fmtDate(a.createdAt)}</span>
+                    <span className="ka-hist-status"><StatusChip status={a.status} /></span>
+                  </span>
                   <span style={{ flexShrink: 0, color: "var(--text-mute)" }}><Icon.chevR /></span>
                 </button>
               </li>
