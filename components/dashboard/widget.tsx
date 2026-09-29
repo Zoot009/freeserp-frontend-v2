@@ -139,6 +139,28 @@ export function WidgetPill({ tone = "brand", children }: { tone?: keyof typeof T
 }
 
 /** The little "i" that explains what a metric actually measures. */
+/**
+ * Wraps an element so its explanation appears in the app's tooltip.
+ *
+ * Replaces `title={...}`. A native title is an OS rectangle: it waits a second
+ * or two, ignores the app's styling entirely, sits wherever the platform feels
+ * like, and never appears for keyboard or touch users. Hovering this table gave
+ * you one of those on almost every cell, next to the styled tooltips on the
+ * stat cards above it.
+ *
+ * Renders the child untouched when there's nothing to say, so callers can pass
+ * a conditional string without branching.
+ */
+export function Hint({ text, children }: { text?: string | null; children: React.ReactElement }) {
+  if (!text) return children
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className="max-w-60 text-xs">{text}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function InfoHint({ children }: { children: React.ReactNode }) {
   return (
     <Tooltip>

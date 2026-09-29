@@ -22,7 +22,7 @@ import { setProjectCrumb } from "@/components/dashboard/crumb-store"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { StatCard, scoreBand } from "@/components/dashboard/stat-card"
 import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
-import { InfoHint } from "@/components/dashboard/widget"
+import { Hint, InfoHint } from "@/components/dashboard/widget"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
@@ -4107,28 +4107,6 @@ function CompetitorsCard({
  * sortable columns and Radix opens on hover, so a click on the icon would
  * otherwise fall through and re-sort the table.
  */
-/**
- * Wraps an element so its explanation appears in the app's tooltip.
- *
- * Replaces `title={...}`. A native title is an OS rectangle: it waits a second
- * or two, ignores the app's styling entirely, sits wherever the platform feels
- * like, and never appears for keyboard or touch users. Hovering this table gave
- * you one of those on almost every cell, next to the styled tooltips on the
- * stat cards above it.
- *
- * Renders the child untouched when there's nothing to say, so callers can pass
- * a conditional string without branching.
- */
-function Hint({ text, children }: { text?: string | null; children: React.ReactElement }) {
-  if (!text) return children
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent className="max-w-60 text-xs">{text}</TooltipContent>
-    </Tooltip>
-  )
-}
-
 function HeaderInfo({ children }: { children: React.ReactNode }) {
   return (
     <span
