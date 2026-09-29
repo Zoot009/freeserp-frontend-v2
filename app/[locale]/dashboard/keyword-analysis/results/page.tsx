@@ -3,11 +3,14 @@
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useRouter } from "@/i18n/navigation"
-import { api } from "@/lib/api"
+import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
 import { computeSeoScore } from "@/lib/seoScorer"
-import type { CrawlData } from "@/types/competitor-analysis"
+import { crawlErrorCopy } from "@/lib/crawl-error"
+import type { CrawlData, CrawlError } from "@/types/competitor-analysis"
 
 type Analysis = {
   id: string
@@ -17,6 +20,7 @@ type Analysis = {
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
   error: string | null
   crawlData: CrawlData | null
+  crawlMethod: string | null
   domainAuthority: number | null
   pageAuthority: number | null
   domainBacklinks: number | null
@@ -26,6 +30,25 @@ type Analysis = {
 }
 
 const POLL_MS = 2500
+// Polls that fail back off to this, rather than giving up.
+const MAX_BACKOFF_MS = 30_000
+// Past this, a pending check says it's slow instead of promising "10–40 seconds".
+const SLOW_AFTER_MS = 60_000
+
+// Same words the worker stores on a failed check; older reports of an unreadable
+// page were saved as COMPLETED with no error to show.
+const UNREADABLE_TEXT =
+  "We couldn't read this page, so it wasn't scored. It may be blocking automated visits, down, or too slow to respond — check it opens in a browser, then run it again."
+
+// Every crawl method failed ("minimal" is the placeholder the crawler returns
+// then). The worker now fails these checks; reports from before that were saved
+// as COMPLETED with a score for a page nobody saw, so both are shown as unread.
+const isUnreadable = (a: Analysis) => a.crawlMethod === "minimal"
+
+// The worker records the DA/PA provider's status with the crawl; "unavailable"
+// means the call failed (an outage), so the score is on-page only.
+const offPageUnavailable = (c: CrawlData) =>
+  (c.authority as { status?: string } | null | undefined)?.status === "unavailable"
 
 // Score band → tone, using the shared pos/brand/neg palette.
 function scoreToneVar(v: number): { color: string; bg: string } {
@@ -210,6 +233,7 @@ function OverviewIconStat({
 function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword: string; url: string }) {
   const score = computeSeoScore(crawlData, keyword, url)
   const tone = scoreToneVar(score.total)
+  const offPageMissing = offPageUnavailable(crawlData)
 
   const httpStatus = crawlData.httpStatus
   const statusTone: "pos" | "warn" | "neg" = httpStatus >= 200 && httpStatus < 300 ? "pos" : httpStatus >= 400 ? "neg" : "warn"
@@ -248,9 +272,18 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
               </div>
             </div>
           </div>
-          <div className="tiny muted" style={{ lineHeight: 1.5, maxWidth: 260 }}>
-            Overall score blends 12 on-page factors with off-page authority (Domain/Page Authority &amp; backlinks). Expand the sections below for the full breakdown.
-          </div>
+          {/* Without off-page data the scorer falls back to on-page only — a
+              different scale (on-page 70 + off-page 35 is 46 normally, 70 here) —
+              so say so rather than let the number pass for a full score. */}
+          {offPageMissing ? (
+            <div className="tiny" style={{ lineHeight: 1.5, maxWidth: 260, color: "var(--warn)" }}>
+              Off-page couldn&apos;t be measured — our authority data provider didn&apos;t respond, so this score covers on-page SEO only and isn&apos;t comparable with a full score. It won&apos;t update your tracked keywords. Run it again later for the full score.
+            </div>
+          ) : (
+            <div className="tiny muted" style={{ lineHeight: 1.5, maxWidth: 260 }}>
+              Overall score blends 12 on-page factors with off-page authority (Domain/Page Authority &amp; backlinks). Expand the sections below for the full breakdown.
+            </div>
+          )}
         </div>
       </div>
 
@@ -297,9 +330,16 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
 }
 
 function ResultsContent() {
+  const id = useSearchParams().get("id") || ""
+  // Keyed by id: "Run again" navigates to this same page with a new id, and a
+  // fresh mount means the old run's result, errors and one-shot sync don't carry
+  // over onto the new one.
+  return <Results key={id} id={id} />
+}
+
+function Results({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const id = searchParams.get("id") || ""
   // Context when launched from a project keyword's "Score" CTA — save the
   // computed score back onto that keyword once the analysis completes.
   const projectId = searchParams.get("projectId") || ""
@@ -308,6 +348,11 @@ function ResultsContent() {
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A poll failed and is being retried — a quiet note, not an error.
+  const [reconnecting, setReconnecting] = useState(false)
+  const [slow, setSlow] = useState(false)
+  const [rerunning, setRerunning] = useState(false)
+  const [rerunError, setRerunError] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -316,17 +361,31 @@ function ResultsContent() {
       return
     }
     let cancelled = false
+    let failures = 0
 
     const poll = async () => {
       try {
         const data = await api.get<{ analysis: Analysis }>(`/api/keyword-analysis/${id}`)
         if (cancelled) return
+        failures = 0
+        setReconnecting(false)
         setAnalysis(data.analysis)
         if (data.analysis.status === "PENDING" || data.analysis.status === "PROCESSING") {
+          setSlow(Date.now() - new Date(data.analysis.createdAt).getTime() > SLOW_AFTER_MS)
           timer.current = setTimeout(poll, POLL_MS)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load analysis.")
+        if (cancelled) return
+        // Only "this report isn't there for you" is final. Anything else — a
+        // network blip, a deploy, a 5xx — used to stop polling for good and hide
+        // a check that was still running; keep asking, backing off each time.
+        if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+          setError("This report doesn't exist, or it belongs to another account.")
+          return
+        }
+        failures += 1
+        setReconnecting(true)
+        timer.current = setTimeout(poll, Math.min(MAX_BACKOFF_MS, POLL_MS * 2 ** failures))
       }
     }
     poll()
@@ -337,8 +396,25 @@ function ResultsContent() {
     }
   }, [id])
 
+  // Same url + keyword as a fresh check (charged like a new one), opened in place.
+  const rerun = async () => {
+    setRerunning(true)
+    setRerunError(null)
+    try {
+      const res = await api.post<{ analysis: { id: string } }>(`/api/keyword-analysis/${id}/rerun`)
+      const ctx = fromProject ? `&projectId=${projectId}&keywordId=${keywordId}` : ""
+      router.push(`/dashboard/keyword-analysis/results?id=${res.analysis.id}${ctx}`)
+    } catch (err) {
+      setRerunError(err instanceof ApiError ? err.message : "Couldn't start a new check. Please try again.")
+      setRerunning(false)
+    }
+  }
+
   const status = analysis?.status
   const inProgress = !analysis || status === "PENDING" || status === "PROCESSING"
+  const unreadable = !!analysis && isUnreadable(analysis)
+  const failed = status === "FAILED" || unreadable
+  const offPageMissing = status === "COMPLETED" && !!analysis?.crawlData && offPageUnavailable(analysis.crawlData)
 
   // Mirror THIS report's score onto the originating keyword. The number sent is
   // exactly the one rendered below (same computeSeoScore over the same stored
@@ -346,10 +422,12 @@ function ResultsContent() {
   // so the keywords table shows this exact number and later report write-backs
   // match the same page. Idempotent: the server-side write-back normally already
   // stored this value, so this is a no-op re-write rather than a change. Fires once.
+  // Never for an unread page or an on-page-only score from a DA/PA outage — the
+  // server doesn't write those back either, so the keyword keeps a real number.
   const syncedRef = useRef(false)
   useEffect(() => {
     if (!fromProject || syncedRef.current) return
-    if (status !== "COMPLETED" || !analysis?.crawlData) return
+    if (status !== "COMPLETED" || !analysis?.crawlData || unreadable || offPageMissing) return
     syncedRef.current = true
     const total = computeSeoScore(analysis.crawlData as CrawlData, analysis.keyword, analysis.url).total
     api
@@ -358,7 +436,7 @@ function ResultsContent() {
         pageScoreUrl: analysis.url,
       })
       .catch(() => { /* best-effort — the report itself is still valid */ })
-  }, [status, analysis?.crawlData, analysis?.keyword, analysis?.url, fromProject, projectId, keywordId])
+  }, [status, analysis?.crawlData, analysis?.keyword, analysis?.url, unreadable, offPageMissing, fromProject, projectId, keywordId])
 
   return (
     <div className="page">
@@ -384,14 +462,29 @@ function ResultsContent() {
             </div>
           )}
         </div>
+        {!error && !inProgress && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+            <button className="btn sm" onClick={rerun} disabled={rerunning}>
+              <span className={rerunning ? "spin" : undefined} style={{ display: "inline-flex" }}><Icon.refresh /></span>
+              {rerunning ? "Starting…" : "Run again"}
+            </button>
+            <CreditCost action={CREDIT_ACTION_KEYS.keywordScore} showBalance={false} />
+            {rerunError && <span className="tiny" style={{ color: "var(--neg)", maxWidth: 260, textAlign: "right" }}>{rerunError}</span>}
+          </div>
+        )}
       </div>
 
-      {/* Error */}
-      {(error || status === "FAILED") && (
+      {/* Error — a check that failed, or a page we couldn't read (never scored). */}
+      {(error || failed) && (
         <div className="card" style={{ display: "flex", gap: 10, alignItems: "flex-start", borderColor: "var(--neg)", background: "var(--neg-soft)" }}>
           <span style={{ color: "var(--neg)", flexShrink: 0, marginTop: 1 }}><Icon.close /></span>
           <div className="tiny" style={{ color: "var(--neg)" }}>
-            {error || analysis?.error || "Analysis failed. Please try again."}
+            {error ? error : unreadable ? (
+              <>
+                <b>{crawlErrorCopy((analysis?.crawlData as { crawlError?: CrawlError } | null)?.crawlError).label}.</b>{" "}
+                {analysis?.error || UNREADABLE_TEXT}
+              </>
+            ) : analysis?.error || "Analysis failed. Please try again."}
           </div>
         </div>
       )}
@@ -404,7 +497,14 @@ function ResultsContent() {
             <div>
               <div className="b" style={{ fontSize: 14, marginBottom: 4 }}>Analyzing your page…</div>
               <div className="tiny muted">Crawling content, checking technical SEO, fetching authority signals</div>
-              <div className="tiny muted" style={{ marginTop: 6, opacity: 0.7 }}>This usually takes 10–40 seconds</div>
+              <div className="tiny muted" style={{ marginTop: 6, opacity: 0.7 }}>
+                {slow
+                  ? "This is taking longer than usual — some pages are slow to load. It keeps running if you leave this page."
+                  : "This usually takes 10–40 seconds"}
+              </div>
+              {reconnecting && (
+                <div className="tiny muted" style={{ marginTop: 6 }}>Connection lost — reconnecting…</div>
+              )}
             </div>
           </div>
         </div>
@@ -413,7 +513,7 @@ function ResultsContent() {
       {/* Back-to-project affordance — only when launched from a project keyword.
           The keyword's score is computed & stored automatically on the server, so
           this is just navigation, not a save step. */}
-      {fromProject && status === "COMPLETED" && (
+      {fromProject && status === "COMPLETED" && !unreadable && (
         <div
           className="card tight"
           style={{
@@ -439,7 +539,7 @@ function ResultsContent() {
       )}
 
       {/* Results */}
-      {!error && status === "COMPLETED" && analysis?.crawlData && (
+      {!error && status === "COMPLETED" && analysis?.crawlData && !unreadable && (
         <>
           <ScoreCard crawlData={analysis.crawlData} keyword={analysis.keyword} url={analysis.url} />
           <KeywordAnalysisReport crawlData={analysis.crawlData} keyword={analysis.keyword} />
