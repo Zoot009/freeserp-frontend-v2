@@ -572,7 +572,10 @@ function LinkGraphViz({
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-2.5">
                               <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: NODE_COLORS[cls] }} />
-                              <div className="min-w-0">
+                              {/* A table cell grows to fit its text, so truncate needs a
+                                  max width: without one a long title pushed IN / OUT /
+                                  DEPTH off to the right (~1000px on a phone). */}
+                              <div className="min-w-0 max-w-[160px] sm:max-w-md">
                                 <div className="font-medium text-foreground/90 truncate">{n.title || n.label || n.id}</div>
                                 <div className="font-mono text-[11px] text-muted-foreground truncate">{n.url}</div>
                               </div>
