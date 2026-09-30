@@ -10,8 +10,9 @@
 // message namespace across en/de/es/fr.
 
 import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useCredits } from "@/lib/credits"
+import { useCreditQuote, useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
+import { Check, Coins, TextSearch, Waypoints, type LucideIcon } from "lucide-react"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
@@ -66,10 +67,15 @@ type MagicResponse = {
 
 // Module scope, so no hook can run here: the tabs carry their message KEY and
 // the component resolves the label at render.
-const MATCH_TABS: { key: MatchType; labelKey: string }[] = [
-  { key: "broad", labelKey: "kmBroadMatch" },
-  { key: "related", labelKey: "kmRelated" },
+const MATCH_TABS: { key: MatchType; labelKey: string; tipKey: string; Glyph: LucideIcon }[] = [
+  { key: "broad", labelKey: "kmBroadMatch", tipKey: "kmTipBroad", Glyph: TextSearch },
+  { key: "related", labelKey: "kmRelated", tipKey: "kmTipRelated", Glyph: Waypoints },
 ]
+
+/** A search as the backend caches it (keywordMagic.cache.ts): match type, market, seed. */
+function answerKey(match: MatchType, country: string, seed: string): string {
+  return `${match}:${country}:${seed.trim().normalize("NFC").toLowerCase()}`
+}
 
 // intent → the rank tracker's badge (its AI Overview column's .aio pill): the
 // word itself beside a coloured dot. Single letters — I, N, C, T — had to be
@@ -231,6 +237,10 @@ export default function KeywordMagicPage() {
   // The seed is the one submitted, not the box, which can change meanwhile.
   const [pending, setPending] = useState<{ seed: string; match: MatchType; country: string; startedAt: number } | null>(null)
   const loading = pending != null
+  // Answers this page has already had. The backend keeps each cached for 90
+  // days and a cached answer costs nothing, so the match toggle marks these as
+  // free to go back to, and prices the tab that would run a new search.
+  const [loaded, setLoaded] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState<string | null>(null)
   const [paywalled, setPaywalled] = useState(false)
 
@@ -255,6 +265,9 @@ export default function KeywordMagicPage() {
     void api.get<Usage>("/api/keyword-magic/usage").then(setUsage).catch(() => {})
   }, [])
   const outOfSearches = usage != null && usage.remaining <= 0
+  // The price of one search, for the match toggle. The same quote as the
+  // CreditCost label under the form, so the two never disagree.
+  const quote = useCreditQuote(CREDIT_ACTION_KEYS.keywordMagicSearch, 1, usage?.plan)
 
   // The search in flight, if any. Only the newest may touch the page. Switching
   // tab mid-search used to start a second charged search, and whichever answer
@@ -282,6 +295,7 @@ export default function KeywordMagicPage() {
           { signal: ctrl.signal },
         )
         if (inflight.current?.ctrl !== ctrl) return
+        setLoaded((s) => new Set(s).add(answerKey(match, country, q)))
         setResult(res)
         setUsage(res.usage)
         setMatchType(match)
@@ -488,7 +502,18 @@ export default function KeywordMagicPage() {
                 // Related is paid-only. For free users show it locked (a clear upsell)
                 // rather than a normal tab that only errors after a wasted click.
                 const locked = tab.key === "related" && usage != null && !usage.relatedAvailable
-                return (
+                // With results on screen, the other tab runs a search when clicked.
+                // An answer this page has already had is cached, so going back to
+                // it is free: a check says so. Any other shows its price, so a
+                // click never spends credits by surprise.
+                const switches = result != null && matchType !== tab.key && !locked
+                const free = switches && loaded.has(answerKey(tab.key, country, seed))
+                const price = switches && !free && usage != null && quote.applies && quote.cost ? quote.cost : null
+                const tip = [
+                  t(tab.tipKey),
+                  free ? t("kmTabFree") : price != null ? t("kmTabCredits", { credits: price }) : switches ? t("kmTabSearch") : null,
+                ].filter(Boolean).join(" ")
+                const button = (
                   <button
                     key={tab.key}
                     type="button"
@@ -505,7 +530,12 @@ export default function KeywordMagicPage() {
                     }}
                     style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
                   >
-                    {locked && <Icon.lock />}{t(tab.labelKey)}
+                    {locked ? <Icon.lock /> : <tab.Glyph size={14} aria-hidden />}
+                    {t(tab.labelKey)}
+                    {free && <Check size={13} strokeWidth={2.5} className="km-tab-free" aria-hidden />}
+                    {price != null && (
+                      <span className="km-tab-cost" aria-hidden><Coins size={11} />{price}</span>
+                    )}
                     {locked && (
                       // Hover reveal: a small "Pro — Upgrade" popover. The whole tab is
                       // the click target (fires the upsell), so these are spans, not a
@@ -517,6 +547,9 @@ export default function KeywordMagicPage() {
                     )}
                   </button>
                 )
+                // The locked tab has its own hover popover; the rest say what
+                // they find and what a click on them costs.
+                return locked ? button : <Hint key={tab.key} text={tip}>{button}</Hint>
               })}
             </div>
           </Field>
@@ -984,7 +1017,29 @@ export default function KeywordMagicPage() {
         .km-settings { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; align-items: flex-end; }
         .km-settings > :global(.col:first-child) { flex: 0 1 240px; }
         .km-settings :global(.dd-trigger) { height: 38px; }
-        .km-match button { padding: 7px 14px; }
+        /* The dropdown's border on the toggle's track too: in dark mode the
+           bare inset track all but vanished into the card. */
+        .km-settings .km-match { border: 1px solid var(--border); }
+        .km-match button { padding: 6px 13px; gap: 6px; }
+        /* :global — the check is lucide's <svg>, which the scoped class
+           never reaches. */
+        .km-match :global(.km-tab-free) { color: var(--pos); }
+        /* 16px tall with its border, inside the text's line, so a priced tab
+           stands no taller than the others or the dropdown beside them. */
+        .km-tab-cost {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          padding: 0 6px;
+          line-height: 14px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--bg);
+          color: var(--text-mute);
+          font-size: 11px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+        }
         .km-go { margin-left: auto; min-width: 180px; height: 38px; justify-content: center; }
 
         /* The last answer, while a newer search runs. */
