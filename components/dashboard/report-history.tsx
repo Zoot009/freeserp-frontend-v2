@@ -30,10 +30,13 @@ const fmtDate = (iso: string) =>
 
 const ellipsis = { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as const
 
+// Only the latest few: the list is a way back to recent runs, not an archive.
+const RECENT_LIMIT = 5
+
 /**
- * A tool's past reports, newest first, from a list endpoint that returns
- * { analyses, nextCursor } — so a run stays reachable after you leave its
- * results page. Used by the competitor-analysis and internal-link tool pages.
+ * A tool's latest reports, newest first, from a list endpoint that returns
+ * { analyses } — so a run stays reachable after you leave its results page.
+ * Used by the competitor-analysis and internal-link tool pages.
  */
 export function ReportHistory<T>({
   path,
@@ -47,39 +50,16 @@ export function ReportHistory<T>({
   const [rows, setRows] = useState<ReportRow[]>([])
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
-
-  const fetchPage = (cursor?: string) =>
-    api.get<{ analyses?: T[]; nextCursor?: string }>(path, cursor ? { query: { cursor } } : undefined)
 
   useEffect(() => {
     let cancelled = false
-    fetchPage()
-      .then((d) => {
-        if (cancelled) return
-        setRows((d.analyses ?? []).map(toRow))
-        setNextCursor(d.nextCursor ?? null)
-      })
+    api.get<{ analyses?: T[] }>(path, { query: { limit: RECENT_LIMIT } })
+      .then((d) => { if (!cancelled) setRows((d.analyses ?? []).slice(0, RECENT_LIMIT).map(toRow)) })
       .catch(() => { if (!cancelled) setFailed(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path])
-
-  const loadMore = async () => {
-    if (!nextCursor || loadingMore) return
-    setLoadingMore(true)
-    try {
-      const d = await fetchPage(nextCursor)
-      setRows((prev) => [...prev, ...(d.analyses ?? []).map(toRow)])
-      setNextCursor(d.nextCursor ?? null)
-    } catch {
-      /* leave the button up to try again */
-    } finally {
-      setLoadingMore(false)
-    }
-  }
 
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 18 }}>
@@ -121,14 +101,6 @@ export function ReportHistory<T>({
             </li>
           ))}
         </ul>
-      )}
-
-      {!loading && nextCursor && (
-        <div style={{ padding: 12, display: "flex", justifyContent: "center" }}>
-          <button type="button" className="btn sm" onClick={loadMore} disabled={loadingMore}>
-            {loadingMore ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Loading…</> : "Load more"}
-          </button>
-        </div>
       )}
     </div>
   )
