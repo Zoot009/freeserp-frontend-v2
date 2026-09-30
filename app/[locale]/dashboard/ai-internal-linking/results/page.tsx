@@ -173,7 +173,10 @@ function AiInternalLinkingResultsContent() {
         </div>
       )}
 
-      {domainRow && <InternalLinkGraph data={[domainRow]} />}
+      {/* Only a finished run has a graph. Rendered for any status, the graph's
+          own empty state ("may still be running or was not enabled") sat under
+          the red failure card and the running banner, contradicting both. */}
+      {domainRow && analysis?.status === "COMPLETED" && <InternalLinkGraph data={[domainRow]} />}
     </div>
   )
 }
