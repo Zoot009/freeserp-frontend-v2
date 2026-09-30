@@ -65,6 +65,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The message in an error body — { error: { code, message } }, or a legacy
+ * plain string. Reading `body.error` alone rendered as "[object Object]".
+ */
+export function apiErrorMessage(body: unknown, fallback: string): string {
+  const err = (body as { error?: unknown } | null | undefined)?.error
+  const msg = typeof err === "string" ? err : (err as { message?: unknown } | null | undefined)?.message
+  return typeof msg === "string" && msg ? msg : fallback
+}
+
 interface RequestInitWithJson extends Omit<RequestInit, "body"> {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>

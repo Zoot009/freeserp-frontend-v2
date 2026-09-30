@@ -8,6 +8,7 @@ import { ArrowLeft, ExternalLink, AlertCircle, ScanSearch } from "lucide-react"
 import axios from "@/lib/axios"
 import { SinglePageReport } from "@/components/single-page-report"
 import type { CrawlData as ReportCrawlData } from "@/types/competitor-analysis"
+import { apiErrorMessage } from "@/lib/api"
 
 interface CrawlData {
   urlInfo: {
@@ -182,8 +183,7 @@ function SeoAuditContent() {
       })
 
       if (response.status < 200 || response.status >= 300) {
-        const data = response.data ?? {}
-        throw new Error(data.error || "Failed to run SEO audit")
+        throw new Error(apiErrorMessage(response.data, "Failed to run SEO audit"))
       }
 
       const result = response.data

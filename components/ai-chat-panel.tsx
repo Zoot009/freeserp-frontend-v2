@@ -13,6 +13,7 @@ import type {
 } from "@/types/competitor-analysis"
 import { renderChatMarkdown } from "@/lib/chat-md"
 import axios from "@/lib/axios"
+import { apiErrorMessage } from "@/lib/api"
 
 /**
  * AI Chat — floating launcher + expanding panel.
@@ -212,7 +213,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
         if (createRes.status < 200 || createRes.status >= 300) {
           setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id))
           setInput(userMessage)
-          throw new Error(createData.error || "Failed to start chat session")
+          throw new Error(apiErrorMessage(createData, "Failed to start chat session"))
         }
         sessionId = createData.session.id
         setCurrentSessionId(sessionId)
@@ -228,7 +229,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
       if (res.status === 429) {
         setTokensUsed(data.tokensUsed ?? tokensCap)
         setTokensCap(data.tokensCap ?? tokensCap)
-        setError(data.error || "Chat budget exhausted for this analysis")
+        setError(apiErrorMessage(data, "Chat budget exhausted for this analysis"))
         setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id))
         setInput(userMessage)
         return
@@ -236,7 +237,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
       if (res.status < 200 || res.status >= 300) {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id))
         setInput(userMessage)
-        throw new Error(data.error || "Failed to send message")
+        throw new Error(apiErrorMessage(data, "Failed to send message"))
       }
 
       const ok = data as ChatMessagePostResponse

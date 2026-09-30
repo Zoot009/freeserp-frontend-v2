@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
-import { api } from "@/lib/api"
+import { api, apiErrorMessage } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { InternalLinkGraph } from "@/components/internal-link-graph"
@@ -389,8 +389,7 @@ function CompetitorAnalysisResultsContent() {
         withCredentials: true,
       })
       if (response.status < 200 || response.status >= 300) {
-        const data = response.data ?? {}
-        throw new Error(data.error || "Failed to generate AI plan")
+        throw new Error(apiErrorMessage(response.data, "Failed to generate AI plan"))
       }
       const data = response.data
       setAiPlan(data)
