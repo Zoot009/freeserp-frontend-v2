@@ -79,8 +79,8 @@ function CompetitorAnalysisContent() {
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
-  // Standalone tool — no project/keyword context, so every field is typed by
-  // hand instead of being sourced from a project's rank-checked SERP results.
+  // Standalone tool — no project/keyword context, so competitors come from a
+  // live SERP lookup (the default) or are typed by hand.
   const [keyword, setKeyword] = useState(searchParams.get("keyword") || "")
   const [domain, setDomain] = useState("")
   const [competitors, setCompetitors] = useState<string[]>([])
@@ -94,14 +94,14 @@ function CompetitorAnalysisContent() {
   // render, so a fast second click could slip a second POST through first.
   const submittingRef = useRef(false)
   const [error, setError] = useState("")
-  // Set once the server reports the daily analysis quota is spent (402).
-  // Keeps the button off for the rest of the session — no retry can succeed
-  // until the UTC day rolls over.
+  // Set on a 402 from either the analysis or the SERP lookup (out of daily
+  // checks, or out of credits). Keeps the button off for the rest of the
+  // session; a credit top-up or the UTC day rolling over lifts it.
   const [quotaBlocked, setQuotaBlocked] = useState(false)
 
   // Optional "find competitors from search results" picker — an alternative to
   // typing domains by hand. Runs a live SERP lookup (same one behind the Quick
-  // Serp tool), which spends a daily-quota unit, so it's confirmed first.
+  // Serp tool), which spends a daily-quota unit.
   const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
   const [serpLookupId, setSerpLookupId] = useState<string | null>(null)
   const [serpResults, setSerpResults] = useState<SerpResultRow[]>([])

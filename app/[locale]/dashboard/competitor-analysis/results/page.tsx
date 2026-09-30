@@ -584,7 +584,7 @@ function CompetitorAnalysisResultsContent() {
           the user sees only the failure banner. */}
       {analysis && analysis.status !== "FAILED" && (analysis.stages?.main?.ready || analysis.status === "COMPLETED") && (
         <>
-          {/* Partial-analysis notice — free users get one full analysis/day. */}
+          {/* Partial-analysis notice — legacy: only analyses from before every run became full can be partial. */}
           {analysis.access?.partial && (
             <div
               className="card tight"
