@@ -11,6 +11,7 @@ import { Favicon } from "@/components/favicon"
 import { fetchBillingConfig } from "@/lib/billing-config"
 import axios from "@/lib/axios"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { ReportHistory } from "@/components/dashboard/report-history"
 
 const MAX_COMPETITORS = 10
 
@@ -605,8 +606,35 @@ function CompetitorAnalysisContent() {
           {error}
         </div>
       )}
+
+      <ReportHistory<CaListItem>
+        path="/api/competitor-analysis"
+        emptyText="No competitor analyses yet. Run your first one above."
+        toRow={(a) => ({
+          id: a.id,
+          title: a.keyword,
+          subtitle: a.yourDomain ?? undefined,
+          domain: a.yourDomain ?? "",
+          status: a.status,
+          createdAt: a.createdAt,
+          // An analysis started from a project keyword opens in that project.
+          href: a.projectId
+            ? `/dashboard/project/${a.projectId}/competitor-analysis/results?analysisId=${a.id}`
+            : `/dashboard/competitor-analysis/results?analysisId=${a.id}`,
+        })}
+      />
     </div>
   )
+}
+
+// GET /api/competitor-analysis list shape (list fields only).
+type CaListItem = {
+  id: string
+  keyword: string
+  yourDomain: string | null
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
+  projectId: string | null
+  createdAt: string
 }
 
 export default function CompetitorAnalysisPage() {

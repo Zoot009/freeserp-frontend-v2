@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import axios from "@/lib/axios"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { ReportHistory } from "@/components/dashboard/report-history"
 
 // Turns a 429's rate-limit headers into a human wait time. A copy of the helper
 // on the two competitor-analysis start pages — change all three together.
@@ -179,6 +180,27 @@ export default function AiInternalLinkingPage() {
           {error}
         </div>
       )}
+
+      <ReportHistory<IlaListItem>
+        path="/api/internal-link-analysis"
+        emptyText="No internal-link analyses yet. Run your first one above."
+        toRow={(a) => ({
+          id: a.id,
+          title: a.domain,
+          domain: a.domain,
+          status: a.status,
+          createdAt: a.createdAt,
+          href: `/dashboard/ai-internal-linking/results?analysisId=${a.id}`,
+        })}
+      />
     </div>
   )
+}
+
+// GET /api/internal-link-analysis list shape (no graph).
+type IlaListItem = {
+  id: string
+  domain: string
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
+  createdAt: string
 }
