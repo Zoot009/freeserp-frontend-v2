@@ -1956,39 +1956,42 @@ export function CategoryMiniRing({ label, grade, score, size = 68, delay = 0, pe
   const circumference = 2 * Math.PI * radius
   const offset = circumference - ((filled ? ringFillPercent(score) : 0) / 100) * circumference
   const arc = circumference * 0.25
+  const notGraded = !pending && grade === "N/A"
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: size, height: size }}>
-        {pending ? (
-          <svg width={size} height={size} className="animate-spin" style={{ animationDuration: "1.4s" }}>
-            <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
-            <circle
-              cx={size / 2} cy={size / 2} r={radius}
-              strokeWidth={5} fill="none" strokeLinecap="round"
-              strokeDasharray={`${arc} ${circumference - arc}`}
-              className="stroke-accent"
-            />
-          </svg>
-        ) : (
-          <svg width={size} height={size} className="-rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
-            <circle
-              cx={size / 2} cy={size / 2} r={radius}
-              strokeWidth={5} fill="none" strokeLinecap="round"
-              strokeDasharray={circumference} strokeDashoffset={offset}
-              className={`transition-all duration-700 ease-out ${gradeStroke(grade)}`}
-            />
-          </svg>
-        )}
-        <div className="absolute inset-0 flex items-center justify-center">
+      <Hint text={notGraded ? "Not graded: too few of this category's checks could be measured on this report." : null}>
+        <div className="relative" style={{ width: size, height: size }} tabIndex={notGraded ? 0 : undefined}>
           {pending ? (
-            <span className="font-mono text-xs text-muted-foreground">…</span>
+            <svg width={size} height={size} className="animate-spin" style={{ animationDuration: "1.4s" }}>
+              <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                strokeWidth={5} fill="none" strokeLinecap="round"
+                strokeDasharray={`${arc} ${circumference - arc}`}
+                className="stroke-accent"
+              />
+            </svg>
           ) : (
-            <span className={`text-sm font-bold font-mono ${gradeColor(grade)}`}>{grade}</span>
+            <svg width={size} height={size} className="-rotate-90">
+              <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                strokeWidth={5} fill="none" strokeLinecap="round"
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                className={`transition-all duration-700 ease-out ${gradeStroke(grade)}`}
+              />
+            </svg>
           )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            {pending ? (
+              <span className="font-mono text-xs text-muted-foreground">…</span>
+            ) : (
+              <span className={`text-sm font-bold font-mono ${gradeColor(grade)}`}>{grade}</span>
+            )}
+          </div>
         </div>
-      </div>
+      </Hint>
       <span className={`max-w-[72px] text-center text-[10px] leading-tight ${pending ? "text-muted-foreground" : gradeColor(grade)}`}>{label}</span>
     </div>
   )
@@ -4286,6 +4289,7 @@ export function AuditReportResults({
       grade: catScore?.grade ?? catDetail?.grade,
     }
   })
+  const radarScores = categoryScores.filter((c) => c.grade && c.grade !== "N/A")
 
   const hostname = (() => { try { return new URL(report.url).hostname } catch { return report.url } })()
 
@@ -4463,7 +4467,9 @@ export function AuditReportResults({
                   )
                 })}
               </div>
-              {categoryScores.length >= 3 && <RadarChart categories={categoryScores} />}
+              {/* Graded categories only: one with no grade, drawn at the centre,
+                  reads as a zero the site never scored. */}
+              {radarScores.length >= 3 && <RadarChart categories={radarScores} />}
             </div>
           </div>
 
