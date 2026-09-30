@@ -3604,6 +3604,14 @@
   .fs-app .cmp-tabs { flex-wrap: wrap; }
   .fs-app .cmp-tabs .tab { padding: 9px 10px; white-space: nowrap; }
   .fs-app .cmp-tabs .tab svg { display: none; }
+
+  /* AI plan tasks: the priority badge had a column of its own and the panel
+     22-24px of padding, leaving the task text ~110px wide at 320px (a word
+     per line). The badge moves above the text and the padding eases. */
+  .fs-app .ap-detail { padding: 16px; }
+  .fs-app .ap-task { grid-template-columns: 22px 1fr; gap: 6px 10px; padding: 12px; }
+  .fs-app .ap-task .nm { grid-row: 1 / span 2; }
+  .fs-app .ap-task .imp { grid-column: 2; grid-row: 1; justify-self: start; }
 }
 
 /* === ON-PAGE AUDIT — entrance motion + hover depth ===
