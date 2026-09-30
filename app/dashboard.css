@@ -3596,6 +3596,14 @@
     width: auto; max-height: 70dvh;
   }
   .fs-app .chatbtn { right: 16px; bottom: 16px; }
+
+  /* Competitor results tabs: "Internal links" and "AI plan" broke onto two
+     lines at 320-375px. Drop the icons (the labels say it), tighten the
+     padding, keep each label whole; a tab that still doesn't fit (the brief
+     "(soon)" state) moves to a second row instead of off the page. */
+  .fs-app .cmp-tabs { flex-wrap: wrap; }
+  .fs-app .cmp-tabs .tab { padding: 9px 10px; white-space: nowrap; }
+  .fs-app .cmp-tabs .tab svg { display: none; }
 }
 
 /* === ON-PAGE AUDIT — entrance motion + hover depth ===

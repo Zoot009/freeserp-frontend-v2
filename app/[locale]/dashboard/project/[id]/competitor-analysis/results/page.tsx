@@ -821,7 +821,7 @@ function CompetitorAnalysisResultsContent() {
               </Link>
             </div>
           )}
-          <div className="tabs">
+          <div className="tabs cmp-tabs">
             <button
               className={"tab " + (activeResultTab === "comparison" ? "active" : "")}
               onClick={() => setActiveResultTab("comparison")}
