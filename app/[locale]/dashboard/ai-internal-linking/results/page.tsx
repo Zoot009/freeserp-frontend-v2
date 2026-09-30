@@ -6,7 +6,10 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { InternalLinkGraph, type LinkGraphDomain } from "@/components/internal-link-graph"
-import axios from "@/lib/axios"
+import { api, ApiError } from "@/lib/api"
+
+// Consecutive failed polls (5xx / network) tolerated before giving up.
+const MAX_POLL_FAILURES = 5
 
 type AnalysisStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
 
@@ -28,7 +31,12 @@ function AiInternalLinkingResultsContent() {
   const [analysis, setAnalysis] = useState<InternalLinkAnalysisData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const hasLoadedRef = useRef(false)
+  // One poll chain at a time (as on the competitor results pages): leaving the
+  // page or switching analysis bumps the generation, so an in-flight poll drops
+  // its result instead of rescheduling.
+  const pollGenRef = useRef(0)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const failuresRef = useRef(0)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -43,38 +51,48 @@ function AiInternalLinkingResultsContent() {
     }
 
     if (!authLoading && user && analysisId) {
-      fetchAnalysis()
+      fetchAnalysis(++pollGenRef.current)
     }
+    return () => {
+      pollGenRef.current++
+      clearTimeout(pollTimerRef.current)
+    }
+    // user?.id, not user: AuthProvider swaps in a fresh user object after
+    // /api/auth/me, which re-ran this effect and started a second poll loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, analysisId])
+  }, [user?.id, authLoading, analysisId])
 
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = async (gen: number) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      const response = await axios.get(`${apiUrl}/api/internal-link-analysis/${analysisId}`, {
-        withCredentials: true,
-      })
-      if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch analysis results")
-
+      // lib/api, not raw axios: it refreshes an expired session instead of
+      // 401-ing every poll, and throws the server's own message.
+      const data = await api.get<{ analysis?: InternalLinkAnalysisData }>(`/api/internal-link-analysis/${analysisId}`)
+      if (gen !== pollGenRef.current) return
+      failuresRef.current = 0
       setError("")
-      hasLoadedRef.current = true
 
-      const data = response.data
-      const analysisData: InternalLinkAnalysisData = data.analysis ?? data
+      const analysisData = (data.analysis ?? data) as InternalLinkAnalysisData
       setAnalysis(analysisData)
 
       if (analysisData.status === "PENDING" || analysisData.status === "PROCESSING") {
-        setTimeout(fetchAnalysis, 3000)
+        pollTimerRef.current = setTimeout(() => fetchAnalysis(gen), 3000)
       } else {
         setLoading(false)
       }
     } catch (err) {
-      if (!hasLoadedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to load results")
+      if (gen !== pollGenRef.current) return
+      // A 4xx (not found, no access) won't change by asking again, so it ends
+      // the loop with the server's message. A 5xx or network blip might, so
+      // those retry a few times first; before, a blip after the first load
+      // retried silently forever and one on the first load stopped for good.
+      const status = err instanceof ApiError ? err.status : 0
+      failuresRef.current += 1
+      if ((status >= 400 && status < 500) || failuresRef.current > MAX_POLL_FAILURES) {
+        setError(err instanceof Error && err.message ? err.message : "Failed to load results")
         setLoading(false)
         return
       }
-      setTimeout(fetchAnalysis, 4000)
+      pollTimerRef.current = setTimeout(() => fetchAnalysis(gen), 4000)
     }
   }
 
