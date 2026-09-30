@@ -57,6 +57,10 @@ function CompetitorAnalysisResultsContent() {
   // Fire the "analysis ready" alert exactly once; request notification permission once.
   const alertedRef = useRef(false)
   const notifReqRef = useRef(false)
+  // One poll chain at a time: leaving the page or switching analysis bumps the
+  // generation, so an in-flight poll drops its result instead of rescheduling.
+  const pollGenRef = useRef(0)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -107,18 +111,25 @@ function CompetitorAnalysisResultsContent() {
     }
 
     if (!authLoading && user && analysisId) {
-      fetchAnalysisResults()
+      fetchAnalysisResults(++pollGenRef.current)
     }
+    return () => {
+      pollGenRef.current++
+      clearTimeout(pollTimerRef.current)
+    }
+    // user?.id, not user: AuthProvider swaps in a fresh user object after
+    // /api/auth/me, which re-ran this effect and started a second poll loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, analysisId])
+  }, [user?.id, authLoading, analysisId])
 
-  const fetchAnalysisResults = async () => {
+  const fetchAnalysisResults = async (gen: number) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
       const response = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
         withCredentials: true,
       })
+      if (gen !== pollGenRef.current) return
 
       if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch analysis results")
 
@@ -177,11 +188,12 @@ function CompetitorAnalysisResultsContent() {
       // payload is bigger now that competitors[] streams.
       if (analysisData.status === "PENDING" || analysisData.status === "PROCESSING") {
         const cadenceMs = mainReady ? 4000 : 2000
-        setTimeout(fetchAnalysisResults, cadenceMs)
+        pollTimerRef.current = setTimeout(() => fetchAnalysisResults(gen), cadenceMs)
       } else {
         setLoading(false)
       }
     } catch (err) {
+      if (gen !== pollGenRef.current) return
       setError(err instanceof Error ? err.message : "Failed to load results")
       setLoading(false)
     }

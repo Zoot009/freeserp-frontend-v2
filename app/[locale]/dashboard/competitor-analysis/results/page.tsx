@@ -44,6 +44,10 @@ function CompetitorAnalysisResultsContent() {
   // closure is captured once (at the effect that kicked off polling) and would
   // otherwise always see the initial null.
   const hasLoadedRef = useRef(false)
+  // One poll chain at a time: leaving the page or switching analysis bumps the
+  // generation, so an in-flight poll drops its result instead of rescheduling.
+  const pollGenRef = useRef(0)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -86,18 +90,25 @@ function CompetitorAnalysisResultsContent() {
     }
 
     if (!authLoading && user && analysisId) {
-      fetchAnalysisResults()
+      fetchAnalysisResults(++pollGenRef.current)
     }
+    return () => {
+      pollGenRef.current++
+      clearTimeout(pollTimerRef.current)
+    }
+    // user?.id, not user: AuthProvider swaps in a fresh user object after
+    // /api/auth/me, which re-ran this effect and started a second poll loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, analysisId])
+  }, [user?.id, authLoading, analysisId])
 
-  const fetchAnalysisResults = async () => {
+  const fetchAnalysisResults = async (gen: number) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
       const response = await axios.get(`${apiUrl}/api/competitor-analysis/${analysisId}`, {
         withCredentials: true,
       })
+      if (gen !== pollGenRef.current) return
 
       if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch analysis results")
 
@@ -155,11 +166,12 @@ function CompetitorAnalysisResultsContent() {
       // spinner), 4s after.
       if (analysisData.status === "PENDING" || analysisData.status === "PROCESSING") {
         const cadenceMs = mainReady ? 4000 : 2000
-        setTimeout(fetchAnalysisResults, cadenceMs)
+        pollTimerRef.current = setTimeout(() => fetchAnalysisResults(gen), cadenceMs)
       } else {
         setLoading(false)
       }
     } catch (err) {
+      if (gen !== pollGenRef.current) return
       if (!hasLoadedRef.current) {
         // Never got a single successful poll — a real problem (bad ID, auth,
         // analysis not found), so surface it and stop.
@@ -170,7 +182,7 @@ function CompetitorAnalysisResultsContent() {
       // Already have data on screen — this is a transient blip mid-poll.
       // Keep polling quietly instead of killing the loop and leaving a
       // scary banner over data that's actually fine.
-      setTimeout(fetchAnalysisResults, 4000)
+      pollTimerRef.current = setTimeout(() => fetchAnalysisResults(gen), 4000)
     }
   }
 
