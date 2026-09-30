@@ -180,19 +180,82 @@
 .fs-app .mt-pin--open { box-shadow: 0 0 0 3px var(--brand), 0 2px 6px rgba(11,13,18,.18); }
 .fs-app .mt-pin--dim { opacity: .16; pointer-events: none; }
 
-/* ── AI analysis ────────────────────────────────────────────────────────── */
-.fs-app .mt-ai { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
-.fs-app .mt-ai p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.65; color: var(--text-soft); max-width: 900px; text-wrap: pretty; }
-.fs-app .mt-recs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.fs-app .mt-rec { background: var(--bg-sub); border-radius: var(--r-md); padding: 14px; }
-.fs-app .mt-rec .t { font-size: 13px; font-weight: 600; line-height: 1.4; margin-bottom: 4px; }
-.fs-app .mt-rec .d { font-size: 12px; color: var(--text-soft); line-height: 1.5; }
-.fs-app .mt-prio { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; }
-.fs-app .mt-prio--high { background: var(--neg-soft); color: var(--neg); }
-/* The reference styles only HIGH and LOW. Rendering MEDIUM as neutral would
-   quietly downgrade what the model actually said. */
-.fs-app .mt-prio--medium { background: var(--warn-soft); color: var(--warn); }
-.fs-app .mt-prio--low { background: var(--bg-inset); color: var(--text-soft); }
+/* ── AI analysis ("What this means") ────────────────────────────────────── */
+/* One place for the whole panel. Its rules used to be split between here and
+   position-map.css, and the two disagreed — the priority label came out in
+   the mono font while the effort label beside it didn't. */
+.fs-app .mt-ai { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px 22px 22px; }
+.fs-app .mt-ai p { margin: 0; }
+.fs-app .mt-ai-k { display: block; margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-mute); }
+
+.fs-app .mt-ai-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.fs-app .mt-ai-icon { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); }
+.fs-app .mt-ai-heading { flex: 1 1 220px; min-width: 0; }
+.fs-app .mt-ai-heading h3 { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.35; color: var(--text); }
+.fs-app .mt-ai-heading p { margin-top: 1px; font-size: 12px; line-height: 1.45; color: var(--text-mute); }
+
+/* Confidence as signal bars: one, two or three lit. */
+.fs-app .mt-ai-conf {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  font-size: 12px; font-weight: 600; white-space: nowrap; cursor: default;
+}
+.fs-app .mt-ai-conf--pos { color: var(--pos); border-color: color-mix(in srgb, var(--pos) 30%, var(--border)); }
+.fs-app .mt-ai-conf--warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 30%, var(--border)); }
+.fs-app .mt-ai-conf--mute { color: var(--text-soft); }
+.fs-app .mt-ai-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.fs-app .mt-ai-bars i { width: 3px; border-radius: 1px; background: var(--border-strong); }
+.fs-app .mt-ai-bars i:nth-child(1) { height: 5px; }
+.fs-app .mt-ai-bars i:nth-child(2) { height: 8px; }
+.fs-app .mt-ai-bars i:nth-child(3) { height: 11px; }
+.fs-app .mt-ai-bars i.on { background: currentColor; }
+
+.fs-app .mt-ai-caveat {
+  display: flex; align-items: flex-start; gap: 8px; margin: -4px 0 16px; padding: 9px 12px;
+  border-radius: var(--r-md); background: var(--warn-soft);
+  font-size: 12.5px; line-height: 1.5; color: var(--text-soft);
+}
+.fs-app .mt-ai-caveat svg { flex-shrink: 0; margin-top: 2px; color: var(--warn); }
+
+/* The summary leads; the pattern is its own labelled block, not a second
+   paragraph of the same weight. */
+.fs-app .mt-ai-lead { max-width: 900px; font-size: 14px; line-height: 1.65; color: var(--text); text-wrap: pretty; }
+.fs-app .mt-ai-shape { max-width: 900px; margin-top: 14px; padding: 12px 14px; border-radius: var(--r-md); background: var(--bg-sub); }
+.fs-app .mt-ai-shape p { font-size: 13px; line-height: 1.6; color: var(--text-soft); text-wrap: pretty; }
+
+.fs-app .mt-ai-findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; margin-top: 18px; }
+.fs-app .mt-ai-find ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fs-app .mt-ai-find li { position: relative; padding-left: 15px; font-size: 13px; line-height: 1.55; color: var(--text-soft); }
+.fs-app .mt-ai-find li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; }
+.fs-app .mt-ai-find--pos li::before { background: var(--pos); }
+.fs-app .mt-ai-find--neg li::before { background: var(--neg); }
+.fs-app .mt-ai-find b { font-weight: 600; color: var(--text); }
+
+/* Recommendations: priority on the card's edge and in its first line; effort
+   beside it, quieter; the evidence at the foot, lined up across the row. */
+.fs-app .mt-ai-recs-k { margin-top: 22px; margin-bottom: 10px; }
+.fs-app .mt-recs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fs-app .mt-rec {
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 15px 14px 16px;
+  border: 1px solid var(--border); border-left: 3px solid var(--border-strong); border-radius: var(--r-md);
+  background: var(--bg-elev);
+}
+.fs-app .mt-rec--high { border-left-color: var(--neg); }
+.fs-app .mt-rec--medium { border-left-color: var(--warn); }
+.fs-app .mt-rec-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 11.5px; line-height: 1.4; }
+.fs-app .mt-rec-prio { font-weight: 700; color: var(--text-soft); }
+.fs-app .mt-rec--high .mt-rec-prio { color: var(--neg); }
+.fs-app .mt-rec--medium .mt-rec-prio { color: var(--warn); }
+.fs-app .mt-rec-effort { font-weight: 500; color: var(--text-mute); }
+.fs-app .mt-rec-effort::before { content: "·"; margin-right: 8px; }
+.fs-app .mt-rec .t { font-size: 13.5px; font-weight: 600; line-height: 1.4; color: var(--text); }
+.fs-app .mt-rec .d { font-size: 12.5px; line-height: 1.55; color: var(--text-soft); text-wrap: pretty; }
+.fs-app .mt-rec-ev {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: auto; padding-top: 10px;
+  border-top: 1px solid var(--border); font-size: 12px; line-height: 1.45; color: var(--text-mute);
+}
+.fs-app .mt-rec-ev svg { flex-shrink: 0; margin-top: 1px; }
+.fs-app .mt-rec .d + .mt-rec-ev { margin-top: auto; }
 
 /* ── Progress ───────────────────────────────────────────────────────────── */
 .fs-app .mt-progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 0; }
@@ -371,7 +434,10 @@
 /* ── Narrow ─────────────────────────────────────────────────────────────── */
 @container mt (max-width: 1180px) {
   .fs-app .mt-setup { grid-template-columns: minmax(0, 1fr); }
+}
+@container mt (max-width: 820px) {
   .fs-app .mt-recs { grid-template-columns: minmax(0, 1fr); }
+  .fs-app .mt-ai { padding: 16px; }
 }
 @media (max-width: 640px) {
   .fs-app .mt-drawer { width: 100%; }
