@@ -494,6 +494,7 @@ export function AuditRunner({
           className="mt-2"
           action={mode === "site" ? CREDIT_ACTION_KEYS.siteCrawlPage : CREDIT_ACTION_KEYS.pageAudit}
           units={mode === "site" ? (limits?.maxPages ?? 1) : 1}
+          upTo={mode === "site"}
         />
         {mode === "site" && (
           <p className="mt-1 text-xs text-muted-foreground">

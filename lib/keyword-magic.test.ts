@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { keywordWords, rowStats, viewRows, type RowView } from "./keyword-magic"
+import { keywordWords, rowStats, serpChips, viewRows, type RowView } from "./keyword-magic"
 
 /**
  * The Keyword Magic table. Group filtering split words with /[^a-z0-9]+/, so a
@@ -53,5 +53,17 @@ describe("rowStats", () => {
   it("totals only the rows it is given", () => {
     expect(rowStats(viewRows(rows, view({ group: "café" })))).toEqual({ totalVolume: 1200, avgDifficulty: 25 })
     expect(rowStats([])).toEqual({ totalVolume: 0, avgDifficulty: null })
+  })
+})
+
+describe("serpChips", () => {
+  it("maps DataForSEO types to the tracker's chips, once each, in its order", () => {
+    expect(serpChips(["people_also_ask", "organic", "video", "youtube", "ai_overview", "answer_box"]))
+      .toEqual({ chips: ["AI", "FS", "PAA", "VID"], other: [] })
+  })
+
+  it("keeps chipless features for the +N, and drops ones on every results page", () => {
+    expect(serpChips(["paid", "related_searches", "hotels_pack", "paid", "people_also_search"]))
+      .toEqual({ chips: [], other: ["paid", "hotels_pack"] })
   })
 })

@@ -223,19 +223,23 @@ export function DashboardBreadcrumb({ className }: { className?: string }) {
       ]
     : base
 
+  // One line, always. In the header the trail sits beside a search field and
+  // four icons; on a tablet it had ~120px, wrapped onto four lines and hung
+  // out of the 56px bar over the page title. Below xl only the current page
+  // is named, and anything still too long ends in an ellipsis.
   return (
     <Breadcrumb className={className}>
-      <BreadcrumbList>
+      <BreadcrumbList className="min-w-0 flex-nowrap">
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1
           return (
             <Fragment key={`${c.label}-${i}`}>
-              {i > 0 && <BreadcrumbSeparator />}
-              <BreadcrumbItem>
+              {i > 0 && <BreadcrumbSeparator className="max-xl:hidden" />}
+              <BreadcrumbItem className={isLast ? "min-w-0" : "shrink-0 whitespace-nowrap max-xl:hidden"}>
                 {/* The leaf is the current page: BreadcrumbPage renders it as
                     aria-current rather than a link to where you already are. */}
                 {isLast || (!c.href && !c.onBack) ? (
-                  <BreadcrumbPage className={c.clamp ? "max-w-[240px] truncate" : undefined}>
+                  <BreadcrumbPage className={c.clamp ? "block max-w-[240px] truncate" : "block truncate"}>
                     {c.label}
                   </BreadcrumbPage>
                 ) : c.onBack ? (

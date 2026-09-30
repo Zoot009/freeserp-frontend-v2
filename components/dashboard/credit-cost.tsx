@@ -42,12 +42,15 @@ export function CreditCost({
   className,
   /** Show the balance too. Off in tight spots where the cost alone is enough. */
   showBalance = true,
+  /** The cost is a ceiling, not the charge (a site crawl pays per page found). */
+  upTo = false,
 }: {
   action: string
   units?: number
   variant?: string | null
   className?: string
   showBalance?: boolean
+  upTo?: boolean
 }) {
   const { cost, balance, short, applies } = useCreditQuote(action, units, variant)
   if (!applies || cost == null) return null
@@ -66,7 +69,7 @@ export function CreditCost({
     >
       <Coins className="size-3 shrink-0" />
       <span className="tabular-nums">
-        Uses {formatCredits(cost)} credit{cost === 1 ? "" : "s"}
+        {upTo ? "Up to" : "Uses"} {formatCredits(cost)} credit{cost === 1 ? "" : "s"}
       </span>
       {showBalance && balance != null && (
         <span className="tabular-nums opacity-80">

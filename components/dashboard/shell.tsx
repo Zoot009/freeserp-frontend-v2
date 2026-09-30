@@ -166,8 +166,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card px-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
-            <DashboardBreadcrumb className="hidden sm:flex" />
-            <div className="relative ml-auto w-full max-w-xs lg:max-w-sm">
+            <DashboardBreadcrumb className="hidden min-w-0 sm:flex" />
+            {/* Narrower until lg, so the page name beside it has room. */}
+            <div className="relative ml-auto w-full max-w-[200px] lg:max-w-xs xl:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
             </div>

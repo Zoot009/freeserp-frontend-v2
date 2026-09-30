@@ -50,6 +50,48 @@ const isUnreadable = (a: Analysis) => a.crawlMethod === "minimal"
 const offPageUnavailable = (c: CrawlData) =>
   (c.authority as { status?: string } | null | undefined)?.status === "unavailable"
 
+// The DA/PA provider is configurable, and the crawl records which one produced
+// the numbers. One we can't name ("none", or an old row without it) is left
+// out rather than guessed.
+const AUTHORITY_PROVIDER: Record<string, string> = { moz: "Moz", dataforseo: "DataForSEO" }
+
+// Layout that has to change with width. The two score cards follow their own
+// width (container queries), not the viewport's — the sidebar decides how much
+// room they get. The header action follows .page-h, which stacks at 640px.
+const LAYOUT_CSS = `
+  .ka-rerun { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .ka-rerun-err { max-width: 260px; text-align: right; }
+  @media (max-width: 640px) {
+    .ka-rerun { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 12px; }
+    .ka-rerun-err { max-width: none; flex-basis: 100%; text-align: left; }
+  }
+
+  .ka-hero-card, .ka-auth-card { container-type: inline-size; }
+  .ka-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) 300px; gap: 20px 28px; align-items: center; }
+  .ka-hero-note { align-self: stretch; display: flex; align-items: center; padding-left: 28px; border-left: 1px solid var(--border); }
+  @container (max-width: 720px) {
+    .ka-hero { grid-template-columns: auto minmax(0, 1fr); }
+    .ka-hero-note { grid-column: 1 / -1; padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--border); }
+  }
+  @container (max-width: 440px) {
+    .ka-hero { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .ka-hero-bars, .ka-hero-note { justify-self: stretch; }
+    .ka-hero-bars { text-align: center; }
+  }
+
+  .ka-auth { display: flex; gap: 34px; align-items: center; }
+  .ka-auth-sep { width: 1px; align-self: stretch; background: var(--border); }
+  .ka-ov-stat { display: flex; align-items: center; gap: 11px; }
+  @container (max-width: 560px) {
+    .ka-auth { flex-direction: column; align-items: stretch; gap: 20px; }
+    .ka-auth-rings { justify-content: space-evenly; }
+    .ka-auth-sep { width: auto; height: 1px; }
+  }
+  @container (max-width: 480px) {
+    .ka-ov-stat { flex-direction: column; gap: 8px; text-align: center; }
+  }
+`
+
 // Score band → tone, using the shared pos/brand/neg palette.
 function scoreToneVar(v: number): { color: string; bg: string } {
   if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
@@ -167,19 +209,18 @@ function AuthorityRing({ value, label, caption }: { value: number | null; label:
   )
 }
 
-// Backlink counts are unbounded, so the bar fill is log-scaled against the
-// same reference ceilings the scorer itself uses for off-page credit (see
-// DOMAIN_REF/PAGE_REF in lib/seoScorer.ts) — kept local since this is purely
-// a visual fill %, not a score input.
-const BACKLINK_REF = { domain: 1_000_000, page: 10_000 }
-function backlinkPct(value: number | null, ceiling: number): number {
-  const v = value ?? 0
-  if (v <= 0) return 0
-  return Math.max(3, Math.min(100, (Math.log10(v + 1) / Math.log10(ceiling)) * 100))
+// Both backlink bars share one linear scale — the larger count fills the track
+// — so their lengths compare the way the numbers do: 1,200 domain vs 45 page
+// backlinks is a long bar and a sliver. Each used to be log-scaled against its
+// own ceiling, which drew those two at nearly the same length. A non-zero count
+// keeps a 2% sliver so it can't pass for none.
+function backlinkPct(value: number | null, max: number): number {
+  if (!value || value <= 0 || max <= 0) return 0
+  return Math.max(2, (value / max) * 100)
 }
 
-function BacklinkBar({ label, value, caption, ceiling }: { label: string; value: number | null; caption: string; ceiling: number }) {
-  const pct = backlinkPct(value, ceiling)
+function BacklinkBar({ label, value, caption, max }: { label: string; value: number | null; caption: string; max: number }) {
+  const pct = backlinkPct(value, max)
   return (
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 7 }}>
@@ -213,7 +254,7 @@ function OverviewIconStat({
   sub?: React.ReactNode
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+    <div className="ka-ov-stat">
       <span
         style={{
           width: 36, height: 36, borderRadius: "var(--r-sm)", background: tone.bg, color: tone.color,
@@ -234,6 +275,8 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
   const score = computeSeoScore(crawlData, keyword, url)
   const tone = scoreToneVar(score.total)
   const offPageMissing = offPageUnavailable(crawlData)
+  const provider = AUTHORITY_PROVIDER[crawlData.authority?.source?.toLowerCase() ?? ""]
+  const backlinkMax = Math.max(score.domainBacklinks ?? 0, score.pageBacklinks ?? 0)
 
   const httpStatus = crawlData.httpStatus
   const statusTone: "pos" | "warn" | "neg" = httpStatus >= 200 && httpStatus < 300 ? "pos" : httpStatus >= 400 ? "neg" : "warn"
@@ -244,7 +287,7 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
   return (
     <>
       <div
-        className="card oa-fade-up"
+        className="card oa-fade-up ka-hero-card"
         style={{
           marginBottom: 14,
           background: "var(--bg-elev)",
@@ -252,52 +295,50 @@ function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword:
           boxShadow: `0 6px 24px color-mix(in srgb, ${tone.color} 7%, transparent)`,
         }}
       >
-        <div className="grid g-21" style={{ gap: 28, alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <ScoreRing value={score.total} color={tone.color} />
-            <div style={{ minWidth: 0 }}>
-              <span
-                className="tiny b"
-                style={{
-                  display: "inline-block", marginBottom: 10, padding: "5px 11px", borderRadius: 999,
-                  textTransform: "uppercase", letterSpacing: "0.03em",
-                  background: tone.bg, border: "1px solid var(--border)", color: tone.color,
-                }}
-              >
-                Grade {score.grade} · {score.label}
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 220 }}>
-                <ScoreBar label="On-Page SEO" value={score.onPageScore} />
-                <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
-              </div>
+        <div className="ka-hero">
+          <ScoreRing value={score.total} color={tone.color} />
+          <div className="ka-hero-bars">
+            <span
+              className="tiny b"
+              style={{
+                display: "inline-block", marginBottom: 10, padding: "5px 11px", borderRadius: 999,
+                textTransform: "uppercase", letterSpacing: "0.03em",
+                background: tone.bg, border: "1px solid var(--border)", color: tone.color,
+              }}
+            >
+              Grade {score.grade} · {score.label}
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <ScoreBar label="On-Page SEO" value={score.onPageScore} />
+              <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
             </div>
           </div>
           {/* Without off-page data the scorer falls back to on-page only — a
               different scale (on-page 70 + off-page 35 is 46 normally, 70 here) —
               so say so rather than let the number pass for a full score. */}
           {offPageMissing ? (
-            <div className="tiny" style={{ lineHeight: 1.5, maxWidth: 260, color: "var(--warn)" }}>
+            <div className="tiny ka-hero-note" style={{ lineHeight: 1.5, color: "var(--warn)" }}>
               Off-page couldn&apos;t be measured — our authority data provider didn&apos;t respond, so this score covers on-page SEO only and isn&apos;t comparable with a full score. It won&apos;t update your tracked keywords. Run it again later for the full score.
             </div>
           ) : (
-            <div className="tiny muted" style={{ lineHeight: 1.5, maxWidth: 260 }}>
+            <div className="tiny muted ka-hero-note" style={{ lineHeight: 1.5 }}>
               Overall score blends 12 on-page factors with off-page authority (Domain/Page Authority &amp; backlinks). Expand the sections below for the full breakdown.
             </div>
           )}
         </div>
       </div>
 
-      <div className="card oa-fade-up d1" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 34, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 24 }}>
-            <AuthorityRing value={score.da} label="Domain Authority" caption="Moz · site-wide" />
-            <AuthorityRing value={score.pa} label="Page Authority" caption="Moz · this URL" />
+      <div className="card oa-fade-up d1 ka-auth-card" style={{ marginBottom: 16 }}>
+        <div className="ka-auth">
+          <div className="ka-auth-rings" style={{ display: "flex", gap: 24 }}>
+            <AuthorityRing value={score.da} label="Domain Authority" caption={provider ? `${provider} · site-wide` : "Site-wide"} />
+            <AuthorityRing value={score.pa} label="Page Authority" caption={provider ? `${provider} · this URL` : "This URL"} />
           </div>
-          <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
+          <div className="ka-auth-sep" />
           <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 16 }}>
             <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Backlinks</div>
-            <BacklinkBar label="Domain Backlinks" value={score.domainBacklinks} caption="Site-wide" ceiling={BACKLINK_REF.domain} />
-            <BacklinkBar label="Page Backlinks" value={score.pageBacklinks} caption="This URL" ceiling={BACKLINK_REF.page} />
+            <BacklinkBar label="Domain Backlinks" value={score.domainBacklinks} caption="Site-wide" max={backlinkMax} />
+            <BacklinkBar label="Page Backlinks" value={score.pageBacklinks} caption="This URL" max={backlinkMax} />
           </div>
         </div>
 
@@ -440,6 +481,7 @@ function Results({ id }: { id: string }) {
 
   return (
     <div className="page">
+      <style>{LAYOUT_CSS}</style>
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <button
@@ -450,11 +492,13 @@ function Results({ id }: { id: string }) {
             <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
             {fromProject ? "Back to project" : "Back"}
           </button>
-          <h1>Page report</h1>
+          <h1>Keyword score report</h1>
           {analysis && (
             <div className="sub" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span>
-                <a className="url" href={analysis.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)" }}>
+                {/* A long URL has no spaces to wrap at — let it break anywhere
+                    rather than run off a phone screen. */}
+                <a className="url" href={analysis.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", overflowWrap: "anywhere" }}>
                   {analysis.url.replace(/^https?:\/\//, "")}
                 </a>
               </span>
@@ -463,13 +507,13 @@ function Results({ id }: { id: string }) {
           )}
         </div>
         {!error && !inProgress && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+          <div className="ka-rerun">
             <button className="btn sm" onClick={rerun} disabled={rerunning}>
               <span className={rerunning ? "spin" : undefined} style={{ display: "inline-flex" }}><Icon.refresh /></span>
               {rerunning ? "Starting…" : "Run again"}
             </button>
             <CreditCost action={CREDIT_ACTION_KEYS.keywordScore} showBalance={false} />
-            {rerunError && <span className="tiny" style={{ color: "var(--neg)", maxWidth: 260, textAlign: "right" }}>{rerunError}</span>}
+            {rerunError && <span className="tiny ka-rerun-err" style={{ color: "var(--neg)" }}>{rerunError}</span>}
           </div>
         )}
       </div>

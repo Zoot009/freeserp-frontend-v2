@@ -320,10 +320,12 @@ export function SiteIssues({
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted"
                 >
                   <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
-                  <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold", sev.cls)}>{sev.label}</span>
+                  {/* One width for every severity, so each title starts in the same place. */}
+                  <span className={cn("w-16 shrink-0 rounded-full py-0.5 text-center text-[11px] font-semibold", sev.cls)}>{sev.label}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold">{g.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{g.description}</span>
+                    {/* Two lines on a phone rather than "Poor Mobile Performan…". */}
+                    <span className="block text-[13px] font-semibold max-sm:line-clamp-2 sm:truncate">{g.title}</span>
+                    <span className="block text-xs text-muted-foreground max-sm:line-clamp-2 sm:truncate">{g.description}</span>
                   </span>
                   {/* The number that makes this view worth having: one problem, N pages. */}
                   <span className="shrink-0 text-right">

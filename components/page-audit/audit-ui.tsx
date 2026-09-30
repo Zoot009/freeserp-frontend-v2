@@ -22,6 +22,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Hint } from "@/components/dashboard/widget"
 import { AskAiPanel } from "@/components/page-audit/ask-ai-panel"
 import {
   CheckCircle2,
@@ -363,11 +364,27 @@ function ringFillPercent(score: number): number {
 }
 
 export function gradeColor(grade: string): string {
+  // Not graded (nothing measured) is not a bad grade.
+  if (!/^[A-F]/.test(grade)) return "text-muted-foreground"
   if (grade.startsWith("A")) return "text-green-600 dark:text-green-400"
   if (grade.startsWith("B")) return "text-lime-500"
   if (grade.startsWith("C")) return "text-yellow-500"
   if (grade.startsWith("D")) return "text-orange-500"
   return "text-red-500"
+}
+
+/**
+ * A ring's arc in its grade's colour. The arcs were coloured by score on their
+ * own cut-offs (70 = green) while the letter used the grade's, so a 71 drew a
+ * green ring round an amber "C".
+ */
+export function gradeStroke(grade: string): string {
+  if (!/^[A-F]/.test(grade)) return "stroke-border"
+  if (grade.startsWith("A")) return "stroke-green-600 dark:stroke-green-400"
+  if (grade.startsWith("B")) return "stroke-lime-500"
+  if (grade.startsWith("C")) return "stroke-yellow-500"
+  if (grade.startsWith("D")) return "stroke-orange-500"
+  return "stroke-red-500"
 }
 
 export function gradeBgColor(grade: string): string {
@@ -404,12 +421,27 @@ export function gradeTagline(grade: string): string {
 }
 
 export function categoryTagline(categoryLabel: string, grade: string): string {
-  const suffix = grade.startsWith("A") ? "is excellent!"
-    : grade.startsWith("B") ? "is good"
-    : grade.startsWith("C") ? "could be better"
-    : grade.startsWith("D") ? "needs work"
-    : "needs significant improvement"
-  return `Your ${categoryLabel} ${suffix}`
+  // "Label: verdict" — "Your {label} is …" read "Your Technical is good" and
+  // "Your Links is excellent!".
+  const verdict = grade.startsWith("A") ? "Excellent"
+    : grade.startsWith("B") ? "Good"
+    : grade.startsWith("C") ? "Could be better"
+    : grade.startsWith("D") ? "Needs work"
+    : grade.startsWith("F") ? "Needs significant improvement"
+    : "Not measured"
+  return `${categoryLabel}: ${verdict}`
+}
+
+/**
+ * Scroll to a check, opening the folded "passed checks" group first if that's
+ * where it is. Quick links and the Recommendations rows both land here.
+ */
+export function scrollToCheck(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const folded = el.closest("details")
+  if (folded) folded.open = true
+  el.scrollIntoView({ behavior: "smooth", block: "start" })
 }
 
 export function transformReport(data: Record<string, unknown>): AuditReport {
@@ -482,7 +514,7 @@ export function ScoreRing({ score, grade, tier, size = 120 }: { score: number; g
           cx={size / 2} cy={size / 2} r={radius}
           strokeWidth={8} fill="none" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset}
-          className={`transition-all duration-1000 ${scoreBg(score)}`}
+          className={`transition-all duration-1000 ${grade ? gradeStroke(grade) : scoreBg(score)}`}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -522,7 +554,7 @@ export function GaugeDial({ grade, score, size = 120, pending = false }: { grade
         <svg width={size} height={size}>
           <g transform={`rotate(135, ${cx}, ${cy})`}>
             <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} strokeLinecap="round" className="stroke-border/40" strokeDasharray={`${trackArc} ${circ - trackArc}`} />
-            <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} strokeLinecap="round" className={`transition-all duration-1000 ease-out ${scoreBg(score)}`} strokeDasharray={`${fillArc} ${circ - fillArc}`} />
+            <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={sw} strokeLinecap="round" className={`transition-all duration-1000 ease-out ${gradeStroke(grade)}`} strokeDasharray={`${fillArc} ${circ - fillArc}`} />
           </g>
         </svg>
       )}
@@ -557,7 +589,7 @@ export function OverallGradeRing({ grade, score, size = 200 }: { grade: string; 
           cx={size / 2} cy={size / 2} r={radius}
           strokeWidth={14} fill="none" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={offset}
-          className={`transition-all duration-1000 ease-out ${scoreBg(score)}`}
+          className={`transition-all duration-1000 ease-out ${gradeStroke(grade)}`}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
@@ -1924,39 +1956,42 @@ export function CategoryMiniRing({ label, grade, score, size = 68, delay = 0, pe
   const circumference = 2 * Math.PI * radius
   const offset = circumference - ((filled ? ringFillPercent(score) : 0) / 100) * circumference
   const arc = circumference * 0.25
+  const notGraded = !pending && grade === "N/A"
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="relative" style={{ width: size, height: size }}>
-        {pending ? (
-          <svg width={size} height={size} className="animate-spin" style={{ animationDuration: "1.4s" }}>
-            <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
-            <circle
-              cx={size / 2} cy={size / 2} r={radius}
-              strokeWidth={5} fill="none" strokeLinecap="round"
-              strokeDasharray={`${arc} ${circumference - arc}`}
-              className="stroke-accent"
-            />
-          </svg>
-        ) : (
-          <svg width={size} height={size} className="-rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
-            <circle
-              cx={size / 2} cy={size / 2} r={radius}
-              strokeWidth={5} fill="none" strokeLinecap="round"
-              strokeDasharray={circumference} strokeDashoffset={offset}
-              className={`transition-all duration-700 ease-out ${scoreBg(score)}`}
-            />
-          </svg>
-        )}
-        <div className="absolute inset-0 flex items-center justify-center">
+      <Hint text={notGraded ? "Not graded: too few of this category's checks could be measured on this report." : null}>
+        <div className="relative" style={{ width: size, height: size }} tabIndex={notGraded ? 0 : undefined}>
           {pending ? (
-            <span className="font-mono text-xs text-muted-foreground">…</span>
+            <svg width={size} height={size} className="animate-spin" style={{ animationDuration: "1.4s" }}>
+              <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                strokeWidth={5} fill="none" strokeLinecap="round"
+                strokeDasharray={`${arc} ${circumference - arc}`}
+                className="stroke-accent"
+              />
+            </svg>
           ) : (
-            <span className={`text-sm font-bold font-mono ${gradeColor(grade)}`}>{grade}</span>
+            <svg width={size} height={size} className="-rotate-90">
+              <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border/40" strokeWidth={5} fill="none" />
+              <circle
+                cx={size / 2} cy={size / 2} r={radius}
+                strokeWidth={5} fill="none" strokeLinecap="round"
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                className={`transition-all duration-700 ease-out ${gradeStroke(grade)}`}
+              />
+            </svg>
           )}
+          <div className="absolute inset-0 flex items-center justify-center">
+            {pending ? (
+              <span className="font-mono text-xs text-muted-foreground">…</span>
+            ) : (
+              <span className={`text-sm font-bold font-mono ${gradeColor(grade)}`}>{grade}</span>
+            )}
+          </div>
         </div>
-      </div>
+      </Hint>
       <span className={`max-w-[72px] text-center text-[10px] leading-tight ${pending ? "text-muted-foreground" : gradeColor(grade)}`}>{label}</span>
     </div>
   )
@@ -2345,6 +2380,8 @@ export function CategoryResultSection({
 }) {
   const t = useTranslations("pageAudit")
   if (!checks.length && !pageSpeedPending && !footer) return null
+  const openChecks = checks.filter((c) => c.passed !== true)
+  const passedChecks = checks.filter((c) => c.passed === true)
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
@@ -2382,7 +2419,29 @@ export function CategoryResultSection({
         )}
       </div>
       <div className="px-6">
-        {checks.map((check) => {
+        {openChecks.map(renderCheck)}
+        {/* Passed checks folded into one row. Each one used to take a full
+            block — status, value, "why it matters" — so the report ran to
+            8,500px on a laptop and twice that on a phone, and the few things
+            to fix were buried among the things that were fine. They're still
+            in the page (native <details>), so Quick links can open the group
+            and land on any of them. */}
+        {passedChecks.length > 0 && (
+          <details className="group border-t border-border/40 first:border-t-0">
+            <summary className="flex cursor-pointer list-none items-center gap-2 py-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+              {passedChecks.length === 1 ? "1 passed check" : `${passedChecks.length} passed checks`}
+              <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-border/40">{passedChecks.map(renderCheck)}</div>
+          </details>
+        )}
+      </div>
+      {footer && <div className="border-t border-border/40 px-6 py-6">{footer}</div>}
+    </div>
+  )
+
+  function renderCheck(check: SEOAuditCheck) {
           // The SERP_SNIPPET rule emits a check whose payload (data.preview)
           // is meant to be rendered as a real Google-style snippet card, not a
           // generic AuditCheckRow. Render it specially.
@@ -2687,11 +2746,7 @@ export function CategoryResultSection({
               {after}
             </div>
           )
-        })}
-      </div>
-      {footer && <div className="border-t border-border/40 px-6 py-6">{footer}</div>}
-    </div>
-  )
+  }
 }
 
 // ─── Paywall (anonymous gate over deeper sections) ───────────────────────────
@@ -3119,18 +3174,18 @@ function InternalLinkGraph({
         {/* Actions */}
         {activeTab === "graph" && (
           <div className="flex items-center gap-1 ml-auto">
-            <button onClick={fitGraph} title={t("fitToView")} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <Hint text={t("fitToView")}><button onClick={fitGraph} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3"/>
               </svg>
               Fit
-            </button>
-            <button onClick={reshuffle} title={t("reRunLayout")} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            </button></Hint>
+            <Hint text={t("reRunLayout")}><button onClick={reshuffle} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-border/40 bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>
               </svg>
               {t("reshuffle")}
-            </button>
+            </button></Hint>
             {selectedId && (
               <button onClick={() => setSelectedId(null)} className="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-xs border border-accent/30 bg-accent/10 hover:bg-accent/20 text-accent transition-colors">
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3688,7 +3743,8 @@ export function BacklinksView({
 
         {data.firstSeen && (
           <p className="mt-4 text-[11px] text-muted-foreground">
-            Profile first seen {new Date(data.firstSeen).toLocaleDateString()}.
+            Profile first seen{" "}
+            {new Date(data.firstSeen).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}.
           </p>
         )}
       </div>
@@ -3713,6 +3769,8 @@ const PRIORITY_META: Record<1 | 2 | 3, { labelKey: string; chip: string }> = {
 }
 
 export type Recommendation = {
+  /** The check this recommendation comes from, when there is one — the row opens it. */
+  checkId?: string
   /** Stable key used to curate which recommendations a shared report shows. */
   key: string
   title: string
@@ -3736,6 +3794,7 @@ export function buildRecommendations(report: AuditReport): Recommendation[] {
     )
     return {
       key: `iss:${i.id}`,
+      checkId: match?.id,
       title: i.title,
       how: match?.recommendation || match?.how || i.description || match?.shortAnswer || "",
       priority: sevToPriority(i.severity),
@@ -3751,6 +3810,7 @@ export function buildRecommendations(report: AuditReport): Recommendation[] {
           .filter((c) => c.passed === false && !c.informational)
           .map((c) => ({
             key: `chk:${c.category}:${c.name}`,
+            checkId: c.id,
             title: c.name,
             how: c.recommendation || c.how || c.shortAnswer || "",
             priority: c.priority,
@@ -3818,7 +3878,23 @@ function RecommendationsSection({ report }: { report: AuditReport }) {
               const pm = PRIORITY_META[it.priority]
               const cat = CATEGORY_META[it.category]
               return (
-                <tr key={i} className="border-b border-border/40 last:border-0">
+                <tr
+                  key={i}
+                  // The row names a problem; the check below says what to do
+                  // about it. It used to be a dead end.
+                  {...(it.checkId && {
+                    role: "button",
+                    tabIndex: 0,
+                    onClick: () => scrollToCheck(`check-${it.checkId}`),
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        scrollToCheck(`check-${it.checkId}`)
+                      }
+                    },
+                  })}
+                  className={`border-b border-border/40 last:border-0${it.checkId ? " cursor-pointer transition-colors hover:bg-muted/40" : ""}`}
+                >
                   <td className="w-full px-6 py-3.5 align-middle font-semibold text-foreground">
                     {it.title}
                   </td>
@@ -3856,7 +3932,10 @@ function checksForCategory(report: AuditReport, key: string): SEOAuditCheck[] {
       const i = order.indexOf(id)
       return i === -1 ? Number.MAX_SAFE_INTEGER : i
     }
-    return [...filtered].sort((a, b) => rank(a.id) - rank(b.id))
+    // Failures first (the work), then what couldn't be judged, then passes —
+    // each kept in the category's reading order.
+    const status = (c: SEOAuditCheck) => (c.passed === false ? 0 : c.passed === true ? 2 : 1)
+    return [...filtered].sort((a, b) => status(a) - status(b) || rank(a.id) - rank(b.id))
   }
   return [
     ...(report.issues ?? [])
@@ -3931,8 +4010,7 @@ function QuickLinks({ items }: { items: NavItem[] }) {
   }, [idsKey])
 
   if (items.length < 2) return null
-  const jump = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+  const jump = scrollToCheck
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -4211,6 +4289,7 @@ export function AuditReportResults({
       grade: catScore?.grade ?? catDetail?.grade,
     }
   })
+  const radarScores = categoryScores.filter((c) => c.grade && c.grade !== "N/A")
 
   const hostname = (() => { try { return new URL(report.url).hostname } catch { return report.url } })()
 
@@ -4243,7 +4322,11 @@ export function AuditReportResults({
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
 
           {/* Top bar: breadcrumb + action */}
-          <div className="mb-8 flex items-center justify-between gap-4">
+          {/* One row from sm up. On a phone the four buttons needed ~450px
+              beside the site name and ran over it and off the screen, so they
+              drop under it, two to a row. (Flex, not the grid utility: inside
+              .fs-app, dashboard.css styles .grid itself and beats sm:flex.) */}
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/50 text-xs font-bold font-mono text-foreground/60">
                 {hostname.replace(/^www\./, "").charAt(0).toUpperCase()}
@@ -4271,7 +4354,7 @@ export function AuditReportResults({
                 )}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap gap-2 max-sm:*:grow max-sm:*:basis-[calc(50%-0.25rem)] sm:shrink-0 sm:flex-nowrap sm:items-center">
               {!shared && (
                 <Button
                   variant="outline"
@@ -4307,22 +4390,23 @@ export function AuditReportResults({
                   beside it is not, and a bare price on one of two adjacent
                   actions reads as a warning about that action specifically. */}
               {onRunFresh && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={onRunFresh}
-                  title="Ignore the saved report and crawl this site again now"
-                >
-                  <Zap className="h-3 w-3" />
-                  Run fresh
-                </Button>
+                <Hint text="Ignore the saved report and crawl this site again now">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={onRunFresh}
+                  >
+                    <Zap className="h-3 w-3" />
+                    Run fresh
+                  </Button>
+                </Hint>
               )}
             </div>
           </div>
           {/* Pulled up under the buttons it belongs to (the bar above has mb-8). */}
           {pdfError && (
-            <p role="alert" className="-mt-6 mb-6 text-right text-xs text-destructive">
+            <p role="alert" className="-mt-6 mb-6 text-xs text-destructive sm:text-right">
               {pdfError}
             </p>
           )}
@@ -4383,7 +4467,9 @@ export function AuditReportResults({
                   )
                 })}
               </div>
-              {categoryScores.length >= 3 && <RadarChart categories={categoryScores} />}
+              {/* Graded categories only: one with no grade, drawn at the centre,
+                  reads as a zero the site never scored. */}
+              {radarScores.length >= 3 && <RadarChart categories={radarScores} />}
             </div>
           </div>
 

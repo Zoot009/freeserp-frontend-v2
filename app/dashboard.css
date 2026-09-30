@@ -841,6 +841,11 @@
   transition: filter .12s ease;
 }
 .fs-app .kw-locked:hover { filter: brightness(0.94); }
+/* On a phone the position column starts past the middle of the screen, and the
+   one line ran off the card's edge. Two short lines fit beside the keyword. */
+@media (max-width: 640px) {
+  .fs-app .kw-locked { white-space: normal; max-width: 104px; padding: 4px 8px; line-height: 1.25; border-radius: 10px; }
+}
 
 /* A keyword past today's check allowance, with no result yet.
  *

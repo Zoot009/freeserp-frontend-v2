@@ -180,30 +180,6 @@
 }
 
 /* ── AI panel, in the report ────────────────────────────────────────────── */
-/* The report's type sizes, and each recommendation as a bordered card. The
-   recommendations keep the panel's own three-up grid (maps-tracker.css; one
-   column on a narrow page): only the old 440px side sheet needed them
-   stacked, and on the full-width report that left two thirds of it empty. */
+/* The panel's own styles are in maps-tracker.css; the report only spaces it. */
 .fs-app .mt-aisheet { margin-top: 14px; }
 .fs-app .mt-spinner.sm { width: 12px; height: 12px; border-width: 2px; }
-.fs-app .mt-aisheet .mt-ai { font-size: 13px; line-height: 1.6; }
-.fs-app .mt-aisheet .mt-ai p { margin: 0 0 12px; color: var(--text-soft); }
-.fs-app .mt-aisheet .mt-ai > .row { flex-wrap: wrap; gap: 8px; }
-.fs-app .mt-aisheet .mt-recs { margin-top: 4px; }
-.fs-app .mt-aisheet .mt-rec {
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  padding: 12px; background: var(--bg-elev);
-}
-.fs-app .mt-aisheet .mt-rec .t { font-size: 13px; font-weight: 600; line-height: 1.35; }
-.fs-app .mt-aisheet .mt-rec .d { font-size: 12px; color: var(--text-soft); line-height: 1.55; margin-top: 4px; }
-
-.fs-app .mt-rec-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.fs-app .mt-prio,
-.fs-app .mt-effort {
-  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .03em; white-space: nowrap;
-}
-.fs-app .mt-prio--high   { background: var(--neg-soft); color: var(--neg); }
-.fs-app .mt-prio--medium { background: var(--warn-soft); color: var(--warn); }
-.fs-app .mt-prio--low    { background: var(--bg-inset); color: var(--text-soft); }
-.fs-app .mt-effort { background: var(--bg-inset); color: var(--text-mute); font-weight: 500; }
