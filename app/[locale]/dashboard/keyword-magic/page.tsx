@@ -17,13 +17,13 @@ import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
-import { StatTile } from "@/components/dashboard/primitives"
+import { FeatChip, StatTile } from "@/components/dashboard/primitives"
 import { Hint } from "@/components/dashboard/widget"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
-import { rowStats, viewRows, type SortKey, type SortState } from "@/lib/keyword-magic"
+import { rowStats, serpChips, viewRows, type SortKey, type SortState } from "@/lib/keyword-magic"
 
 type MatchType = "broad" | "related"
 
@@ -71,35 +71,22 @@ const MATCH_TABS: { key: MatchType; labelKey: string }[] = [
   { key: "related", labelKey: "kmRelated" },
 ]
 
-// intent → compact badge, mirroring how Semrush shows a single letter per row.
-// nameKey labels the intent filter.
-const INTENT: Record<string, { label: string; nameKey: string; bg: string; fg: string }> = {
-  informational: { label: "I", nameKey: "kmIntentInformational", bg: "var(--brand-soft)", fg: "var(--brand)" },
-  navigational: { label: "N", nameKey: "kmIntentNavigational", bg: "var(--bg-sub)", fg: "var(--text-soft)" },
-  commercial: { label: "C", nameKey: "kmIntentCommercial", bg: "var(--warn-soft)", fg: "var(--warn)" },
-  transactional: { label: "T", nameKey: "kmIntentTransactional", bg: "var(--pos-soft)", fg: "var(--pos)" },
+// intent → the rank tracker's badge (its AI Overview column's .aio pill): the
+// word itself beside a coloured dot. Single letters — I, N, C, T — had to be
+// decoded from a tooltip before they meant anything. nameKey also labels the
+// intent filter; tipKey says what the intent asks you to build.
+const INTENT: Record<string, { nameKey: string; tipKey: string; dot: string }> = {
+  informational: { nameKey: "kmIntentInformational", tipKey: "kmIntentTipInformational", dot: "var(--brand)" },
+  navigational: { nameKey: "kmIntentNavigational", tipKey: "kmIntentTipNavigational", dot: "var(--text-mute)" },
+  commercial: { nameKey: "kmIntentCommercial", tipKey: "kmIntentTipCommercial", dot: "var(--warn)" },
+  transactional: { nameKey: "kmIntentTransactional", tipKey: "kmIntentTipTransactional", dot: "var(--pos)" },
 }
 
-// SERP feature type → short tag; unmapped types fall back to a trimmed label.
-const SERP_ABBR: Record<string, string> = {
-  featured_snippet: "Snippet",
-  people_also_ask: "PAA",
-  related_searches: "Related",
-  video: "Video",
-  youtube: "Video",
-  images: "Images",
-  image: "Images",
-  knowledge_graph: "Knowledge",
-  local_pack: "Local",
-  map: "Map",
-  top_stories: "News",
-  ai_overview: "AI",
-  shopping: "Shopping",
+// Names for the features without a chip, listed in the "+N" chip's tooltip.
+// The rest read fine from their type: hotels_pack → "Hotels pack".
+const SERP_NAME: Record<string, string> = {
   paid: "Ads",
-  people_also_search: "PAS",
   faq: "FAQ",
-  reviews: "Reviews",
-  twitter: "Twitter",
 }
 
 function fmtNum(v: number | null): string {
@@ -113,12 +100,14 @@ function fmtCpc(v: number | null): string {
   return v == null ? "—" : "$" + v.toFixed(2)
 }
 
-function kdColor(kd: number): string {
-  return kd <= 33 ? "var(--pos)" : kd <= 66 ? "var(--warn)" : "var(--neg)"
+/** Difficulty band: the badge's colour, and the word in its tooltip. */
+function kdLevel(kd: number): { cls: string; key: string } {
+  return kd <= 33 ? { cls: "easy", key: "kmKdEasy" } : kd <= 66 ? { cls: "medium", key: "kmKdMedium" } : { cls: "hard", key: "kmKdHard" }
 }
 
-function serpTag(t: string): string {
-  return SERP_ABBR[t] ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+function serpName(t: string): string {
+  const words = t.replace(/_/g, " ")
+  return SERP_NAME[t] ?? words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /** A number-filter input's value, or null when it's empty or not a number. */
@@ -136,8 +125,10 @@ function numOrNull(s: string): number | null {
  * role on it rather than on the <th>, which has to stay a column header for
  * aria-sort to mean anything.
  */
-function SortTh({ label, col, sort, onSort, width }: {
+function SortTh({ label, tip, col, sort, onSort, width }: {
   label: string
+  /** What the column measures, on the label — as the tracker's headers do. */
+  tip: string
   col: SortKey
   sort: SortState
   onSort: (k: SortKey) => void
@@ -160,7 +151,7 @@ function SortTh({ label, col, sort, onSort, width }: {
         }}
         style={{ display: "inline-flex", alignItems: "center", gap: 6, verticalAlign: "middle" }}
       >
-        {label}
+        <Hint text={tip}><span>{label}</span></Hint>
         {active && <span aria-hidden style={{ color: "var(--brand)" }}>{sort!.dir === "asc" ? "↑" : "↓"}</span>}
       </span>
     </th>
@@ -169,9 +160,10 @@ function SortTh({ label, col, sort, onSort, width }: {
 
 /**
  * Hint, mounted when the pointer first reaches the element; until then the
- * child renders as it is. A row carries up to six (intent plus SERP tags) and
- * a paid search returns 1,000 rows. 6,000 Radix tooltips took seconds to
- * render, and every tick of a checkbox re-rendered them all.
+ * child renders as it is. A row carries several (intent, KD, SERP chips) and
+ * a paid search returns 1,000 rows. Thousands of Radix tooltips took seconds
+ * to render, and every tick of a checkbox re-rendered them all. FeatChip's
+ * `lazy` does the same for the SERP chips.
  *
  * It opens on the pointer's next move, like any Hint. Forcing it open on
  * arrival would strand it open whenever the pointer had left by the time it
@@ -187,6 +179,7 @@ export default function KeywordMagicPage() {
   const { credits: creditSummary } = useCredits()
   const creditsMode = creditSummary?.mode
   const t = useTranslations("tools")
+  const tf = useTranslations("dashPrimitives")
   const [seed, setSeed] = useState("")
   const [country, setCountry] = useState("us")
   const [matchType, setMatchType] = useState<MatchType>("broad")
@@ -520,11 +513,36 @@ export default function KeywordMagicPage() {
         </div>
       )}
 
-      {/* Loading skeleton */}
+      {/* Loading: the shape of the answer, drawn in placeholders, rather than
+          one line of text in an empty card. */}
       {loading && !result && (
-        <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
-          <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span>
-          Crawling the keyword database for “{seed.trim()}”…
+        <div aria-busy="true">
+          <div className="grid g-4 km-stats" style={{ marginBottom: 16 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="card" style={{ padding: 16 }}>
+                <div className="skeleton" style={{ height: 12, width: 90 }} />
+                <div className="skeleton" style={{ height: 26, width: 72, marginTop: 12 }} />
+                <div className="skeleton" style={{ height: 10, width: 130, marginTop: 10 }} />
+              </div>
+            ))}
+          </div>
+          <div className="card" style={{ padding: 0 }}>
+            <div className="row" style={{ gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
+              <span className="spin" style={{ display: "inline-flex", color: "var(--brand)" }}><Icon.refresh /></span>
+              <span style={{ fontSize: 13, color: "var(--text-soft)" }}>{t("kmCrawling")}</span>
+            </div>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="km-skel-row" style={{ borderBottom: i < 7 ? "1px solid var(--border)" : 0 }}>
+                <span className="skeleton" style={{ width: 14, height: 14, borderRadius: 4 }} />
+                <span className="skeleton" style={{ height: 12, width: `${34 + ((i * 17) % 30)}%` }} />
+                <span className="skeleton" style={{ height: 20, width: 96, borderRadius: 999, marginLeft: "auto" }} />
+                <span className="skeleton" style={{ height: 12, width: 44 }} />
+                <span className="skeleton" style={{ height: 26, width: 30, borderRadius: 8 }} />
+                <span className="skeleton km-hide-sm" style={{ height: 12, width: 44 }} />
+                <span className="skeleton km-hide-sm" style={{ height: 24, width: 84, borderRadius: 6 }} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -644,10 +662,13 @@ export default function KeywordMagicPage() {
               </div>
 
               <div className="tbl-scroll">
-                <table className="tbl">
+                {/* The tracker's trick for phones: a floor on the table's width,
+                    so the keyword keeps ~220px and the table scrolls sideways,
+                    rather than the fixed columns squeezing it to "coffee n…". */}
+                <table className="tbl flush km-table" style={{ minWidth: 860 }}>
                   <thead>
                     <tr>
-                      <th style={{ width: 32 }}>
+                      <th style={{ width: 40 }}>
                         <input
                           type="checkbox"
                           checked={allVisibleSelected}
@@ -657,21 +678,29 @@ export default function KeywordMagicPage() {
                         />
                       </th>
                       <th>{t("kmKeyword")}</th>
-                      <th style={{ width: 60, textAlign: "center" }}>{t("kmIntent")}</th>
-                      <SortTh label={t("kmVolume")} col="volume" sort={sort} onSort={onSort} width={110} />
-                      <SortTh label="KD %" col="difficulty" sort={sort} onSort={onSort} width={80} />
-                      <SortTh label="CPC" col="cpc" sort={sort} onSort={onSort} width={90} />
-                      <th style={{ width: 220 }}>{t("kmSerpFeatures")}</th>
+                      <th style={{ width: 150 }}>
+                        <Hint text={t("kmTipIntent")}><span>{t("kmIntent")}</span></Hint>
+                      </th>
+                      <SortTh label={t("kmVolume")} tip={t("kmTipVolume")} col="volume" sort={sort} onSort={onSort} width={104} />
+                      <SortTh label="KD" tip={t("kmTipKd")} col="difficulty" sort={sort} onSort={onSort} width={76} />
+                      <SortTh label="CPC" tip={t("kmTipCpc")} col="cpc" sort={sort} onSort={onSort} width={86} />
+                      <th style={{ width: 176 }}>
+                        <Hint text={t("kmTipSerp")}><span>{t("kmSerpFeatures")}</span></Hint>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r) => {
                       const intent = r.intent ? INTENT[r.intent] : null
-                      const feats = r.serpFeatures.slice(0, 4)
-                      const extra = r.serpFeatures.length - feats.length
+                      const kd = r.difficulty != null ? kdLevel(r.difficulty) : null
+                      // Four chips fit the column on one line; the rest go in a
+                      // "+N" that names them, so every row keeps one height.
+                      const { chips, other } = serpChips(r.serpFeatures)
+                      const shown = chips.slice(0, 4)
+                      const more = [...chips.slice(4).map((c) => tf(`feat.${c}`)), ...other.map(serpName)]
                       return (
-                        <tr key={r.keyword}>
-                          <td style={{ width: 32 }}>
+                        <tr key={r.keyword} className={selected.has(r.keyword) ? "km-sel" : undefined}>
+                          <td>
                             <input
                               type="checkbox"
                               checked={selected.has(r.keyword)}
@@ -679,55 +708,57 @@ export default function KeywordMagicPage() {
                               aria-label={r.keyword}
                             />
                           </td>
-                          <td>
+                          {/* The tracker's keyword cell: one line, ellipsis, the
+                              full text on hover. Still opens the live results. */}
+                          <td style={{ maxWidth: 0 }}>
                             <a
+                              className="kw km-kw"
+                              title={r.keyword}
                               href={`https://www.google.com/search?q=${encodeURIComponent(r.keyword)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ color: "var(--brand)", textDecoration: "none" }}
                             >
                               {r.keyword}
                             </a>
                           </td>
-                          <td style={{ textAlign: "center" }}>
+                          <td>
                             {intent ? (
-                              <LazyHint text={t(intent.nameKey)}>
-                                <span
-                                  className="badge"
-                                  style={{ background: intent.bg, color: intent.fg, fontWeight: 600 }}
-                                >
-                                  {intent.label}
+                              <LazyHint text={t(intent.tipKey)}>
+                                <span className="aio km-intent">
+                                  <span className="dot" style={{ background: intent.dot }} />
+                                  {t(intent.nameKey)}
                                 </span>
                               </LazyHint>
                             ) : (
-                              <span style={{ color: "var(--text-mute)" }}>—</span>
+                              <span className="tiny muted">—</span>
                             )}
                           </td>
                           {/* Whole figures, the way the rank tracker prints volume.
                               fmtNum put "301k" above "8,100" in one column. */}
                           <td className="tabular" style={{ textAlign: "right" }}>{r.volume != null ? r.volume.toLocaleString() : "—"}</td>
-                          <td className="tabular" style={{ textAlign: "right" }}>
-                            {r.difficulty != null ? (
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
-                                {r.difficulty}
-                                <span style={{ width: 8, height: 8, borderRadius: "50%", background: kdColor(r.difficulty) }} />
-                              </span>
-                            ) : "—"}
+                          <td style={{ textAlign: "right" }}>
+                            {kd ? (
+                              <LazyHint text={t("kmKdTip", { kd: r.difficulty!, level: t(kd.key) })}>
+                                <span className={`km-kd ${kd.cls}`}>{r.difficulty}</span>
+                              </LazyHint>
+                            ) : (
+                              <span className="tiny muted">—</span>
+                            )}
                           </td>
                           <td className="tabular" style={{ textAlign: "right" }}>{fmtCpc(r.cpc)}</td>
                           <td>
-                            <span style={{ display: "inline-flex", gap: 5, flexWrap: "wrap" }}>
-                              {feats.map((f) => (
-                                <LazyHint key={f} text={f.replace(/_/g, " ")}>
-                                  <span className="tag">{serpTag(f)}</span>
-                                </LazyHint>
-                              ))}
-                              {extra > 0 && (
-                                <LazyHint text={t("kmMoreFeatures")}>
-                                  <span className="tag">+{extra}</span>
-                                </LazyHint>
-                              )}
-                            </span>
+                            {shown.length > 0 || more.length > 0 ? (
+                              <span className="km-feats">
+                                {shown.map((f) => <FeatChip key={f} f={f} lazy />)}
+                                {more.length > 0 && (
+                                  <LazyHint text={more.join(", ")}>
+                                    <span className="chip feat km-more">+{more.length}</span>
+                                  </LazyHint>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="tiny muted">—</span>
+                            )}
                           </td>
                         </tr>
                       )
@@ -838,6 +869,33 @@ export default function KeywordMagicPage() {
           font-size: 11px;
         }
 
+        /* Results table, in the rank tracker's terms. */
+        .km-table :global(.km-kw) { text-decoration: none; }
+        .km-table :global(.km-kw:hover) { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+        .km-table tr.km-sel td { background: var(--brand-soft); }
+        .km-intent { cursor: default; }
+        /* Difficulty: the tracker's position badge, coloured by band. */
+        .km-kd {
+          display: inline-grid;
+          place-items: center;
+          min-width: 32px;
+          height: 26px;
+          padding: 0 7px;
+          border-radius: 8px;
+          font-size: 12.5px;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          cursor: default;
+        }
+        .km-kd.easy { background: var(--pos-soft); color: var(--pos); }
+        .km-kd.medium { background: var(--warn-soft); color: var(--warn); }
+        .km-kd.hard { background: var(--neg-soft); color: var(--neg); }
+        .km-feats { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+        .km-more { font-size: 11px; font-weight: 600; line-height: 16px; padding: 3px 6px; cursor: default; }
+
+        /* Loading placeholders, laid out like a row of the answer. */
+        .km-skel-row { display: flex; align-items: center; gap: 18px; padding: 14px 16px; }
+
         /* Seed row. Sizes here, not inline, so phones can re-flow it. */
         .km-seed {
           position: relative;
@@ -938,6 +996,8 @@ export default function KeywordMagicPage() {
           input.km-bar-min,
           input.km-bar-kd { flex: 1 1 0; min-width: 0; }
           .km-bar :global(.km-bar-intent) { flex: 1 1 100%; }
+          .km-skel-row { gap: 12px; }
+          .km-skel-row :global(.km-hide-sm) { display: none; }
         }
       `}</style>
     </div>

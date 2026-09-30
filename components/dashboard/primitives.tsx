@@ -673,8 +673,9 @@ const FEAT_STYLE: Record<string, { Glyph: (p: { size?: number }) => React.ReactE
   NEWS: { Glyph: NewsGlyph },
 }
 
-export function FeatChip({ f }: { f: string }) {
+export function FeatChip({ f, lazy = false }: { f: string; lazy?: boolean }) {
   const t = useTranslations("dashPrimitives")
+  const [armed, setArmed] = useState(false)
   const style = FEAT_STYLE[f]
 
   // A feature nobody has drawn yet keeps the old behaviour and shows its key.
@@ -683,19 +684,26 @@ export function FeatChip({ f }: { f: string }) {
 
   const { Glyph } = style
   const title = t(`feat.${f}`)
+  const chip = (
+    <span
+      // The one coloured chip — see the comment above FEAT_STYLE. Its fill,
+      // like every other chip's, comes from .chip.feat in dashboard.css.
+      className={f === "AICITED" ? "chip feat cited" : "chip feat"}
+      aria-label={title}
+      onPointerEnter={lazy && !armed ? () => setArmed(true) : undefined}
+    >
+      <Glyph size={14} />
+    </span>
+  )
+
+  // `lazy` mounts the tooltip when the pointer first reaches the chip. A long
+  // table (Keyword Magic returns up to 1,000 rows) would otherwise mount
+  // thousands of tooltips up front, which took seconds to render.
+  if (lazy && !armed) return chip
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          // The one coloured chip — see the comment above FEAT_STYLE. Its fill,
-          // like every other chip's, comes from .chip.feat in dashboard.css.
-          className={f === "AICITED" ? "chip feat cited" : "chip feat"}
-          aria-label={title}
-        >
-          <Glyph size={14} />
-        </span>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{chip}</TooltipTrigger>
       <TooltipContent className="max-w-60 text-xs">{title}</TooltipContent>
     </Tooltip>
   )

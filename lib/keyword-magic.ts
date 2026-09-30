@@ -14,6 +14,45 @@ export function keywordWords(text: string): string[] {
   return text.toLowerCase().normalize("NFC").split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean)
 }
 
+/**
+ * A search's SERP features as the rank tracker's chips (FeatChip codes), in
+ * the tracker's order.
+ *
+ * Organic results and related searches are on nearly every results page, so
+ * they aren't a feature worth a chip. Anything else without a chip of its own
+ * comes back in `other`, for a "+N" that names them.
+ */
+const SERP_CHIP: Record<string, string> = {
+  ai_overview: "AI",
+  featured_snippet: "FS",
+  answer_box: "FS",
+  people_also_ask: "PAA",
+  video: "VID",
+  youtube: "VID",
+  short_videos: "VID",
+  images: "IMG",
+  image: "IMG",
+  local_pack: "LOCAL",
+  map: "LOCAL",
+  knowledge_graph: "KG",
+  shopping: "SHOP",
+  popular_products: "SHOP",
+  top_stories: "NEWS",
+}
+const CHIP_ORDER = ["AI", "FS", "PAA", "VID", "IMG", "LOCAL", "KG", "SHOP", "NEWS"]
+const NOT_A_FEATURE = new Set(["organic", "related_searches", "people_also_search"])
+
+export function serpChips(features: string[]): { chips: string[]; other: string[] } {
+  const chips = new Set<string>()
+  const other: string[] = []
+  for (const f of features) {
+    const code = SERP_CHIP[f]
+    if (code) chips.add(code)
+    else if (!NOT_A_FEATURE.has(f) && !other.includes(f)) other.push(f)
+  }
+  return { chips: CHIP_ORDER.filter((c) => chips.has(c)), other }
+}
+
 export type SortKey = "volume" | "difficulty" | "cpc"
 export type SortState = { key: SortKey; dir: "asc" | "desc" } | null
 
