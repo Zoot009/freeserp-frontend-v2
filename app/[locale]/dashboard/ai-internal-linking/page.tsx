@@ -9,8 +9,8 @@ import { Icon } from "@/components/dashboard/icons"
 import axios from "@/lib/axios"
 import { ToolContext } from "@/components/dashboard/tool-context"
 
-// Turns a 429's rate-limit headers into a human wait time. Same helper used by
-// the competitor-analysis start page.
+// Turns a 429's rate-limit headers into a human wait time. A copy of the helper
+// on the two competitor-analysis start pages — change all three together.
 function retryAfterPhrase(headers: Record<string, unknown>): string | null {
   const combined = String(headers["ratelimit"] ?? "")
   const fromCombined = combined.match(/reset\s*=\s*(\d+)/i)?.[1]

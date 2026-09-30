@@ -4,7 +4,10 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import * as d3 from "d3"
 import { Icon } from "@/components/dashboard/icons"
 
-// ─── Types (mirror the persisted `internalLinkGraph` JSON column) ──────────
+// ─── Types ──────────────────────────────────────────────────────────────────
+// GraphNode / GraphEdge / GraphMetadata / GraphOrphanData mirror the persisted
+// `internalLinkGraph` JSON column; LinkGraphDomain and the rest are this
+// component's view model.
 
 interface LinkNode {
   url: string
