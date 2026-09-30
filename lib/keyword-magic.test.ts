@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { keywordWords, rowStats, serpChips, viewRows, type RowView } from "./keyword-magic"
+import { exportCsvRows, exportFileName, kdBand, keywordWords, rowStats, serpChips, viewRows, type RowView } from "./keyword-magic"
 
 /**
  * The Keyword Magic table. Group filtering split words with /[^a-z0-9]+/, so a
@@ -65,5 +65,26 @@ describe("serpChips", () => {
   it("keeps chipless features for the +N, and drops ones on every results page", () => {
     expect(serpChips(["paid", "related_searches", "hotels_pack", "paid", "people_also_search"]))
       .toEqual({ chips: [], other: ["paid", "hotels_pack"] })
+  })
+})
+
+describe("exports", () => {
+  it("writes the header, then bare numbers a spreadsheet can sum", () => {
+    const r = { keyword: "café crème", intent: "Commercial", intentKey: "commercial", volume: 1900, difficulty: 22, cpc: 0.3, features: ["AI Overview", "Ads"] }
+    expect(exportCsvRows([r, { ...r, intent: null, volume: null, features: [] }], ["K", "I", "V", "KD", "CPC", "S"])).toEqual([
+      ["K", "I", "V", "KD", "CPC", "S"],
+      ["café crème", "Commercial", 1900, 22, 0.3, "AI Overview; Ads"],
+      ["café crème", null, null, 22, 0.3, ""],
+    ])
+  })
+
+  it("names the file after the search, without characters a file system refuses", () => {
+    expect(exportFileName("  Free SERP: v2?  ", "broad", "us")).toBe("keyword-magic-free-serp-v2-broad-us")
+    expect(exportFileName("диван", "related", "ru")).toBe("keyword-magic-диван-related-ru")
+    expect(exportFileName("???", "broad", "us")).toBe("keyword-magic-keywords-broad-us")
+  })
+
+  it("bands difficulty as the badge does", () => {
+    expect([0, 33, 34, 66, 67, 100].map(kdBand)).toEqual(["easy", "easy", "medium", "medium", "hard", "hard"])
   })
 })

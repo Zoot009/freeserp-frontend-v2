@@ -12,7 +12,7 @@
 import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCreditQuote, useCredits } from "@/lib/credits"
 import { useTranslations } from "next-intl"
-import { Check, Coins, TextSearch, Waypoints, type LucideIcon } from "lucide-react"
+import { Check, Coins, FileSpreadsheet, FileText, TextSearch, Waypoints, type LucideIcon } from "lucide-react"
 import { api, ApiError } from "@/lib/api"
 import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
@@ -24,7 +24,14 @@ import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
-import { rowStats, serpChips, viewRows, type SortKey, type SortState } from "@/lib/keyword-magic"
+import { exportCsvRows, exportFileName, kdBand, rowStats, serpChips, viewRows, type ExportRow, type SortKey, type SortState } from "@/lib/keyword-magic"
+import { downloadCSV } from "@/lib/csv"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type MatchType = "broad" | "related"
 
@@ -106,10 +113,16 @@ function fmtCpc(v: number | null): string {
   return v == null ? "—" : "$" + v.toFixed(2)
 }
 
-/** Difficulty band: the badge's colour, and the word in its tooltip. */
-function kdLevel(kd: number): { cls: string; key: string } {
-  return kd <= 33 ? { cls: "easy", key: "kmKdEasy" } : kd <= 66 ? { cls: "medium", key: "kmKdMedium" } : { cls: "hard", key: "kmKdHard" }
-}
+/**
+ * An export menu row: the format over a line saying what it makes. Hovering
+ * paints it muted, not the theme's accent. The accent is brand blue with white
+ * text, which on a light menu made the row vanish (see user-menu.tsx).
+ */
+const MENU_ROW =
+  "items-start text-foreground [&_svg]:mt-0.5 [&_svg]:text-muted-foreground focus:bg-muted focus:text-foreground"
+
+/** A difficulty band's word, for the badge's tooltip. The bands are kdBand's. */
+const KD_WORD = { easy: "kmKdEasy", medium: "kmKdMedium", hard: "kmKdHard" } as const
 
 function serpName(t: string): string {
   const words = t.replace(/_/g, " ")
@@ -257,6 +270,8 @@ export default function KeywordMagicPage() {
   // few, widen it again, and the earlier ticks are still there.
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showAddModal, setShowAddModal] = useState(false)
+  // A PDF on its way: the jsPDF chunk loading, then the pages drawing.
+  const [exporting, setExporting] = useState(false)
 
   // Today's search allowance — fetched on load, then kept fresh from every
   // search response (and from a quota 402's details).
@@ -391,6 +406,73 @@ export default function KeywordMagicPage() {
       }
       return next
     })
+
+  // ── Exports: the rows on screen, with the filters and sort as they stand ──
+  const exportRows = (): ExportRow[] =>
+    rows.map((r) => {
+      const { chips, other } = serpChips(r.serpFeatures)
+      const meta = r.intent ? INTENT[r.intent] : null
+      return {
+        keyword: r.keyword,
+        intent: meta ? t(meta.nameKey) : null,
+        intentKey: meta ? r.intent : null,
+        volume: r.volume,
+        difficulty: r.difficulty,
+        cpc: r.cpc,
+        features: [...chips.map((c) => tf(`feat.${c}`)), ...other.map(serpName)],
+      }
+    })
+  const exportName = () => (result ? exportFileName(result.seed, result.matchType, result.location) : "keyword-magic")
+
+  const exportCsv = () =>
+    downloadCSV(
+      `${exportName()}.csv`,
+      exportCsvRows(exportRows(), [t("kmKeyword"), t("kmIntent"), t("kmVolume"), "KD", "CPC (USD)", t("kmSerpFeatures")]),
+    )
+
+  const exportPdf = async () => {
+    if (!result) return
+    setExporting(true)
+    try {
+      // On demand: jsPDF is a few hundred KB the page needn't carry until
+      // someone exports.
+      const { downloadKeywordMagicPdf } = await import("@/lib/keyword-magic-pdf")
+      const market = ALL_LOCATIONS.find((l) => l.code === result.location)?.name ?? result.location.toUpperCase()
+      const minV = numOrNull(minVolume)
+      const maxK = numOrNull(maxKd)
+      // What narrowed the rows, so a reader knows the list isn't everything.
+      const filters = [
+        activeGroup && `"${activeGroup}"`,
+        filter.trim() && `"${filter.trim()}"`,
+        minV != null && `${t("kmVolume")} >= ${minV.toLocaleString()}`,
+        maxK != null && `KD <= ${maxK}`,
+        intent && INTENT[intent] && t(INTENT[intent].nameKey),
+      ].filter(Boolean).join(" · ")
+      downloadKeywordMagicPdf({
+        fileName: exportName(),
+        rows: exportRows(),
+        title: t("kmPdfTitle"),
+        subtitle: t("kmPdfSubtitle", {
+          seed: result.seed,
+          match: t(result.matchType === "related" ? "kmRelated" : "kmBroadMatch"),
+          market,
+          date: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }),
+        }),
+        filtered: filters ? t("kmPdfFiltered", { filters }) : null,
+        stats: [
+          { label: t("kmPdfKeywords"), value: rows.length.toLocaleString(), note: t("kmPdfOf", { total: result.totalCount.toLocaleString() }) },
+          { label: t("kmPdfVolume"), value: stats.totalVolume.toLocaleString() },
+          { label: t("kmPdfKd"), value: stats.avgDifficulty != null ? String(stats.avgDifficulty) : "-" },
+        ],
+        head: ["#", t("kmKeyword"), t("kmIntent"), t("kmVolume"), "KD", "CPC", t("kmSerpFeatures")],
+        pageLabel: (page, pages) => t("kmPdfPage", { page, pages }),
+      })
+    } catch {
+      setError(t("kmExportFailed"))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="page">
@@ -760,18 +842,53 @@ export default function KeywordMagicPage() {
                     </button>
                   </Hint>
                 )}
-                <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>{rows.length.toLocaleString()} shown</span>
-                <Hint text={selected.size === 0 ? "Tick the keywords you want to track" : null}>
-                  <button
-                    type="button"
-                    className="btn primary km-bar-add"
-                    style={{ fontSize: 12, whiteSpace: "nowrap" }}
-                    disabled={selected.size === 0}
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
-                  </button>
-                </Hint>
+                {/* The count and the two actions wrap as one: on their own,
+                    a longer "Exportieren" split Export from Add across lines. */}
+                <div className="km-bar-actions">
+                  <span className="tiny muted km-bar-count" style={{ whiteSpace: "nowrap" }}>{rows.length.toLocaleString()} shown</span>
+                  {/* The rows on screen, as a spreadsheet or as a report. */}
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="btn km-bar-export"
+                        style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                        disabled={rows.length === 0 || exporting}
+                      >
+                        {exporting ? <span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> : <Icon.download />}
+                        {t("kmExport")}
+                        <Icon.chevD />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" collisionPadding={12} className="w-64 p-1.5">
+                      <DropdownMenuItem className={MENU_ROW} onSelect={exportCsv}>
+                        <FileSpreadsheet />
+                        <span className="flex flex-col">
+                          <span className="text-[13px] font-medium">CSV</span>
+                          <span className="text-xs text-muted-foreground">{t("kmExportCsvHint", { count: rows.length })}</span>
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className={MENU_ROW} onSelect={() => void exportPdf()}>
+                        <FileText />
+                        <span className="flex flex-col">
+                          <span className="text-[13px] font-medium">PDF</span>
+                          <span className="text-xs text-muted-foreground">{t("kmExportPdfHint", { count: rows.length })}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Hint text={selected.size === 0 ? "Tick the keywords you want to track" : null}>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      style={{ fontSize: 12, whiteSpace: "nowrap" }}
+                      disabled={selected.size === 0}
+                      onClick={() => setShowAddModal(true)}
+                    >
+                      {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
+                    </button>
+                  </Hint>
+                </div>
               </div>
 
               <div className="tbl-scroll">
@@ -805,7 +922,7 @@ export default function KeywordMagicPage() {
                   <tbody>
                     {rows.map((r) => {
                       const intent = r.intent ? INTENT[r.intent] : null
-                      const kd = r.difficulty != null ? kdLevel(r.difficulty) : null
+                      const kd = r.difficulty != null ? kdBand(r.difficulty) : null
                       // Four chips fit the column on one line; the rest go in a
                       // "+N" that names them, so every row keeps one height.
                       const { chips, other } = serpChips(r.serpFeatures)
@@ -851,8 +968,8 @@ export default function KeywordMagicPage() {
                           <td className="tabular" style={{ textAlign: "right" }}>{r.volume != null ? r.volume.toLocaleString() : "—"}</td>
                           <td style={{ textAlign: "right" }}>
                             {kd ? (
-                              <LazyHint text={t("kmKdTip", { kd: r.difficulty!, level: t(kd.key) })}>
-                                <span className={`km-kd ${kd.cls}`}>{r.difficulty}</span>
+                              <LazyHint text={t("kmKdTip", { kd: r.difficulty!, level: t(KD_WORD[kd]) })}>
+                                <span className={`km-kd ${kd}`}>{r.difficulty}</span>
                               </LazyHint>
                             ) : (
                               <span className="tiny muted">—</span>
@@ -1079,9 +1196,9 @@ export default function KeywordMagicPage() {
           font-weight: 600;
         }
 
-        /* Filter bar. The search box takes the slack, so on one line the add
-           button's auto margin is zero; it only counts once the bar wraps, and
-           keeps the button at the right edge there. */
+        /* Filter bar. The search box takes the slack, so on one line the
+           actions' auto margin is zero; it only counts once the bar wraps,
+           and keeps the count, Export and Add together at the right edge. */
         .km-bar-q {
           position: relative;
           flex: 1 1 200px;
@@ -1091,7 +1208,7 @@ export default function KeywordMagicPage() {
         input.km-bar-min { width: 120px; }
         input.km-bar-kd { width: 100px; }
         .km-bar :global(.km-bar-intent) { flex: 0 0 150px; }
-        .km-bar-add { margin-left: auto; }
+        .km-bar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 
         /* Narrow screens put the groups above the table. minmax(0, …), not 1fr:
            a bare 1fr can't shrink below the table's 680px min-width, which ran
@@ -1140,6 +1257,9 @@ export default function KeywordMagicPage() {
           input.km-bar-min,
           input.km-bar-kd { flex: 1 1 0; min-width: 0; }
           .km-bar :global(.km-bar-intent) { flex: 1 1 100%; }
+          /* Their own full line: the count at the left, the buttons right. */
+          .km-bar-actions { flex: 1 1 100%; }
+          .km-bar-count { margin-right: auto; }
           .km-skel-row { gap: 12px; }
           .km-skel-row :global(.km-hide-sm) { display: none; }
         }

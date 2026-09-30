@@ -53,6 +53,38 @@ export function serpChips(features: string[]): { chips: string[]; other: string[
   return { chips: CHIP_ORDER.filter((c) => chips.has(c)), other }
 }
 
+/** Keyword difficulty's band: the table's badge colour, and the PDF's. */
+export function kdBand(kd: number): "easy" | "medium" | "hard" {
+  return kd <= 33 ? "easy" : kd <= 66 ? "medium" : "hard"
+}
+
+/** A row as the exports write it: the table's columns, words already in the reader's language. */
+export type ExportRow = {
+  keyword: string
+  /** The intent's word ("Commercial"), and its key for the PDF's coloured dot. */
+  intent: string | null
+  intentKey: string | null
+  volume: number | null
+  difficulty: number | null
+  cpc: number | null
+  /** SERP feature names. */
+  features: string[]
+}
+
+/**
+ * The CSV: a header, then a line per row. Numbers stay bare, with no "$" or
+ * thousands separators, so a spreadsheet can sum and sort them.
+ */
+export function exportCsvRows(rows: ExportRow[], head: string[]): (string | number | null)[][] {
+  return [head, ...rows.map((r) => [r.keyword, r.intent, r.volume, r.difficulty, r.cpc, r.features.join("; ")])]
+}
+
+/** "keyword-magic-free-serp-broad-us": the search, as a file name without its extension. */
+export function exportFileName(seed: string, match: string, country: string): string {
+  const slug = seed.trim().toLowerCase().replace(/[\\/:*?"<>|.]+/g, "").replace(/\s+/g, "-").slice(0, 60)
+  return `keyword-magic-${slug || "keywords"}-${match}-${country}`
+}
+
 export type SortKey = "volume" | "difficulty" | "cpc"
 export type SortState = { key: SortKey; dir: "asc" | "desc" } | null
 
