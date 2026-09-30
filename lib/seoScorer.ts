@@ -353,8 +353,9 @@ export function computeSeoScore(
   if (tbtMissing) denom -= 2
   if (linkDataMissing) denom -= 17
 
-  // On-page normalized to 0–1, then blended 50/50 with off-page (DA/PA +
-  // backlinks). Off-page is a fixed 50% when any off-page signal is present.
+  // On-page normalized to 0–1, then blended 30/70 with off-page (DA/PA +
+  // backlinks; see blendTotal). Off-page is a fixed 70% when any off-page
+  // signal is present.
   const onPageNorm = Math.min(1, rawScore / denom)
   const da = coerceAuthority(crawlData?.authority?.da)
   const pa = coerceAuthority(crawlData?.authority?.pa)
@@ -390,6 +391,44 @@ export function computeSeoScore(
     grade,
     label,
   }
+}
+
+export type OnPageFactorKey =
+  | 'url' | 'title' | 'meta' | 'content' | 'headings' | 'images'
+  | 'schema' | 'structure' | 'lighthouse' | 'cwv' | 'links' | 'anchors'
+
+/**
+ * The on-page factors as the report lists them: points earned, out of the most
+ * each could earn on this page, biggest shortfall first.
+ *
+ * `max` follows computeSeoScore's denominator. Lighthouse without PageSpeed
+ * data, and Links and Anchors without link data, weren't measured, so their
+ * max is null rather than a score of 0 that reads as a failure. Core Web
+ * Vitals is out of 8 without TBT, which only PageSpeed reports.
+ */
+export function onPageFactors(
+  crawlData: CrawlData | null,
+  b: SeoScoreBreakdown,
+): { key: OnPageFactorKey; score: number; max: number | null }[] {
+  const psi = crawlData?.psiData
+  const noLinks = !crawlData?.linkAnalysis
+  const rows: { key: OnPageFactorKey; score: number; max: number | null }[] = [
+    { key: 'url', score: b.url, max: 5 },
+    { key: 'title', score: b.title, max: 10 },
+    { key: 'meta', score: b.meta, max: 8 },
+    { key: 'content', score: b.content, max: 12 },
+    { key: 'headings', score: b.headings, max: 10 },
+    { key: 'images', score: b.images, max: 5 },
+    { key: 'schema', score: b.schema, max: 5 },
+    { key: 'structure', score: b.structure, max: 6 },
+    { key: 'lighthouse', score: b.lighthouse, max: psi?.scores ? 15 : null },
+    { key: 'cwv', score: b.cwv, max: (psi?.vitals?.tbt ?? null) === null ? 8 : 10 },
+    { key: 'links', score: b.links, max: noLinks ? null : 12 },
+    { key: 'anchors', score: b.anchors, max: noLinks ? null : 5 },
+  ]
+  // Stable sort: equal shortfalls keep the scorer's order. Unmeasured go last.
+  const gap = (r: { score: number; max: number | null }) => (r.max == null ? -1 : r.max - r.score)
+  return rows.sort((x, y) => gap(y) - gap(x))
 }
 
 // Dashboard tokens (defined in app/dashboard.css) — keeps the comparison

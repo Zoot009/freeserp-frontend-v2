@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeSeoScore } from './seoScorer'
+import { computeSeoScore, onPageFactors } from './seoScorer'
 import type { CrawlData } from '@/types/competitor-analysis'
 
 // computeSeoScore reads every field with optional chaining, so a partial fixture
@@ -148,5 +148,22 @@ describe('computeSeoScore — keyword matching beyond ASCII', () => {
     expect(s.anchors).toBe(2)  // one main-section link (+1), keyword in anchors (+1)
     expect(s.links).toBe(4)    // one internal link (+1), keyword in anchor text (+3)
     expect(s.url).toBe(3)      // keyword in the decoded path
+  })
+})
+
+describe("onPageFactors — the report's biggest-gaps-first list", () => {
+  it("puts the biggest shortfall first, and what wasn't measured last", () => {
+    const c = crawl()
+    const rows = onPageFactors(c, computeSeoScore(c, KEYWORD, URL))
+    const gaps = rows.filter((r) => r.max != null).map((r) => r.max! - r.score)
+    expect(gaps).toEqual([...gaps].sort((a, b) => b - a))
+    // No PSI and no link data in this fixture: Lighthouse, Links and Anchors
+    // were never measured, so they close the list instead of reading as 0s.
+    expect(rows.slice(-3).map((r) => [r.key, r.max])).toEqual([["lighthouse", null], ["links", null], ["anchors", null]])
+  })
+
+  it("scores Core Web Vitals out of 8 without TBT, which only PageSpeed reports", () => {
+    const c = crawl()
+    expect(onPageFactors(c, computeSeoScore(c, KEYWORD, URL)).find((r) => r.key === "cwv")?.max).toBe(8)
   })
 })

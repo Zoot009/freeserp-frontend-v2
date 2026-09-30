@@ -18,7 +18,7 @@ import { ALL_LOCATIONS } from "@/lib/locations"
 import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
-import { FeatChip, StatTile } from "@/components/dashboard/primitives"
+import { Elapsed, FeatChip, StatTile } from "@/components/dashboard/primitives"
 import { Hint } from "@/components/dashboard/widget"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
@@ -220,20 +220,6 @@ function Field({ label, group = false, style, children }: {
       {children}
     </Tag>
   )
-}
-
-/**
- * m:ss since `since`. It ticks in its own component, so the clock re-renders
- * itself each second rather than the page and its thousand rows.
- */
-function Elapsed({ since }: { since: number }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  const s = Math.max(0, Math.floor((now - since) / 1000))
-  return <span className="tabular">{Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}</span>
 }
 
 export default function KeywordMagicPage() {

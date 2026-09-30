@@ -6,9 +6,11 @@ import { useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { CreditCost } from "@/components/dashboard/credit-cost"
+import { Elapsed } from "@/components/dashboard/primitives"
+import { InfoHint } from "@/components/dashboard/widget"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
-import { computeSeoScore } from "@/lib/seoScorer"
+import { computeSeoScore, onPageFactors, type OnPageFactorKey, type SeoScoreBreakdown } from "@/lib/seoScorer"
 import { crawlErrorCopy } from "@/lib/crawl-error"
 import type { CrawlData, CrawlError } from "@/types/competitor-analysis"
 
@@ -55,9 +57,26 @@ const offPageUnavailable = (c: CrawlData) =>
 // out rather than guessed.
 const AUTHORITY_PROVIDER: Record<string, string> = { moz: "Moz", dataforseo: "DataForSEO" }
 
-// Layout that has to change with width. The two score cards follow their own
-// width (container queries), not the viewport's — the sidebar decides how much
-// room they get. The header action follows .page-h, which stacks at 640px.
+// What each on-page factor checks, in the scorer's own terms (lib/seoScorer.ts),
+// so a low bar says what to change rather than just that something is wrong.
+const FACTOR: Record<OnPageFactorKey, { label: string; checks: string }> = {
+  url: { label: "URL", checks: "The keyword in the domain and the page's path" },
+  title: { label: "Title tag", checks: "30–60 characters, with the keyword in it" },
+  meta: { label: "Meta description", checks: "120–160 characters, with the keyword in it" },
+  content: { label: "Content", checks: "1,500+ words, with the keyword in the first 100" },
+  headings: { label: "Headings", checks: "One H1 with the keyword, 3+ H2s, the keyword in an H2 and an H3" },
+  images: { label: "Images", checks: "Alt text on every image, and the keyword in one" },
+  schema: { label: "Structured data", checks: "Schema markup on the page" },
+  structure: { label: "Rich content", checks: "A table of contents, an FAQ section and a video" },
+  lighthouse: { label: "Lighthouse", checks: "Google's performance, SEO, accessibility and best-practice scores" },
+  cwv: { label: "Page speed", checks: "Fast TTFB, FCP, LCP and TBT, and a low CLS" },
+  links: { label: "Links", checks: "10+ internal and 3+ external links, the keyword in internal anchors" },
+  anchors: { label: "Link placement", checks: "Links in the main content, header and footer, the keyword in one" },
+}
+
+// Layout that has to change with width. The report follows its own width
+// (a container query on .ka-body), not the viewport's: the sidebar decides how
+// much room it gets. The header action follows .page-h, which stacks at 640px.
 const LAYOUT_CSS = `
   .ka-rerun { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
   .ka-rerun-err { max-width: 260px; text-align: right; }
@@ -66,29 +85,47 @@ const LAYOUT_CSS = `
     .ka-rerun-err { max-width: none; flex-basis: 100%; text-align: left; }
   }
 
-  .ka-hero-card, .ka-auth-card { container-type: inline-size; }
-  .ka-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) 300px; gap: 20px 28px; align-items: center; }
-  .ka-hero-note { align-self: stretch; display: flex; align-items: center; padding-left: 28px; border-left: 1px solid var(--border); }
-  @container (max-width: 720px) {
-    .ka-hero { grid-template-columns: auto minmax(0, 1fr); }
-    .ka-hero-note { grid-column: 1 / -1; padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--border); }
-  }
-  @container (max-width: 440px) {
-    .ka-hero { grid-template-columns: minmax(0, 1fr); justify-items: center; }
-    .ka-hero-bars, .ka-hero-note { justify-self: stretch; }
-    .ka-hero-bars { text-align: center; }
-  }
+  .ka-eyebrow { margin-bottom: 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--brand); }
+  .ka-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
+  .ka-fact { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 
-  .ka-auth { display: flex; gap: 34px; align-items: center; }
-  .ka-auth-sep { width: 1px; align-self: stretch; background: var(--border); }
-  .ka-ov-stat { display: flex; align-items: center; gap: 11px; }
-  @container (max-width: 560px) {
-    .ka-auth { flex-direction: column; align-items: stretch; gap: 20px; }
-    .ka-auth-rings { justify-content: space-evenly; }
-    .ka-auth-sep { width: auto; height: 1px; }
+  .ka-body { container-type: inline-size; }
+
+  .ka-hero { display: flex; align-items: center; gap: 28px; margin-bottom: 16px; }
+  .ka-hero-main { flex: 1; min-width: 0; }
+  .ka-hero-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+  .ka-grade { font-size: 11.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+  .ka-verdict { margin: 8px 0 18px; font-size: 14px; line-height: 1.5; color: var(--text-soft); max-width: 720px; }
+  .ka-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 32px; max-width: 760px; }
+  .ka-part-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+  .ka-part-lbl { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-mute); }
+  .ka-part-w { font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 6px; opacity: .8; }
+  .ka-part-val { font-size: 20px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .ka-meter { height: 6px; border-radius: 999px; background: var(--bg-inset); overflow: hidden; }
+  .ka-meter > span { display: block; height: 100%; border-radius: inherit; transition: width .8s cubic-bezier(.16,1,.3,1); }
+
+  .ka-factor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 240px) 56px; gap: 6px 20px; align-items: center; padding: 11px 0; border-top: 1px solid var(--border); }
+  .ka-factor:first-child { border-top: 0; padding-top: 0; }
+  .ka-factor-name b { display: block; font-size: 13px; font-weight: 600; }
+  .ka-factor-name span { display: block; margin-top: 1px; font-size: 12px; color: var(--text-mute); }
+  .ka-factor-val { text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ka-factor-val small { font-size: 11.5px; font-weight: 500; color: var(--text-mute); }
+  .ka-factor.off .ka-factor-name b { color: var(--text-mute); }
+
+  .ka-auth-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .ka-auth-val { font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .ka-auth-val small { font-size: 12px; font-weight: 500; color: var(--text-mute); margin-left: 2px; }
+  .ka-auth-cap { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
+
+  @container (max-width: 720px) {
+    .ka-auth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
-  @container (max-width: 480px) {
-    .ka-ov-stat { flex-direction: column; gap: 8px; text-align: center; }
+  @container (max-width: 560px) {
+    .ka-hero { flex-direction: column; align-items: stretch; gap: 16px; }
+    .ka-hero > :first-child { align-self: center; }
+    .ka-parts { grid-template-columns: minmax(0, 1fr); }
+    .ka-factor { grid-template-columns: minmax(0, 1fr) 56px; }
+    .ka-factor .ka-meter { grid-column: 1 / -1; grid-row: 2; }
   }
 `
 
@@ -97,6 +134,24 @@ function scoreToneVar(v: number): { color: string; bg: string } {
   if (v >= 80) return { color: "var(--pos)", bg: "var(--pos-soft)" }
   if (v >= 60) return { color: "var(--brand)", bg: "var(--brand-soft)" }
   return { color: "var(--neg)", bg: "var(--neg-soft)" }
+}
+
+// A part of a whole: green when most of it is earned, amber past half, red below.
+function shareColor(ratio: number): string {
+  return ratio >= 0.8 ? "var(--pos)" : ratio >= 0.5 ? "var(--warn)" : "var(--neg)"
+}
+
+/**
+ * One sentence on where the score comes from. Off-page is 70% of it, so a
+ * well-built page on a young site scores low; saying so points the reader at
+ * the right lever instead of leaving "43, Poor" to speak for itself.
+ */
+function verdict(on: number, off: number | null): string {
+  if (off == null) return "Off-page couldn't be measured, so this is an on-page score only."
+  if (on >= 70 && off >= 70) return "Strong on both fronts: the page is well built, and the site has the authority to back it."
+  if (on >= 70) return "The page itself is in good shape. Its authority and backlinks are what hold the score down."
+  if (off >= 70) return "The site has the authority; the page itself needs work. Start with the biggest gaps below."
+  return "Both the page and its authority have room to grow. Start with the biggest gaps below."
 }
 
 // Eased 0→target ramp driven by rAF, shared by the ring and the count-up
@@ -118,255 +173,169 @@ function useCountUp(target: number, duration = 900) {
   return val
 }
 
-function ScoreBar({ label, value }: { label: string; value: number | null }) {
-  const target = value ?? 0
+// A bar that grows from nothing on mount, so a report's bars fill as it opens.
+function Meter({ pct, color }: { pct: number; color: string }) {
   const [width, setWidth] = useState(0)
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setWidth(target))
+    const raf = requestAnimationFrame(() => setWidth(Math.max(0, Math.min(100, pct))))
     return () => cancelAnimationFrame(raf)
-  }, [target])
-  return (
-    <div>
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 5 }}>
-        <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
-        <span className="tiny b tabular">{value ?? "—"}</span>
-      </div>
-      <div style={{ height: 6, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${width}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${scoreToneVar(target).color} 75%, transparent), ${scoreToneVar(target).color})`, borderRadius: 999, transition: "width .8s cubic-bezier(.16,1,.3,1)" }} />
-      </div>
-    </div>
-  )
+  }, [pct])
+  return <div className="ka-meter"><span style={{ width: `${width}%`, background: color }} /></div>
 }
 
-// Circular gauge for the headline score — colored by tier so the ring itself
-// communicates pass/warn/fail at a glance. Fills and counts up together on
-// mount so the score feels "revealed" rather than just printed on the page.
-function ScoreRing({ value, color, size = 132, stroke = 11 }: { value: number; color: string; size?: number; stroke?: number }) {
+// The headline score, coloured by band. Fills and counts up together on mount
+// so the score is revealed rather than printed.
+function ScoreRing({ value, color, size = 120, stroke = 10 }: { value: number; color: string; size?: number; stroke?: number }) {
   const display = useCountUp(value)
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
   const pct = Math.max(0, Math.min(100, display))
-  const offset = c - (pct / 100) * c
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, filter: `drop-shadow(0 0 14px color-mix(in srgb, ${color} 35%, transparent))` }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <defs>
-          <linearGradient id="ka-ring-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.65" />
-            <stop offset="100%" stopColor={color} />
-          </linearGradient>
-        </defs>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-inset)" strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke="url(#ka-ring-grad)" strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset}
+          fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c}
           strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
-      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-        <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums", color }}>{Math.round(display)}</div>
-      </div>
-    </div>
-  )
-}
-
-// Ring gauge for the Domain/Page Authority overview stats — a smaller, static
-// sibling of the hero ScoreRing, paired with a label underneath instead of a
-// number inline, since these read as secondary stats rather than a headline.
-function AuthorityRing({ value, label, caption }: { value: number | null; label: string; caption: string }) {
-  const display = useCountUp(value ?? 0)
-  const tone = scoreToneVar(value ?? 0)
-  const size = 96
-  const stroke = 7
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const pct = Math.max(0, Math.min(100, display))
-  const offset = c - (pct / 100) * c
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9 }}>
-      <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-inset)" strokeWidth={stroke} />
-          <circle
-            cx={size / 2} cy={size / 2} r={r}
-            fill="none" stroke={tone.color} strokeWidth={stroke}
-            strokeDasharray={c} strokeDashoffset={offset}
-            strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            style={{ transition: "stroke-dashoffset .8s cubic-bezier(.16,1,.3,1)" }}
-          />
-        </svg>
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 27, fontWeight: 800, lineHeight: 1 }}>{value ?? "—"}</span>
-          <span style={{ fontSize: 9.5, color: "var(--text-mute)", fontWeight: 600, marginTop: 3 }}>/ 100</span>
+      <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
+        <div>
+          <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums", color }}>{Math.round(display)}</div>
+          <div style={{ fontSize: 11, color: "var(--text-mute)", fontWeight: 500, marginTop: 3 }}>/ 100</div>
         </div>
       </div>
-      <div style={{ textAlign: "center" }}>
-        <div className="tiny b">{label}</div>
-        <div style={{ fontSize: 10.5, color: "var(--text-mute)" }}>{caption}</div>
+    </div>
+  )
+}
+
+function ScoreHero({ score, offPageMissing }: { score: SeoScoreBreakdown; offPageMissing: boolean }) {
+  const tone = scoreToneVar(score.total)
+  return (
+    <div className="card ka-hero oa-fade-up">
+      <ScoreRing value={score.total} color={tone.color} />
+      <div className="ka-hero-main">
+        <div className="ka-hero-h">
+          <span className="b" style={{ fontSize: 16 }}>Overall score</span>
+          <span className="ka-grade" style={{ background: tone.bg, color: tone.color }}>Grade {score.grade} · {score.label}</span>
+          <InfoHint>
+            On-page SEO counts for 30% of this score and off-page authority (Domain and Page Authority, backlinks)
+            for 70%. When authority can&apos;t be measured, the score is on-page only.
+          </InfoHint>
+        </div>
+        {/* Without off-page data the scorer falls back to on-page only — a
+            different scale (on-page 70 + off-page 35 is 46 normally, 70 here) —
+            so say so rather than let the number pass for a full score. */}
+        <p className="ka-verdict" style={offPageMissing ? { color: "var(--warn)" } : undefined}>
+          {offPageMissing
+            ? "Off-page couldn't be measured: our authority data provider didn't respond, so this score covers on-page SEO only and isn't comparable with a full score. It won't update your tracked keywords. Run it again later for the full score."
+            : verdict(score.onPageScore, score.offPageScore)}
+        </p>
+        <div className="ka-parts">
+          <Part label="On-page SEO" weight={offPageMissing ? "the whole score" : "30% of score"} value={score.onPageScore} />
+          <Part label="Off-page SEO" weight="70% of score" value={offPageMissing ? null : score.offPageScore} />
+        </div>
       </div>
     </div>
   )
 }
 
-// Both backlink bars share one linear scale — the larger count fills the track
-// — so their lengths compare the way the numbers do: 1,200 domain vs 45 page
-// backlinks is a long bar and a sliver. Each used to be log-scaled against its
-// own ceiling, which drew those two at nearly the same length. A non-zero count
-// keeps a 2% sliver so it can't pass for none.
-function backlinkPct(value: number | null, max: number): number {
-  if (!value || value <= 0 || max <= 0) return 0
-  return Math.max(2, (value / max) * 100)
-}
-
-function BacklinkBar({ label, value, caption, max }: { label: string; value: number | null; caption: string; max: number }) {
-  const pct = backlinkPct(value, max)
+function Part({ label, weight, value }: { label: string; weight: string; value: number | null }) {
   return (
     <div>
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 7 }}>
-        <span className="tiny" style={{ color: "var(--text-mute)", fontWeight: 600 }}>{label}</span>
-        <span style={{ fontWeight: 800 }}>{value?.toLocaleString() ?? "—"}</span>
+      <div className="ka-part-h">
+        <span className="ka-part-lbl">{label}<span className="ka-part-w">· {weight}</span></span>
+        <span className="ka-part-val" style={value == null ? { fontSize: 13, color: "var(--text-mute)", fontWeight: 500 } : undefined}>
+          {value ?? "Not measured"}
+        </span>
       </div>
-      <div style={{ height: 10, borderRadius: 999, background: "var(--bg-inset)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: "var(--brand)", borderRadius: 999, transition: "width .8s cubic-bezier(.16,1,.3,1)" }} />
-      </div>
-      <div style={{ fontSize: 10.5, color: "var(--text-mute)", marginTop: 5 }}>{caption}</div>
+      <Meter pct={value ?? 0} color={scoreToneVar(value ?? 0).color} />
     </div>
   )
 }
 
-function ClockIcon() {
+/**
+ * The twelve on-page factors, the biggest shortfall first. The tool's own help
+ * says the work comes back in priority order; this is that order, on the
+ * scorer's real weights, before the section-by-section detail.
+ */
+function FactorsCard({ crawlData, score }: { crawlData: CrawlData; score: SeoScoreBreakdown }) {
+  const rows = onPageFactors(crawlData, score)
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 4.5V8L10.5 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function OverviewIconStat({
-  icon, label, value, tone, sub,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: React.ReactNode
-  tone: { color: string; bg: string }
-  sub?: React.ReactNode
-}) {
-  return (
-    <div className="ka-ov-stat">
-      <span
-        style={{
-          width: 36, height: 36, borderRadius: "var(--r-sm)", background: tone.bg, color: tone.color,
-          display: "grid", placeItems: "center", flexShrink: 0,
-        }}
-      >
-        {icon}
-      </span>
+    <div className="card oa-fade-up d1" style={{ marginBottom: 16 }}>
+      <div className="card-h">
+        <div style={{ minWidth: 0 }}>
+          <div className="b">On-page factors</div>
+          <div className="tiny muted" style={{ marginTop: 2 }}>Biggest gaps first: the top of this list is where points are easiest to win.</div>
+        </div>
+        <span className="chip outline tabular" style={{ flexShrink: 0 }}>{score.onPageScore} / 100</span>
+      </div>
       <div>
-        <div className="tiny muted">{label}</div>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>{value}{sub}</div>
+        {rows.map(({ key, score: got, max }) => (
+          <div key={key} className={max == null ? "ka-factor off" : "ka-factor"}>
+            <div className="ka-factor-name">
+              <b>{FACTOR[key].label}</b>
+              <span>{FACTOR[key].checks}</span>
+            </div>
+            {max == null ? (
+              <span className="tiny muted" style={{ gridColumn: "2 / -1", textAlign: "right" }}>Not measured</span>
+            ) : (
+              <>
+                <Meter pct={(got / max) * 100} color={shareColor(got / max)} />
+                <span className="ka-factor-val">{got}<small>/{max}</small></span>
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-function ScoreCard({ crawlData, keyword, url }: { crawlData: CrawlData; keyword: string; url: string }) {
-  const score = computeSeoScore(crawlData, keyword, url)
-  const tone = scoreToneVar(score.total)
-  const offPageMissing = offPageUnavailable(crawlData)
-  const provider = AUTHORITY_PROVIDER[crawlData.authority?.source?.toLowerCase() ?? ""]
-  const backlinkMax = Math.max(score.domainBacklinks ?? 0, score.pageBacklinks ?? 0)
-
-  const httpStatus = crawlData.httpStatus
-  const statusTone: "pos" | "warn" | "neg" = httpStatus >= 200 && httpStatus < 300 ? "pos" : httpStatus >= 400 ? "neg" : "warn"
-  const statusColors = statusTone === "pos" ? { color: "var(--pos)", bg: "var(--pos-soft)" }
-    : statusTone === "neg" ? { color: "var(--neg)", bg: "var(--neg-soft)" }
-    : { color: "var(--warn)", bg: "var(--warn-soft)" }
-
+function AuthorityCard({ score, provider, missing }: { score: SeoScoreBreakdown; provider?: string; missing: boolean }) {
   return (
-    <>
-      <div
-        className="card oa-fade-up ka-hero-card"
-        style={{
-          marginBottom: 14,
-          background: "var(--bg-elev)",
-          border: `1px solid ${tone.color}`,
-          boxShadow: `0 6px 24px color-mix(in srgb, ${tone.color} 7%, transparent)`,
-        }}
-      >
-        <div className="ka-hero">
-          <ScoreRing value={score.total} color={tone.color} />
-          <div className="ka-hero-bars">
-            <span
-              className="tiny b"
-              style={{
-                display: "inline-block", marginBottom: 10, padding: "5px 11px", borderRadius: 999,
-                textTransform: "uppercase", letterSpacing: "0.03em",
-                background: tone.bg, border: "1px solid var(--border)", color: tone.color,
-              }}
-            >
-              Grade {score.grade} · {score.label}
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <ScoreBar label="On-Page SEO" value={score.onPageScore} />
-              <ScoreBar label="Off-Page SEO" value={score.offPageScore} />
-            </div>
-          </div>
-          {/* Without off-page data the scorer falls back to on-page only — a
-              different scale (on-page 70 + off-page 35 is 46 normally, 70 here) —
-              so say so rather than let the number pass for a full score. */}
-          {offPageMissing ? (
-            <div className="tiny ka-hero-note" style={{ lineHeight: 1.5, color: "var(--warn)" }}>
-              Off-page couldn&apos;t be measured — our authority data provider didn&apos;t respond, so this score covers on-page SEO only and isn&apos;t comparable with a full score. It won&apos;t update your tracked keywords. Run it again later for the full score.
-            </div>
-          ) : (
-            <div className="tiny muted ka-hero-note" style={{ lineHeight: 1.5 }}>
-              Overall score blends 12 on-page factors with off-page authority (Domain/Page Authority &amp; backlinks). Expand the sections below for the full breakdown.
-            </div>
-          )}
+    <div className="card oa-fade-up d1" style={{ marginBottom: 16 }}>
+      <div className="card-h">
+        <div style={{ minWidth: 0 }}>
+          <div className="b">Authority &amp; backlinks</div>
+          <div className="tiny muted" style={{ marginTop: 2 }}>{missing ? "Not measured this time" : "Off-page: 70% of the score"}</div>
         </div>
+        {provider && !missing && <span className="chip outline" style={{ flexShrink: 0 }}>{provider}</span>}
       </div>
-
-      <div className="card oa-fade-up d1 ka-auth-card" style={{ marginBottom: 16 }}>
-        <div className="ka-auth">
-          <div className="ka-auth-rings" style={{ display: "flex", gap: 24 }}>
-            <AuthorityRing value={score.da} label="Domain Authority" caption={provider ? `${provider} · site-wide` : "Site-wide"} />
-            <AuthorityRing value={score.pa} label="Page Authority" caption={provider ? `${provider} · this URL` : "This URL"} />
-          </div>
-          <div className="ka-auth-sep" />
-          <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Backlinks</div>
-            <BacklinkBar label="Domain Backlinks" value={score.domainBacklinks} caption="Site-wide" max={backlinkMax} />
-            <BacklinkBar label="Page Backlinks" value={score.pageBacklinks} caption="This URL" max={backlinkMax} />
-          </div>
+      {missing ? (
+        <div className="tiny" style={{ color: "var(--warn)", lineHeight: 1.5 }}>
+          Our authority data provider didn&apos;t respond. Run the check again later for Domain and Page Authority and backlinks.
         </div>
-
-        <div style={{ height: 1, background: "var(--border)", margin: "22px 0 18px" }} />
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          <OverviewIconStat
-            icon={<Icon.check />}
-            label="HTTP Status"
-            value={httpStatus || "N/A"}
-            tone={statusColors}
-            sub={statusTone === "pos" ? <span style={{ fontSize: 11, color: "var(--pos)", fontWeight: 700, marginLeft: 6 }}>OK</span> : null}
-          />
-          <OverviewIconStat
-            icon={<Icon.menu />}
-            label="Word Count"
-            value={(crawlData.content?.wordCount ?? 0).toLocaleString()}
-            tone={{ color: "var(--brand)", bg: "var(--brand-soft)" }}
-          />
-          <OverviewIconStat
-            icon={<ClockIcon />}
-            label="Crawl Time"
-            value={`${((crawlData.crawlTime || 0) / 1000).toFixed(1)}s`}
-            tone={{ color: "var(--brand)", bg: "var(--brand-soft)" }}
-          />
+      ) : (
+        <div className="ka-auth-grid">
+          <AuthStat label="Domain Authority" value={score.da} outOf={100} caption="Site-wide" />
+          <AuthStat label="Page Authority" value={score.pa} outOf={100} caption="This page" />
+          <AuthStat label="Domain backlinks" value={score.domainBacklinks} caption="Site-wide" />
+          <AuthStat label="Page backlinks" value={score.pageBacklinks} caption="This page" />
         </div>
+      )}
+      <div className="tiny muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
+        Authority grows as relevant sites link to yours. It moves slowly, so the on-page factors are the quicker wins.
       </div>
-    </>
+    </div>
+  )
+}
+
+function AuthStat({ label, value, outOf, caption }: { label: string; value: number | null; outOf?: number; caption: string }) {
+  return (
+    <div className="mini-tile">
+      <div className="mini-tile-lbl">{label}</div>
+      <div className="ka-auth-val">
+        {value != null ? value.toLocaleString() : "—"}
+        {outOf && value != null && <small>/{outOf}</small>}
+      </div>
+      <div className="ka-auth-cap">{caption}</div>
+      {outOf && value != null && (
+        <div style={{ marginTop: 8 }}><Meter pct={(value / outOf) * 100} color={scoreToneVar(value).color} /></div>
+      )}
+    </div>
   )
 }
 
@@ -456,6 +425,7 @@ function Results({ id }: { id: string }) {
   const unreadable = !!analysis && isUnreadable(analysis)
   const failed = status === "FAILED" || unreadable
   const offPageMissing = status === "COMPLETED" && !!analysis?.crawlData && offPageUnavailable(analysis.crawlData)
+  const showReport = !error && status === "COMPLETED" && !!analysis?.crawlData && !unreadable
 
   // Mirror THIS report's score onto the originating keyword. The number sent is
   // exactly the one rendered below (same computeSeoScore over the same stored
@@ -479,6 +449,11 @@ function Results({ id }: { id: string }) {
       .catch(() => { /* best-effort — the report itself is still valid */ })
   }, [status, analysis?.crawlData, analysis?.keyword, analysis?.url, unreadable, offPageMissing, fromProject, projectId, keywordId])
 
+  const crawl = showReport ? (analysis!.crawlData as CrawlData) : null
+  const score = crawl ? computeSeoScore(crawl, analysis!.keyword, analysis!.url) : null
+  const http = crawl?.httpStatus ?? 0
+  const httpColor = http >= 200 && http < 300 ? "var(--pos)" : http >= 400 ? "var(--neg)" : "var(--warn)"
+
   return (
     <div className="page">
       <style>{LAYOUT_CSS}</style>
@@ -492,17 +467,29 @@ function Results({ id }: { id: string }) {
             <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}><Icon.chevR /></span>
             {fromProject ? "Back to project" : "Back"}
           </button>
-          <h1>Keyword score report</h1>
+          {/* The keyword is the report's subject, so it's the title; "Keyword
+              score report" was the same heading on every report. */}
+          <div className="ka-eyebrow">Keyword score report</div>
+          <h1 style={{ overflowWrap: "anywhere" }}>{analysis ? analysis.keyword : "Loading report…"}</h1>
           {analysis && (
-            <div className="sub" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span>
-                {/* A long URL has no spaces to wrap at — let it break anywhere
-                    rather than run off a phone screen. */}
-                <a className="url" href={analysis.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", overflowWrap: "anywhere" }}>
-                  {analysis.url.replace(/^https?:\/\//, "")}
-                </a>
+            <div className="sub ka-facts">
+              {/* A long URL has no spaces to wrap at — let it break anywhere
+                  rather than run off a phone screen. */}
+              <a className="url ka-fact" href={analysis.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)", whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                {analysis.url.replace(/^https?:\/\//, "")}
+                <Icon.external />
+              </a>
+              <span className="ka-fact">
+                <Icon.clock />
+                {new Date(analysis.completedAt ?? analysis.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
               </span>
-              <span>Keyword: <span className="b" style={{ color: "var(--text)" }}>&quot;{analysis.keyword}&quot;</span></span>
+              {crawl && (
+                <>
+                  <span className="ka-fact" style={{ color: httpColor, fontWeight: 600 }}>HTTP {http || "N/A"}</span>
+                  <span className="ka-fact">{(crawl.content?.wordCount ?? 0).toLocaleString()} words</span>
+                  <span className="ka-fact">Crawled in {((crawl.crawlTime || 0) / 1000).toFixed(1)}s</span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -533,22 +520,43 @@ function Results({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Loading */}
+      {/* In progress: the rank tracker's "checking" strip, with a running
+          clock, over the shape of the report to come. */}
       {!error && inProgress && status !== "FAILED" && (
-        <div className="card" style={{ padding: 60, textAlign: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-            <span className="spin" style={{ display: "inline-flex", color: "var(--brand)" }}><Icon.refresh /></span>
-            <div>
-              <div className="b" style={{ fontSize: 14, marginBottom: 4 }}>Analyzing your page…</div>
-              <div className="tiny muted">Crawling content, checking technical SEO, fetching authority signals</div>
-              <div className="tiny muted" style={{ marginTop: 6, opacity: 0.7 }}>
-                {slow
-                  ? "This is taking longer than usual — some pages are slow to load. It keeps running if you leave this page."
-                  : "This usually takes 10–40 seconds"}
+        <div aria-busy="true">
+          <div className="card tight check-banner" style={{ marginBottom: 16 }}>
+            <div className="row" style={{ gap: 12, alignItems: "center" }}>
+              <span
+                className="spin"
+                aria-hidden
+                style={{
+                  width: 18, height: 18, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box",
+                  border: "2.5px solid color-mix(in srgb, var(--brand) 25%, transparent)", borderTopColor: "var(--brand)",
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="b" role="status" style={{ fontSize: 13, color: "var(--brand)" }}>Analyzing your page…</div>
+                <div className="tiny" style={{ color: "var(--brand)", opacity: 0.75, marginTop: 1 }}>
+                  {slow
+                    ? "Taking longer than usual: some pages are slow to load. It keeps running if you leave this page."
+                    : "Crawling the content, checking technical SEO and fetching authority. Usually 10–40 seconds."}
+                  {analysis && <> · <span aria-hidden><Elapsed since={new Date(analysis.createdAt).getTime()} /></span></>}
+                  {reconnecting && " · Connection lost, reconnecting…"}
+                </div>
               </div>
-              {reconnecting && (
-                <div className="tiny muted" style={{ marginTop: 6 }}>Connection lost — reconnecting…</div>
-              )}
+            </div>
+            <div className="check-bar" aria-hidden><span /></div>
+          </div>
+          <div className="card ka-hero">
+            {/* Inline: the shared .skeleton rule sets its own corners. */}
+            <div className="skeleton" style={{ width: 120, height: 120, borderRadius: "50%", flexShrink: 0 }} />
+            <div className="ka-hero-main">
+              <div className="skeleton" style={{ height: 16, width: 220 }} />
+              <div className="skeleton" style={{ height: 12, width: "70%", marginTop: 14 }} />
+              <div className="ka-parts" style={{ marginTop: 22 }}>
+                <div className="skeleton" style={{ height: 30 }} />
+                <div className="skeleton" style={{ height: 30 }} />
+              </div>
             </div>
           </div>
         </div>
@@ -582,12 +590,21 @@ function Results({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Results */}
-      {!error && status === "COMPLETED" && analysis?.crawlData && !unreadable && (
-        <>
-          <ScoreCard crawlData={analysis.crawlData} keyword={analysis.keyword} url={analysis.url} />
-          <KeywordAnalysisReport crawlData={analysis.crawlData} keyword={analysis.keyword} />
-        </>
+      {/* The report: the score and where it comes from, what to fix first,
+          authority, then every check section by section. */}
+      {crawl && score && (
+        <div className="ka-body">
+          {/* Overall, then its two halves in detail: off-page (one row, as
+              it's four numbers) and on-page (the list of what to fix). */}
+          <ScoreHero score={score} offPageMissing={offPageMissing} />
+          <AuthorityCard
+            score={score}
+            provider={AUTHORITY_PROVIDER[crawl.authority?.source?.toLowerCase() ?? ""]}
+            missing={offPageMissing}
+          />
+          <FactorsCard crawlData={crawl} score={score} />
+          <KeywordAnalysisReport crawlData={crawl} keyword={analysis!.keyword} />
+        </div>
       )}
     </div>
   )

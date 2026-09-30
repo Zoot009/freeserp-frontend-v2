@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useEffect, useId, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
@@ -57,6 +57,21 @@ export function StatTile({
       )}
     </div>
   )
+}
+
+/**
+ * m:ss since `since`, ticking: the part of a progress banner that proves the
+ * page isn't frozen. It re-renders only itself each second, not the page
+ * around it, which on Keyword Magic holds a thousand rows.
+ */
+export function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const s = Math.max(0, Math.floor((now - since) / 1000))
+  return <span className="tabular">{Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}</span>
 }
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,37 @@ import type { CrawlData } from "@/types/competitor-analysis"
 // (components/single-page-report.tsx) keeps its own dark/mono look and stays
 // wired up as-is for the competitor-analysis "SEO Audit" sub-page.
 
-const DEFAULT_OPEN = new Set(["meta", "content", "keyword", "headings", "links", "images", "technical"])
+const SECTIONS = ["meta", "keyword", "content", "headings", "links", "images", "technical"] as const
+type SectionId = (typeof SECTIONS)[number]
+
+/**
+ * Failed checks per section, counted on the rules each section already shows:
+ * the lengths it colours amber, the checks it marks with a cross. Links has no
+ * pass or fail, so no count. Trust signals and content structure are extras a
+ * page can do without, so they don't count against it.
+ */
+export function sectionIssues(c: CrawlData): Partial<Record<SectionId, number>> {
+  const m = c.metaTags
+  const k = c.keywordAnalysis
+  const fails = (...checks: boolean[]) => checks.filter((ok) => !ok).length
+  return {
+    meta: fails(
+      (m?.titleLength ?? 0) >= 30 && (m?.titleLength ?? 0) <= 60,
+      (m?.descriptionLength ?? 0) >= 120 && (m?.descriptionLength ?? 0) <= 160,
+      !!m?.canonical,
+    ),
+    ...(k ? { keyword: fails(k.inTitle, k.inH1, k.inMetaDescription, k.inFirst100Words, k.inUrl) } : {}),
+    content: fails((c.content?.wordCount ?? 0) >= 300),
+    headings: fails((c.headings?.h1?.length ?? 0) === 1),
+    ...(c.imageAnalysis ? { images: fails((c.imageAnalysis.withoutAlt ?? 0) === 0) } : {}),
+    technical: fails(
+      !!c.technical?.hasFavicon,
+      !!c.technical?.hasViewport,
+      (c.structuredData?.totalSchemas ?? 0) > 0,
+      !!c.urlInfo?.isHttps,
+    ),
+  }
+}
 
 function tone(ok: boolean): string {
   return ok ? "var(--pos)" : "var(--neg)"
@@ -141,11 +171,13 @@ const SECTION_STYLE: Record<string, { icon: keyof typeof Icon; color: string; so
 }
 
 function Section({
-  id, title, subtitle, open, onToggle, children,
+  id, title, subtitle, issues, open, onToggle, children,
 }: {
   id: string
   title: string
   subtitle?: string
+  /** Failed checks in this section; undefined for one with no pass or fail. */
+  issues?: number
   open: boolean
   onToggle: (id: string) => void
   children: React.ReactNode
@@ -157,6 +189,7 @@ function Section({
       <button
         type="button"
         onClick={() => onToggle(id)}
+        aria-expanded={open}
         style={{
           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
           gap: 12, padding: "16px 18px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
@@ -178,13 +211,20 @@ function Section({
             {subtitle && <span className="tiny muted" style={{ display: "block", marginTop: 2 }}>{subtitle}</span>}
           </span>
         </span>
-        <span
-          style={{
-            color: "var(--text-mute)", display: "inline-flex", flexShrink: 0,
-            transform: open ? "rotate(90deg)" : "none", transition: "transform .15s",
-          }}
-        >
-          <Icon.chevR />
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          {issues != null && (
+            issues > 0
+              ? <span className="chip neg">{issues} {issues === 1 ? "issue" : "issues"}</span>
+              : <span className="chip pos"><Icon.check /> Passed</span>
+          )}
+          <span
+            style={{
+              color: "var(--text-mute)", display: "inline-flex",
+              transform: open ? "rotate(90deg)" : "none", transition: "transform .15s",
+            }}
+          >
+            <Icon.chevR />
+          </span>
         </span>
       </button>
       {open && (
@@ -205,23 +245,36 @@ function SubHeading({ children }: { children: React.ReactNode }) {
 }
 
 export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: CrawlData; keyword: string }) {
-  const [open, setOpen] = useState<Set<string>>(DEFAULT_OPEN)
+  const issues = sectionIssues(crawlData)
+  // Sections with something to fix open; the ones that passed stay shut, so
+  // the report opens on the work instead of seven sections of everything.
+  const [open, setOpen] = useState<Set<string>>(() => new Set(SECTIONS.filter((s) => (issues[s] ?? 0) > 0)))
   const toggle = (id: string) =>
     setOpen((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  const allOpen = open.size === SECTIONS.length
 
   return (
     <div>
       <style>{TILES_CSS}</style>
-      {/* HTTP Status / Word Count / Crawl Time now live in the ScoreCard's
-          "Overview Metrics" card (app/[locale]/dashboard/keyword-analysis/results/page.tsx),
-          alongside Domain/Page Authority and backlinks — no need to repeat them here. */}
+      {/* HTTP status, word count and crawl time are in the report's header
+          (app/[locale]/dashboard/keyword-analysis/results/page.tsx), beside
+          the page they describe, so they aren't repeated here. */}
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-end", gap: 12, margin: "8px 0 12px" }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="b" style={{ fontSize: 15 }}>Every check</div>
+          <div className="tiny muted" style={{ marginTop: 2 }}>Section by section. The ones with issues are open.</div>
+        </div>
+        <button type="button" className="btn sm" style={{ flexShrink: 0 }} onClick={() => setOpen(allOpen ? new Set() : new Set(SECTIONS))}>
+          {allOpen ? "Collapse all" : "Expand all"}
+        </button>
+      </div>
 
       {/* Meta Tags */}
-      <Section id="meta" title="Meta Tags" subtitle="Title, description, canonical, and Open Graph data" open={open.has("meta")} onToggle={toggle}>
+      <Section id="meta" title="Meta Tags" subtitle="Title, description, canonical, and Open Graph data" issues={issues.meta} open={open.has("meta")} onToggle={toggle}>
         <div className="mini-tile">
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
             <span className="mini-tile-lbl" style={{ marginBottom: 0 }}>Title</span>
@@ -274,7 +327,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
 
       {/* Keyword Analysis */}
       {crawlData.keywordAnalysis && (
-        <Section id="keyword" title="Keyword Analysis" subtitle={`Target: "${keyword}"`} open={open.has("keyword")} onToggle={toggle}>
+        <Section id="keyword" title="Keyword Analysis" subtitle={`Target: "${keyword}"`} issues={issues.keyword} open={open.has("keyword")} onToggle={toggle}>
           <TileGrid min={160}>
             <CheckRow label="In Title" ok={crawlData.keywordAnalysis.inTitle} />
             <CheckRow label="In H1" ok={crawlData.keywordAnalysis.inH1} />
@@ -321,6 +374,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         id="content"
         title="Content Analysis"
         subtitle={`${plural(crawlData.content?.wordCount, "word")}, ${plural(crawlData.content?.readability?.sentenceCount, "sentence")}`}
+        issues={issues.content}
         open={open.has("content")}
         onToggle={toggle}
       >
@@ -370,6 +424,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         id="headings"
         title="Heading Structure"
         subtitle={`${crawlData.headings?.h1?.length ?? 0} H1, ${crawlData.headings?.h2?.length ?? 0} H2, ${crawlData.headings?.h3?.length ?? 0} H3`}
+        issues={issues.headings}
         open={open.has("headings")}
         onToggle={toggle}
       >
@@ -470,6 +525,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           id="images"
           title="Image Analysis"
           subtitle={`${plural(crawlData.imageAnalysis.total, "image")}, ${crawlData.imageAnalysis.withoutAlt ?? 0} missing alt`}
+          issues={issues.images}
           open={open.has("images")}
           onToggle={toggle}
         >
@@ -518,7 +574,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
       )}
 
       {/* Technical SEO */}
-      <Section id="technical" title="Technical SEO" subtitle="Performance, structured data, and technical checks" open={open.has("technical")} onToggle={toggle}>
+      <Section id="technical" title="Technical SEO" subtitle="Performance, structured data, and technical checks" issues={issues.technical} open={open.has("technical")} onToggle={toggle}>
         {crawlData.performance && (
           <div>
             <SubHeading>Performance</SubHeading>

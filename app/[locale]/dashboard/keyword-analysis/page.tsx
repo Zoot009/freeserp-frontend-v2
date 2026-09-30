@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useSearchParams } from "next/navigation"
-import { useRouter } from "@/i18n/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
@@ -43,61 +43,55 @@ function scoreTone(v: number): { color: string; bg: string } {
   return { color: "var(--neg)", bg: "var(--neg-soft)" }
 }
 
-function ScoreBadge({ value }: { value: number | null }) {
-  if (value == null) {
-    return <span className="tiny muted" style={{ width: 36, textAlign: "center", flexShrink: 0 }}>—</span>
-  }
-  const tone = scoreTone(value)
-  return (
-    <Hint text={`Overall score: ${value}/100`}>
-      <span
-        className="tabular"
-        style={{
-          display: "inline-grid",
-          placeItems: "center",
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          background: tone.bg,
-          color: tone.color,
-          fontSize: 13,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
-        {value}
+/**
+ * A finished check's score, as the rank tracker shows a position: a number in
+ * a rounded square, coloured by band. A check without a score says why.
+ * "Ready" used to sit on every row beside its score, saying nothing the score
+ * didn't; only the unfinished and the failed have a status to show now.
+ */
+function ScoreCell({ a }: { a: AnalysisListItem }) {
+  if (a.status === "FAILED") return <span className="chip neg">Failed</span>
+  if (a.status === "PENDING") return <span className="chip outline">Queued</span>
+  if (a.status === "PROCESSING") {
+    return (
+      <span className="chip warn" style={{ gap: 5 }}>
+        <span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Analyzing
       </span>
+    )
+  }
+  if (a.overallScore == null) return <span className="tiny muted">—</span>
+  const tone = scoreTone(a.overallScore)
+  return (
+    <Hint text={`Overall score: ${a.overallScore}/100`}>
+      <span className="pos-badge" style={{ width: 34, background: tone.bg, color: tone.color }}>{a.overallScore}</span>
     </Hint>
   )
 }
 
-// History rows are one line on a wide card. On a narrow one (a phone, or a
-// tablet beside the sidebar — hence a container query) the date and status
-// drop to a line of their own under the keyword; kept inline they squeezed the
-// keyword down to a letter or two.
+/** "freeserp.com/serp-checker": the page, not just its site — one site has many. */
+function pageLabel(a: AnalysisListItem): string {
+  return (a.url || a.domain || "").replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")
+}
+
+// The history table, in the rank tracker's terms. On a narrow card (a phone,
+// or a tablet beside the sidebar, hence a container query) the date goes: the
+// keyword and its score are what a row is for.
 const HISTORY_CSS = `
   .ka-hist-card { container-type: inline-size; }
-  .ka-hist-row { display: flex; align-items: center; gap: 12px; }
-  .ka-hist-meta { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .ka-hist-date { width: 78px; }
-  .ka-hist-status { width: 76px; }
+  .ka-hist tbody tr { cursor: pointer; }
+  .ka-hist .ka-open { color: inherit; text-decoration: none; }
+  .ka-hist .ka-open:hover { color: var(--brand); }
   @container (max-width: 520px) {
-    .ka-hist-row { flex-wrap: wrap; row-gap: 4px; }
-    .ka-hist-meta { order: 1; flex-basis: 100%; padding-left: 40px; gap: 10px; }
-    .ka-hist-date, .ka-hist-status { width: auto; }
+    .ka-hist .ka-hist-date { display: none; }
+  }
+
+  /* The form's last line: the price on the left, the button at the end. */
+  .ka-go-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .ka-go { min-width: 180px; height: 38px; justify-content: center; }
+  @media (max-width: 640px) {
+    .ka-go { flex: 1 1 100%; }
   }
 `
-
-function StatusChip({ status }: { status: AnalysisListItem["status"] }) {
-  const map: Record<AnalysisListItem["status"], { cls: string; label: string }> = {
-    COMPLETED: { cls: "chip pos", label: "Ready" },
-    FAILED: { cls: "chip neg", label: "Failed" },
-    PROCESSING: { cls: "chip warn", label: "Analyzing" },
-    PENDING: { cls: "chip outline", label: "Queued" },
-  }
-  const { cls, label } = map[status]
-  return <span className={cls}>{label}</span>
-}
 
 function KeywordAnalysisContent() {
   const router = useRouter()
@@ -230,20 +224,22 @@ function KeywordAnalysisContent() {
         </div>
       )}
 
-      {/* Create form */}
+      {/* Create form, laid out as the SERP checker's: the two fields, then the
+          price and the button on one line. The button was a full-width slab,
+          the loudest thing on a page that hadn't run anything yet. */}
       <form className="card" onSubmit={submit} style={{ marginBottom: 20 }}>
-        <div className="grid g-2" style={{ marginBottom: 16, alignItems: "start" }}>
+        <div className="grid g-2" style={{ alignItems: "start" }}>
           <Field
             label="Website URL"
             hint={lockedBase ? "Your project domain is fixed — just add the page path" : "The exact page you want scored"}
           >
             <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}>
+              <span style={{ position: "absolute", left: 13, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)", pointerEvents: "none" }}>
                 <Icon.globe />
               </span>
               <input
-                className="input"
-                style={{ paddingLeft: 32, paddingRight: lockedBase ? 34 : undefined }}
+                className="input lg"
+                style={{ paddingLeft: 38, paddingRight: lockedBase ? 34 : undefined }}
                 placeholder={lockedBase ? `${lockedBase}page-path` : "https://example.com/page"}
                 value={url}
                 onChange={(e) => {
@@ -272,14 +268,14 @@ function KeywordAnalysisContent() {
               )}
             </div>
           </Field>
-          <Field label="Target Keyword" hint="The search term this page should rank for">
+          <Field label="Target keyword" hint="The search term this page should rank for">
             <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 11, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)" }}>
+              <span style={{ position: "absolute", left: 13, top: 0, bottom: 0, display: "grid", alignItems: "center", color: "var(--text-mute)", pointerEvents: "none" }}>
                 <Icon.search />
               </span>
               <input
-                className="input"
-                style={{ paddingLeft: 32 }}
+                className="input lg"
+                style={{ paddingLeft: 38 }}
                 placeholder="best running shoes"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
@@ -289,14 +285,14 @@ function KeywordAnalysisContent() {
           </Field>
         </div>
 
-        <button type="submit" className="btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={!canSubmit}>
-          {submitting ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Starting…</> : <><Icon.search /> Analyze Page</>}
-        </button>
-        <div className="tiny muted" style={{ textAlign: "center", marginTop: 10 }}>
-          <CreditCost action={CREDIT_ACTION_KEYS.keywordScore} />
-        </div>
-        <div className="tiny muted" style={{ textAlign: "center", marginTop: 6 }}>
-          We crawl the page, check technical &amp; on-page SEO, and fetch domain authority.
+        <div className="ka-go-row">
+          <div className="col" style={{ gap: 3, minWidth: 0 }}>
+            <CreditCost action={CREDIT_ACTION_KEYS.keywordScore} />
+            <span className="tiny muted">We crawl the page, check its on-page and technical SEO, and fetch its authority.</span>
+          </div>
+          <button type="submit" className="btn primary ka-go" disabled={!canSubmit}>
+            {submitting ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> Starting…</> : <><Icon.search /> Score this page</>}
+          </button>
         </div>
 
         {error && (
@@ -331,30 +327,43 @@ function KeywordAnalysisContent() {
             <div className="tiny muted">No analyses yet. Run your first one above.</div>
           </div>
         ) : (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {history.map((a) => (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/dashboard/keyword-analysis/results?id=${a.id}`)}
-                  className="list-row ka-hist-row"
-                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", border: "none", borderBottom: "1px solid var(--border)", background: "transparent", cursor: "pointer" }}
-                >
-                  <Favicon domain={displayDomain(a.domain || a.url)} size={28} />
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span className="b" style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.keyword}</span>
-                    <span className="tiny muted mono" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayDomain(a.domain || a.url)}</span>
-                  </span>
-                  <ScoreBadge value={a.status === "COMPLETED" ? a.overallScore : null} />
-                  <span className="ka-hist-meta">
-                    <span className="tiny muted tabular ka-hist-date">{fmtDate(a.createdAt)}</span>
-                    <span className="ka-hist-status"><StatusChip status={a.status} /></span>
-                  </span>
-                  <span style={{ flexShrink: 0, color: "var(--text-mute)" }}><Icon.chevR /></span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <table className="tbl flush ka-hist">
+            <thead>
+              <tr>
+                <th>Keyword and page</th>
+                <th style={{ width: 110 }}>Score</th>
+                <th className="ka-hist-date" style={{ width: 130 }}>Checked</th>
+                <th style={{ width: 40 }} aria-label="Open" />
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((a) => {
+                const href = `/dashboard/keyword-analysis/results?id=${a.id}`
+                return (
+                  // The whole row opens the report; the keyword is the link a
+                  // keyboard or a screen reader lands on.
+                  <tr key={a.id} onClick={() => router.push(href)}>
+                    <td style={{ maxWidth: 0 }}>
+                      <div className="row" style={{ gap: 12, minWidth: 0 }}>
+                        <Favicon domain={displayDomain(a.domain || a.url)} size={24} />
+                        <div style={{ minWidth: 0 }}>
+                          <Link href={href} className="kw ka-open" title={a.keyword} onClick={(e) => e.stopPropagation()}>
+                            {a.keyword}
+                          </Link>
+                          <div className="tiny muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.url}>
+                            {pageLabel(a)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><ScoreCell a={a} /></td>
+                    <td className="tiny muted tabular ka-hist-date">{fmtDate(a.createdAt)}</td>
+                    <td style={{ color: "var(--text-mute)" }}><Icon.chevR /></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
 
         {!loadingHistory && nextCursor && (
