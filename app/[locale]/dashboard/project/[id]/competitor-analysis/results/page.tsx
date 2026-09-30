@@ -61,6 +61,8 @@ function CompetitorAnalysisResultsContent() {
   // generation, so an in-flight poll drops its result instead of rescheduling.
   const pollGenRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Once a poll has succeeded, a failed one is a blip, not a broken report.
+  const hasLoadedRef = useRef(false)
 
   useEffect(() => {
     if (!exportMenuOpen) return
@@ -132,6 +134,7 @@ function CompetitorAnalysisResultsContent() {
       if (gen !== pollGenRef.current) return
 
       if (response.status < 200 || response.status >= 300) throw new Error("Failed to fetch analysis results")
+      hasLoadedRef.current = true
 
       // Backend wraps the payload as { analysis: {...} }; tolerate a bare
       // object too in case the envelope changes.
@@ -194,6 +197,13 @@ function CompetitorAnalysisResultsContent() {
       }
     } catch (err) {
       if (gen !== pollGenRef.current) return
+      if (hasLoadedRef.current) {
+        // Data is already on screen: a transient blip mid-poll. Keep polling
+        // quietly instead of ending the loop for good (as the standalone
+        // results page already does).
+        pollTimerRef.current = setTimeout(() => fetchAnalysisResults(gen), 4000)
+        return
+      }
       setError(err instanceof Error ? err.message : "Failed to load results")
       setLoading(false)
     }
