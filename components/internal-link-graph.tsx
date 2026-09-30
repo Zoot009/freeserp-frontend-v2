@@ -107,11 +107,9 @@ function graphNodeRadius(n: GraphNode): number {
 function LinkGraphViz({
   nodes,
   edges,
-  orphanData,
 }: {
   nodes: GraphNode[]
   edges: GraphEdge[]
-  orphanData: GraphOrphanData | null
 }) {
   const [activeTab, setActiveTabState] = useState<"graph" | "nodes" | "orphans">("graph")
   const [searchQuery, setSearchQuery] = useState("")
@@ -128,7 +126,10 @@ function LinkGraphViz({
   const gRootRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null)
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
-  const graphOrphans = orphanData?.graphOrphans ?? []
+  // One source for orphans: the pages the list below actually shows. The API's
+  // graphOrphans / metadata.orphanPages can disagree with the per-node flags,
+  // which read "Orphans (12)" over "No orphan pages".
+  const orphanNodes = useMemo(() => nodes.filter((n) => n.isOrphan), [nodes])
 
   // ── Build / rebuild D3 graph ───────────────────────────────────────────
   useEffect(() => {
@@ -390,7 +391,7 @@ function LinkGraphViz({
   )
   const filteredNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    let list = activeTab === "orphans" ? nodes.filter((n) => n.isOrphan) : nodes
+    let list = activeTab === "orphans" ? orphanNodes : nodes
     if (q) {
       list = list.filter(
         (n) =>
@@ -422,7 +423,7 @@ function LinkGraphViz({
                 activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab === "graph" ? "Graph" : tab === "nodes" ? `Nodes (${nodes.length})` : `Orphans (${graphOrphans.length})`}
+              {tab === "graph" ? "Graph" : tab === "nodes" ? `Nodes (${nodes.length})` : `Orphans (${orphanNodes.length})`}
             </button>
           ))}
         </div>
@@ -532,7 +533,7 @@ function LinkGraphViz({
             <div className="h-full overflow-auto">
               {filteredNodes.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground/50">
-                  {activeTab === "orphans"
+                  {activeTab === "orphans" && !searchQuery.trim()
                     ? "No orphan pages — every crawled page has at least one inbound link."
                     : "No pages match your search."}
                 </div>
@@ -729,12 +730,15 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
 
   const totalPages = d.metadata?.totalPages ?? (hasGraph ? nodes.length : d.totalCrawledPages)
   const totalLinks = d.metadata?.totalLinks ?? edges.length
-  const orphanCount = d.metadata?.orphanPages ?? nodes.filter((n) => n.isOrphan).length
+  // Same source as the Orphans tab list (see LinkGraphViz).
+  const orphanCount = nodes.filter((n) => n.isOrphan).length
   const hubCount = d.metadata?.hubPages ?? nodes.filter((n) => n.isHub).length
   const authorityCount = d.metadata?.authorityPages ?? nodes.filter((n) => n.isAuthority).length
   const avgLinks = d.metadata?.averageLinksPerPage ?? (nodes.length ? totalLinks / nodes.length : 0)
   const topLinkedPages = d.metadata?.topLinkedPages ?? []
-  const orphanUrls = d.orphanData?.graphOrphans ?? []
+  // The crawl stopped at its page limit: a page listed as an orphan may be
+  // linked from one that wasn't crawled.
+  const partialCrawl = d.orphanData?.crawlComplete === false
 
   const statusHint =
     !hasGraph && d.internalCrawlStatus && d.internalCrawlStatus !== "done"
@@ -782,10 +786,15 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
       )}
 
       {statusHint && <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">{statusHint}</p>}
+      {hasGraph && partialCrawl && (
+        <p className="mt-2 font-mono text-[11px] text-muted-foreground/70">
+          Partial crawl: the page limit was reached, so some orphans may be linked from pages that weren't crawled.
+        </p>
+      )}
 
       {hasGraph && expanded && (
         <div className="mt-4 space-y-4">
-          <LinkGraphViz nodes={nodes} edges={edges} orphanData={d.orphanData ?? null} />
+          <LinkGraphViz nodes={nodes} edges={edges} />
 
           {topLinkedPages.length > 0 && (
             <div>
@@ -820,12 +829,12 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
             </div>
           )}
 
-          {orphanUrls.length > 0 && (
+          {orphanCount > 0 && (
             <div className="flex items-start gap-2.5">
               <Icon.info size={14} />
               <div>
                 <p className="text-sm font-medium">
-                  {orphanUrls.length} orphan {orphanUrls.length === 1 ? "page" : "pages"} found
+                  {orphanCount} orphan {orphanCount === 1 ? "page" : "pages"} found
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   These pages have no inbound internal links and may be missed by search engine crawlers.
