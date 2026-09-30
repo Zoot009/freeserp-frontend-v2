@@ -271,7 +271,7 @@
     "trialBannerRest": "Recarga o mejora tu plan cuando necesites más.",
     "freeTitle": "Gratis",
     "perMonth": "/mes",
-    "freeForever": "3 comprobaciones para probar — sin tarjeta.",
+    "freeForever": "10 comprobaciones de ranking al día para probar — sin tarjeta.",
     "currentPlan": "Plan actual",
     "freePlan": "Plan gratis",
     "paidTitle": "Comprobaciones",
@@ -290,8 +290,8 @@
     "errorCheckoutFailed": "Error en el pago",
     "limitsReset": "Los límites diarios se restablecen a medianoche (UTC). Cancela cuando quieras desde el portal de tu proveedor de pago.",
     "freeFeatures": [
-      "3 comprobaciones de ranking, prueba de 7 días — sin tarjeta",
-      "1 proyecto · 10 keywords",
+      "10 comprobaciones de ranking al día, prueba de 7 días — sin tarjeta",
+      "1 proyecto · keywords ilimitadas",
       "Comprobaciones manuales y Quick SERP",
       "1 análisis de IA completo / día",
       "Los 69 países, ambos dispositivos"
@@ -830,7 +830,7 @@
     "statusPendingProcessing": "{pending} pendientes, {processing} en proceso",
     "checkStay": "las posiciones nuevas aparecen aquí automáticamente, normalmente en menos de un minuto",
     "locked": "Mejorar",
-    "lockedTip": "Todavía sin comprobar. Tu plan comprueba {limit} palabras clave al día, empezando por las de mayor volumen: mejora tu plan o recarga para incluir esta.",
+    "lockedTip": "Todavía sin comprobar: las {limit} comprobaciones gratuitas de hoy no llegan a esta. Se restablecen a medianoche UTC: compruébala mañana o mejora tu plan para verla ahora.",
     "checksResetIn": "Comprobaciones en",
     "outOfChecksTip": "Has usado las comprobaciones de hoy; se restablecen a las 00:00 UTC. Aún puedes añadir palabras clave; mejora tu plan para límites diarios más altos.",
     "aiSkip": "Omitir y añadir palabras clave manualmente",
@@ -882,7 +882,7 @@
     "engineMultiplierFree": "Tus {checks} comprobaciones diarias se reparten entre los motores: cada par palabra clave-motor cuenta como una.",
     "engineMultiplier": "{keywords} palabras clave × {engines} motores = {total} palabras clave rastreadas",
     "noEngineKeywords": "Aún no hay palabras clave de {engine} en {device}.",
-    "lockedCta": "Mejora para verlo"
+    "lockedCta": "Mejora o espera un día"
   },
   "dashKeywords": {
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",
@@ -1520,7 +1520,7 @@
     "upgradeFailed": "No se pudo actualizar tu plan. Inténtalo de nuevo.",
     "bodyAiLimit": "Has usado todos los análisis de IA de hoy ({used} de {limit}). Cada 1 $/mes añade 2 análisis al día — amplía tu plan para subir el límite o inténtalo mañana.",
     "titleFreeDaily": "Has usado tus comprobaciones de hoy",
-    "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC — tu prueba sigue activa.",
+    "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC, así que mañana puedes comprobar más, o mejora tu plan para comprobarlas todas ahora.",
     "gotIt": "Entendido",
     "seePlans": "Ver planes"
   },

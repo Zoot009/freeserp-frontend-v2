@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
+import { freeAddedNote } from "@/lib/billing-config"
 import { track } from "@/lib/analytics"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
@@ -42,7 +43,7 @@ const MAX_KEYWORDS_PER_REQUEST = 100
 const MAX_ROWS_PER_REQUEST = 200
 
 // Same figure the project page quotes. Only feeds the engine picker's hint.
-const FREE_DAILY_CHECKS = 3
+const FREE_DAILY_CHECKS = 10
 
 type ProjectOption = { id: string; name: string; domain: string }
 
@@ -203,6 +204,15 @@ export function AddToTrackerModal({
     }
     setError("")
     setLoading(true)
+    // Today's checks left, read before adding: adding runs a first check on the
+    // new keywords, and on a free plan only this many fit today.
+    const checksLeft =
+      plan === "free"
+        ? await api
+            .get<{ dailyRemaining?: number }>("/api/usage")
+            .then((u) => (typeof u?.dailyRemaining === "number" ? Math.max(0, u.dailyRemaining) : null))
+            .catch(() => null)
+        : null
     // Declared outside the try: a batch that fails halfway has still created
     // rows, and both the error message and the caller's refresh need the count.
     let added = 0
@@ -222,7 +232,7 @@ export function AddToTrackerModal({
       } else if (added < totalRows) {
         toast.success(`Added ${added} — the rest were already tracked.`)
       } else {
-        toast.success(`Added ${added} keyword${added === 1 ? "" : "s"} to the rank tracker.`)
+        toast.success(freeAddedNote(added, checksLeft) ?? `Added ${added} keyword${added === 1 ? "" : "s"} to the rank tracker.`)
       }
       track("keywords_added", { projectId, count: selected.length, source })
       onAdded?.(added)

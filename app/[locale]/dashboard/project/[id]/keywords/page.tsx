@@ -9,6 +9,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { toast } from "sonner"
+import { freeAddedNote } from "@/lib/billing-config"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { useTutorial } from "@/lib/tutorial"
 import { LocationPicker } from "@/components/location-picker"
@@ -47,9 +48,9 @@ import { Sparkle, Sparkles, Pencil, Check, X } from "lucide-react"
 // sync with the matching flag in freeserp-backend/src/routes/projects.js.
 const SCHEDULED_CHECKS_ENABLED = true
 
-// Per-project keyword cap for free users. Paid users have no cap. Must stay
-// in sync with the free plan's dailyChecks in the backend.
-const FREE_DAILY_CHECKS = 3
+// The free plan's daily rank checks, for when /api/usage hasn't answered yet.
+// Mirrors FREE_LIMIT_DEFAULTS.dailyChecks in the backend.
+const FREE_DAILY_CHECKS = 10
 
 // Human label for an auto-check cadence (hours). Options offered: 24h / 7d /
 // 15d / 30d — anything else falls back to a plain "Every Nh". Localized via the
@@ -473,6 +474,8 @@ function AddKeywordsModal({
   projectId,
   currentCount,
   plan,
+  dailyLimit,
+  checksLeft,
   domain,
   existingKeywords,
   aiSuggestions,
@@ -483,6 +486,10 @@ function AddKeywordsModal({
   projectId: string
   currentCount: number
   plan?: string
+  /** The free plan's rank checks a day. */
+  dailyLimit: number
+  /** Checks left today, or null when the plan has no daily ceiling. */
+  checksLeft: number | null
   // Project context used to bias keyword suggestions toward the site's niche.
   domain: string
   existingKeywords: string[]
@@ -634,6 +641,9 @@ function AddKeywordsModal({
   // Suggestions not already added to the textarea. Show a generous batch (12).
   const pendingSet = new Set(pendingLines.map((l) => l.toLowerCase()))
   const existingSet = new Set(existingKeywords.map((k) => k.toLowerCase()))
+  // Checks this add asks for: keywords not tracked yet, once per engine.
+  const newChecks =
+    pendingLines.filter((l) => !existingSet.has(l.toLowerCase())).length * Math.max(1, selectedEngines.length)
   const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 12)
 
   // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
@@ -723,7 +733,7 @@ function AddKeywordsModal({
       } else if (added != null && added < asked) {
         toast.success(`Added ${added} — the rest were already tracked.`)
       } else if (added != null) {
-        toast.success(`Added ${added} keyword${added === 1 ? "" : "s"}.`)
+        toast.success(freeAddedNote(added, isFree ? checksLeft : null) ?? `Added ${added} keyword${added === 1 ? "" : "s"}.`)
       }
       // Adding to a still-empty project might be this account's first-ever set of
       // keywords — let the backend decide (deduped per account, so it won't
@@ -760,7 +770,7 @@ function AddKeywordsModal({
                 onChange={setSelectedEngines}
                 keywordCount={pendingLines.length}
                 isFree={isFree}
-                freeDailyChecks={FREE_DAILY_CHECKS}
+                freeDailyChecks={dailyLimit}
                 device={device}
               />
               <div className="field">
@@ -785,9 +795,22 @@ function AddKeywordsModal({
                 />
                 <span className="tiny muted">
                   {isFree
-                    ? `Add as many keywords as you like (${currentCount} tracked). On the free plan ${FREE_DAILY_CHECKS} are checked each day — upgrade to check them all.`
+                    ? `Add as many keywords as you like (${currentCount} tracked). The free plan checks ${dailyLimit} a day; the rest can be checked the next day, or upgrade to check them all.`
                     : `Unlimited keywords per project (${currentCount} tracked).`}
                 </span>
+                {/* Said before adding, rather than found afterwards as locked
+                    rows: how many get checked now, and what the rest wait for. */}
+                {isFree && checksLeft !== null && newChecks > checksLeft && (
+                  <span className="tiny" style={{ color: "var(--warn, #d97706)", lineHeight: 1.5 }}>
+                    {checksLeft > 0
+                      ? `You have ${checksLeft} free check${checksLeft === 1 ? "" : "s"} left today, so ${checksLeft} of these get checked now. The other ${newChecks - checksLeft} are still added — check them tomorrow when your ${dailyLimit} daily checks reset, or `
+                      : `Today's ${dailyLimit} free checks are used. These are still added — check them tomorrow when your checks reset, or `}
+                    <Link href="/pricing?clicked-buy-button" style={{ color: "inherit", textDecoration: "underline" }}>
+                      upgrade to check them all now
+                    </Link>
+                    .
+                  </span>
+                )}
 
                 {/* AI suggestions for the whole site, from a crawl of the
                     homepage. Rendered ABOVE the Google strip and independent of
@@ -2107,17 +2130,19 @@ export default function ProjectKeywordsPage() {
   }, [project, scoped, filter, sort])
 
   /**
-   * Keywords today's allowance will not reach.
+   * Keywords a "Check now" can't reach today, shown Locked.
    *
-   * The scheduler orders by search volume descending and stops when the day's
-   * checks run out, so the ones it will never reach are simply everything past
-   * the allowance in that same order. Mirroring that ordering is what makes the
-   * lock honest: it marks the keywords that genuinely will not be checked,
-   * rather than an arbitrary tail of the list.
+   * A plain Check now covers the whole project — every engine and device, not
+   * just this tab — and spends what's left of today on keywords with no result
+   * first, oldest-added first (stalestFirst in the backend's rankings.service).
+   * So the ones it can't reach are the result-less keywords past today's
+   * remaining checks, less the checks already on their way. MUST mirror that
+   * order: if the two disagree, the table locks one keyword while the backend
+   * quietly checks another.
    *
    * Derived rather than waited for. `lockedKwIds` only arrives in the response
-   * to a manual Check now, so before pressing it a free account tracking twenty
-   * keywords saw twenty unlocked rows.
+   * to a manual Check now, so without this a free account that added more than
+   * today's checks saw every row unlocked until it pressed the button.
    *
    * Free only. A paid credits account has no daily ceiling; its balance is the
    * budget, and locking rows there would be inventing a limit.
@@ -2127,29 +2152,15 @@ export default function ProjectKeywordsPage() {
    * render, so the first successful load threw #310, "rendered more hooks than
    * during the previous render", and took every project page down with it.
    */
-  // Which keywords fall outside the daily check allowance, and so show as
-  // Locked. MUST mirror the scheduler's ordering (modules/rankings/scheduler.ts,
-  // the DueItem sort) — if the two disagree the table marks one keyword Locked
-  // while the backend quietly checks a different one, which is worse than not
-  // marking anything at all.
   const overAllowanceIds = useMemo(() => {
-    const limit = usage?.dailyLimit
-    if (usage?.plan !== "free" || !limit || filtered.length <= limit) return new Set<string>()
-    // Oldest-added first, id breaking ties.
-    //
-    // This used to mirror a scheduler that sorted by search volume with addedAt
-    // as the tiebreak — a fix for volume-only ordering, where keywords whose
-    // volume had not loaded yet all sorted as -1 and shuffled as the data
-    // arrived, locking a different row on every refresh.
-    //
-    // The scheduler has since dropped volume ordering altogether, for the same
-    // reason taken one step further: volume is backfilled asynchronously, so the
-    // set it chose kept moving on its own for days after the keywords were
-    // added. Insertion order is the one ordering a user can predict and control,
-    // so both sides now use it and the tiebreak is stable rather than a proxy.
-    const byAdded = [...filtered].sort(byAddedOrder)
-    return new Set(byAdded.slice(limit).map((k) => k.id))
-  }, [filtered, usage?.dailyLimit, usage?.plan])
+    if (usage?.plan !== "free" || !project) return new Set<string>()
+    const inFlight = (k: Keyword) => k.status === "PENDING" || k.status === "PROCESSING"
+    const waiting = project.keywords
+      .filter((k) => k.checkedAt == null && k.position == null && !inFlight(k))
+      .sort(byAddedOrder)
+    const left = Math.max(0, usage.dailyRemaining - project.keywords.filter(inFlight).length)
+    return new Set(waiting.slice(left).map((k) => k.id))
+  }, [project, usage?.plan, usage?.dailyRemaining])
 
   /**
    * Locked means "there is nothing here yet", never "there is something here
@@ -3027,7 +3038,7 @@ export default function ProjectKeywordsPage() {
                         }
                         router.push(`/dashboard/project/${project.id}/keywords/${kw.id}`)
                       }}
-                      title={locked ? t("lockedTip", { limit: usage?.dailyLimit ?? 3 }) : "View keyword details"}
+                      title={locked ? t("lockedTip", { limit: usage?.dailyLimit ?? FREE_DAILY_CHECKS }) : "View keyword details"}
                     >
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
@@ -3068,7 +3079,7 @@ export default function ProjectKeywordsPage() {
                             // both unreadable and see-through — it obscured
                             // enough to be annoying and not enough to be a
                             // limit, which is the worst of both.
-                            <span className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? 3 })}>
+                            <span className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? FREE_DAILY_CHECKS })}>
                               <Icon.lock size={11} /> {t("lockedCta")}
                             </span>
                           ) : (
@@ -3449,6 +3460,8 @@ export default function ProjectKeywordsPage() {
           projectId={project.id}
           currentCount={project.keywords.length}
           plan={plan}
+          dailyLimit={usage?.dailyLimit ?? FREE_DAILY_CHECKS}
+          checksLeft={checksLeft}
           domain={project.domain}
           existingKeywords={project.keywords.map((k) => k.keyword)}
           aiSuggestions={aiSuggestions}
@@ -3656,7 +3669,7 @@ export default function ProjectKeywordsPage() {
                     You&apos;ve used today&apos;s free checks
                   </div>
                   <div className="tiny muted" style={{ marginTop: 6 }}>
-                    A free plan runs {usage?.dailyLimit ?? 3} rank checks a day. Nothing will run
+                    A free plan runs {usage?.dailyLimit ?? FREE_DAILY_CHECKS} rank checks a day. Nothing will run
                     until they reset — this costs you nothing now.
                   </div>
                   <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
@@ -3679,7 +3692,8 @@ export default function ProjectKeywordsPage() {
                   {willRun < runCheckCost && (
                     <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
                       You have {checksLeft} check{checksLeft === 1 ? "" : "s"} left today, so only{" "}
-                      {willRun} of your {runCheckCost} will run. The rest stay unchecked until the reset.
+                      {willRun} of your {runCheckCost} will run. The rest can be checked tomorrow when your checks
+                      reset, or upgrade to check them all now.
                     </div>
                   )}
                 </>

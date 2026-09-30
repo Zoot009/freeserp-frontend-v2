@@ -118,7 +118,7 @@ export function QuotaUpsellModal() {
         setChecksPerDay(cfg.perWorkerDailyChecks)
         setExtension({
           days: cfg.freeTrial?.extensionDays ?? 2,
-          checks: cfg.freeTrial?.extensionChecks ?? 6,
+          checks: cfg.freeTrial?.extensionChecks ?? 20,
         })
         if (u.plan === "paid") {
           // First configured tier strictly above the current count — also lifts
@@ -166,7 +166,7 @@ export function QuotaUpsellModal() {
       await api.post("/api/billing/trial/extend", {})
       window.dispatchEvent(new Event("usage:refresh"))
       toast.success(
-        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 6 }),
+        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 20 }),
       )
       close()
     } catch (err) {
@@ -268,7 +268,7 @@ export function QuotaUpsellModal() {
                 <div className="tiny muted" style={{ lineHeight: 1.55 }}>
                   {t("extendBody", {
                     days: extension?.days ?? 2,
-                    checks: extension?.checks ?? 6,
+                    checks: extension?.checks ?? 20,
                   })}
                 </div>
                 <div className="tiny muted" style={{ opacity: 0.8 }}>{t("extendOnce")}</div>

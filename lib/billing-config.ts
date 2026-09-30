@@ -43,12 +43,12 @@ export const FALLBACK_BILLING_CONFIG: BillingConfig = {
   pricePerWorkerCents: { month: PRICE_PER_WORKER_USD * 100, year: PRICE_PER_WORKER_YEAR_USD * 100 },
   intervals: ["month", "year"],
   freeTrial: {
-    dailyChecks: 3,
-    lifetimeChecks: 21,
-    totalChecks: 21,
+    dailyChecks: 10,
+    lifetimeChecks: 70,
+    totalChecks: 70,
     windowDays: 7,
     extensionDays: 2,
-    extensionChecks: 6,
+    extensionChecks: 20,
   },
   liveCheckUnits: 1,
   priorityCheckUnits: 2,
@@ -74,4 +74,20 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
       inflight = null
     })
   return inflight
+}
+
+/**
+ * The toast after adding keywords on a free plan when today's checks can't
+ * cover them all: how many get checked now, and what the rest wait for. Null
+ * when everything added fits, or the plan has no daily ceiling, so the caller
+ * keeps its own plain "Added N keywords".
+ *
+ * `checksLeft` is today's remaining checks as read BEFORE the add: adding runs
+ * a first check on the new keywords, and only that many fit today.
+ */
+export function freeAddedNote(added: number, checksLeft: number | null): string | null {
+  if (checksLeft === null || added <= checksLeft) return null
+  return checksLeft > 0
+    ? `Added ${added} keywords — ${checksLeft} are being checked now. Check the rest tomorrow when your checks reset, or upgrade to check them all.`
+    : `Added ${added} keywords. Today's free checks are used — check them tomorrow when they reset, or upgrade to check them now.`
 }

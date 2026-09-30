@@ -3,7 +3,7 @@
 /**
  * "Your free checks are back."
  *
- * A free plan gets three rank checks a day, and when they run out the tracker
+ * A free plan gets ten rank checks a day, and when they run out the tracker
  * shows a countdown to the UTC reset. Nothing ever announced the reset — the
  * user had to remember to come back and look at a timer, so the checks they had
  * been waiting for went unused until they happened to open the right page.
@@ -13,7 +13,7 @@
  * on it.
  *
  * It never appears for an account that tracks nothing. A new user landing on
- * "Add your first website" was being told their three checks were back —
+ * "Add your first website" was being told their free checks were back —
  * about an allowance they had never spent, for keywords that did not exist,
  * over the top of the one thing the screen was asking them to do.
  *

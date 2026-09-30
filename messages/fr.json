@@ -271,7 +271,7 @@
     "trialBannerRest": "Rechargez ou passez à l'offre supérieure dès que vous en avez besoin.",
     "freeTitle": "Gratuit",
     "perMonth": "/mois",
-    "freeForever": "3 vérifications pour essayer — sans carte bancaire.",
+    "freeForever": "10 vérifications de classement par jour pour essayer — sans carte bancaire.",
     "currentPlan": "Forfait actuel",
     "freePlan": "Forfait gratuit",
     "paidTitle": "Vérifications",
@@ -290,8 +290,8 @@
     "errorCheckoutFailed": "Échec du paiement",
     "limitsReset": "Les limites quotidiennes se réinitialisent à minuit (UTC). Annulez à tout moment depuis le portail client de votre prestataire de paiement.",
     "freeFeatures": [
-      "3 vérifications de classement, essai de 7 jours — sans carte",
-      "1 projet · 10 mots-clés",
+      "10 vérifications de classement par jour, essai de 7 jours — sans carte",
+      "1 projet · mots-clés illimités",
       "Vérifications manuelles et Quick SERP",
       "1 analyse IA complète / jour",
       "Les 69 pays, les deux appareils"
@@ -830,7 +830,7 @@
     "statusPendingProcessing": "{pending} en attente, {processing} en cours",
     "checkStay": "les nouvelles positions s'affichent ici automatiquement, généralement en moins d'une minute",
     "locked": "Améliorer",
-    "lockedTip": "Pas encore vérifié. Votre forfait vérifie {limit} mots-clés par jour, en commençant par les plus recherchés — passez à un forfait supérieur ou rechargez pour inclure celui-ci.",
+    "lockedTip": "Pas encore vérifié — les {limit} vérifications gratuites du jour ne vont pas jusqu'ici. Elles sont réinitialisées à minuit UTC : vérifiez-le demain, ou passez à un forfait supérieur pour le voir maintenant.",
     "checksResetIn": "Vérifications dans",
     "outOfChecksTip": "Vous avez utilisé vos vérifications du jour ; elles se réinitialisent à 00:00 UTC. Vous pouvez toujours ajouter des mots-clés ; passez à un forfait supérieur pour des limites plus élevées.",
     "aiSkip": "Ignorer et ajouter les mots-clés manuellement",
@@ -882,7 +882,7 @@
     "engineMultiplierFree": "Vos {checks} vérifications quotidiennes sont partagées entre les moteurs : chaque paire mot-clé/moteur en consomme une.",
     "engineMultiplier": "{keywords} mots-clés × {engines} moteurs = {total} mots-clés suivis",
     "noEngineKeywords": "Aucun mot-clé {engine} sur {device} pour le moment.",
-    "lockedCta": "Améliorer pour voir"
+    "lockedCta": "Améliorer ou attendre"
   },
   "dashKeywords": {
     "headerEyebrow": "SUIVI DE POSITION",
@@ -1520,7 +1520,7 @@
     "upgradeFailed": "Impossible de mettre à jour votre forfait. Veuillez réessayer.",
     "bodyAiLimit": "Vous avez utilisé toutes les analyses IA du jour ({used} sur {limit}). Chaque 1 $/mois ajoute 2 analyses par jour — augmentez votre forfait ou réessayez demain.",
     "titleFreeDaily": "Vos vérifications du jour sont épuisées",
-    "bodyFreeDailyQuota": "Vous avez utilisé {used} des {limit} vérifications gratuites aujourd'hui. Elles sont réinitialisées à minuit UTC — votre essai continue.",
+    "bodyFreeDailyQuota": "Vous avez utilisé {used} des {limit} vérifications gratuites aujourd'hui. Elles sont réinitialisées à minuit UTC, vous pourrez donc en faire d'autres demain — ou passez à un forfait supérieur pour tout vérifier maintenant.",
     "gotIt": "Compris",
     "seePlans": "Voir les forfaits"
   },

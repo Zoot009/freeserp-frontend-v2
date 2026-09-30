@@ -271,7 +271,7 @@
     "trialBannerRest": "Aufladen oder upgraden, wann immer du mehr brauchst.",
     "freeTitle": "Kostenlos",
     "perMonth": "/Monat",
-    "freeForever": "3 Checks zum Ausprobieren — keine Karte nötig.",
+    "freeForever": "10 Rank-Checks pro Tag zum Ausprobieren — keine Karte nötig.",
     "currentPlan": "Aktueller Plan",
     "freePlan": "Kostenloser Plan",
     "paidTitle": "Checks",
@@ -290,8 +290,8 @@
     "errorCheckoutFailed": "Checkout fehlgeschlagen",
     "limitsReset": "Tageslimits werden um Mitternacht (UTC) zurückgesetzt. Jederzeit über das Kundenportal deines Zahlungsanbieters kündbar.",
     "freeFeatures": [
-      "3 Rank-Checks, 7 Tage Testphase — keine Karte",
-      "1 Projekt · 10 Keywords",
+      "10 Rank-Checks pro Tag, 7 Tage Testphase — keine Karte",
+      "1 Projekt · unbegrenzt Keywords",
       "Manuelle Checks & Quick SERP",
       "1 vollständige KI-Analyse / Tag",
       "Alle 69 Länder, beide Geräte"
@@ -830,7 +830,7 @@
     "statusPendingProcessing": "{pending} ausstehend, {processing} in Bearbeitung",
     "checkStay": "neue Rankings erscheinen hier automatisch, meist in unter einer Minute",
     "locked": "Upgraden",
-    "lockedTip": "Noch nicht geprüft. Ihr Tarif prüft {limit} Keywords pro Tag, beginnend mit dem höchsten Suchvolumen — upgraden oder aufladen, um dieses einzuschließen.",
+    "lockedTip": "Noch nicht geprüft — die {limit} kostenlosen Prüfungen von heute reichen nicht bis hierher. Sie werden um Mitternacht UTC zurückgesetzt: morgen prüfen oder jetzt upgraden, um es zu sehen.",
     "checksResetIn": "Checks zurückgesetzt in",
     "outOfChecksTip": "Du hast die heutigen Rang-Checks aufgebraucht – sie werden um 00:00 UTC zurückgesetzt. Keywords kannst du weiterhin hinzufügen; upgrade für höhere Tageslimits.",
     "aiSkip": "Überspringen und Keywords manuell hinzufügen",
@@ -882,7 +882,7 @@
     "engineMultiplierFree": "Deine {checks} täglichen Prüfungen gelten für alle Suchmaschinen zusammen — jedes Keyword-Suchmaschinen-Paar zählt einzeln.",
     "engineMultiplier": "{keywords} Keywords × {engines} Suchmaschinen = {total} verfolgte Keywords",
     "noEngineKeywords": "Noch keine {engine}-Keywords auf {device}.",
-    "lockedCta": "Upgraden zum Ansehen"
+    "lockedCta": "Upgraden oder morgen"
   },
   "dashKeywords": {
     "headerEyebrow": "RANKING-TRACKING",
@@ -1520,7 +1520,7 @@
     "upgradeFailed": "Plan konnte nicht aktualisiert werden. Bitte versuche es erneut.",
     "bodyAiLimit": "Du hast alle KI-Analysen für heute verbraucht ({used} von {limit}). Jede 1 $/Monat bringt 2 Analysen pro Tag — erweitere deinen Tarif oder versuch es morgen erneut.",
     "titleFreeDaily": "Das waren die heutigen Prüfungen",
-    "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt — Ihre Testphase läuft weiter.",
+    "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt, Sie können also morgen weiter prüfen — oder jetzt upgraden, um alle zu prüfen.",
     "gotIt": "Verstanden",
     "seePlans": "Pläne ansehen"
   },
