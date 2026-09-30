@@ -372,9 +372,9 @@ function CompetitorAnalysisResultsContent() {
                 </button>
                 {exportMenuOpen && (
                   <div
+                    className="export-menu"
                     style={{
                       position: "absolute",
-                      right: 0,
                       top: "100%",
                       marginTop: 6,
                       minWidth: 180,

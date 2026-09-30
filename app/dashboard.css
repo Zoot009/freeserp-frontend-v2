@@ -3402,6 +3402,9 @@
 /* On touch screens the 12px icon + 2px padding was a 16px target: pad it to
    24px, with negative margins so the layout doesn't move. */
 @media (pointer: coarse) { .fs-app .cmp-open { padding: 6px; margin: -4px; } }
+/* Competitor results Export menu: opens right-aligned under the button, which
+   sits at the right of the header on desktop (phones: see the 640px block). */
+.fs-app .export-menu { right: 0; }
 /* Non-interactive variant of the competitor card — reused for read-only SERP
    result lists (keyword detail) where rows aren't selectable. */
 .fs-app .cmp-card.static { cursor: default; }
@@ -3615,6 +3618,10 @@
   .fs-app .ap-task { grid-template-columns: 22px 1fr; gap: 6px 10px; padding: 12px; }
   .fs-app .ap-task .nm { grid-row: 1 / span 2; }
   .fs-app .ap-task .imp { grid-column: 2; grid-row: 1; justify-self: start; }
+
+  /* The header stacks here and Export sits near the left edge, so a
+     right-aligned menu opened at -31px, cutting its options off. */
+  .fs-app .export-menu { right: auto; left: 0; }
 }
 
 /* === ON-PAGE AUDIT — entrance motion + hover depth ===
