@@ -175,6 +175,48 @@ function LazyHint({ text, children }: { text: string; children: React.ReactEleme
   return cloneElement(children, { onPointerEnter: () => setArmed(true) })
 }
 
+/** Leading icon inside a text input, as on the SERP checker. */
+const FIELD_ICON: React.CSSProperties = {
+  position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)",
+  color: "var(--text-mute)", display: "inline-flex", pointerEvents: "none",
+}
+
+/**
+ * A labelled field, drawn as the SERP checker draws its form. `group` makes it
+ * a div rather than a <label>: a label passes a click on its text to the first
+ * button inside, and here that button can start a search.
+ */
+function Field({ label, group = false, style, children }: {
+  label: string
+  group?: boolean
+  style?: React.CSSProperties
+  children: React.ReactNode
+}) {
+  const Tag = group ? "div" : "label"
+  return (
+    <Tag className="col" style={{ gap: 6, minWidth: 0, ...style }} {...(group ? { role: "group", "aria-label": label } : {})}>
+      <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
+        {label}
+      </span>
+      {children}
+    </Tag>
+  )
+}
+
+/**
+ * m:ss since `since`. It ticks in its own component, so the clock re-renders
+ * itself each second rather than the page and its thousand rows.
+ */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const s = Math.max(0, Math.floor((now - since) / 1000))
+  return <span className="tabular">{Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}</span>
+}
+
 export default function KeywordMagicPage() {
   const { credits: creditSummary } = useCredits()
   const creditsMode = creditSummary?.mode
@@ -185,7 +227,10 @@ export default function KeywordMagicPage() {
   const [matchType, setMatchType] = useState<MatchType>("broad")
 
   const [result, setResult] = useState<MagicResponse | null>(null)
-  const [loading, setLoading] = useState(false)
+  // The search on its way, for the progress banner: what was asked, and when.
+  // The seed is the one submitted, not the box, which can change meanwhile.
+  const [pending, setPending] = useState<{ seed: string; match: MatchType; country: string; startedAt: number } | null>(null)
+  const loading = pending != null
   const [error, setError] = useState<string | null>(null)
   const [paywalled, setPaywalled] = useState(false)
 
@@ -225,7 +270,7 @@ export default function KeywordMagicPage() {
       inflight.current?.ctrl.abort()
       const ctrl = new AbortController()
       inflight.current = { ctrl, match }
-      setLoading(true)
+      setPending({ seed: q, match, country, startedAt: Date.now() })
       setError(null)
       setPaywalled(false)
       setActiveGroup(null)
@@ -261,7 +306,7 @@ export default function KeywordMagicPage() {
       } finally {
         if (inflight.current?.ctrl === ctrl) {
           inflight.current = null
-          setLoading(false)
+          setPending(null)
         }
       }
     },
@@ -283,7 +328,7 @@ export default function KeywordMagicPage() {
       // Back to the answer on screen: drop the other tab's search.
       inflight.current?.ctrl.abort()
       inflight.current = null
-      setLoading(false)
+      setPending(null)
       return
     }
     if (seed.trim() && (result || loading)) void run(key)
@@ -391,18 +436,17 @@ export default function KeywordMagicPage() {
         </div>
       )}
 
-      {/* Search form */}
+      {/* Search form, laid out as the SERP checker's: the query on top, the
+          settings under it with the button at the end of their line, the price
+          below. It was the seed, the country and Search on one line with a gap
+          before the button, and the match tabs alone on a third line. */}
       <form className="card" onSubmit={onSubmit} style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
-          <div className="km-seed">
-            <span
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-mute)", display: "inline-flex" }}
-            >
-              <Icon.search />
-            </span>
+        <Field label={t("kmSeedLabel")}>
+          <div style={{ position: "relative" }}>
+            <span style={FIELD_ICON}><Icon.search /></span>
             <input
-              className="input"
-              style={{ paddingLeft: 36, width: "100%" }}
+              className="input lg"
+              style={{ paddingLeft: 38 }}
               placeholder={t("kmSeedPlaceholder")}
               value={seed}
               maxLength={SEED_MAX}
@@ -410,25 +454,7 @@ export default function KeywordMagicPage() {
               autoFocus
             />
           </div>
-          <Dropdown
-            menuAlign="left"
-            value={country}
-            options={ALL_LOCATIONS.map((loc) => ({
-              value: loc.code,
-              label: (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <Flag code={loc.code} size={15} /> {loc.name}
-                </span>
-              ),
-            }))}
-            onChange={setCountry}
-            ariaLabel="Database country"
-            className="km-country"
-          />
-          <button type="submit" className="btn primary" disabled={loading || !seed.trim() || outOfSearches} style={{ flex: "0 0 auto" }}>
-            {loading ? <><Icon.refresh /> {t("kmSearching")}</> : <><Icon.search /> {t("kmSearch")}</>}
-          </button>
-        </div>
+        </Field>
 
         {/* At the limit the input simply stops typing. Say so, or a pasted
             seed just looks cut off. */}
@@ -438,55 +464,112 @@ export default function KeywordMagicPage() {
           </div>
         )}
 
+        <div className="km-settings">
+          <Field label={t("kmCountryLabel")} group>
+            <Dropdown
+              block
+              menuAlign="left"
+              value={country}
+              options={ALL_LOCATIONS.map((loc) => ({
+                value: loc.code,
+                label: (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Flag code={loc.code} size={15} /> {loc.name}
+                  </span>
+                ),
+              }))}
+              onChange={setCountry}
+              ariaLabel={t("kmCountryLabel")}
+            />
+          </Field>
+          <Field label={t("kmMatchLabel")} group>
+            <div className="pill-toggle km-match">
+              {MATCH_TABS.map((tab) => {
+                // Related is paid-only. For free users show it locked (a clear upsell)
+                // rather than a normal tab that only errors after a wasted click.
+                const locked = tab.key === "related" && usage != null && !usage.relatedAvailable
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    className={(matchType === tab.key ? "active" : "") + (locked ? " km-lock-tab" : "")}
+                    onClick={() => {
+                      if (locked) {
+                        // Fire the global upsell modal; leave the current results intact.
+                        window.dispatchEvent(new CustomEvent("billing:quota", {
+                          detail: { code: "plan_upgrade_required", message: t("kmRelatedPaidOnly") },
+                        }))
+                        return
+                      }
+                      switchTab(tab.key)
+                    }}
+                    style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
+                  >
+                    {locked && <Icon.lock />}{t(tab.labelKey)}
+                    {locked && (
+                      // Hover reveal: a small "Pro — Upgrade" popover. The whole tab is
+                      // the click target (fires the upsell), so these are spans, not a
+                      // nested button/link (invalid inside a <button>).
+                      <span className="km-lock-pop">
+                        <span>{t("kmProFeature")}</span>
+                        <span className="km-lock-up">{t("kmUpgrade")}</span>
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </Field>
+          <button type="submit" className="btn primary km-go" disabled={loading || !seed.trim() || outOfSearches}>
+            {loading
+              ? <><span className="spin" style={{ display: "inline-flex" }}><Icon.refresh /></span> {t("kmSearching")}</>
+              : <><Icon.search /> {t("kmFindKeywords")}</>}
+          </button>
+        </div>
+
         {/* The price, before the search runs. The variant matters: a free
             search pulls 100 rows, a paid one 1,000, and they cost 3 and 15
             credits respectively. It waits for the usage answer that says
             which. Guessing "paid" when that request failed quoted free users
             15 credits for a 3-credit search. */}
         {usage && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 12 }}>
             <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />
           </div>
         )}
-
-        {/* Match-type tabs */}
-        <div className="pill-toggle" style={{ marginTop: 12, display: "inline-flex" }}>
-          {MATCH_TABS.map((tab) => {
-            // Related is paid-only. For free users show it locked (a clear upsell)
-            // rather than a normal tab that only errors after a wasted click.
-            const locked = tab.key === "related" && usage != null && !usage.relatedAvailable
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                className={(matchType === tab.key ? "active" : "") + (locked ? " km-lock-tab" : "")}
-                onClick={() => {
-                  if (locked) {
-                    // Fire the global upsell modal; leave the current results intact.
-                    window.dispatchEvent(new CustomEvent("billing:quota", {
-                      detail: { code: "plan_upgrade_required", message: t("kmRelatedPaidOnly") },
-                    }))
-                    return
-                  }
-                  switchTab(tab.key)
-                }}
-                style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
-              >
-                {locked && <Icon.lock />}{t(tab.labelKey)}
-                {locked && (
-                  // Hover reveal: a small "Pro — Upgrade" popover. The whole tab is
-                  // the click target (fires the upsell), so these are spans, not a
-                  // nested button/link (invalid inside a <button>).
-                  <span className="km-lock-pop">
-                    <span>{t("kmProFeature")}</span>
-                    <span className="km-lock-up">{t("kmUpgrade")}</span>
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
       </form>
+
+      {/* A search on its way: the rank tracker's "checking" strip, with what
+          was asked and a running clock, so a slow answer never looks like a
+          frozen page. It shows over results already on screen too, which dim
+          until the new ones land; before, only the button said anything. */}
+      {pending && (
+        <div className="card tight check-banner" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ gap: 12, alignItems: "center" }}>
+            <span
+              className="spin"
+              aria-hidden
+              style={{
+                width: 18, height: 18, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box",
+                border: "2.5px solid color-mix(in srgb, var(--brand) 25%, transparent)", borderTopColor: "var(--brand)",
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="b" role="status" style={{ fontSize: 13, color: "var(--brand)", overflowWrap: "anywhere" }}>
+                {t("kmFinding", { seed: pending.seed })}
+              </div>
+              <div className="tiny" style={{ color: "var(--brand)", opacity: 0.75, marginTop: 1 }}>
+                {t(pending.match === "related" ? "kmRelated" : "kmBroadMatch")}
+                {" · "}
+                {ALL_LOCATIONS.find((l) => l.code === pending.country)?.name ?? pending.country.toUpperCase()}
+                {" · "}
+                <span aria-hidden><Elapsed since={pending.startedAt} /></span>
+              </div>
+            </div>
+          </div>
+          <div className="check-bar" aria-hidden><span /></div>
+        </div>
+      )}
 
       {/* Upgrade prompt — shown when a free user hits a paid boundary (e.g. the
           Related view). The specific reason comes from the backend message. */}
@@ -513,8 +596,8 @@ export default function KeywordMagicPage() {
         </div>
       )}
 
-      {/* Loading: the shape of the answer, drawn in placeholders, rather than
-          one line of text in an empty card. */}
+      {/* First search: the shape of the answer in placeholders, under the
+          progress strip, rather than one line of text in an empty card. */}
       {loading && !result && (
         <div aria-busy="true">
           <div className="grid g-4 km-stats" style={{ marginBottom: 16 }}>
@@ -527,10 +610,6 @@ export default function KeywordMagicPage() {
             ))}
           </div>
           <div className="card" style={{ padding: 0 }}>
-            <div className="row" style={{ gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
-              <span className="spin" style={{ display: "inline-flex", color: "var(--brand)" }}><Icon.refresh /></span>
-              <span style={{ fontSize: 13, color: "var(--text-soft)" }}>{t("kmCrawling")}</span>
-            </div>
             {Array.from({ length: 8 }, (_, i) => (
               <div key={i} className="km-skel-row" style={{ borderBottom: i < 7 ? "1px solid var(--border)" : 0 }}>
                 <span className="skeleton" style={{ width: 14, height: 14, borderRadius: 4 }} />
@@ -546,9 +625,10 @@ export default function KeywordMagicPage() {
         </div>
       )}
 
-      {/* Results */}
+      {/* Results. Dimmed while a newer search runs: they answer the last
+          question, not the one on its way. */}
       {result && (
-        <>
+        <div className={loading ? "km-stale" : undefined} aria-busy={loading || undefined}>
           <div className="grid g-4 km-stats" style={{ marginBottom: 16 }}>
             <StatTile
               lbl="Keywords"
@@ -776,7 +856,7 @@ export default function KeywordMagicPage() {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Empty state — out of searches gets a prominent upsell; otherwise the
@@ -896,13 +976,19 @@ export default function KeywordMagicPage() {
         /* Loading placeholders, laid out like a row of the answer. */
         .km-skel-row { display: flex; align-items: center; gap: 18px; padding: 14px 16px; }
 
-        /* Seed row. Sizes here, not inline, so phones can re-flow it. */
-        .km-seed {
-          position: relative;
-          flex: 1 1 340px;
-          min-width: 0;
-        }
-        form :global(.km-country) { flex: 0 0 200px; }
+        /* The form's settings line: country, match type, and the button pushed
+           to the end. Bottoms aligned, so the labels line up above. Sizes
+           here, not inline, so phones can re-flow it. The toggle's padding is
+           the SERP checker's device toggle, which stands as tall as the
+           dropdown beside it. */
+        .km-settings { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; align-items: flex-end; }
+        .km-settings > :global(.col:first-child) { flex: 0 1 240px; }
+        .km-settings :global(.dd-trigger) { height: 38px; }
+        .km-match button { padding: 7px 14px; }
+        .km-go { margin-left: auto; min-width: 180px; height: 38px; justify-content: center; }
+
+        /* The last answer, while a newer search runs. */
+        .km-stale { opacity: 0.45; pointer-events: none; transition: opacity 0.2s ease; }
 
         .km-layout {
           display: grid;
@@ -979,17 +1065,20 @@ export default function KeywordMagicPage() {
           .km-group[data-active="true"] { border-color: var(--brand); }
         }
 
-        /* Phones. The seed gets its own line and the country picker fills the
-           next one beside Search; at a fixed 200px it pushed the button onto
-           a line of its own at 360px. Two tiles a row rather than the shared
+        /* Phones. The form stacks: country, then the match toggle split
+           evenly across the width, then the button full width. Two tiles a
+           row rather than the shared
            single column, where the four filled the first screen before any
            keyword (.grid outranks .fs-app .g-4). The filter bar goes to rows:
            search, the two number filters, intent (three abreast cut their
            labels off at 360px), then the count and the add button. */
         @media (max-width: 640px) {
-          .km-seed { flex-basis: 100%; }
-          form :global(.km-country) { flex: 1 1 0; min-width: 0; }
-          form :global(.km-country .dd-trigger),
+          .km-settings > :global(.col),
+          .km-settings > :global(.col:first-child) { flex: 1 1 100%; }
+          /* .km-settings too, to outrank .fs-app .pill-toggle's inline-flex. */
+          .km-settings .km-match { display: flex; width: 100%; }
+          .km-match button { flex: 1 1 0; justify-content: center; }
+          .km-go { flex: 1 1 100%; margin-left: 0; }
           .km-bar :global(.km-bar-intent .dd-trigger) { width: 100%; justify-content: space-between; }
           .grid.km-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .km-bar-q { flex-basis: 100%; }
