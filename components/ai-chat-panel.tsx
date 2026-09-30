@@ -412,7 +412,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
                 <span className="ctx-tag mono">TOPIC</span>
                 <span>{activeCategory.name}</span>
                 {inFreshChat && (
-                  <span className="x" onClick={() => onScopeChange(null)} role="button" aria-label="Clear topic">×</span>
+                  <button type="button" className="x" onClick={() => onScopeChange(null)} aria-label="Clear topic">×</button>
                 )}
               </span>
             )}
@@ -421,7 +421,7 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
                 <span className="ctx-tag mono">PROBLEM</span>
                 <span className="ellip" title={activeProblem.recommendation}>{activeProblem.recommendation}</span>
                 {inFreshChat && (
-                  <span className="x" onClick={() => setActiveProblem(null)} role="button" aria-label="Clear problem">×</span>
+                  <button type="button" className="x" onClick={() => setActiveProblem(null)} aria-label="Clear problem">×</button>
                 )}
               </span>
             )}
@@ -827,7 +827,11 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
           color: var(--text-soft);
           max-width: 220px;
         }
-        .ctx-chip .x { color: var(--text-mute); cursor: pointer; margin-left: 2px; user-select: none; font-size: 13px; line-height: 1; }
+        /* A real button (keyboard-reachable; the span wasn't) with a padded hit
+           area — the bare glyph was a 6x12px tap target. Negative margins keep
+           it where the glyph used to sit. */
+        .ctx-chip .x { color: var(--text-mute); cursor: pointer; user-select: none; font-size: 13px; line-height: 1;
+          background: none; border: 0; font-family: inherit; padding: 7px 10px; margin: -7px -10px -7px -8px; }
         .ctx-chip .x:hover { color: var(--text); }
         .ctx-chip .ctx-tag {
           font-size: 10px; font-weight: 600;

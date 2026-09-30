@@ -3399,6 +3399,9 @@
 .fs-app .cmp-card .desc { font-size: 12.5px; color: var(--text-soft); line-height: 1.45; }
 .fs-app .cmp-open { border-radius: 4px; padding: 2px; transition: color .12s ease, background .12s ease; }
 .fs-app .cmp-open:hover { color: var(--brand); background: var(--brand-soft); }
+/* On touch screens the 12px icon + 2px padding was a 16px target: pad it to
+   24px, with negative margins so the layout doesn't move. */
+@media (pointer: coarse) { .fs-app .cmp-open { padding: 6px; margin: -4px; } }
 /* Non-interactive variant of the competitor card — reused for read-only SERP
    result lists (keyword detail) where rows aren't selectable. */
 .fs-app .cmp-card.static { cursor: default; }
