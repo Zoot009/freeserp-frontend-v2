@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth"
-import { api } from "@/lib/api"
+import { api, apiErrorMessage } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { FavoriteButton } from "@/components/dashboard/favorite-button"
 import { CompetitorComparisonTable } from "@/components/competitor-comparison-table"
@@ -188,17 +188,26 @@ function CompetitorAnalysisResultsContent() {
 
   const handleRecrawl = async (domain: string) => {
     setRecrawlingDomains((prev) => new Set(prev).add(domain))
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-      await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, { domain }, {
-        withCredentials: true,
-      })
-    } catch {
+    const refused = (message: string) => {
       setRecrawlingDomains((prev) => {
         const s = new Set(prev)
         s.delete(domain)
         return s
       })
+      toast.error(message)
+    }
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+      const res = await axios.post(`${apiUrl}/api/competitor-analysis/${analysisId}/recrawl-domain`, { domain }, {
+        withCredentials: true,
+      })
+      // lib/axios resolves every status, so a refusal (402 out of credits, 429,
+      // 404) lands here, not in catch — say why instead of just dropping the spinner.
+      if (res.status < 200 || res.status >= 300) {
+        refused(apiErrorMessage(res.data, "Couldn't start the recrawl. Please try again."))
+      }
+    } catch {
+      refused("Couldn't start the recrawl. Please try again.")
     }
   }
 
