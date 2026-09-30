@@ -445,7 +445,9 @@ function LinkGraphViz({
         </div>
 
         {activeTab === "graph" && (
-          <div className="flex gap-0.5 bg-muted/50 border border-border/40 rounded-lg p-0.5">
+          // flex-wrap: the four chips are ~295px, wider than the graph card on a
+          // phone, and the card's overflow-hidden cut the last ones off.
+          <div className="flex flex-wrap gap-0.5 bg-muted/50 border border-border/40 rounded-lg p-0.5">
             {LEGEND_ITEMS.map(({ cls, label }) => (
               <button
                 key={cls}
