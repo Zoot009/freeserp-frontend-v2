@@ -24,10 +24,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { hasDeclinedKeywordAi, declineKeywordAi } from "@/lib/keywordAiChoice"
 import { Link, useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { Loader2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { api } from "@/lib/api"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, useCreditQuote } from "@/lib/credits"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -79,18 +82,29 @@ const PRESELECT_COUNT = 10
  *
  * The same shape the Add keywords modal posts: one row per keyword per engine.
  */
-async function trackKeywords(projectId: string, keywords: string[], location: string): Promise<number> {
-  const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
+async function trackKeywords(
+  projectId: string,
+  keywords: string[],
+  location: string,
+  /** Shown when the add lands but the balance cannot pay for the first check. */
+  skipped: { message: string; buyLabel: string; onBuy: () => void },
+): Promise<number> {
+  const res = await api.post<{ added?: number; checkSkipped?: string }>(`/api/projects/${projectId}/keywords`, {
     keywords: keywords.map((k) => ({ keyword: k, location, device: "desktop", engines: [DEFAULT_ENGINE] })),
   })
   // skipDuplicates server-side, so `added` can legitimately come back lower
   // than asked. Say which happened — silence is indistinguishable from failure.
   const added = res?.added ?? keywords.length
-  toast.success(
-    added === 0
-      ? "Those keywords are already tracked."
-      : `Now tracking ${added} keyword${added === 1 ? "" : "s"} — the first check is queued.`,
-  )
+  if (res?.checkSkipped === "insufficient_credits") {
+    // The keywords are in, but "the first check is queued" would be false.
+    toast.warning(skipped.message, { action: { label: skipped.buyLabel, onClick: skipped.onBuy } })
+  } else {
+    toast.success(
+      added === 0
+        ? "Those keywords are already tracked."
+        : `Now tracking ${added} keyword${added === 1 ? "" : "s"} — the first check is queued.`,
+    )
+  }
   return added
 }
 
@@ -235,6 +249,8 @@ function KeywordAiPrompt({
               <Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Add them myself</Link>
             </Button>
           </div>
+          {/* The analysis is the paid one of the two answers. */}
+          <CreditCost action={CREDIT_ACTION_KEYS.keywordSuggestions} className="mx-auto -mt-2 mb-3 flex w-fit" />
           {/* A quiet third option. "Not now" belongs below the two real answers,
               not beside them competing for the same weight. */}
           <button
@@ -260,6 +276,7 @@ export function KeywordSetupCard({
   onStatus?: (running: boolean) => void
 }) {
   const router = useRouter()
+  const tc = useTranslations("credits")
   const [run, setRun] = useState<Run | null>(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
@@ -443,6 +460,11 @@ export function KeywordSetupCard({
   // than assuming a completed run has keywords in it.
   const shortlist = run?.suggestions?.suggestions ?? []
   const shortlistLocation = run?.suggestions?.location ?? "in"
+  // Tracking runs each new keyword's first check, on the standard queue.
+  const trackCount = Math.min(PRESELECT_COUNT, shortlist.length)
+  const trackQuote = useCreditQuote(CREDIT_ACTION_KEYS.rankCheck, Math.max(1, trackCount))
+  const retryCost = useCreditQuote(CREDIT_ACTION_KEYS.keywordSuggestions)
+  const [confirmTrack, setConfirmTrack] = useState(false)
 
   /**
    * Track the shortlist head and go where the keywords now live.
@@ -456,7 +478,11 @@ export function KeywordSetupCard({
     if (!picks.length) return
     setAutoAdding(true)
     try {
-      await trackKeywords(projectId, picks, shortlistLocation)
+      await trackKeywords(projectId, picks, shortlistLocation, {
+        message: tc("addedCheckSkipped"),
+        buyLabel: tc("buyCredits"),
+        onBuy: () => router.push(BUY_CREDITS_HREF),
+      })
       router.push(`/dashboard/project/${projectId}/keywords`)
     } catch (err) {
       // Stay put and say so. Navigating away from a failure would leave the
@@ -544,11 +570,17 @@ export function KeywordSetupCard({
              * keywords. So the link was not protecting anything, it was just
              * one more decision in front of the thing being asked for.
              */
+            <div className="flex flex-col items-end gap-1">
             <Button
               size="sm"
               className="h-8 text-xs"
               disabled={autoAdding}
-              onClick={() => void autoTrack()}
+              onClick={() => {
+                // Tracking them runs each one's first check — confirmed when
+                // that adds up, priced beside the button either way.
+                if (trackQuote.applies && (trackQuote.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmTrack(true)
+                else void autoTrack()
+              }}
             >
               {autoAdding ? (
                 <>
@@ -558,6 +590,18 @@ export function KeywordSetupCard({
                 `Start tracking ${Math.min(PRESELECT_COUNT, shortlist.length)} keywords`
               )}
             </Button>
+            <CreditCost action={CREDIT_ACTION_KEYS.rankCheck} units={trackCount} showBalance={false} />
+            <CreditCostConfirm
+              action={CREDIT_ACTION_KEYS.rankCheck}
+              units={trackCount}
+              title={tc("addConfirmTitle", { count: trackCount })}
+              description={tc("addConfirmBody")}
+              confirmLabel={`Start tracking ${trackCount} keywords`}
+              open={confirmTrack}
+              onOpenChange={setConfirmTrack}
+              onConfirm={() => void autoTrack()}
+            />
+            </div>
           ) : (
             // The run finished with nothing to offer. There is no choice to
             // make, so this is honestly a link to the manual box.
@@ -575,7 +619,15 @@ export function KeywordSetupCard({
             </p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { startedRef.current = false; void start() }}>Try again</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              title={retryCost.applies && retryCost.cost ? tc("costUses", { count: retryCost.cost, n: retryCost.cost }) : undefined}
+              onClick={() => { startedRef.current = false; void start() }}
+            >
+              Try again
+            </Button>
             <Button asChild size="sm" className="h-8 text-xs"><Link href={`/dashboard/project/${projectId}/keywords?add=1`}>Add keywords</Link></Button>
           </div>
         </div>

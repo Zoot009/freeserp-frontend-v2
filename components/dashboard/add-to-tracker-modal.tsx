@@ -19,7 +19,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
+import {
+  BUY_CREDITS_HREF,
+  CREDIT_ACTION_KEYS,
+  quoteCredits,
+  useCreditRates,
+  useCredits,
+} from "@/lib/credits"
 import { freeAddedNote } from "@/lib/billing-config"
 import { track } from "@/lib/analytics"
 import { Icon } from "@/components/dashboard/icons"
@@ -188,8 +198,28 @@ export function AddToTrackerModal({
   const totalRows = selected.length * rowsPerKeyword
   const chunkSize = Math.max(1, Math.min(MAX_KEYWORDS_PER_REQUEST, Math.floor(MAX_ROWS_PER_REQUEST / rowsPerKeyword)))
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── price ──────────────────────────────────────────────────────────────────
+  // Adding runs the first check of the new rows on the standard queue
+  // (keywords.service sends it as a background check, never priority).
+  const tc = useTranslations("credits")
+  const router = useRouter()
+  const { rates } = useCreditRates()
+  const { credits } = useCredits()
+  const firstCheckCost = totalRows > 0 ? quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck, totalRows) : null
+  const [confirmAdd, setConfirmAdd] = useState(false)
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // A big first check is confirmed with the balance in view; validation
+    // still runs first, inside submitKeywords, for anything that cannot run.
+    if (credits?.mode === "credits" && selected.length > 0 && projectId && location && (firstCheckCost ?? 0) >= CONFIRM_THRESHOLD) {
+      setConfirmAdd(true)
+      return
+    }
+    void submitKeywords()
+  }
+
+  const submitKeywords = async () => {
     if (!projectId) {
       setError("Choose a project to track these keywords in.")
       return
@@ -216,16 +246,25 @@ export function AddToTrackerModal({
     // Declared outside the try: a batch that fails halfway has still created
     // rows, and both the error message and the caller's refresh need the count.
     let added = 0
+    let checkSkipped = false
     try {
       // Sequential, not Promise.all: each request is checked against the plan's
       // keyword cap and the daily add budget, and firing twenty at once would
       // race those counters into either a false rejection or an overshoot.
       for (let i = 0; i < selected.length; i += chunkSize) {
         const batch = selected.slice(i, i + chunkSize)
-        const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
+        const res = await api.post<{ added?: number; checkSkipped?: string }>(`/api/projects/${projectId}/keywords`, {
           keywords: batch.map((keyword) => ({ keyword, location, device, engines: selectedEngines })),
         })
         added += res?.added ?? 0
+        if (res?.checkSkipped === "insufficient_credits") checkSkipped = true
+      }
+      // Added, but the balance could not pay for the first check — the rows
+      // are waiting, and the way out is named rather than left to be guessed.
+      if (checkSkipped) {
+        toast.warning(tc("addedCheckSkipped"), {
+          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
+        })
       }
       if (added === 0) {
         toast.info("Those keywords are already tracked on the engines you picked.")
@@ -450,6 +489,9 @@ export function AddToTrackerModal({
             )}
 
             <div className="modal-f">
+              {selected.length > 0 && (
+                <CreditCost action={CREDIT_ACTION_KEYS.rankCheck} cost={firstCheckCost} className="mr-auto" />
+              )}
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
               <button
                 type="submit"
@@ -464,6 +506,16 @@ export function AddToTrackerModal({
                     : "Add keywords"}
               </button>
             </div>
+            <CreditCostConfirm
+              action={CREDIT_ACTION_KEYS.rankCheck}
+              cost={firstCheckCost}
+              title={tc("addConfirmTitle", { count: totalRows })}
+              description={tc("addConfirmBody")}
+              confirmLabel="Add keywords"
+              open={confirmAdd}
+              onOpenChange={setConfirmAdd}
+              onConfirm={() => void submitKeywords()}
+            />
           </form>
         </div>
       </div>

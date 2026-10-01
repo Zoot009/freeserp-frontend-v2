@@ -45,6 +45,7 @@ export function CreditCost({
   showBalance = true,
   /** The cost is a ceiling, not the charge (a site crawl pays per page found). */
   upTo = false,
+  cost: fixedCost,
 }: {
   action: string
   units?: number
@@ -52,9 +53,15 @@ export function CreditCost({
   className?: string
   showBalance?: boolean
   upTo?: boolean
+  /** A total priced elsewhere, for something that spends on more than one
+   *  action at once (project create: a keyword run plus the checks it starts). */
+  cost?: number | null
 }) {
   const t = useTranslations("credits")
-  const { cost, balance, short, applies } = useCreditQuote(action, units, variant)
+  const quote = useCreditQuote(action, units, variant)
+  const { balance, applies } = quote
+  const cost = fixedCost !== undefined ? fixedCost : quote.cost
+  const short = applies && cost != null && balance != null && cost > balance
   if (!applies || cost == null) return null
 
   // A zero-rated action is one another action pays for. Saying "0 credits"

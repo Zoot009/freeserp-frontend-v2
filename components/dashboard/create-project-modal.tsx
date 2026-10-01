@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { declineKeywordAi } from "@/lib/keywordAiChoice"
 import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates } from "@/lib/credits"
+
+/**
+ * The most keywords "Find them for me" tracks. Mirrors AUTO_TRACK_MAX in the
+ * backend's keyword-suggestions/ks.service.ts; each one gets a standard rank
+ * check once it is added.
+ * ponytail: a copy of a server constant — move it onto the rate card or
+ * /api/billing/config if it ever changes.
+ */
+const AUTO_TRACK_MAX = 10
 import { useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "./icons"
@@ -66,6 +75,13 @@ export function CreateProjectModal<T>({
   const [error, setError] = useState("")
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
+  const { rates } = useCreditRates()
+  // "Find them for me" is the keyword run AND the first check of every keyword
+  // it tracks. Quoting only the run said 8 credits for something that can
+  // spend 18, so the label is the ceiling of both together.
+  const findRun = quoteCredits(rates, CREDIT_ACTION_KEYS.keywordSuggestions)
+  const findChecks = quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck, AUTO_TRACK_MAX)
+  const findCost = findRun != null && findChecks != null ? findRun + findChecks : null
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -259,6 +275,8 @@ export function CreateProjectModal<T>({
                           {opt.on && (
                             <CreditCost
                               action={CREDIT_ACTION_KEYS.keywordSuggestions}
+                              cost={findCost}
+                              upTo
                               showBalance={false}
                               className="mt-1"
                             />

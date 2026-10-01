@@ -466,8 +466,11 @@ export default function ProjectsPage() {
     if (projects.some((p) => p.domain?.toLowerCase().replace(/^www\./, "") === domain)) return
 
     const wasEmpty = projects.length === 0
+    // autoKeywords off: nobody clicked anything here, so nothing may be spent.
+    // The server's default runs the paid keyword analysis and tracks its picks;
+    // the keywords page (?new=1) asks first instead, with the price on the button.
     api
-      .post<ProjectSummary>("/api/projects", { name: projectNameFor(domain), domain })
+      .post<ProjectSummary>("/api/projects", { name: projectNameFor(domain), domain, autoKeywords: false })
       .then((created) => {
         if (!created?.id) return
         setProjects((prev) => [{ ...created, _count: { keywords: 0 } }, ...prev])

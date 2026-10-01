@@ -489,7 +489,6 @@ function AddKeywordsModal({
   plan,
   dailyLimit,
   checksLeft,
-  priorityMax,
   domain,
   existingKeywords,
   aiSuggestions,
@@ -500,8 +499,6 @@ function AddKeywordsModal({
   projectId: string
   currentCount: number
   plan?: string
-  /** /api/usage rankCheck.priorityMaxKeywords — decides the first check's rate. */
-  priorityMax: number
   /** The free plan's rank checks a day. */
   dailyLimit: number
   /** Checks left today, or null when the plan has no daily ceiling. */
@@ -662,9 +659,10 @@ function AddKeywordsModal({
   // Checks this add asks for: keywords not tracked yet, once per engine.
   const newChecks =
     pendingLines.filter((l) => !existingSet.has(l.toLowerCase())).length * Math.max(1, selectedEngines.length)
-  // Adding runs the first check for the NEW keywords only, at the rate the
-  // server picks for a batch that size — so that is the price of this button.
-  const firstCheckAction = rankCheckAction(newChecks, { free: plan !== "paid", priorityMax })
+  // Adding runs the first check for the NEW keywords only, on the standard
+  // queue (keywords.service sends it as a background check, never priority),
+  // so that is the price of this button.
+  const firstCheckAction = CREDIT_ACTION_KEYS.rankCheck
   const firstCheck = useCreditQuote(firstCheckAction, newChecks)
   const [confirmAdd, setConfirmAdd] = useState(false)
   const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 12)
@@ -2917,6 +2915,8 @@ export default function ProjectKeywordsPage() {
                   {t("aiChoiceManual")}
                 </button>
               </div>
+              {/* The analysis is the paid choice; its price sits under the pair. */}
+              <CreditCost action={CREDIT_ACTION_KEYS.keywordSuggestions} className="mt-3" />
             </div>
           ) : aiPhase === "running" ? (
             <AiAnalysisLoader
@@ -3599,7 +3599,6 @@ export default function ProjectKeywordsPage() {
           plan={plan}
           dailyLimit={usage?.dailyLimit ?? FREE_DAILY_CHECKS}
           checksLeft={checksLeft}
-          priorityMax={priorityMax}
           domain={project.domain}
           existingKeywords={project.keywords.map((k) => k.keyword)}
           aiSuggestions={aiSuggestions}
