@@ -1522,7 +1522,14 @@
     "titleFreeDaily": "Das waren die heutigen Prüfungen",
     "bodyFreeDailyQuota": "Sie haben heute {used} von {limit} kostenlosen Prüfungen genutzt. Sie werden um Mitternacht UTC zurückgesetzt, Sie können also morgen weiter prüfen — oder jetzt upgraden, um alle zu prüfen.",
     "gotIt": "Verstanden",
-    "seePlans": "Pläne ansehen"
+    "seePlans": "Pläne ansehen",
+    "titleCredits": "Nicht genug Credits",
+    "bodyCredits": "Dafür sind {required} Credits nötig, Sie haben {available}. Kaufen Sie {shortfall} dazu, um es jetzt auszuführen.",
+    "bodyCreditsGeneric": "Ihr Guthaben reicht dafür nicht aus. Kaufen Sie Credits, um es jetzt auszuführen.",
+    "bodyCreditsRefill": "Oder warten Sie auf Ihr monatliches Kontingent von {credits} am {date}.",
+    "bodyFreeDailyLimit": "Kostenlose Konten haben davon {limit} pro Tag, und die heutigen sind aufgebraucht. Sie stehen um Mitternacht (UTC) wieder bereit — oder kaufen Sie Credits, um sofort weiterzumachen.",
+    "buyCredits": "Credits kaufen",
+    "titleFreeDailyLimit": "Das waren die kostenlosen Läufe für heute"
   },
   "trialCountdown": {
     "cta": "Tarife ansehen",

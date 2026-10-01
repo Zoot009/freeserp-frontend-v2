@@ -3,8 +3,10 @@
 // Global paywall upsell. Listens for the `billing:quota` window event fired by
 // lib/api.ts whenever ANY request returns 402 (daily quota, free trial, project
 // or keyword limits) and offers the upgrade path right at the moment of intent:
+//  - credits accounts → how many credits short, and a link to buy them. Never a
+//    worker tier: the backend refuses that PATCH for them (not_worker_plan).
 //  - free users → subscribe CTA to /pricing
-//  - paid users → one-click prorated bump to the next worker tier (PATCH
+//  - worker subscribers → one-click prorated bump to the next worker tier (PATCH
 //    /api/billing/workers), with a live "charged now" preview when available.
 // Mounted once in the dashboard layout; uses the dashboard's .modal-* pattern.
 
@@ -14,6 +16,7 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
+import { useCredits, formatCredits, BUY_CREDITS_HREF } from "@/lib/credits"
 import { Icon } from "@/components/dashboard/icons"
 
 interface QuotaEventDetail {
@@ -69,7 +72,19 @@ const KNOWN_CODES = new Set([
   // Free daily keyword-add cap (delete→re-add can't farm past it).
   "keyword_add_limit_reached",
   "ai_analysis_limit_reached",
+  // A free account's daily runs of a paid tool (Keyword Magic, page audits…)
+  // while credit charging is off. Daily, so it reads like the free-daily FYI.
+  "free_daily_limit",
 ])
+
+/** What a 402 carries, depending on the code. Every field optional — older APIs send none. */
+interface QuotaDetails {
+  limit?: number
+  used?: number
+  required?: number
+  available?: number
+  shortfall?: number
+}
 
 function formatMoney(cents: number, currency: string): string {
   try {
@@ -82,8 +97,17 @@ function formatMoney(cents: number, currency: string): string {
 export function QuotaUpsellModal() {
   const t = useTranslations("quotaUpsell")
   const [open, setOpen] = useState(false)
+  const { credits } = useCredits()
+  // Read inside the event handler, which is bound once. Only a KNOWN worker
+  // subscriber is offered a worker tier: a credits account (or one whose
+  // balance has not loaded) is refused that PATCH, so it must never see it.
+  const isWorkerRef = useRef(false)
+  useEffect(() => {
+    isWorkerRef.current = credits?.mode === "worker"
+  }, [credits?.mode])
   const [code, setCode] = useState<string>("daily_quota_exhausted")
-  const [eventDetails, setEventDetails] = useState<{ limit?: number; used?: number } | null>(null)
+  const [serverMessage, setServerMessage] = useState("")
+  const [eventDetails, setEventDetails] = useState<QuotaDetails | null>(null)
   const [usage, setUsage] = useState<Usage | null>(null)
   const [nextTier, setNextTier] = useState<number | null>(null)
   const [checksPerDay, setChecksPerDay] = useState(15)
@@ -105,12 +129,17 @@ export function QuotaUpsellModal() {
       lastShownAt.current = Date.now()
 
       setCode(evCode)
-      setEventDetails((detail.details as { limit?: number; used?: number } | undefined) ?? null)
+      setServerMessage(detail.message ?? "")
+      setEventDetails((detail.details as QuotaDetails | undefined) ?? null)
       setUsage(null)
       setNextTier(null)
       setPreview(null)
       setExtension(null)
       setOpen(true)
+
+      // Nothing below applies to a credits account: no daily usage to quote, no
+      // trial to extend, no worker tier to sell.
+      if (!isWorkerRef.current) return
 
       try {
         const [u, cfg] = await Promise.all([api.get<Usage>("/api/usage"), fetchBillingConfig()])
@@ -180,7 +209,14 @@ export function QuotaUpsellModal() {
 
   if (!open) return null
 
-  const isPaid = usage?.plan === "paid"
+  const isWorker = credits?.mode === "worker"
+  const isPaid = isWorker && usage?.plan === "paid"
+  // Out of credits. Nothing resets at midnight and no tier upgrade helps —
+  // the way forward is buying credits, or the monthly refill.
+  const isCreditsShort = code === "insufficient_credits"
+  // A free account's daily runs of a paid tool. Comes back tomorrow, so the
+  // dismiss button leads, like the free-daily FYI below.
+  const isFreeDailyLimit = code === "free_daily_limit"
   // Out of checks for today, trial still alive. Informational — no upgrade push,
   // no extension offer (there's nothing to extend yet), and the dismiss button
   // becomes the primary action.
@@ -189,6 +225,9 @@ export function QuotaUpsellModal() {
   // keyword / AI caps) aren't time-limited, so more trial days wouldn't lift them.
   const canExtend =
     !isPaid && code === "free_trial_exhausted" && usage?.freeTrialExtensionAvailable === true
+  const refillDate = credits?.nextRefillAt
+    ? new Date(credits.nextRefillAt).toLocaleDateString(undefined, { day: "numeric", month: "long" })
+    : null
   const bodyKey =
     code === "free_trial_exhausted"
       ? "bodyFreeTrial"
@@ -212,7 +251,15 @@ export function QuotaUpsellModal() {
                 <span className="spark"><Icon.spark /></span> {t("eyebrow")}
               </div>
               <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
-                {isPaid ? t("titlePaid") : isFreeDaily ? t("titleFreeDaily") : t("titleFree")}
+                {isCreditsShort
+                  ? t("titleCredits")
+                  : isFreeDailyLimit
+                    ? t("titleFreeDailyLimit")
+                    : isPaid
+                      ? t("titlePaid")
+                      : isFreeDaily
+                        ? t("titleFreeDaily")
+                        : t("titleFree")}
               </div>
             </div>
             <button type="button" onClick={close} className="icon-btn" aria-label={t("close")} disabled={busy}>
@@ -222,12 +269,36 @@ export function QuotaUpsellModal() {
 
           <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="tiny muted" style={{ lineHeight: 1.6 }}>
-              {t(bodyKey, {
-                // The AI-cap error carries its own limit/used in the 402 details;
-                // the daily-quota codes read from the usage summary.
-                used: eventDetails?.used ?? usage?.dailyUsed ?? 0,
-                limit: eventDetails?.limit ?? usage?.dailyLimit ?? 0,
-              })}
+              {isCreditsShort ? (
+                <>
+                  {eventDetails?.required != null && eventDetails.available != null
+                    ? t("bodyCredits", {
+                        required: formatCredits(eventDetails.required),
+                        available: formatCredits(eventDetails.available),
+                        shortfall: formatCredits(
+                          eventDetails.shortfall ?? Math.max(0, eventDetails.required - eventDetails.available),
+                        ),
+                      })
+                    : t("bodyCreditsGeneric")}
+                  {refillDate && (credits?.monthlyAllowance ?? 0) > 0
+                    ? ` ${t("bodyCreditsRefill", { credits: formatCredits(credits!.monthlyAllowance), date: refillDate })}`
+                    : ""}
+                </>
+              ) : isFreeDailyLimit ? (
+                t("bodyFreeDailyLimit", { limit: eventDetails?.limit ?? 0 })
+              ) : !isWorker && bodyKey === "bodyDailyQuota" ? (
+                // A credits account has no daily check quota, so the fallback
+                // copy ("resets at midnight UTC") would be false. The server's
+                // own message says what actually happened.
+                serverMessage || t("bodyCreditsGeneric")
+              ) : (
+                t(bodyKey, {
+                  // The AI-cap error carries its own limit/used in the 402 details;
+                  // the daily-quota codes read from the usage summary.
+                  used: eventDetails?.used ?? usage?.dailyUsed ?? 0,
+                  limit: eventDetails?.limit ?? usage?.dailyLimit ?? 0,
+                })
+              )}
             </div>
 
             {isPaid && nextTier !== null && (
@@ -277,7 +348,25 @@ export function QuotaUpsellModal() {
           </div>
 
           <div className="modal-f">
-            {isFreeDaily ? (
+            {isCreditsShort ? (
+              <>
+                <button type="button" className="btn" onClick={close}>
+                  {t("notNow")}
+                </button>
+                <Link href={BUY_CREDITS_HREF} onClick={close}>
+                  <button type="button" className="btn primary">{t("buyCredits")}</button>
+                </Link>
+              </>
+            ) : isFreeDailyLimit ? (
+              <>
+                <Link href={BUY_CREDITS_HREF} onClick={close}>
+                  <button type="button" className="btn">{t("buyCredits")}</button>
+                </Link>
+                <button type="button" className="btn primary" onClick={close}>
+                  {t("gotIt")}
+                </button>
+              </>
+            ) : isFreeDaily ? (
               // Dismissal is the primary action — the user has done nothing wrong
               // and their checks come back tomorrow. Plans stay one click away as
               // a secondary, so this is still an upsell surface without pretending

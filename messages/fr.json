@@ -1522,7 +1522,14 @@
     "titleFreeDaily": "Vos vérifications du jour sont épuisées",
     "bodyFreeDailyQuota": "Vous avez utilisé {used} des {limit} vérifications gratuites aujourd'hui. Elles sont réinitialisées à minuit UTC, vous pourrez donc en faire d'autres demain — ou passez à un forfait supérieur pour tout vérifier maintenant.",
     "gotIt": "Compris",
-    "seePlans": "Voir les forfaits"
+    "seePlans": "Voir les forfaits",
+    "titleCredits": "Crédits insuffisants",
+    "bodyCredits": "Il faut {required} crédits et vous en avez {available}. Achetez-en {shortfall} de plus pour lancer l'opération maintenant.",
+    "bodyCreditsGeneric": "Votre solde de crédits ne suffit pas. Achetez des crédits pour lancer l'opération maintenant.",
+    "bodyCreditsRefill": "Ou attendez votre allocation mensuelle de {credits} le {date}.",
+    "bodyFreeDailyLimit": "Les comptes gratuits en ont {limit} par jour, et ceux d'aujourd'hui sont utilisés. Ils reviennent à minuit (UTC) — ou achetez des crédits pour continuer tout de suite.",
+    "buyCredits": "Acheter des crédits",
+    "titleFreeDailyLimit": "Vous avez utilisé les exécutions gratuites du jour"
   },
   "trialCountdown": {
     "cta": "Voir les offres",

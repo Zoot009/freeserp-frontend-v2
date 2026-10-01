@@ -1522,7 +1522,14 @@
     "titleFreeDaily": "That's today's free checks",
     "bodyFreeDailyQuota": "You've used {used} of {limit} free checks today. They reset at midnight UTC, so you can check more tomorrow — or upgrade to check them all now.",
     "gotIt": "Got it",
-    "seePlans": "See plans"
+    "seePlans": "See plans",
+    "titleCredits": "Not enough credits",
+    "bodyCredits": "This needs {required} credits and you have {available}. Buy {shortfall} more to run it now.",
+    "bodyCreditsGeneric": "Your credit balance can't cover this. Buy credits to run it now.",
+    "bodyCreditsRefill": "Or wait for your monthly allowance of {credits} on {date}.",
+    "bodyFreeDailyLimit": "Free accounts get {limit} of these a day, and today's are used. They come back at midnight UTC — or buy credits to keep going now.",
+    "buyCredits": "Buy credits",
+    "titleFreeDailyLimit": "That's today's free runs"
   },
   "trialCountdown": {
     "cta": "See plans",

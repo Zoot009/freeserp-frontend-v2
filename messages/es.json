@@ -1522,7 +1522,14 @@
     "titleFreeDaily": "Has usado tus comprobaciones de hoy",
     "bodyFreeDailyQuota": "Has usado {used} de {limit} comprobaciones gratuitas hoy. Se restablecen a medianoche UTC, así que mañana puedes comprobar más, o mejora tu plan para comprobarlas todas ahora.",
     "gotIt": "Entendido",
-    "seePlans": "Ver planes"
+    "seePlans": "Ver planes",
+    "titleCredits": "No tienes créditos suficientes",
+    "bodyCredits": "Esto necesita {required} créditos y tienes {available}. Compra {shortfall} más para ejecutarlo ahora.",
+    "bodyCreditsGeneric": "Tu saldo de créditos no alcanza para esto. Compra créditos para ejecutarlo ahora.",
+    "bodyCreditsRefill": "O espera a tu asignación mensual de {credits} el {date}.",
+    "bodyFreeDailyLimit": "Las cuentas gratuitas tienen {limit} al día y ya has usado las de hoy. Vuelven a medianoche (UTC), o compra créditos para seguir ahora.",
+    "buyCredits": "Comprar créditos",
+    "titleFreeDailyLimit": "Ya usaste las ejecuciones gratis de hoy"
   },
   "trialCountdown": {
     "cta": "Ver planes",
