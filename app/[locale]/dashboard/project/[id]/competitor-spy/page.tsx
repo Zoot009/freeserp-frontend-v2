@@ -6,6 +6,8 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { rankCheckAction } from "@/lib/credits"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import {
@@ -199,6 +201,28 @@ function AddCompetitorModal({
       .catch(() => setSuggestions([]))
   }, [projectId])
 
+  // Adding re-checks the project's keywords whose stored SERP lacks this
+  // competitor — at most all of them, at the rate the server picks for a batch
+  // that size. The keyword count and the rate's inputs (plan, the priority
+  // limit) are what price that ceiling.
+  const [recheck, setRecheck] = useState<{ count: number; free: boolean; priorityMax: number } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      api.get<{ id: string; _count?: { keywords?: number } }[]>("/api/projects"),
+      api.get<{ plan?: string; rankCheck?: { priorityMaxKeywords?: number } }>("/api/usage"),
+    ])
+      .then(([projects, usage]) => {
+        if (cancelled) return
+        const count = projects.find((p) => p.id === projectId)?._count?.keywords ?? 0
+        setRecheck({ count, free: usage?.plan !== "paid", priorityMax: usage?.rankCheck?.priorityMaxKeywords ?? 0 })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
   // Lock <body> scroll while the modal is open so the page underneath doesn't
   // scroll when the wheel is over the backdrop or the modal body reaches its end.
   useEffect(() => {
@@ -325,6 +349,14 @@ function AddCompetitorModal({
                 </>
               ) : (
                 <>
+                  {recheck && recheck.count > 0 && (
+                    <CreditCost
+                      action={rankCheckAction(recheck.count, recheck)}
+                      units={recheck.count}
+                      upTo
+                      className="mr-auto"
+                    />
+                  )}
                   <button type="button" className="btn" onClick={onClose}>Cancel</button>
                   <button type="submit" className="btn primary" disabled={submitting || !domain.trim()}>
                     {submitting ? "Adding…" : "Add competitor"}
