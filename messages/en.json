@@ -1790,6 +1790,8 @@
     "checkShort": "You have {balance} credits — enough for {afford} of these {total}. The rest stay unchecked until you top up.",
     "checkShortNone": "You have {balance} credits — not enough for even one of these checks.",
     "addedCheckSkipped": "Added — but your balance didn't cover their first check, so they're waiting. Buy credits, then run a check.",
+    "addedCheckWaitsDaily": "Added — today's free checks are used up, so they'll get their first check tomorrow.",
+    "addedCheckNotRun": "Added — but their first check didn't run. Run a check to get their positions.",
     "addConfirmTitle": "{count, plural, one {Add and check 1 keyword?} other {Add and check # keywords?}}",
     "addConfirmBody": "New keywords get their first rank check as soon as they're added. Keywords you already track aren't checked again.",
     "perMonthEstimate": "≈ {n} credits/month",

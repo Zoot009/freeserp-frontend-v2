@@ -1790,6 +1790,8 @@
     "checkShort": "Vous avez {balance} crédits — de quoi en vérifier {afford} sur {total}. Les autres restent en attente jusqu'à votre recharge.",
     "checkShortNone": "Vous avez {balance} crédits — pas assez pour une seule de ces vérifications.",
     "addedCheckSkipped": "Ajoutés — mais votre solde ne couvrait pas leur première vérification, ils sont donc en attente. Achetez des crédits, puis lancez une vérification.",
+    "addedCheckWaitsDaily": "Ajoutés — les vérifications gratuites du jour sont épuisées, ils auront donc leur première vérification demain.",
+    "addedCheckNotRun": "Ajoutés — mais leur première vérification n'a pas été lancée. Lancez une vérification pour voir leurs positions.",
     "addConfirmTitle": "{count, plural, one {Ajouter et vérifier 1 mot-clé ?} other {Ajouter et vérifier # mots-clés ?}}",
     "addConfirmBody": "Les nouveaux mots-clés reçoivent leur première vérification dès leur ajout. Ceux que vous suivez déjà ne sont pas revérifiés.",
     "perMonthEstimate": "≈ {n} crédits/mois",

@@ -48,6 +48,7 @@ import {
   formatCredits,
   quoteCredits,
   rankCheckAction,
+  skippedCheckMessage,
   useCreditQuote,
   useCreditRates,
   useCredits,
@@ -763,13 +764,17 @@ function AddKeywordsModal({
       } else if (added != null) {
         toast.success(freeAddedNote(added, isFree ? checksLeft : null) ?? `Added ${added} keyword${added === 1 ? "" : "s"}.`)
       }
-      // The add went through but the balance could not pay for the first check,
-      // so the new rows are waiting. Said here, with the way out, rather than
-      // left as rows that silently never fill in.
-      if (res?.checkSkipped === "insufficient_credits") {
-        toast.warning(tc("addedCheckSkipped"), {
-          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
-        })
+      // The add went through but its first check didn't run, so the new rows
+      // are waiting. Said here, with the way out for the reason it didn't,
+      // rather than left as rows that silently never fill in.
+      if (res?.checkSkipped) {
+        const key = skippedCheckMessage(res.checkSkipped)
+        toast.warning(
+          tc(key),
+          key === "addedCheckSkipped"
+            ? { action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) } }
+            : undefined,
+        )
       }
       // Adding to a still-empty project might be this account's first-ever set of
       // keywords — let the backend decide (deduped per account, so it won't

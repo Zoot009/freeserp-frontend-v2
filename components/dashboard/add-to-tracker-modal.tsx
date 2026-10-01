@@ -27,6 +27,7 @@ import {
   BUY_CREDITS_HREF,
   CREDIT_ACTION_KEYS,
   quoteCredits,
+  skippedCheckMessage,
   useCreditRates,
   useCredits,
 } from "@/lib/credits"
@@ -246,7 +247,7 @@ export function AddToTrackerModal({
     // Declared outside the try: a batch that fails halfway has still created
     // rows, and both the error message and the caller's refresh need the count.
     let added = 0
-    let checkSkipped = false
+    let checkSkipped: string | null = null
     try {
       // Sequential, not Promise.all: each request is checked against the plan's
       // keyword cap and the daily add budget, and firing twenty at once would
@@ -257,14 +258,19 @@ export function AddToTrackerModal({
           keywords: batch.map((keyword) => ({ keyword, location, device, engines: selectedEngines })),
         })
         added += res?.added ?? 0
-        if (res?.checkSkipped === "insufficient_credits") checkSkipped = true
+        // The first refusal names the reason; later chunks fail the same way.
+        if (res?.checkSkipped) checkSkipped ??= res.checkSkipped
       }
-      // Added, but the balance could not pay for the first check — the rows
-      // are waiting, and the way out is named rather than left to be guessed.
+      // Added, but the first check didn't run — the rows are waiting, and the
+      // way out for the reason it didn't is named rather than left to be guessed.
       if (checkSkipped) {
-        toast.warning(tc("addedCheckSkipped"), {
-          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
-        })
+        const key = skippedCheckMessage(checkSkipped)
+        toast.warning(
+          tc(key),
+          key === "addedCheckSkipped"
+            ? { action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) } }
+            : undefined,
+        )
       }
       if (added === 0) {
         toast.info("Those keywords are already tracked on the engines you picked.")

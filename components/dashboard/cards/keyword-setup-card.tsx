@@ -30,7 +30,7 @@ import { toast } from "sonner"
 import { DEFAULT_ENGINE } from "@/hooks/use-engines"
 import { api } from "@/lib/api"
 import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
-import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, useCreditQuote } from "@/lib/credits"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, skippedCheckMessage, useCreditQuote } from "@/lib/credits"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -86,8 +86,8 @@ async function trackKeywords(
   projectId: string,
   keywords: string[],
   location: string,
-  /** Shown when the add lands but the balance cannot pay for the first check. */
-  skipped: { message: string; buyLabel: string; onBuy: () => void },
+  /** Shown when the add lands but its first check didn't run; `code` is why. */
+  skipped: { message: (code: string) => string; buyLabel: string; onBuy: () => void },
 ): Promise<number> {
   const res = await api.post<{ added?: number; checkSkipped?: string }>(`/api/projects/${projectId}/keywords`, {
     keywords: keywords.map((k) => ({ keyword: k, location, device: "desktop", engines: [DEFAULT_ENGINE] })),
@@ -95,9 +95,15 @@ async function trackKeywords(
   // skipDuplicates server-side, so `added` can legitimately come back lower
   // than asked. Say which happened — silence is indistinguishable from failure.
   const added = res?.added ?? keywords.length
-  if (res?.checkSkipped === "insufficient_credits") {
+  if (res?.checkSkipped) {
     // The keywords are in, but "the first check is queued" would be false.
-    toast.warning(skipped.message, { action: { label: skipped.buyLabel, onClick: skipped.onBuy } })
+    // Only a short balance is fixed by buying credits.
+    toast.warning(
+      skipped.message(res.checkSkipped),
+      res.checkSkipped === "insufficient_credits"
+        ? { action: { label: skipped.buyLabel, onClick: skipped.onBuy } }
+        : undefined,
+    )
   } else {
     toast.success(
       added === 0
@@ -479,7 +485,7 @@ export function KeywordSetupCard({
     setAutoAdding(true)
     try {
       await trackKeywords(projectId, picks, shortlistLocation, {
-        message: tc("addedCheckSkipped"),
+        message: (code) => tc(skippedCheckMessage(code)),
         buyLabel: tc("buyCredits"),
         onBuy: () => router.push(BUY_CREDITS_HREF),
       })

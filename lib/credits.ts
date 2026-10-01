@@ -105,6 +105,20 @@ export function notifyCreditsChanged(): void {
 export const BUY_CREDITS_HREF = "/dashboard/billing?topup=packs"
 
 /**
+ * The `credits` message for a keyword add whose first check didn't run.
+ *
+ * The server sends back `checkSkipped` with the code it refused the check
+ * with: `insufficient_credits`, a daily-allowance code, or 'error'. Each has
+ * its own way out, and only the first is fixed by buying credits — telling a
+ * free user who has simply used today's checks to buy more would be wrong.
+ */
+export function skippedCheckMessage(code: string): "addedCheckSkipped" | "addedCheckWaitsDaily" | "addedCheckNotRun" {
+  if (code === "insufficient_credits") return "addedCheckSkipped"
+  if (code === "free_daily_quota_exhausted" || code === "daily_quota_exhausted") return "addedCheckWaitsDaily"
+  return "addedCheckNotRun"
+}
+
+/**
  * How often an open, visible tab re-reads the balance on its own.
  *
  * The spend signals cover what THIS tab did. They cannot see a worker settling

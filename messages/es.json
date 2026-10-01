@@ -1790,6 +1790,8 @@
     "checkShort": "Tienes {balance} créditos: suficientes para {afford} de {total}. El resto queda sin comprobar hasta que recargues.",
     "checkShortNone": "Tienes {balance} créditos: no alcanzan ni para una de estas comprobaciones.",
     "addedCheckSkipped": "Añadidas, pero tu saldo no cubrió su primera comprobación, así que están en espera. Compra créditos y luego lanza una comprobación.",
+    "addedCheckWaitsDaily": "Añadidas: las comprobaciones gratuitas de hoy están agotadas, así que tendrán su primera comprobación mañana.",
+    "addedCheckNotRun": "Añadidas, pero su primera comprobación no se ejecutó. Lanza una comprobación para ver sus posiciones.",
     "addConfirmTitle": "{count, plural, one {¿Añadir y comprobar 1 palabra clave?} other {¿Añadir y comprobar # palabras clave?}}",
     "addConfirmBody": "Las palabras clave nuevas reciben su primera comprobación en cuanto se añaden. Las que ya sigues no se vuelven a comprobar.",
     "perMonthEstimate": "≈ {n} créditos/mes",

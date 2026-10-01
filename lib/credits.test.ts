@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { quoteCredits, quotePromptRuns, rankCheckAction, type CreditRateCard } from "./credits"
+import { skippedCheckMessage, quoteCredits, quotePromptRuns, rankCheckAction, type CreditRateCard } from "./credits"
 
 /**
  * The quoted price and the charged price come from the same rate row, so they
@@ -89,5 +89,14 @@ describe("quotePromptRuns", () => {
 
   it("is null until the rate card arrives", () => {
     expect(quotePromptRuns(null, [{ platform: "gemini", samples: 3 }])).toBeNull()
+  })
+})
+
+describe("skippedCheckMessage", () => {
+  it("offers credits only when the balance was the reason", () => {
+    expect(skippedCheckMessage("insufficient_credits")).toBe("addedCheckSkipped")
+    expect(skippedCheckMessage("free_daily_quota_exhausted")).toBe("addedCheckWaitsDaily")
+    expect(skippedCheckMessage("daily_quota_exhausted")).toBe("addedCheckWaitsDaily")
+    expect(skippedCheckMessage("error")).toBe("addedCheckNotRun")
   })
 })

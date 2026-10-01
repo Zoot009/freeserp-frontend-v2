@@ -29,7 +29,7 @@ import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
-import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, formatCredits, quoteCredits, useCreditQuote, useCreditRates, useCredits } from "@/lib/credits"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, formatCredits, quoteCredits, skippedCheckMessage, useCreditQuote, useCreditRates, useCredits } from "@/lib/credits"
 
 interface YtProject {
   id: string
@@ -374,12 +374,16 @@ function AddKeywordsModal({
         device: "desktop",
         ...(depth === "" ? {} : { depth }),
       })
-      // Added, but the balance could not pay for the first check — say so,
-      // with the way out, rather than leave rows that never fill in.
-      if (res?.checkSkipped === "insufficient_credits") {
-        toast.warning(tc("addedCheckSkipped"), {
-          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
-        })
+      // Added, but the first check didn't run — say so, with the way out for
+      // the reason it didn't, rather than leave rows that never fill in.
+      if (res?.checkSkipped) {
+        const key = skippedCheckMessage(res.checkSkipped)
+        toast.warning(
+          tc(key),
+          key === "addedCheckSkipped"
+            ? { action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) } }
+            : undefined,
+        )
       }
       onAdded()
     } catch (err: unknown) {
