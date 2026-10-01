@@ -999,7 +999,12 @@
     "engineMultiplierFree": "Vos {checks} vérifications quotidiennes sont partagées entre les moteurs : chaque paire mot-clé/moteur en consomme une.",
     "engineMultiplier": "{keywords} mots-clés × {engines} moteurs = {total} mots-clés suivis",
     "noEngineKeywords": "Aucun mot-clé {engine} sur {device} pour le moment.",
-    "lockedCta": "Améliorer ou attendre"
+    "lockedCta": "Améliorer ou attendre",
+    "checkWorkerOutTitle": "Vous avez utilisé les vérifications du jour",
+    "checkWorkerOutBody": "Votre forfait comprend {limit} vérifications de position par jour. Rien ne sera lancé avant leur réinitialisation — cela ne vous coûte rien maintenant.",
+    "checkWorkerUses": "{count, plural, one {Cela utilisera 1 des vérifications du jour} other {Cela utilisera # des vérifications du jour}}",
+    "checkWorkerPriority": "Les petites vérifications passent devant la file pour un résultat en quelques secondes, et comptent pour {units} vérifications par mot-clé.",
+    "lockedTipWorker": "Pas encore vérifié — les {limit} vérifications du jour ne vont pas jusque-là. Elles se réinitialisent à minuit (UTC) : vérifiez-le demain, ou augmentez vos vérifications quotidiennes pour le voir maintenant."
   },
   "dashKeywords": {
     "headerEyebrow": "SUIVI DE POSITION",
@@ -1777,7 +1782,14 @@
     "monthlyWhileScheduled": "Ensuite, environ {n} par mois tant que la planification est active.",
     "perAnswer": "{count, plural, one {{n} crédit par réponse} other {{n} crédits par réponse}}",
     "caSerpEnter": "Saisissez ci-dessus votre site et votre mot-clé cible, puis trouvez les sites qui se positionnent dessus.",
-    "caSerpReady": "Trouvez les sites qui se positionnent sur ce mot-clé — rien ne se lance avant votre clic."
+    "caSerpReady": "Trouvez les sites qui se positionnent sur ce mot-clé — rien ne se lance avant votre clic.",
+    "lockedTipCredits": "Pas encore vérifié — votre solde de crédits ne suffisait pas. Achetez des crédits, puis relancez la vérification.",
+    "checkShort": "Vous avez {balance} crédits — de quoi en vérifier {afford} sur {total}. Les autres restent en attente jusqu'à votre recharge.",
+    "checkShortNone": "Vous avez {balance} crédits — pas assez pour une seule de ces vérifications.",
+    "addedCheckSkipped": "Ajoutés — mais votre solde ne couvrait pas leur première vérification, ils sont donc en attente. Achetez des crédits, puis lancez une vérification.",
+    "addConfirmTitle": "{count, plural, one {Ajouter et vérifier 1 mot-clé ?} other {Ajouter et vérifier # mots-clés ?}}",
+    "addConfirmBody": "Les nouveaux mots-clés reçoivent leur première vérification dès leur ajout. Ceux que vous suivez déjà ne sont pas revérifiés.",
+    "perMonthEstimate": "≈ {n} crédits/mois"
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

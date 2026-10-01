@@ -28,6 +28,7 @@ export function ScheduleToggle({
   offLabel,
   title,
   onPick,
+  noteFor,
 }: {
   enabled: boolean
   frequency: number
@@ -38,6 +39,9 @@ export function ScheduleToggle({
   offLabel: string
   title: string
   onPick: (choice: number | "off") => void
+  /** A short line beside each cadence — what it will cost a month — so the
+   *  price of a schedule is read while choosing it, not on the statement. */
+  noteFor?: (hours: number) => string | null
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -80,6 +84,11 @@ export function ScheduleToggle({
         <span className="track" aria-hidden><span className="knob" /></span>
         <span>{enabled ? labelFor(frequency) : offLabel}</span>
       </button>
+      {enabled && noteFor?.(frequency) && (
+        <div className="tiny muted" style={{ marginTop: 4, textAlign: "right" }}>
+          {noteFor(frequency)}
+        </div>
+      )}
       {open && (
         <div className="dd-menu" role="listbox" aria-label={title} data-lenis-prevent style={{ zIndex: 50 }}>
           <button
@@ -106,6 +115,11 @@ export function ScheduleToggle({
                 onClick={() => choose(h)}
               >
                 {labelFor(h)}
+                {noteFor?.(h) && (
+                  <span className="tiny muted" style={{ marginLeft: "auto", fontWeight: 400 }}>
+                    {noteFor(h)}
+                  </span>
+                )}
                 {active && <Icon.check size={13} />}
               </button>
             )

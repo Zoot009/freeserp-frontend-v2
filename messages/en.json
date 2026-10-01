@@ -999,7 +999,12 @@
     "engineMultiplierFree": "Your {checks} daily checks are shared across engines — each keyword-engine pair counts as one.",
     "engineMultiplier": "{keywords} keywords × {engines} engines = {total} tracked keywords",
     "noEngineKeywords": "No {engine} keywords on {device} yet.",
-    "lockedCta": "Upgrade or wait a day"
+    "lockedCta": "Upgrade or wait a day",
+    "checkWorkerOutTitle": "You've used today's checks",
+    "checkWorkerOutBody": "Your plan runs {limit} rank checks a day. Nothing will run until they reset — this costs you nothing now.",
+    "checkWorkerUses": "{count, plural, one {This will use 1 of today's checks} other {This will use # of today's checks}}",
+    "checkWorkerPriority": "Small checks jump the queue so results come back in seconds, and count as {units} checks per keyword.",
+    "lockedTipWorker": "Not checked yet — today's {limit} checks don't reach it. They reset at midnight UTC: check it tomorrow, or raise your daily checks to see it now."
   },
   "dashKeywords": {
     "headerEyebrow": "RANK TRACKING",
@@ -1777,7 +1782,14 @@
     "monthlyWhileScheduled": "Then about {n} a month while scheduled.",
     "perAnswer": "{count, plural, one {{n} credit an answer} other {{n} credits an answer}}",
     "caSerpEnter": "Enter your site and target keyword above, then find the sites ranking for it.",
-    "caSerpReady": "Find the sites ranking for this keyword — nothing runs until you click."
+    "caSerpReady": "Find the sites ranking for this keyword — nothing runs until you click.",
+    "lockedTipCredits": "Not checked yet — your credit balance didn't cover it. Buy credits, then check it again.",
+    "checkShort": "You have {balance} credits — enough for {afford} of these {total}. The rest stay unchecked until you top up.",
+    "checkShortNone": "You have {balance} credits — not enough for even one of these checks.",
+    "addedCheckSkipped": "Added — but your balance didn't cover their first check, so they're waiting. Buy credits, then run a check.",
+    "addConfirmTitle": "{count, plural, one {Add and check 1 keyword?} other {Add and check # keywords?}}",
+    "addConfirmBody": "New keywords get their first rank check as soon as they're added. Keywords you already track aren't checked again.",
+    "perMonthEstimate": "≈ {n} credits/month"
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",

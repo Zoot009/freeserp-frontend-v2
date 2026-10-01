@@ -999,7 +999,12 @@
     "engineMultiplierFree": "Tus {checks} comprobaciones diarias se reparten entre los motores: cada par palabra clave-motor cuenta como una.",
     "engineMultiplier": "{keywords} palabras clave × {engines} motores = {total} palabras clave rastreadas",
     "noEngineKeywords": "Aún no hay palabras clave de {engine} en {device}.",
-    "lockedCta": "Mejora o espera un día"
+    "lockedCta": "Mejora o espera un día",
+    "checkWorkerOutTitle": "Ya usaste las comprobaciones de hoy",
+    "checkWorkerOutBody": "Tu plan incluye {limit} comprobaciones de posición al día. No se ejecutará nada hasta que se restablezcan; ahora no te cuesta nada.",
+    "checkWorkerUses": "{count, plural, one {Esto usará 1 de las comprobaciones de hoy} other {Esto usará # de las comprobaciones de hoy}}",
+    "checkWorkerPriority": "Las comprobaciones pequeñas saltan la cola para dar resultados en segundos y cuentan como {units} comprobaciones por palabra clave.",
+    "lockedTipWorker": "Aún sin comprobar: las {limit} comprobaciones de hoy no llegan hasta aquí. Se restablecen a medianoche (UTC): compruébalo mañana o amplía tus comprobaciones diarias para verlo ahora."
   },
   "dashKeywords": {
     "headerEyebrow": "SEGUIMIENTO DE POSICIONES",
@@ -1777,7 +1782,14 @@
     "monthlyWhileScheduled": "Después, unos {n} al mes mientras esté programado.",
     "perAnswer": "{count, plural, one {{n} crédito por respuesta} other {{n} créditos por respuesta}}",
     "caSerpEnter": "Introduce arriba tu sitio y tu palabra clave objetivo, y luego encuentra los sitios que posicionan por ella.",
-    "caSerpReady": "Encuentra los sitios que posicionan por esta palabra clave: no se ejecuta nada hasta que hagas clic."
+    "caSerpReady": "Encuentra los sitios que posicionan por esta palabra clave: no se ejecuta nada hasta que hagas clic.",
+    "lockedTipCredits": "Aún sin comprobar: tu saldo de créditos no alcanzó. Compra créditos y vuelve a comprobarlo.",
+    "checkShort": "Tienes {balance} créditos: suficientes para {afford} de {total}. El resto queda sin comprobar hasta que recargues.",
+    "checkShortNone": "Tienes {balance} créditos: no alcanzan ni para una de estas comprobaciones.",
+    "addedCheckSkipped": "Añadidas, pero tu saldo no cubrió su primera comprobación, así que están en espera. Compra créditos y luego lanza una comprobación.",
+    "addConfirmTitle": "{count, plural, one {¿Añadir y comprobar 1 palabra clave?} other {¿Añadir y comprobar # palabras clave?}}",
+    "addConfirmBody": "Las palabras clave nuevas reciben su primera comprobación en cuanto se añaden. Las que ya sigues no se vuelven a comprobar.",
+    "perMonthEstimate": "≈ {n} créditos/mes"
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

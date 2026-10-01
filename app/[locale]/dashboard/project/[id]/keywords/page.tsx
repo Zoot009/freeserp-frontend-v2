@@ -41,6 +41,17 @@ import {
   type MonthlySearch,
 } from "@/components/dashboard/primitives"
 import { Sparkle, Sparkles, Pencil, Check, X } from "lucide-react"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
+import {
+  BUY_CREDITS_HREF,
+  CREDIT_ACTION_KEYS,
+  formatCredits,
+  quoteCredits,
+  rankCheckAction,
+  useCreditQuote,
+  useCreditRates,
+  useCredits,
+} from "@/lib/credits"
 
 // Feature flag — automated/scheduled rank checks. When true, paid users see
 // the check-frequency picker and the schedule chip. Free users never hit the
@@ -139,6 +150,8 @@ interface Keyword {
   // The exact page that was scored (ranking URL, or domain homepage when not
   // ranking). Also the URL the Keyword Score Checker report opens against.
   pageScoreUrl: string | null
+  /** When the score was last refreshed. Absent on older API responses. */
+  pageScoreAt?: string | null
 }
 
 interface ProjectDetail {
@@ -363,7 +376,7 @@ const SCORE_CATEGORIES: { key: keyof KeywordScoreBreakdown; label: string; max: 
   { key: "headings", label: "Headings", max: 15 },
 ]
 
-function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }: { score: number | null; grade?: string | null; label: string | null; onClick?: () => void; onEmptyClick?: () => void; emptyTitle?: string; loading?: boolean }) {
+function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading, costNote }: { score: number | null; grade?: string | null; label: string | null; onClick?: () => void; onEmptyClick?: () => void; emptyTitle?: string; loading?: boolean; /** What the click will charge, when it will. */ costNote?: string | null }) {
   if (loading) {
     return (
       <span className="tiny muted" title="Opening detailed report…">
@@ -407,7 +420,7 @@ function ScoreBadge({ score, label, onClick, onEmptyClick, emptyTitle, loading }
   const soft = score >= 80 ? "var(--pos-soft)" : score >= 60 ? "var(--warn-soft)" : "var(--neg-soft)"
   const clickable = !!onClick
   return (
-    <Hint text={`Keyword score${label ? ` — ${label}` : ""}${clickable ? " — click to view in detail" : ""}`}>
+    <Hint text={`Keyword score${label ? ` — ${label}` : ""}${clickable ? " — click to view in detail" : ""}${clickable && costNote ? ` · ${costNote}` : ""}`}>
     <span
       className="tabular"
       onClick={clickable ? (e) => { e.stopPropagation(); onClick!() } : undefined}
@@ -476,6 +489,7 @@ function AddKeywordsModal({
   plan,
   dailyLimit,
   checksLeft,
+  priorityMax,
   domain,
   existingKeywords,
   aiSuggestions,
@@ -486,6 +500,8 @@ function AddKeywordsModal({
   projectId: string
   currentCount: number
   plan?: string
+  /** /api/usage rankCheck.priorityMaxKeywords — decides the first check's rate. */
+  priorityMax: number
   /** The free plan's rank checks a day. */
   dailyLimit: number
   /** Checks left today, or null when the plan has no daily ceiling. */
@@ -502,6 +518,8 @@ function AddKeywordsModal({
   onAdded: (device: "desktop" | "mobile", engines: string[]) => void
 }) {
   const t = useTranslations("projKeywords")
+  const tc = useTranslations("credits")
+  const router = useRouter()
   // `multiEngine` is not needed here: EnginePicker self-gates on the engine
   // count, and passing `loading` lets it reserve its own height instead of
   // popping into the middle of the form when the fetch lands.
@@ -644,6 +662,11 @@ function AddKeywordsModal({
   // Checks this add asks for: keywords not tracked yet, once per engine.
   const newChecks =
     pendingLines.filter((l) => !existingSet.has(l.toLowerCase())).length * Math.max(1, selectedEngines.length)
+  // Adding runs the first check for the NEW keywords only, at the rate the
+  // server picks for a batch that size — so that is the price of this button.
+  const firstCheckAction = rankCheckAction(newChecks, { free: plan !== "paid", priorityMax })
+  const firstCheck = useCreditQuote(firstCheckAction, newChecks)
+  const [confirmAdd, setConfirmAdd] = useState(false)
   const visibleSuggestions = suggestions.filter((s) => !pendingSet.has(s.toLowerCase())).slice(0, 12)
 
   // Keep the pool topped up: fetch the base seed first, then alphabet-expansion
@@ -702,8 +725,15 @@ function AddKeywordsModal({
     taRef.current?.focus()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // A big first check is confirmed with the balance in view, like any other
+    // spend of that size; a small one goes straight through, priced on the button.
+    if (firstCheck.applies && newChecks > 0 && (firstCheck.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmAdd(true)
+    else void submitKeywords()
+  }
+
+  const submitKeywords = async () => {
     const lines = raw.split(/[\r\n,]+/).map((l) => l.trim()).filter(Boolean)
     if (!lines.length) { setError("Enter at least one keyword"); return }
     // No fallback market exists, so an unset location has to stop the submit
@@ -714,7 +744,7 @@ function AddKeywordsModal({
       // `engines` is sent per keyword. The backend expands it to one row per
       // keyword per engine — which is what "engine is part of a keyword's
       // identity" means — so N keywords x M engines creates N*M rows.
-      const res = await api.post<{ added?: number }>(`/api/projects/${projectId}/keywords`, {
+      const res = await api.post<{ added?: number; checkSkipped?: string }>(`/api/projects/${projectId}/keywords`, {
         keywords: lines.map((k) => ({ keyword: k, location, device, engines: selectedEngines })),
       })
       // The insert is skipDuplicates, so re-adding a keyword that is already
@@ -734,6 +764,14 @@ function AddKeywordsModal({
         toast.success(`Added ${added} — the rest were already tracked.`)
       } else if (added != null) {
         toast.success(freeAddedNote(added, isFree ? checksLeft : null) ?? `Added ${added} keyword${added === 1 ? "" : "s"}.`)
+      }
+      // The add went through but the balance could not pay for the first check,
+      // so the new rows are waiting. Said here, with the way out, rather than
+      // left as rows that silently never fill in.
+      if (res?.checkSkipped === "insufficient_credits") {
+        toast.warning(tc("addedCheckSkipped"), {
+          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
+        })
       }
       // Adding to a still-empty project might be this account's first-ever set of
       // keywords — let the backend decide (deduped per account, so it won't
@@ -954,6 +992,9 @@ function AddKeywordsModal({
               </div>
             )}
             <div className="modal-f">
+              {newChecks > 0 && (
+                <CreditCost action={firstCheckAction} units={newChecks} className="mr-auto" />
+              )}
               <button type="button" className="btn" onClick={onClose}>Cancel</button>
               <button
                 type="submit"
@@ -964,6 +1005,16 @@ function AddKeywordsModal({
                 {loading ? "Adding…" : "Add keywords"}
               </button>
             </div>
+            <CreditCostConfirm
+              action={firstCheckAction}
+              units={newChecks}
+              title={tc("addConfirmTitle", { count: newChecks })}
+              description={tc("addConfirmBody")}
+              confirmLabel="Add keywords"
+              open={confirmAdd}
+              onOpenChange={setConfirmAdd}
+              onConfirm={() => void submitKeywords()}
+            />
           </form>
         </div>
       </div>
@@ -1100,6 +1151,17 @@ export default function ProjectKeywordsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [usage, setUsage] = useState<UsageInfo | null>(null)
+  const tc = useTranslations("credits")
+  const { credits } = useCredits()
+  const { rates } = useCreditRates()
+  // Which meter this account spends from. Both false while the balance loads,
+  // so neither model's wording shows until it is known.
+  const isWorker = credits?.mode === "worker"
+  const isCreditsMode = credits?.mode === "credits"
+  // A free plan is always charged the standard rate; a paid one goes to the
+  // priority queue for small batches. The size limit is a server setting.
+  const isFreePlan = usage?.plan !== "paid"
+  const priorityMax = usage?.rankCheck?.priorityMaxKeywords ?? 0
 
   // Feed the topbar breadcrumb the real project name instead of "Project".
   useEffect(() => {
@@ -1716,26 +1778,41 @@ export default function ProjectKeywordsPage() {
    */
   const runCheckCost = selectedKeywords.size > 0 ? selectedKeywords.size : project?.keywords.length ?? 0
   /**
-   * Checks left today, or null when the plan has no daily ceiling.
-   *
-   * Null is not zero: a paid account is bounded by its credit balance, and
-   * treating "no limit" as "none left" would refuse every check it has paid for.
+   * The rate for THIS batch, decided the way the server decides it: on the
+   * number ASKED for, before any trimming. Small batches on a paid plan jump
+   * the queue at the priority rate; a bulk check-all, and every free check,
+   * pays standard. Deciding after the trim quoted the cheap rate for batches
+   * the server charged at the dear one.
    */
-  const checksLeft = usage && usage.plan !== "paid" ? Math.max(0, usage.dailyRemaining) : null
+  const checkAction = rankCheckAction(runCheckCost, { free: isFreePlan, priorityMax })
+  const isPriorityCheck = checkAction === CREDIT_ACTION_KEYS.rankCheckPriority
+  /** Daily-check units one keyword spends on a worker plan (a priority check spends more). */
+  const workerUnitsPerCheck = isPriorityCheck ? Math.max(1, usage?.rankCheck?.priorityCredits ?? 1) : 1
+  /**
+   * Checks left today, or null when the credit balance — not a daily ceiling —
+   * is the budget.
+   *
+   * Null is not zero: a paid credits account is bounded by its balance, and
+   * treating "no limit" as "none left" would refuse every check it has paid
+   * for. A worker plan does have a daily ceiling, counted in units.
+   */
+  const checksLeft = !usage
+    ? null
+    : usage.plan !== "paid"
+      ? Math.max(0, usage.dailyRemaining)
+      : isWorker
+        ? Math.floor(Math.max(0, usage.dailyRemaining) / workerUnitsPerCheck)
+        : null
   /** How many of the requested checks will actually run. */
   const willRun = checksLeft === null ? runCheckCost : Math.min(runCheckCost, checksLeft)
-  /**
-   * Credits per keyword for THIS batch.
-   *
-   * Small batches jump the queue at 2x; a bulk check-all falls back to
-   * standard so nobody pays double across a whole project. Quoting the flat
-   * catalog rate said "2 credits" for a run the ledger recorded as -4.
-   */
-  const perKeyword =
-    usage?.rankCheck && willRun > 0 && willRun <= usage.rankCheck.priorityMaxKeywords
-      ? usage.rankCheck.priorityCredits
-      : usage?.rankCheck?.standardCredits ?? 1
-  const creditsToSpend = willRun * perKeyword
+  /** From the rate card. Null while it loads. */
+  const perKeyword = quoteCredits(rates, checkAction, 1)
+  const creditsToSpend = willRun > 0 ? quoteCredits(rates, checkAction, willRun) : 0
+  const creditBalance = credits?.balance ?? null
+  /** How many the balance covers — the server trims a credits batch to this. */
+  const creditsAfford =
+    isCreditsMode && perKeyword && creditBalance != null ? Math.floor(creditBalance / perKeyword) : null
+  const creditShort = isCreditsMode && creditsAfford != null && creditsAfford < willRun
 
   const handleRunCheck = async () => {
     if (!project) return
@@ -2225,6 +2302,42 @@ export default function ProjectKeywordsPage() {
   const plan = usage?.plan
   const color = projectColor(project.id)
 
+  // What a locked row says depends on WHY nothing ran. A free plan's daily
+  // checks, a worker plan's daily checks and a paid account's credit balance
+  // are three limits with three different ways out — telling a paying account
+  // about "today's free checks" when it is simply short of credits sends it
+  // looking for an allowance it does not have.
+  const lockKind = isFreePlan ? "free" : isWorker ? "worker" : "credits"
+  const lockedTip =
+    lockKind === "free"
+      ? t("lockedTip", { limit: usage?.dailyLimit ?? FREE_DAILY_CHECKS })
+      : lockKind === "worker"
+        ? t("lockedTipWorker", { limit: usage?.dailyLimit ?? 0 })
+        : tc("lockedTipCredits")
+  const lockedQuotaCode =
+    lockKind === "free" ? "free_daily_quota_exhausted" : lockKind === "worker" ? "daily_quota_exhausted" : "insufficient_credits"
+
+  // Prices for the per-row actions, credits accounts only.
+  //  - Refresh is a one-keyword manual check, at the rate the server picks for one.
+  //  - The score badge opens the full Keyword Score report, which reuses a
+  //    report from the last 24 hours and otherwise runs (and charges) a new one.
+  //    pageScoreAt is when the score last landed; an hour of margin keeps the
+  //    "free" claim honest for a report started a little before it landed.
+  const refreshCost = isCreditsMode ? quoteCredits(rates, rankCheckAction(1, { free: isFreePlan, priorityMax }), 1) : null
+  const scoreCost = isCreditsMode ? quoteCredits(rates, CREDIT_ACTION_KEYS.keywordScore) : null
+  const SCORE_REUSE_MS = 23 * 60 * 60 * 1000
+  const scoreCostNote = (kw: Keyword) =>
+    scoreCost && !(kw.pageScoreAt && Date.now() - Date.parse(kw.pageScoreAt) < SCORE_REUSE_MS)
+      ? tc("costUses", { count: scoreCost, n: formatCredits(scoreCost) })
+      : null
+  // Scheduled checks always go to the standard queue, one per tracked keyword
+  // per run — so a cadence's monthly price is that times the runs in a month.
+  const scheduleNote = (hours: number) => {
+    if (!isCreditsMode || !project.keywords.length) return null
+    const perRun = quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck, project.keywords.length)
+    return perRun ? tc("perMonthEstimate", { n: formatCredits(perRun * Math.round((30 * 24) / hours)) }) : null
+  }
+
 
   // Out of TODAY's rank checks (free plan). This gates CHECKING, not adding —
   // adding is limited by the keyword cap — so we show a small non-blocking
@@ -2371,6 +2484,7 @@ export default function ProjectKeywordsPage() {
                     offLabel={t("freqOff")}
                     title={t("freqTitle")}
                     onPick={handleUpdateFrequency}
+                    noteFor={scheduleNote}
                   />
                 </div>
               </div>
@@ -2763,6 +2877,11 @@ export default function ProjectKeywordsPage() {
                 projectId={project.id}
                 yourAvg={stats.avgPos > 0 ? stats.avgPos : null}
                 onHide={() => hideRailCard("competitors")}
+                recheckCount={project.keywords.filter((k) => engineOf(k) === "google").length}
+                recheckAction={rankCheckAction(
+                  project.keywords.filter((k) => engineOf(k) === "google").length,
+                  { free: isFreePlan, priorityMax },
+                )}
               />
             )}
           </div>
@@ -3031,14 +3150,14 @@ export default function ProjectKeywordsPage() {
                         if (locked) {
                           window.dispatchEvent(
                             new CustomEvent("billing:quota", {
-                              detail: { code: "free_daily_quota_exhausted" },
+                              detail: { code: lockedQuotaCode },
                             }),
                           )
                           return
                         }
                         router.push(`/dashboard/project/${project.id}/keywords/${kw.id}`)
                       }}
-                      title={locked ? t("lockedTip", { limit: usage?.dailyLimit ?? FREE_DAILY_CHECKS }) : "View keyword details"}
+                      title={locked ? lockedTip : "View keyword details"}
                     >
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
@@ -3079,9 +3198,20 @@ export default function ProjectKeywordsPage() {
                             // both unreadable and see-through — it obscured
                             // enough to be annoying and not enough to be a
                             // limit, which is the worst of both.
-                            <span className="kw-locked" title={t("lockedTip", { limit: usage?.dailyLimit ?? FREE_DAILY_CHECKS })}>
-                              <Icon.lock size={11} /> {t("lockedCta")}
-                            </span>
+                            lockKind === "credits" ? (
+                              <Link
+                                href={BUY_CREDITS_HREF}
+                                className="kw-locked"
+                                title={lockedTip}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Icon.lock size={11} /> {tc("buyCredits")}
+                              </Link>
+                            ) : (
+                              <span className="kw-locked" title={lockedTip}>
+                                <Icon.lock size={11} /> {t("lockedCta")}
+                              </span>
+                            )
                           ) : (
                             <>
                               <PosCell
@@ -3136,6 +3266,7 @@ export default function ProjectKeywordsPage() {
                           label={kw.pageScoreLabel}
                           loading={openingReportKwId === kw.id || (isActive && kw.pageScore == null)}
                           onClick={() => openKeywordReport(kw)}
+                          costNote={scoreCostNote(kw)}
                           emptyTitle="Not ranking yet — click to score a page for this keyword"
                           onEmptyClick={() =>
                             router.push(
@@ -3180,7 +3311,13 @@ export default function ProjectKeywordsPage() {
                             size={15}
                             style={{ width: 28, height: 28 }}
                           />
-                          <Hint text="Refresh this keyword">
+                          <Hint
+                            text={
+                              refreshCost
+                                ? tc("withCost", { label: "Refresh this keyword", count: refreshCost, n: formatCredits(refreshCost) })
+                                : "Refresh this keyword"
+                            }
+                          >
                             <button
                               onClick={() => handleRefreshKeyword(kw.id)}
                               disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
@@ -3462,6 +3599,7 @@ export default function ProjectKeywordsPage() {
           plan={plan}
           dailyLimit={usage?.dailyLimit ?? FREE_DAILY_CHECKS}
           checksLeft={checksLeft}
+          priorityMax={priorityMax}
           domain={project.domain}
           existingKeywords={project.keywords.map((k) => k.keyword)}
           aiSuggestions={aiSuggestions}
@@ -3666,11 +3804,17 @@ export default function ProjectKeywordsPage() {
               {checksLeft === 0 ? (
                 <>
                   <div className="b" style={{ fontSize: 16 }}>
-                    You&apos;ve used today&apos;s free checks
+                    {isFreePlan ? <>You&apos;ve used today&apos;s free checks</> : t("checkWorkerOutTitle")}
                   </div>
                   <div className="tiny muted" style={{ marginTop: 6 }}>
-                    A free plan runs {usage?.dailyLimit ?? FREE_DAILY_CHECKS} rank checks a day. Nothing will run
-                    until they reset — this costs you nothing now.
+                    {isFreePlan ? (
+                      <>
+                        A free plan runs {usage?.dailyLimit ?? FREE_DAILY_CHECKS} rank checks a day. Nothing will run
+                        until they reset — this costs you nothing now.
+                      </>
+                    ) : (
+                      t("checkWorkerOutBody", { limit: usage?.dailyLimit ?? 0 })
+                    )}
                   </div>
                   <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
                     <Icon.lock /> Resets in <CountdownTimer targetDate={nextUtcMidnightIso} />
@@ -3678,22 +3822,58 @@ export default function ProjectKeywordsPage() {
                 </>
               ) : (
                 <>
-                  <div className="b" style={{ fontSize: 16 }}>
-                    {creditsToSpend === 1 ? "This will use 1 credit" : `This will use ${creditsToSpend} credits`}
-                  </div>
-                  <div className="tiny muted" style={{ marginTop: 6 }}>
-                    {perKeyword === 1
-                      ? `${perKeyword} credit per keyword.`
-                      : `${perKeyword} credits per keyword — small checks jump the queue so results come back in seconds.`}{" "}
-                    We fetch each one&apos;s live Google position now,
-                    {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
-                  </div>
+                  {/* Priced in whatever this account actually spends: credits
+                      from the rate card, or a worker plan's daily checks. The
+                      word "credit" means nothing to a worker subscriber. */}
+                  {isCreditsMode && creditsToSpend != null && perKeyword != null && (
+                    <>
+                      <div className="b" style={{ fontSize: 16 }}>
+                        {creditsToSpend === 1 ? "This will use 1 credit" : `This will use ${formatCredits(creditsToSpend)} credits`}
+                      </div>
+                      <div className="tiny muted" style={{ marginTop: 6 }}>
+                        {isPriorityCheck
+                          ? `${perKeyword} credits per keyword — small checks jump the queue so results come back in seconds.`
+                          : `${perKeyword} credit${perKeyword === 1 ? "" : "s"} per keyword.`}{" "}
+                        We fetch each one&apos;s live Google position now,
+                        {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
+                      </div>
+                    </>
+                  )}
+                  {isWorker && (
+                    <>
+                      <div className="b" style={{ fontSize: 16 }}>
+                        {t("checkWorkerUses", { count: willRun * workerUnitsPerCheck })}
+                      </div>
+                      <div className="tiny muted" style={{ marginTop: 6 }}>
+                        {isPriorityCheck && workerUnitsPerCheck > 1 && `${t("checkWorkerPriority", { units: workerUnitsPerCheck })} `}
+                        We fetch each one&apos;s live Google position now,
+                        {selectedKeywords.size > 0 ? " for the keywords you selected." : " for every keyword in this project."}
+                      </div>
+                    </>
+                  )}
                   {/* Named, not hinted. "Trimmed" does not say how many survive. */}
                   {willRun < runCheckCost && (
                     <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
                       You have {checksLeft} check{checksLeft === 1 ? "" : "s"} left today, so only{" "}
                       {willRun} of your {runCheckCost} will run. The rest can be checked tomorrow when your checks
                       reset, or upgrade to check them all now.
+                    </div>
+                  )}
+                  {/* The balance is the other limit. The server checks what it
+                      covers and leaves the rest waiting, so say how many that
+                      is — and where more credits come from — before the click. */}
+                  {creditShort && creditBalance != null && (
+                    <div className="tiny" style={{ marginTop: 10, color: "var(--warn, #d97706)" }}>
+                      {creditsAfford
+                        ? tc("checkShort", {
+                            balance: formatCredits(creditBalance),
+                            afford: creditsAfford,
+                            total: willRun,
+                          })
+                        : tc("checkShortNone", { balance: formatCredits(creditBalance) })}{" "}
+                      <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+                        {tc("buyCredits")}
+                      </Link>
                     </div>
                   )}
                 </>
@@ -3704,12 +3884,17 @@ export default function ProjectKeywordsPage() {
                 {checksLeft === 0 ? "Close" : "Cancel"}
               </button>
               {/* No Run button when nothing can run. A disabled one still reads
-                  as "almost"; absent reads as "not today". */}
-              {checksLeft !== 0 && (
+                  as "almost"; absent reads as "not today". With no credits to
+                  cover even one check, the way forward is buying some. */}
+              {checksLeft !== 0 && creditShort && !creditsAfford ? (
+                <Link href={BUY_CREDITS_HREF} className="btn primary">
+                  {tc("buyCredits")}
+                </Link>
+              ) : checksLeft !== 0 ? (
                 <button className="btn primary" onClick={handleRunCheck} disabled={checking}>
                   {checking ? t("checking") : "Run check"}
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -3938,10 +4123,16 @@ function CompetitorsCard({
   projectId,
   yourAvg,
   onHide,
+  recheckCount,
+  recheckAction,
 }: {
   projectId: string
   yourAvg: number | null
   onHide: () => void
+  /** Adding a competitor re-checks the Google keywords whose stored SERP lacks
+   *  it — at most all of them — so that count is the ceiling of what it costs. */
+  recheckCount: number
+  recheckAction: string
 }) {
   const t = useTranslations("projKeywords")
   const [tracked, setTracked] = useState<CompetitorRow[]>([])
@@ -4041,6 +4232,9 @@ function CompetitorsCard({
         disabled={busy || available.length === 0}
         ariaLabel={t("addCompetitor")}
       />
+      {available.length > 0 && recheckCount > 0 && (
+        <CreditCost action={recheckAction} units={recheckCount} upTo showBalance={false} className="mt-1.5" />
+      )}
       <div style={{ marginTop: 12 }}>
         {loading ? (
           <div className="tiny muted" style={{ padding: "4px 2px" }}>…</div>
