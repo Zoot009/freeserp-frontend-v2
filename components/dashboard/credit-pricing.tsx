@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Check, Coins, Loader2 } from "lucide-react"
-import { api } from "@/lib/api"
+import { api, ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   useCreditRates,
@@ -152,6 +152,7 @@ function PlanCard({
   rates,
   current,
   busy,
+  switching,
   highlighted,
   onChoose,
 }: {
@@ -159,6 +160,8 @@ function PlanCard({
   rates: CreditRateCard
   current: boolean
   busy: boolean
+  /** The account already subscribes to another plan: this card switches it in the billing portal. */
+  switching: boolean
   /** Arrived here from a "Get Pro" link on the marketing site. */
   highlighted: boolean
   onChoose: (slug: string) => void
@@ -236,7 +239,11 @@ function PlanCard({
         )}
       >
         {busy && <Loader2 className="size-3.5 animate-spin" />}
-        {current ? t("currentPlan") : busy ? t("openingCheckout") : t("choosePlan", { plan: name })}
+        {current
+          ? t("currentPlan")
+          : busy
+            ? t(switching ? "openingPortal" : "openingCheckout")
+            : t(switching ? "switchPlan" : "choosePlan", { plan: name })}
       </button>
     </div>
   )
@@ -376,6 +383,7 @@ export function CreditPricing({
   const go = async (key: string, body: { planSlug?: string; packageKey?: string }) => {
     setPending(key)
     setFailed(false)
+    setPortalError(null)
     const url = await startCheckout(body)
     if (url) {
       window.location.href = url
@@ -383,6 +391,26 @@ export function CreditPricing({
     }
     setPending(null)
     setFailed(true)
+  }
+
+  // An account with a live subscription changes plan in the billing portal.
+  // A second checkout would start a second subscription billed beside the
+  // first, so the server refuses it (already_subscribed); the card goes to the
+  // portal instead. The server's message is shown as it is, since it can be
+  // specific (PayU plans are changed by cancelling first).
+  const subscribed = !!credits?.planSlug && credits.planSlug !== "free"
+  const [portalError, setPortalError] = useState<string | null>(null)
+  const switchPlan = async (key: string) => {
+    setPending(key)
+    setFailed(false)
+    setPortalError(null)
+    try {
+      const { url } = await api.post<{ url: string }>("/api/billing/portal")
+      window.location.href = url
+    } catch (err) {
+      setPending(null)
+      setPortalError(err instanceof ApiError && err.message ? err.message : t("portalFailed"))
+    }
   }
 
   const plans = useMemo(
@@ -426,8 +454,9 @@ export function CreditPricing({
               rates={rates}
               current={credits?.planSlug === slug}
               busy={pending === p.key}
+              switching={subscribed}
               highlighted={highlight === slug}
-              onChoose={() => void go(p.key, { planSlug: slug })}
+              onChoose={() => void (subscribed ? switchPlan(p.key) : go(p.key, { planSlug: slug }))}
             />
           )
         })}
@@ -474,9 +503,9 @@ export function CreditPricing({
 
       <EveryTool rates={rates} />
 
-      {failed && (
+      {(failed || portalError) && (
         <p className="text-xs font-medium text-red-600 dark:text-red-400">
-          {t("checkoutFailed")}
+          {portalError ?? t("checkoutFailed")}
         </p>
       )}
 
