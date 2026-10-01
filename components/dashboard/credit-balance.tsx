@@ -9,24 +9,38 @@
  * without opening the billing page is a balance they will run out of by
  * surprise, so this goes in the chrome.
  *
- * Renders nothing at all for a grandfathered worker subscriber — they still
- * meter on daily checks, and showing them a balance of zero credits they never
- * bought would read as something being broken.
+ * A grandfathered worker subscriber gets the daily-checks meter in this spot
+ * instead — they meter on daily checks, and showing them a balance of zero
+ * credits they never bought would read as something being broken. Showing them
+ * nothing at all left them no way to see how many checks were left today.
  */
 
+import { useTranslations } from "next-intl"
 import { Coins } from "lucide-react"
 import { Link } from "@/i18n/navigation"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { UsageMeter } from "@/components/dashboard/usage-meter"
 import { useCredits, formatCredits } from "@/lib/credits"
 
 /** Below this share of the monthly allowance, the pill starts warning. */
 const LOW_RATIO = 0.15
 
 export function CreditBalance({ className }: { className?: string }) {
+  const t = useTranslations("credits")
   const { credits, loading } = useCredits()
 
-  // Nothing to say yet, or nothing this user should be told.
+  // The meter's colours and sizes are dashboard tokens scoped to .fs-app, which
+  // the top bar sits outside of.
+  if (credits?.mode === "worker") {
+    return (
+      <div className="fs-app" style={{ background: "transparent" }}>
+        <UsageMeter />
+      </div>
+    )
+  }
+
+  // Nothing to say yet.
   if (loading || !credits || credits.mode !== "credits") return null
 
   const allowance = credits.monthlyAllowance || 0
@@ -42,7 +56,7 @@ export function CreditBalance({ className }: { className?: string }) {
       <TooltipTrigger asChild>
         <Link
           href="/dashboard/billing"
-          aria-label={`${formatCredits(credits.balance)} credits remaining`}
+          aria-label={t("balanceAria", { count: credits.balance, n: formatCredits(credits.balance) })}
           className={cn(
             "inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-semibold tabular-nums transition-colors",
             empty
@@ -60,8 +74,8 @@ export function CreditBalance({ className }: { className?: string }) {
       <TooltipContent className="max-w-64 text-xs">
         <div className="font-semibold">
           {empty
-            ? "You are out of credits"
-            : `${formatCredits(credits.balance)} credit${credits.balance === 1 ? "" : "s"} left`}
+            ? t("balanceEmpty")
+            : t("balanceLeft", { count: credits.balance, n: formatCredits(credits.balance) })}
         </div>
         {/* TooltipContent is inverted (bg-foreground / text-background), so the
             secondary line has to dim its OWN text colour. text-muted-foreground
@@ -69,11 +83,17 @@ export function CreditBalance({ className }: { className?: string }) {
             put light grey on the tooltip's light background and the line all
             but disappeared. */}
         <div className="mt-1 text-background/70">
+          {/* Monthly credits expire when the next month's arrive, so the
+              balance goes back TO the allowance on that date — it does not
+              grow by it. "100 more on 1 Nov" read as a top-up that was never
+              coming. */}
           {allowance > 0 && refill
-            ? `${formatCredits(allowance)} more on ${refill}.`
-            : "Top up to keep tracking."}
+            ? credits.planSlug === "free"
+              ? t("balanceResets", { n: formatCredits(allowance), date: refill })
+              : t("balanceRenews", { n: formatCredits(allowance), date: refill })
+            : t("balanceTopUp")}
           {credits.expiringSoon > 0 && (
-            <> {formatCredits(credits.expiringSoon)} expire within two weeks.</>
+            <> {t("balanceExpiring", { n: formatCredits(credits.expiringSoon) })}</>
           )}
         </div>
       </TooltipContent>

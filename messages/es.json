@@ -1648,7 +1648,14 @@
     "confirmBalanceAfter": "Saldo después",
     "confirmShort": "No tienes créditos suficientes: te faltan {n}.",
     "cancel": "Cancelar",
-    "runIt": "Ejecutar"
+    "runIt": "Ejecutar",
+    "balanceAria": "{count, plural, one {Te queda {n} crédito} other {Te quedan {n} créditos}}",
+    "balanceEmpty": "Te has quedado sin créditos",
+    "balanceLeft": "{count, plural, one {Te queda {n} crédito} other {Te quedan {n} créditos}}",
+    "balanceResets": "Vuelve a {n} el {date}.",
+    "balanceRenews": "Tus {n} créditos mensuales se renuevan el {date}.",
+    "balanceTopUp": "Recarga para seguir haciendo seguimiento.",
+    "balanceExpiring": "{n} caducan en las próximas dos semanas."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

@@ -1648,7 +1648,14 @@
     "confirmBalanceAfter": "Solde après",
     "confirmShort": "Crédits insuffisants — il vous en manque {n}.",
     "cancel": "Annuler",
-    "runIt": "Lancer"
+    "runIt": "Lancer",
+    "balanceAria": "{count, plural, one {{n} crédit restant} other {{n} crédits restants}}",
+    "balanceEmpty": "Vous n'avez plus de crédits",
+    "balanceLeft": "{count, plural, one {{n} crédit restant} other {{n} crédits restants}}",
+    "balanceResets": "Revient à {n} le {date}.",
+    "balanceRenews": "Vos {n} crédits mensuels sont renouvelés le {date}.",
+    "balanceTopUp": "Rechargez pour continuer le suivi.",
+    "balanceExpiring": "{n} expirent dans les deux semaines."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

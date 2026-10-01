@@ -1648,7 +1648,14 @@
     "confirmBalanceAfter": "Guthaben danach",
     "confirmShort": "Nicht genug Credits — Sie brauchen noch {n}.",
     "cancel": "Abbrechen",
-    "runIt": "Ausführen"
+    "runIt": "Ausführen",
+    "balanceAria": "{count, plural, one {{n} Credit übrig} other {{n} Credits übrig}}",
+    "balanceEmpty": "Ihr Guthaben ist aufgebraucht",
+    "balanceLeft": "{count, plural, one {{n} Credit übrig} other {{n} Credits übrig}}",
+    "balanceResets": "Wird am {date} auf {n} zurückgesetzt.",
+    "balanceRenews": "Ihre {n} Monats-Credits werden am {date} erneuert.",
+    "balanceTopUp": "Laden Sie auf, um weiter zu tracken.",
+    "balanceExpiring": "{n} verfallen in den nächsten zwei Wochen."
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",
