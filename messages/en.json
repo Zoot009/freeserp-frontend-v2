@@ -1653,7 +1653,8 @@
     "bodyCreditsRefill": "Or wait for your monthly allowance of {credits} on {date}.",
     "bodyFreeDailyLimit": "Free accounts get {limit} of these a day, and today's are used. They come back at midnight UTC — or buy credits to keep going now.",
     "buyCredits": "Buy credits",
-    "titleFreeDailyLimit": "That's today's free runs"
+    "titleFreeDailyLimit": "That's today's free runs",
+    "titleLimit": "You've reached a plan limit"
   },
   "trialCountdown": {
     "cta": "See plans",

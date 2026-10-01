@@ -137,9 +137,8 @@ export function QuotaUpsellModal() {
       setExtension(null)
       setOpen(true)
 
-      // Nothing below applies to a credits account: no daily usage to quote, no
-      // trial to extend, no worker tier to sell.
-      if (!isWorkerRef.current) return
+      // Out of credits has nothing to read here: the 402 carries the numbers.
+      if (evCode === "insufficient_credits") return
 
       try {
         const [u, cfg] = await Promise.all([api.get<Usage>("/api/usage"), fetchBillingConfig()])
@@ -149,7 +148,10 @@ export function QuotaUpsellModal() {
           days: cfg.freeTrial?.extensionDays ?? 2,
           checks: cfg.freeTrial?.extensionChecks ?? 20,
         })
-        if (u.plan === "paid") {
+        // A worker tier is only ever offered to a KNOWN worker subscriber. A
+        // paid credits account is refused that PATCH (not_worker_plan), so it
+        // never fetches the preview — let alone sees the button.
+        if (u.plan === "paid" && isWorkerRef.current) {
           // First configured tier strictly above the current count — also lifts
           // grandfathered 1-worker subs onto the smallest current tier.
           const next = cfg.tiers.find((tier) => tier > u.workerCount) ?? null
@@ -257,9 +259,12 @@ export function QuotaUpsellModal() {
                     ? t("titleFreeDailyLimit")
                     : isPaid
                       ? t("titlePaid")
-                      : isFreeDaily
-                        ? t("titleFreeDaily")
-                        : t("titleFree")}
+                      : usage?.plan === "paid"
+                        ? // A paid credits account has no daily checks to be out of.
+                          t("titleLimit")
+                        : isFreeDaily
+                          ? t("titleFreeDaily")
+                          : t("titleFree")}
               </div>
             </div>
             <button type="button" onClick={close} className="icon-btn" aria-label={t("close")} disabled={busy}>

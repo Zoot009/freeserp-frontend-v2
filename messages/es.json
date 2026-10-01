@@ -1653,7 +1653,8 @@
     "bodyCreditsRefill": "O espera a tu asignación mensual de {credits} el {date}.",
     "bodyFreeDailyLimit": "Las cuentas gratuitas tienen {limit} al día y ya has usado las de hoy. Vuelven a medianoche (UTC), o compra créditos para seguir ahora.",
     "buyCredits": "Comprar créditos",
-    "titleFreeDailyLimit": "Ya usaste las ejecuciones gratis de hoy"
+    "titleFreeDailyLimit": "Ya usaste las ejecuciones gratis de hoy",
+    "titleLimit": "Has alcanzado un límite de tu plan"
   },
   "trialCountdown": {
     "cta": "Ver planes",

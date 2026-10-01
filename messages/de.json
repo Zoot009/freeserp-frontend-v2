@@ -1653,7 +1653,8 @@
     "bodyCreditsRefill": "Oder warten Sie auf Ihr monatliches Kontingent von {credits} am {date}.",
     "bodyFreeDailyLimit": "Kostenlose Konten haben davon {limit} pro Tag, und die heutigen sind aufgebraucht. Sie stehen um Mitternacht (UTC) wieder bereit — oder kaufen Sie Credits, um sofort weiterzumachen.",
     "buyCredits": "Credits kaufen",
-    "titleFreeDailyLimit": "Das waren die kostenlosen Läufe für heute"
+    "titleFreeDailyLimit": "Das waren die kostenlosen Läufe für heute",
+    "titleLimit": "Sie haben ein Tariflimit erreicht"
   },
   "trialCountdown": {
     "cta": "Tarife ansehen",

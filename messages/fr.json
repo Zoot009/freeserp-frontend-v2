@@ -1653,7 +1653,8 @@
     "bodyCreditsRefill": "Ou attendez votre allocation mensuelle de {credits} le {date}.",
     "bodyFreeDailyLimit": "Les comptes gratuits en ont {limit} par jour, et ceux d'aujourd'hui sont utilisés. Ils reviennent à minuit (UTC) — ou achetez des crédits pour continuer tout de suite.",
     "buyCredits": "Acheter des crédits",
-    "titleFreeDailyLimit": "Vous avez utilisé les exécutions gratuites du jour"
+    "titleFreeDailyLimit": "Vous avez utilisé les exécutions gratuites du jour",
+    "titleLimit": "Vous avez atteint une limite de votre forfait"
   },
   "trialCountdown": {
     "cta": "Voir les offres",
