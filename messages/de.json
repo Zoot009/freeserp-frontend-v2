@@ -1789,7 +1789,8 @@
     "addedCheckSkipped": "Hinzugefügt — Ihr Guthaben hat aber nicht für die erste Prüfung gereicht, daher warten sie noch. Kaufen Sie Credits und starten Sie dann eine Prüfung.",
     "addConfirmTitle": "{count, plural, one {1 Keyword hinzufügen und prüfen?} other {# Keywords hinzufügen und prüfen?}}",
     "addConfirmBody": "Neue Keywords werden direkt nach dem Hinzufügen zum ersten Mal geprüft. Bereits verfolgte Keywords werden nicht erneut geprüft.",
-    "perMonthEstimate": "≈ {n} Credits/Monat"
+    "perMonthEstimate": "≈ {n} Credits/Monat",
+    "ytFirstCheckOnAdd": "Die neuen werden direkt nach dem Hinzufügen zum ersten Mal geprüft."
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",

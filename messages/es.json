@@ -1789,7 +1789,8 @@
     "addedCheckSkipped": "Añadidas, pero tu saldo no cubrió su primera comprobación, así que están en espera. Compra créditos y luego lanza una comprobación.",
     "addConfirmTitle": "{count, plural, one {¿Añadir y comprobar 1 palabra clave?} other {¿Añadir y comprobar # palabras clave?}}",
     "addConfirmBody": "Las palabras clave nuevas reciben su primera comprobación en cuanto se añaden. Las que ya sigues no se vuelven a comprobar.",
-    "perMonthEstimate": "≈ {n} créditos/mes"
+    "perMonthEstimate": "≈ {n} créditos/mes",
+    "ytFirstCheckOnAdd": "Las nuevas reciben su primera comprobación en cuanto se añaden."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

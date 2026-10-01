@@ -26,8 +26,10 @@ import {
 } from "@/components/dashboard/youtube"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
-import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { useTranslations } from "next-intl"
+import { toast } from "sonner"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, formatCredits, quoteCredits, useCreditQuote, useCreditRates, useCredits } from "@/lib/credits"
 
 interface YtProject {
   id: string
@@ -228,6 +230,9 @@ function AddKeywordsModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [step, setStep] = useState<1 | 2>(1)
+  const tc = useTranslations("credits")
+  const router = useRouter()
+  const [confirmAdd, setConfirmAdd] = useState(false)
 
   useEffect(() => {
     api
@@ -317,6 +322,8 @@ function AddKeywordsModal({
   )
   const newCount = keywords.length - alreadyTracked
   const nothingNew = keywords.length > 0 && newCount === 0
+  // The add runs the first check of the NEW keywords; tracked ones are skipped.
+  const firstCheck = useCreditQuote(CREDIT_ACTION_KEYS.youtubeCheck, newCount)
 
   // Location and language are chosen INDEPENDENTLY here, unlike the Google side
   // where language is derived from the market. Default the language to the
@@ -347,16 +354,33 @@ function AddKeywordsModal({
       }
       return
     }
+    // The add runs the first check of the new keywords, so a big one is
+    // confirmed with the balance in view rather than just labelled.
+    if (firstCheck.applies && (firstCheck.cost ?? 0) >= CONFIRM_THRESHOLD) {
+      setConfirmAdd(true)
+      return
+    }
+    await submitKeywords()
+  }
+
+  const submitKeywords = async () => {
     setError("")
     setLoading(true)
     try {
-      await api.post(`/api/youtube/projects/${projectId}/keywords`, {
+      const res = await api.post<{ checkSkipped?: string }>(`/api/youtube/projects/${projectId}/keywords`, {
         keywords,
         locationCode,
         languageCode,
         device: "desktop",
         ...(depth === "" ? {} : { depth }),
       })
+      // Added, but the balance could not pay for the first check — say so,
+      // with the way out, rather than leave rows that never fill in.
+      if (res?.checkSkipped === "insufficient_credits") {
+        toast.warning(tc("addedCheckSkipped"), {
+          action: { label: tc("buyCredits"), onClick: () => router.push(BUY_CREDITS_HREF) },
+        })
+      }
       onAdded()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to add keywords")
@@ -578,13 +602,13 @@ function AddKeywordsModal({
                       set to Top {effectiveDepth}.
                       {alreadyTracked > 0 &&
                         ` ${alreadyTracked} ${alreadyTracked === 1 ? "is" : "are"} already tracked here and will be skipped.`}{" "}
-                      Nothing is checked until you run a check — that is when the allowance is spent.
+                      {tc("ytFirstCheckOnAdd")}
                     </span>
                   </div>
                 )}
 
-                {/* What that later check will cost, so the size of the batch is
-                    a decision made here rather than a surprise afterwards. */}
+                {/* What that first check costs, so the size of the batch is a
+                    decision made here rather than a surprise afterwards. */}
                 {newCount > 0 && !nothingNew && (
                   <CreditCost action={CREDIT_ACTION_KEYS.youtubeCheck} units={newCount} />
                 )}
@@ -626,6 +650,16 @@ function AddKeywordsModal({
               </>
             )}
           </div>
+          <CreditCostConfirm
+            action={CREDIT_ACTION_KEYS.youtubeCheck}
+            units={newCount}
+            title={tc("addConfirmTitle", { count: newCount })}
+            description={tc("addConfirmBody")}
+            confirmLabel={`Add ${newCount} keyword${newCount === 1 ? "" : "s"}`}
+            open={confirmAdd}
+            onOpenChange={setConfirmAdd}
+            onConfirm={() => void submitKeywords()}
+          />
         </form>
       </div>
     </div>
@@ -649,6 +683,11 @@ export default function YoutubeKeywordsPage() {
   const [showAddKw, setShowAddKw] = useState(false)
   const [lockedKwIds, setLockedKwIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
+  const tc = useTranslations("credits")
+  const { rates } = useCreditRates()
+  const { credits } = useCredits()
+  const isCreditsMode = credits?.mode === "credits"
+  const [confirmRun, setConfirmRun] = useState(false)
   // Separate from `busy`, which belongs to running checks: changing the
   // schedule must not disable the Run check button, or the reverse.
   const [savingFreq, setSavingFreq] = useState(false)
@@ -871,6 +910,18 @@ export default function YoutubeKeywordsPage() {
       ? { label: "Paused", tone: "text-amber-600 dark:text-amber-400" }
       : { label: freqLabel(project.checkFrequency), tone: "text-primary" }
 
+  // Prices, credits accounts only. A YouTube check is one rate per keyword —
+  // there is no priority queue price here, unlike Google.
+  const runCount = selected.size > 0 ? selected.size : project.keywords.length
+  const runCost = isCreditsMode && runCount > 0 ? quoteCredits(rates, CREDIT_ACTION_KEYS.youtubeCheck, runCount) : null
+  const oneCheckCost = isCreditsMode ? quoteCredits(rates, CREDIT_ACTION_KEYS.youtubeCheck, 1) : null
+  // Scheduled runs check every keyword once per run.
+  const scheduleNote = (hours: number) => {
+    if (!isCreditsMode || !project.keywords.length) return null
+    const perRun = quoteCredits(rates, CREDIT_ACTION_KEYS.youtubeCheck, project.keywords.length)
+    return perRun ? tc("perMonthEstimate", { n: formatCredits(perRun * Math.round((30 * 24) / hours)) }) : null
+  }
+
   const targetHref =
     project.targetType === "VIDEO" && project.targetVideoId
       ? `https://www.youtube.com/watch?v=${project.targetVideoId}`
@@ -969,6 +1020,7 @@ export default function YoutubeKeywordsPage() {
                   offLabel="Off (no schedule)"
                   title="Set how often automated rank checks run for this channel"
                   onPick={updateFrequency}
+                  noteFor={scheduleNote}
                 />
               </div>
             </div>
@@ -984,11 +1036,25 @@ export default function YoutubeKeywordsPage() {
             </Button>
             <Button
               disabled={busy || project.keywords.length === 0}
-              onClick={() => runCheck(selected.size > 0 ? [...selected] : undefined)}
+              onClick={() => {
+                // A whole channel's keywords add up, so a big check is
+                // confirmed with the balance in view; a small one just runs.
+                if (isCreditsMode && (runCost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
+                else void runCheck(selected.size > 0 ? [...selected] : undefined)
+              }}
               className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
+              title={runCost ? tc("costUses", { count: runCost, n: formatCredits(runCost) }) : undefined}
             >
               <Icon.refresh /> {selected.size > 0 ? `Check ${selected.size}` : "Run check"}
             </Button>
+            <CreditCostConfirm
+              action={CREDIT_ACTION_KEYS.youtubeCheck}
+              units={runCount}
+              title={selected.size > 0 ? `Check ${selected.size}` : "Run check"}
+              open={confirmRun}
+              onOpenChange={setConfirmRun}
+              onConfirm={() => void runCheck(selected.size > 0 ? [...selected] : undefined)}
+            />
             {/* Only with a selection to act on. No tooltip: the label already
                 says exactly what one would, and repeating it on hover is noise. */}
             {selected.size > 0 && (
@@ -1361,7 +1427,13 @@ export default function YoutubeKeywordsPage() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="row" style={{ gap: 6 }}>
-                          <Hint text="Check this keyword now">
+                          <Hint
+                            text={
+                              oneCheckCost
+                                ? tc("withCost", { label: "Check this keyword now", count: oneCheckCost, n: formatCredits(oneCheckCost) })
+                                : "Check this keyword now"
+                            }
+                          >
                             <button
                               className="icon-btn"
                               style={{ width: 28, height: 28 }}

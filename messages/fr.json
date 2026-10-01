@@ -1789,7 +1789,8 @@
     "addedCheckSkipped": "Ajoutés — mais votre solde ne couvrait pas leur première vérification, ils sont donc en attente. Achetez des crédits, puis lancez une vérification.",
     "addConfirmTitle": "{count, plural, one {Ajouter et vérifier 1 mot-clé ?} other {Ajouter et vérifier # mots-clés ?}}",
     "addConfirmBody": "Les nouveaux mots-clés reçoivent leur première vérification dès leur ajout. Ceux que vous suivez déjà ne sont pas revérifiés.",
-    "perMonthEstimate": "≈ {n} crédits/mois"
+    "perMonthEstimate": "≈ {n} crédits/mois",
+    "ytFirstCheckOnAdd": "Les nouveaux sont vérifiés une première fois dès leur ajout."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",
