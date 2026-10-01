@@ -28,6 +28,8 @@ const TYPE_META: Record<string, { labelKey: string; tone: "up" | "down" | "neutr
   BUDGET_CAP_HIT: { labelKey: "BUDGET_CAP_HIT", tone: "down" },
   DAILY_QUOTA_HIT: { labelKey: "DAILY_QUOTA_HIT", tone: "down" },
   PAYMENT_FAILED: { labelKey: "PAYMENT_FAILED", tone: "down" },
+  // Auto check paused because the account is free (the scheduler reuses the old trial's type).
+  FREE_TRIAL_ENDED: { labelKey: "FREE_TRIAL_ENDED", tone: "down" },
 }
 
 function toneColor(tone: "up" | "down" | "neutral"): string {

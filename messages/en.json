@@ -713,7 +713,8 @@
       "SERP_FEATURE_LOST": "SERP feature lost",
       "BUDGET_CAP_HIT": "Daily budget reached",
       "DAILY_QUOTA_HIT": "Daily check limit reached",
-      "PAYMENT_FAILED": "Payment failed"
+      "PAYMENT_FAILED": "Payment failed",
+      "FREE_TRIAL_ENDED": "Auto check paused"
     }
   },
   "dashBilling": {

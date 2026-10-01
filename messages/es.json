@@ -713,7 +713,8 @@
       "SERP_FEATURE_LOST": "Función SERP perdida",
       "BUDGET_CAP_HIT": "Presupuesto diario alcanzado",
       "DAILY_QUOTA_HIT": "Límite diario de verificaciones alcanzado",
-      "PAYMENT_FAILED": "Pago fallido"
+      "PAYMENT_FAILED": "Pago fallido",
+      "FREE_TRIAL_ENDED": "Comprobación automática en pausa"
     }
   },
   "dashBilling": {
