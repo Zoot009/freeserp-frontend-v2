@@ -3,13 +3,11 @@
 /**
  * Credit plans and top-up packs, priced from the API rather than a constant.
  *
- * Everything on this card — the tiers, the pack prices, the free allowance and
- * the "what it buys" column — comes from the same `credit_rates` rows that will
- * actually be charged. A price shown here and a price charged at spend time
- * cannot drift, because there is only one of them.
- *
- * English copy for now, matching how keyword-magic, maps-tracker and the other
- * newer surfaces ship. The four-locale message files are a separate pass.
+ * Everything on this card — the tiers, the pack prices, the free allowance, the
+ * "what it buys" column and the per-tool prices — comes from the same
+ * `credit_rates` rows that will actually be charged, via quoteCredits. A price
+ * shown here and a price charged at spend time cannot drift, because there is
+ * only one of them.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -23,8 +21,12 @@ import {
   formatCredits,
   formatPrice,
   perCreditLabel,
+  quoteCredits,
+  CREDIT_ACTION_KEYS,
   type CreditPlan,
+  type CreditRateCard,
 } from "@/lib/credits"
+import { GRID_SIZES, RECOMMENDED_GRID_SIZE } from "@/components/maps-tracker/grid"
 
 /** Display names and the case each tier is for. Keyed by the rate-card key. */
 const PLAN_COPY: Record<string, { nameKey: string; whoKey: string; popular?: boolean }> = {
@@ -39,19 +41,39 @@ const PACK_COPY: Record<string, string> = {
   "topup-15000": "pack15000",
 }
 
+/** The sizes the examples below are priced at: the recommended map grid, a 100-page site. */
+const EXAMPLE_GRID_POINTS = RECOMMENDED_GRID_SIZE ** 2
+const EXAMPLE_AUDIT_PAGES = 100
+
 /**
  * What a number of credits buys, in the things people actually do. Abstract
  * credit counts mean nothing on their own — "2,000 credits" only lands as a
  * price once you can see it is a keyword checked every day for two months.
+ *
+ * Each line divides by the rate card's own price for that thing, so the lines
+ * move when a rate does. A hardcoded divisor is how this once promised 400
+ * "full site audits" for Starter, when a full audit is a credit per page.
  */
-function whatItBuys(credits: number, t: (k: string, v?: Record<string, string>) => string): string[] {
-  const n = (d: number) => formatCredits(Math.floor(credits / d))
-  return [
-    t("buysChecks", { credits: formatCredits(credits) }),
-    t("buysDaily", { credits: n(30) }),
-    t("buysScans", { credits: n(17) }),
-    t("buysAudits", { credits: n(5) }),
+function whatItBuys(
+  credits: number,
+  rates: CreditRateCard,
+  t: (k: string, v?: Record<string, string>) => string,
+): string[] {
+  const lines: [string, number | null][] = [
+    ["buysChecks", quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck)],
+    ["buysDaily", (quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck) ?? 0) * 30 || null],
+    ["buysScans", quoteCredits(rates, CREDIT_ACTION_KEYS.mapsScanPoint, EXAMPLE_GRID_POINTS)],
+    ["buysAudits", quoteCredits(rates, CREDIT_ACTION_KEYS.siteCrawlPage, EXAMPLE_AUDIT_PAGES)],
   ]
+  return lines
+    .filter((l): l is [string, number] => !!l[1])
+    .map(([key, each]) =>
+      t(key, {
+        credits: formatCredits(Math.floor(credits / each)),
+        grid: `${RECOMMENDED_GRID_SIZE}×${RECOMMENDED_GRID_SIZE}`,
+        pages: formatCredits(EXAMPLE_AUDIT_PAGES),
+      }),
+    )
 }
 
 /** What the free tier offers. Mirrors FREE_FEATURES on the marketing site. */
@@ -127,12 +149,14 @@ async function startCheckout(body: { planSlug?: string; packageKey?: string }): 
 
 function PlanCard({
   plan,
+  rates,
   current,
   busy,
   highlighted,
   onChoose,
 }: {
   plan: CreditPlan
+  rates: CreditRateCard
   current: boolean
   busy: boolean
   /** Arrived here from a "Get Pro" link on the marketing site. */
@@ -190,7 +214,7 @@ function PlanCard({
       <div className="my-5 h-px bg-border" />
 
       <ul className="flex flex-1 flex-col gap-2.5 text-[13px] text-muted-foreground">
-        {whatItBuys(plan.credits, t).map((line) => (
+        {whatItBuys(plan.credits, rates, t).map((line) => (
           <li key={line} className="flex items-start gap-2">
             <Tick />
             <span>{line}</span>
@@ -218,27 +242,72 @@ function PlanCard({
   )
 }
 
+/** "3" or "3–57": the cheapest and dearest way to run a tool, from the rate card. */
+function span(low: number | null, high: number | null): string | null {
+  if (low == null || high == null) return low == null ? null : formatCredits(low)
+  return low === high ? formatCredits(low) : `${formatCredits(low)}–${formatCredits(high)}`
+}
+
+/** Smallest and largest map grids the tracker offers. */
+const GRID_POINTS_MIN = GRID_SIZES[0] ** 2
+const GRID_POINTS_MAX = GRID_SIZES[GRID_SIZES.length - 1] ** 2
+
+type ToolRow = { name: string; whatKey: string; costKey: string; cost: string | null; note?: string }
+
 // Tool NAMES stay in English: they are product names, and a translated row
 // that renames the tool no longer matches the sidebar the user clicks.
-const TOOLS: { name: string; whatKey: string; costKey: string; noteKey?: string }[] = [
-  // The rank trackers are the one row where the headline number is a range.
-  // A manual check of a few keywords goes to the priority queue at 2x so the
-  // answer comes back in seconds; scheduled and bulk checks are 1. Printing a
-  // flat "1 / keyword" made the ledger's -2 look like a bug — which is exactly
-  // how it was reported.
-  { name: "Keyword Rank Tracker", whatKey: "toolRankWhat", costKey: "costPerKeyword", noteKey: "costPerKeywordNote" },
-  { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword", noteKey: "costPerKeywordNote" },
-  { name: "Google Maps Tracker", whatKey: "toolMapsWhat", costKey: "costPerScan" },
-  { name: "Keyword Magic Tool", whatKey: "toolMagicWhat", costKey: "costPerSearch" },
-  { name: "Website Audit", whatKey: "toolAuditWhat", costKey: "costPerPages" },
-  { name: "Competitor Analysis", whatKey: "toolCompetitorWhat", costKey: "costPerAnalysis" },
-  { name: "AI Internal Linking", whatKey: "toolLinkingWhat", costKey: "costPerCrawl" },
-  { name: "Keyword Score Checker", whatKey: "toolScoreWhat", costKey: "costPerPage" },
-  { name: "Quick Serp", whatKey: "toolQuickWhat", costKey: "costPerLookup" },
-  { name: "Search Console & GA4", whatKey: "toolConsoleWhat", costKey: "costFree" },
-]
+function toolRows(rates: CreditRateCard, t: (k: string, v?: Record<string, string>) => string): ToolRow[] {
+  const q = (action: string, units = 1, variant?: string) => quoteCredits(rates, action, units, variant)
+  const standard = q(CREDIT_ACTION_KEYS.rankCheck)
+  const priority = q(CREDIT_ACTION_KEYS.rankCheckPriority)
+  const perAudit = q(CREDIT_ACTION_KEYS.siteCrawlPage, EXAMPLE_AUDIT_PAGES)
+  return [
+    // The Google tracker is the one row where the headline number is a range.
+    // A manual check of a few keywords on a paid plan goes to the priority
+    // queue so the answer comes back in seconds; scheduled and bulk checks are
+    // standard. Printing a flat "1 / keyword" made the ledger's -2 look like a
+    // bug — which is exactly how it was reported.
+    {
+      name: "Keyword Rank Tracker",
+      whatKey: "toolRankWhat",
+      costKey: "costPerKeyword",
+      cost: span(standard, priority),
+      note:
+        standard != null && priority != null && priority !== standard
+          ? t("costPerKeywordNote", { standard: formatCredits(standard), priority: formatCredits(priority) })
+          : undefined,
+    },
+    // YouTube has no priority queue price: every check is the same rate.
+    { name: "YouTube Rank Tracker", whatKey: "toolYoutubeWhat", costKey: "costPerKeyword", cost: span(q(CREDIT_ACTION_KEYS.youtubeCheck), null) },
+    {
+      name: "Google Maps Tracker",
+      whatKey: "toolMapsWhat",
+      costKey: "costPerScan",
+      cost: span(q(CREDIT_ACTION_KEYS.mapsScanPoint, GRID_POINTS_MIN), q(CREDIT_ACTION_KEYS.mapsScanPoint, GRID_POINTS_MAX)),
+    },
+    {
+      name: "Keyword Magic Tool",
+      whatKey: "toolMagicWhat",
+      costKey: "costPerSearch",
+      cost: span(q(CREDIT_ACTION_KEYS.keywordMagicSearch, 1, "free"), q(CREDIT_ACTION_KEYS.keywordMagicSearch, 1, "paid")),
+    },
+    // Per page crawled, so the honest example is a site size, not "per audit".
+    {
+      name: "Website Audit",
+      whatKey: "toolAuditWhat",
+      costKey: "costPerPage",
+      cost: span(q(CREDIT_ACTION_KEYS.siteCrawlPage), null),
+      note: perAudit != null ? t("costPerAuditNote", { pages: formatCredits(EXAMPLE_AUDIT_PAGES), credits: formatCredits(perAudit) }) : undefined,
+    },
+    { name: "Competitor Analysis", whatKey: "toolCompetitorWhat", costKey: "costPerAnalysis", cost: span(q(CREDIT_ACTION_KEYS.competitorAnalysis), null) },
+    { name: "AI Internal Linking", whatKey: "toolLinkingWhat", costKey: "costPerCrawl", cost: span(q(CREDIT_ACTION_KEYS.internalLinking), null) },
+    { name: "Keyword Score Checker", whatKey: "toolScoreWhat", costKey: "costPerPage", cost: span(q(CREDIT_ACTION_KEYS.keywordScore), null) },
+    { name: "Quick Serp", whatKey: "toolQuickWhat", costKey: "costPerLookup", cost: span(q(CREDIT_ACTION_KEYS.liveCheck), null) },
+    { name: "Search Console & GA4", whatKey: "toolConsoleWhat", costKey: "costFree", cost: "" },
+  ]
+}
 
-function EveryTool() {
+function EveryTool({ rates }: { rates: CreditRateCard }) {
   const t = useTranslations("credits")
   return (
     <div>
@@ -247,7 +316,7 @@ function EveryTool() {
         {t("everyToolIntro")}
       </p>
       <div className="mt-4 overflow-hidden rounded-xl border">
-        {TOOLS.map((tool, i) => (
+        {toolRows(rates, t).filter((tool) => tool.cost != null).map((tool, i) => (
           <div
             key={tool.name}
             className={cn(
@@ -261,13 +330,15 @@ function EveryTool() {
                 {tool.name}
               </div>
               <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{t(tool.whatKey)}</p>
-              {tool.noteKey && (
+              {tool.note && (
                 <p className="mt-1 pl-5 text-[11px] leading-snug text-muted-foreground/80">
-                  {t(tool.noteKey)}
+                  {tool.note}
                 </p>
               )}
             </div>
-            <span className="shrink-0 text-xs font-semibold tabular-nums text-brand">{t(tool.costKey)}</span>
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-brand">
+              {t(tool.costKey, { cost: tool.cost ?? "" })}
+            </span>
           </div>
         ))}
       </div>
@@ -352,6 +423,7 @@ export function CreditPricing({
             <PlanCard
               key={p.key}
               plan={p}
+              rates={rates}
               current={credits?.planSlug === slug}
               busy={pending === p.key}
               highlighted={highlight === slug}
@@ -400,7 +472,7 @@ export function CreditPricing({
         </div>
       )}
 
-      <EveryTool />
+      <EveryTool rates={rates} />
 
       {failed && (
         <p className="text-xs font-medium text-red-600 dark:text-red-400">

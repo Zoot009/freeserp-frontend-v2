@@ -70,7 +70,12 @@ const ACTION_NAMES: Record<string, string> = {
   "ila.analysis": "Internal link crawl",
   "ka.analysis": "Keyword Score Checker",
   "opa.audit": "Page audit",
-  "page_audit.run": "Website Audit",
+  // Named as the sidebar names them. A single URL is charged once, a site crawl
+  // per page; labelling the single-page run "Website Audit" made a 1-credit row
+  // look like the whole site had been audited.
+  "page_audit.run": "Page Audit",
+  "site_crawl.page": "Full Website Audit",
+  "llm.prompt.sample": "AI Prompt Tracker",
   "page_audit.ask_ai": "Audit Assistant",
   "backlinks.refresh": "Backlink refresh",
   "ks.run": "Starter keyword suggestions",
