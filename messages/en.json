@@ -1790,7 +1790,15 @@
     "addConfirmTitle": "{count, plural, one {Add and check 1 keyword?} other {Add and check # keywords?}}",
     "addConfirmBody": "New keywords get their first rank check as soon as they're added. Keywords you already track aren't checked again.",
     "perMonthEstimate": "≈ {n} credits/month",
-    "ytFirstCheckOnAdd": "The new ones get their first check as soon as they're added."
+    "ytFirstCheckOnAdd": "The new ones get their first check as soon as they're added.",
+    "confirmCostsUpTo": "This run costs up to",
+    "auditPerPage": "{count, plural, one {{n} credit per page} other {{n} credits per page}}",
+    "auditChargedPerPage": "You're only charged for the pages we find — a {pages}-page site uses {credits} credits, whatever your plan allows.",
+    "auditUpgradeMore": "to crawl more pages per site.",
+    "auditFreshTitle": "Run a fresh audit?",
+    "auditFreshBody": "This crawls the site again instead of reopening the saved report.",
+    "auditStartTitle": "Start the site audit?",
+    "auditStartBody": "Charged per page we actually crawl, so a smaller site costs less than this."
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",

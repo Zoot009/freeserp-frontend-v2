@@ -1790,7 +1790,15 @@
     "addConfirmTitle": "{count, plural, one {Ajouter et vérifier 1 mot-clé ?} other {Ajouter et vérifier # mots-clés ?}}",
     "addConfirmBody": "Les nouveaux mots-clés reçoivent leur première vérification dès leur ajout. Ceux que vous suivez déjà ne sont pas revérifiés.",
     "perMonthEstimate": "≈ {n} crédits/mois",
-    "ytFirstCheckOnAdd": "Les nouveaux sont vérifiés une première fois dès leur ajout."
+    "ytFirstCheckOnAdd": "Les nouveaux sont vérifiés une première fois dès leur ajout.",
+    "confirmCostsUpTo": "Cette exécution coûte jusqu'à",
+    "auditPerPage": "{count, plural, one {{n} crédit par page} other {{n} crédits par page}}",
+    "auditChargedPerPage": "Seules les pages trouvées sont facturées — un site de {pages} pages utilise {credits} crédits, quelle que soit la limite de votre forfait.",
+    "auditUpgradeMore": "pour explorer plus de pages par site.",
+    "auditFreshTitle": "Lancer un nouvel audit ?",
+    "auditFreshBody": "Le site est exploré à nouveau au lieu de rouvrir le rapport enregistré.",
+    "auditStartTitle": "Lancer l'audit du site ?",
+    "auditStartBody": "Facturé par page réellement explorée : un site plus petit coûte donc moins."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

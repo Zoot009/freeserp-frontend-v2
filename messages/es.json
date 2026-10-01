@@ -1790,7 +1790,15 @@
     "addConfirmTitle": "{count, plural, one {¿Añadir y comprobar 1 palabra clave?} other {¿Añadir y comprobar # palabras clave?}}",
     "addConfirmBody": "Las palabras clave nuevas reciben su primera comprobación en cuanto se añaden. Las que ya sigues no se vuelven a comprobar.",
     "perMonthEstimate": "≈ {n} créditos/mes",
-    "ytFirstCheckOnAdd": "Las nuevas reciben su primera comprobación en cuanto se añaden."
+    "ytFirstCheckOnAdd": "Las nuevas reciben su primera comprobación en cuanto se añaden.",
+    "confirmCostsUpTo": "Esta ejecución cuesta hasta",
+    "auditPerPage": "{count, plural, one {{n} crédito por página} other {{n} créditos por página}}",
+    "auditChargedPerPage": "Solo se cobran las páginas que encontramos: un sitio de {pages} páginas usa {credits} créditos, permita lo que permita tu plan.",
+    "auditUpgradeMore": "para rastrear más páginas por sitio.",
+    "auditFreshTitle": "¿Lanzar una auditoría nueva?",
+    "auditFreshBody": "Esto vuelve a rastrear el sitio en lugar de abrir el informe guardado.",
+    "auditStartTitle": "¿Empezar la auditoría del sitio?",
+    "auditStartBody": "Se cobra por página rastreada, así que un sitio más pequeño cuesta menos."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

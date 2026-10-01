@@ -19,8 +19,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { useTranslations } from "next-intl"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates, useCredits } from "@/lib/credits"
 import { Loader2, Search, ShieldAlert } from "lucide-react"
 import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -189,6 +190,17 @@ export function AuditRunner({
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
+  const tc = useTranslations("credits")
+  const { credits } = useCredits()
+  const { rates } = useCreditRates()
+  // Audits are free on a worker plan, so credit wording and confirms are for
+  // credits accounts only — and neither shows until the mode is known.
+  const isCreditsMode = credits?.mode === "credits"
+  const perPage = quoteCredits(rates, CREDIT_ACTION_KEYS.siteCrawlPage, 1)
+  /** The ceiling of a site crawl: the plan's page budget at the per-page rate. */
+  const siteCeiling = limits ? quoteCredits(rates, CREDIT_ACTION_KEYS.siteCrawlPage, limits.maxPages) : null
+  /** Set when a start waits on the confirm — fresh, or a plain submit. */
+  const [confirmStart, setConfirmStart] = useState<{ forceRecrawl: boolean } | null>(null)
   /** Set once the mount-time resume has decided; gates the auto-fresh start. */
   const resumed = useRef(false)
   /** Set once a run has been started or adopted, so neither happens twice. */
@@ -351,13 +363,18 @@ export function AuditRunner({
   useEffect(() => {
     if (!resumed.current || !autoFresh) return
     if (!autoStarted.current) {
-      if (!initialUrl.trim() || !limits) return
+      // Also waits for the billing mode: whether this asks first depends on it.
+      if (!initialUrl.trim() || !limits || !credits) return
       autoStarted.current = true
-      void start({ forceRecrawl: true })
+      // "Run fresh" was clicked on the report, where no price was shown. A
+      // credits account is charged for the crawl, so it confirms here with the
+      // price in view rather than starting the moment the page loads.
+      if (isCreditsMode) setConfirmStart({ forceRecrawl: true })
+      else void start({ forceRecrawl: true })
     }
     router.replace(`${pathname}?url=${encodeURIComponent(initialUrl.trim())}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoFresh, initialUrl, limits, runKey])
+  }, [autoFresh, initialUrl, limits, runKey, credits])
 
   const start = async (opts: { forceRecrawl?: boolean } = {}) => {
     if (!url.trim() || starting) return
@@ -433,9 +450,10 @@ export function AuditRunner({
                 has to carry both or it reads as a flat fee. */}
             {mode === "site"
               ? limits
-                ? `Crawls up to ${limits.maxPages.toLocaleString()} pages on your plan · 1 page = 1 credit`
-                : "Crawls outward from the URL you enter · 1 page = 1 credit"
+                ? `Crawls up to ${limits.maxPages.toLocaleString()} pages on your plan`
+                : "Crawls outward from the URL you enter"
               : "Audits the single URL you enter"}
+            {mode === "site" && isCreditsMode && perPage != null && ` · ${tc("auditPerPage", { count: perPage, n: perPage })}`}
           </span>
           {/* The other audit is one click away, and named — the two used to be
               a toggle, and someone who lands on the wrong one shouldn't have to
@@ -456,7 +474,7 @@ export function AuditRunner({
             <Link href="/dashboard/billing" className="font-semibold text-primary hover:underline">
               Upgrade
             </Link>{" "}
-            to raise it to 500.
+            {tc("auditUpgradeMore")}
           </p>
         )}
 
@@ -464,7 +482,12 @@ export function AuditRunner({
           className="mt-3.5 flex flex-wrap gap-2"
           onSubmit={(e) => {
             e.preventDefault()
-            void start()
+            if (!url.trim()) return
+            // A site crawl can run to hundreds of credits, so a big ceiling
+            // is confirmed with the balance in view rather than just labelled.
+            if (isCreditsMode && mode === "site" && (siteCeiling ?? 0) >= CONFIRM_THRESHOLD) {
+              setConfirmStart({ forceRecrawl: false })
+            } else void start()
           }}
         >
           <Input
@@ -490,18 +513,38 @@ export function AuditRunner({
           ceiling as a flat price would say "500 credits" to somebody who is
           about to be charged twenty, so the site line says up to.
         */}
-        <CreditCost
-          className="mt-2"
+        {/* A site crawl's ceiling is the plan's page budget, so it waits for
+            the limits: before they load (or if they fail) there is no honest
+            number, and "Up to 1 credit" was a confident wrong one. */}
+        {(mode !== "site" || limits) && (
+          <CreditCost
+            className="mt-2"
+            action={mode === "site" ? CREDIT_ACTION_KEYS.siteCrawlPage : CREDIT_ACTION_KEYS.pageAudit}
+            units={mode === "site" ? (limits?.maxPages ?? 1) : 1}
+            upTo={mode === "site"}
+          />
+        )}
+        {mode === "site" && isCreditsMode && perPage != null && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {tc("auditChargedPerPage", { pages: 20, credits: perPage * 20 })}
+          </p>
+        )}
+        <CreditCostConfirm
           action={mode === "site" ? CREDIT_ACTION_KEYS.siteCrawlPage : CREDIT_ACTION_KEYS.pageAudit}
           units={mode === "site" ? (limits?.maxPages ?? 1) : 1}
           upTo={mode === "site"}
+          title={confirmStart?.forceRecrawl ? tc("auditFreshTitle") : tc("auditStartTitle")}
+          description={
+            confirmStart?.forceRecrawl
+              ? `${tc("auditFreshBody")}${mode === "site" ? ` ${tc("auditStartBody")}` : ""}`
+              : tc("auditStartBody")
+          }
+          open={confirmStart != null}
+          onOpenChange={(open) => {
+            if (!open) setConfirmStart(null)
+          }}
+          onConfirm={() => void start({ forceRecrawl: confirmStart?.forceRecrawl ?? false })}
         />
-        {mode === "site" && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            You&apos;re only charged for the pages we find — a 20-page site costs 20 credits,
-            whatever your plan allows.
-          </p>
-        )}
 
         {error && (
           <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">

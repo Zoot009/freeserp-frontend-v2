@@ -114,6 +114,7 @@ export function CreditCostConfirm({
   onConfirm,
   children,
   cost: fixedCost,
+  upTo = false,
 }: {
   action: string
   units?: number
@@ -121,6 +122,8 @@ export function CreditCostConfirm({
   /** A total priced elsewhere, for a run that spans several rates at once (AI
    *  prompt runs across assistants). Replaces the quote for `action`. */
   cost?: number | null
+  /** The cost is a ceiling, not the charge (a site crawl pays per page found). */
+  upTo?: boolean
   title: string
   description?: ReactNode
   confirmLabel?: string
@@ -160,7 +163,7 @@ export function CreditCostConfirm({
         {applies && cost != null && (
           <div className="rounded-lg border bg-muted/40 p-3.5">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[13px] text-muted-foreground">{t("confirmCosts")}</span>
+              <span className="text-[13px] text-muted-foreground">{t(upTo ? "confirmCostsUpTo" : "confirmCosts")}</span>
               <span className="text-[15px] font-bold tabular-nums">
                 {t("creditCount", { count: cost, n: formatCredits(cost) })}
               </span>

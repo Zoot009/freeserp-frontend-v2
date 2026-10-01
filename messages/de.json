@@ -1790,7 +1790,15 @@
     "addConfirmTitle": "{count, plural, one {1 Keyword hinzufügen und prüfen?} other {# Keywords hinzufügen und prüfen?}}",
     "addConfirmBody": "Neue Keywords werden direkt nach dem Hinzufügen zum ersten Mal geprüft. Bereits verfolgte Keywords werden nicht erneut geprüft.",
     "perMonthEstimate": "≈ {n} Credits/Monat",
-    "ytFirstCheckOnAdd": "Die neuen werden direkt nach dem Hinzufügen zum ersten Mal geprüft."
+    "ytFirstCheckOnAdd": "Die neuen werden direkt nach dem Hinzufügen zum ersten Mal geprüft.",
+    "confirmCostsUpTo": "Dieser Lauf kostet bis zu",
+    "auditPerPage": "{count, plural, one {{n} Credit pro Seite} other {{n} Credits pro Seite}}",
+    "auditChargedPerPage": "Berechnet werden nur die Seiten, die wir finden — eine Website mit {pages} Seiten verbraucht {credits} Credits, egal was Ihr Tarif erlaubt.",
+    "auditUpgradeMore": "um mehr Seiten pro Website zu crawlen.",
+    "auditFreshTitle": "Ein neues Audit starten?",
+    "auditFreshBody": "Dabei wird die Website erneut gecrawlt, statt den gespeicherten Bericht zu öffnen.",
+    "auditStartTitle": "Website-Audit starten?",
+    "auditStartBody": "Berechnet pro tatsächlich gecrawlter Seite — eine kleinere Website kostet also weniger."
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",
