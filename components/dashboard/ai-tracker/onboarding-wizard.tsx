@@ -38,14 +38,22 @@
 
 import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import { PlatformMark } from "@/components/dashboard/platform-marks"
-import { CREDIT_ACTION_KEYS, formatCredits, useCreditQuote } from "@/lib/credits"
+import {
+  CREDIT_ACTION_KEYS,
+  formatCredits,
+  useAnswerRate,
+  usePromptRunQuote,
+  type CreditQuote,
+} from "@/lib/credits"
+import { CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
 import { FREQUENCY_OPTIONS, PLATFORM_LABEL, runsPerMonth, type Platform } from "@/lib/ai-tracker"
-import { ENGINE_NOTE, ENGINE_ORDER, ENGINES } from "@/lib/ai-engines"
+import { ENGINE_NOTE, ENGINE_ORDER } from "@/lib/ai-engines"
 
 type CreatedProject = { id: string; name: string; brandName: string }
 
@@ -320,10 +328,10 @@ export function OnboardingWizard({
   const step1Ready = brandName.trim().length > 1
   const step4Ready = chosenPrompts.length > 0 && platforms.length > 0
 
-  // Claude and Perplexity are 3 credits an answer where the other two are 1, so a
-  // run spans two rate cards and the two have to be summed rather than averaged.
-  const pricey = platforms.filter((p) => ENGINES[p].creditsPerAnswer === 3).length
-  const flat = platforms.length - pricey
+  // Each prompt on each assistant at that assistant's own rate, summed — the
+  // dear pair (Claude, Perplexity) and the cheap pair cannot share one number.
+  const runQuote = usePromptRunQuote(chosenPrompts.flatMap(() => platforms.map((platform) => ({ platform, samples }))))
+  const [confirmRun, setConfirmRun] = useState(false)
   const answers = chosenPrompts.length * platforms.length * samples
 
   return (
@@ -596,7 +604,6 @@ export function OnboardingWizard({
               <div className="llm-wiz-engines">
                 {ENGINE_ORDER.map((id) => {
                   const on = platforms.includes(id)
-                  const rate = ENGINES[id].creditsPerAnswer
                   return (
                     <label
                       key={id}
@@ -610,12 +617,7 @@ export function OnboardingWizard({
                         </span>
                         <span className="llm-wiz-engine-id">
                           <span className="llm-wiz-engine-nm">{PLATFORM_LABEL[id]}</span>
-                          {/* Marked as the dear pair rather than left to
-                              arithmetic: it is the only thing on this card that
-                              can surprise you on the bill. */}
-                          <span className={"llm-wiz-rate" + (rate === 3 ? " dear" : "")}>
-                            {rate} credit{rate === 1 ? "" : "s"} an answer
-                          </span>
+                          <AnswerRate platform={id} />
                         </span>
                         <span className="llm-wiz-tick" aria-hidden>
                           {on && <Icon.check size={11} />}
@@ -626,10 +628,13 @@ export function OnboardingWizard({
                   )
                 })}
               </div>
-              <div className="tiny muted">
-                Perplexity and Claude are answered through a different, dearer endpoint than ChatGPT and
-                Gemini. That is the price difference — not the models being better.
-              </div>
+              {/* A price explanation, so only for an account that pays per answer. */}
+              {runQuote.applies && (
+                <div className="tiny muted">
+                  Perplexity and Claude are answered through a different, dearer endpoint than ChatGPT and
+                  Gemini. That is the price difference — not the models being better.
+                </div>
+              )}
             </div>
 
             <div className="llm-wiz-grid">
@@ -684,11 +689,7 @@ export function OnboardingWizard({
                   {samples === 1 ? "" : "s"} = <strong>{answers}</strong> answers a run
                 </div>
               )}
-              <RunCost
-                base={chosenPrompts.length * flat * samples}
-                pricey={chosenPrompts.length * pricey * samples}
-                everyHours={freq === "off" ? null : Number(freq)}
-              />
+              <RunCost quote={runQuote} everyHours={freq === "off" ? null : Number(freq)} />
             </div>
           </>
         )}
@@ -767,10 +768,23 @@ export function OnboardingWizard({
                 type="button"
                 className="btn primary"
                 disabled={busy || !step4Ready}
-                onClick={() => void finish("run")}
+                onClick={() => {
+                  // The first run of a whole prompt set is the biggest spend in
+                  // the wizard, so it is confirmed rather than just labelled.
+                  if (runQuote.applies && (runQuote.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
+                  else void finish("run")
+                }}
               >
                 {busy ? "Starting…" : "Start tracking"}
               </button>
+              <CreditCostConfirm
+                action={CREDIT_ACTION_KEYS.llmPromptSample}
+                cost={runQuote.cost}
+                title="Start tracking"
+                open={confirmRun}
+                onOpenChange={setConfirmRun}
+                onConfirm={() => void finish("run")}
+              />
             </>
           )}
         </div>
@@ -871,34 +885,38 @@ function TagField({
  * rather than credits, and nothing while the rate card is loading — the same
  * rules <CreditCost> follows elsewhere.
  */
-function RunCost({
-  base,
-  pricey,
-  everyHours,
-}: {
-  base: number
-  pricey: number
-  everyHours: number | null
-}) {
-  const cheap = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(base, 1))
-  const dear = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(pricey, 1), "claude")
-  if (!cheap.applies || cheap.cost == null || dear.cost == null) return null
-
-  const total = (base > 0 ? cheap.cost : 0) + (pricey > 0 ? dear.cost : 0)
-  if (total === 0) return null
-  const short = cheap.balance != null && total > cheap.balance
+function RunCost({ quote, everyHours }: { quote: CreditQuote; everyHours: number | null }) {
+  const { cost: total, balance, short, applies } = quote
+  if (!applies || !total) return null
 
   return (
     <div className="llm-wiz-cost" data-short={short ? "true" : undefined}>
       <strong>{formatCredits(total)}</strong> credit{total === 1 ? "" : "s"} a run
-      {cheap.balance != null &&
+      {balance != null &&
         (short
-          ? ` · only ${formatCredits(cheap.balance)} left, so this run would be refused`
-          : ` · ${formatCredits(cheap.balance)} left`)}
+          ? ` · only ${formatCredits(balance)} left, so this run would be refused`
+          : ` · ${formatCredits(balance)} left`)}
       {everyHours ? (
         <div>Then about {formatCredits(total * runsPerMonth(everyHours))} a month while scheduled.</div>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * One assistant's price per answer, from the rate card. Marked as dear when it
+ * costs more than the cheapest assistant rather than left to arithmetic: it is
+ * the only thing on the card that can surprise you on the bill. Nothing for a
+ * worker subscriber, who is not charged per answer.
+ */
+function AnswerRate({ platform }: { platform: Platform }) {
+  const t = useTranslations("credits")
+  const { rate, base, applies } = useAnswerRate(platform)
+  if (!applies || rate == null) return null
+  return (
+    <span className={"llm-wiz-rate" + (base != null && rate > base ? " dear" : "")}>
+      {t("perAnswer", { count: rate, n: formatCredits(rate) })}
+    </span>
   )
 }
 

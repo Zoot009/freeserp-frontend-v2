@@ -25,6 +25,7 @@ import { CitedCell, RateCell, RunStateCell } from "@/components/dashboard/ai-tra
 import { RateSparkline } from "@/components/dashboard/ai-tracker/engine-charts"
 import { deriveRunState, pct, rateHistory, type PlatformPrompt, type ProjectRef } from "@/lib/ai-tracker"
 import type { ColumnKey, EngineProfile } from "@/lib/ai-engines"
+import { useAnswerRate } from "@/lib/credits"
 
 const HEAD: Record<ColumnKey, { label: string; width?: number; right?: boolean }> = {
   prompt: { label: "Prompt" },
@@ -60,6 +61,10 @@ export function PromptBoard({
    *  answers-detail call resolves, which is why every cell tolerates undefined. */
   sourceCounts?: Map<string, number>
 }) {
+  // The credits column is priced from the rate card, and dropped for a worker
+  // subscriber (who is not charged per answer) or until the card has loaded.
+  const { rate, applies } = useAnswerRate(engine.id)
+  const columns = engine.columns.filter((k) => k !== "credits" || (applies && rate != null))
   const completed = prompts.filter((p) => p.runs[0]?.status === "COMPLETED" && p.runs[0]?.mentionRate != null)
   const avg = completed.length
     ? completed.reduce((n, p) => n + (p.runs[0]!.mentionRate as number), 0) / completed.length
@@ -121,7 +126,7 @@ export function PromptBoard({
         )
       }
       case "credits":
-        return <span className="llm-cred">{p.samplesPerRun * engine.creditsPerAnswer}</span>
+        return <span className="llm-cred">{p.samplesPerRun * (rate ?? 0)}</span>
       case "verify":
         // Only ChatGPT returns a check_url, and it lives on the sample rather
         // than the run — so the link goes to the prompt, where the samples are.
@@ -178,7 +183,7 @@ export function PromptBoard({
         <table className="tbl flush llm-tbl" style={{ minWidth: 820 }}>
           <thead>
             <tr>
-              {engine.columns.map((k) => (
+              {columns.map((k) => (
                 <th
                   key={k}
                   style={{ width: HEAD[k].width, textAlign: HEAD[k].right ? "right" : undefined }}
@@ -191,7 +196,7 @@ export function PromptBoard({
           <tbody>
             {prompts.map((p) => (
               <tr key={p.id} className={p.id === hot ? "hot" : undefined}>
-                {engine.columns.map((k) => (
+                {columns.map((k) => (
                   <td key={k} style={{ textAlign: HEAD[k].right ? "right" : undefined }}>
                     {cell(k, p)}
                   </td>

@@ -14,7 +14,18 @@ import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { StatTile } from "@/components/dashboard/primitives"
-import { CREDIT_ACTION_KEYS, useCreditQuote, formatCredits } from "@/lib/credits"
+import { useTranslations } from "next-intl"
+import {
+  BUY_CREDITS_HREF,
+  CREDIT_ACTION_KEYS,
+  formatCredits,
+  quotePromptRuns,
+  useCreditRates,
+  usePromptRunQuote,
+  type CreditQuote,
+  type PromptRunUnit,
+} from "@/lib/credits"
+import { CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
 import { toast } from "sonner"
 import { PlatformMark } from "@/components/dashboard/platform-marks"
 import { Dropdown } from "@/components/dashboard/dropdown"
@@ -270,23 +281,22 @@ export default function LlmPromptListPage() {
     }
   }, [searchParams, router, projectId])
 
-  // What "Run all" will cost, as two rates summed. A Claude answer is 3 credits
-  // where the others are 1, so a project spanning both cannot be quoted with one
-  // rate — and quoting them as two separate labels would leave the addition to
-  // the reader, right at the moment they are deciding whether to click.
-  const runAnswers = useMemo(() => {
+  // What "Run all" will cost: every chosen prompt on every assistant it tracks,
+  // each at that assistant's own rate. One total rather than a label per rate,
+  // which would leave the addition to the reader right as they decide.
+  const runUnits = useMemo<PromptRunUnit[]>(() => {
     const chosen = selected.size > 0 ? prompts.filter((p) => selected.has(p.id)) : prompts
-    let base = 0
-    let claude = 0
-    for (const p of chosen) {
-      const platforms = p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])
-      for (const platform of platforms) {
-        if (platform === "claude") claude += p.samplesPerRun
-        else base += p.samplesPerRun
-      }
-    }
-    return { base, claude }
+    return chosen.flatMap((p) =>
+      (p.platforms.length ? p.platforms : (["chat_gpt"] as Platform[])).map((platform) => ({
+        platform,
+        samples: p.samplesPerRun,
+      })),
+    )
   }, [prompts, selected])
+  const runQuote = usePromptRunQuote(runUnits)
+  const { rates } = useCreditRates()
+  const tc = useTranslations("credits")
+  const [confirmRun, setConfirmRun] = useState(false)
 
   /**
    * Report what the 202 actually said.
@@ -494,14 +504,27 @@ export default function LlmPromptListPage() {
           <button
             className="btn primary"
             disabled={busy || prompts.length === 0}
-            onClick={() => void runNow(selected.size > 0 ? [...selected] : undefined)}
+            onClick={() => {
+              // A whole project across the dear assistants runs to dozens of
+              // credits, so a big run is confirmed rather than just labelled.
+              if (runQuote.applies && (runQuote.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
+              else void runNow(selected.size > 0 ? [...selected] : undefined)
+            }}
           >
             <Icon.refresh /> {selected.size > 0 ? `Run ${selected.size}` : "Run all"}
           </button>
         </div>
       </div>
 
-      <RunCost base={runAnswers.base} claude={runAnswers.claude} />
+      <RunCost quote={runQuote} />
+      <CreditCostConfirm
+        action={CREDIT_ACTION_KEYS.llmPromptSample}
+        cost={runQuote.cost}
+        title={selected.size > 0 ? `Run ${selected.size}` : "Run all"}
+        open={confirmRun}
+        onOpenChange={setConfirmRun}
+        onConfirm={() => void runNow(selected.size > 0 ? [...selected] : undefined)}
+      />
 
       {summary && (
         <div className="grid g-3" style={{ marginBottom: 16 }}>
@@ -631,6 +654,13 @@ export default function LlmPromptListPage() {
                     .filter((r): r is RunSummary => !!r && isWithinRunWindow(r))
                     .map((r) => nextRunAllowedAt(r.runAt).getTime())
                     .sort((a, b) => a - b)[0]
+                  // Run now and Retry both re-run the prompt on whatever is not
+                  // already in this hour's bucket, so both are priced on that.
+                  const rowCost = runQuote.applies
+                    ? quotePromptRuns(rates, runNowIn.map((pl) => ({ platform: pl, samples: p.samplesPerRun })))
+                    : null
+                  const priced = (label: string) =>
+                    rowCost ? tc("withCost", { label, count: rowCost, n: formatCredits(rowCost) }) : label
 
                   return tracked.map((platform, idx) => {
                     const run = p.runs.find((r) => r.platform === platform)
@@ -700,6 +730,7 @@ export default function LlmPromptListPage() {
                           <RunStateCell
                             state={state}
                             onRetry={state.kind === "failed" ? () => void runNow([p.id]) : undefined}
+                            retryTitle={rowCost ? priced("Retry") : undefined}
                           />
                         </td>
                         <td className="llm-c-rate">
@@ -756,9 +787,11 @@ export default function LlmPromptListPage() {
                                     ? "Already running"
                                     : runNowIn.length === 0 && opensAt
                                       ? `Already run on every assistant this hour — re-runs open at ${clockTime(new Date(opensAt))}`
-                                      : runNowIn.length < tracked.length
-                                        ? `Run now on ${runNowIn.map((pl) => PLATFORM_LABEL[pl]).join(", ")}`
-                                        : "Run now"
+                                      : priced(
+                                          runNowIn.length < tracked.length
+                                            ? `Run now on ${runNowIn.map((pl) => PLATFORM_LABEL[pl]).join(", ")}`
+                                            : "Run now",
+                                        )
                                 }
                                 disabled={busy || runNowIn.length === 0}
                                 onClick={() => void runNow([p.id])}
@@ -928,8 +961,7 @@ function PlatformsModal({
 
   // Only what is being ADDED has a price: the assistants already tracked are
   // already in the "Run all" quote at the top of the page.
-  const addBase = added.filter((k) => k !== "claude").length * prompt.samplesPerRun
-  const addClaude = added.includes("claude") ? prompt.samplesPerRun : 0
+  const addQuote = usePromptRunQuote(added.map((platform) => ({ platform, samples: prompt.samplesPerRun })))
 
   const submit = async () => {
     setSaving(true)
@@ -1007,7 +1039,7 @@ function PlatformsModal({
           )}
         </div>
         <div className="modal-f split">
-          <RunCost base={addBase} claude={addClaude} />
+          <RunCost quote={addQuote} />
           <div className="row" style={{ gap: 8 }}>
             <button type="button" className="btn" onClick={onClose} disabled={saving}>
               Cancel
@@ -1058,10 +1090,9 @@ function AddPromptsModal({
   const disabled =
     loading || prompts.length === 0 || platforms.length === 0 || tooLong.length > 0
 
-  // Claude is 3 credits an answer where the others are 1, so the two rates have
-  // to be summed rather than quoted separately.
-  const addBase = prompts.length * platforms.filter((x) => x !== "claude").length * samples
-  const addClaude = platforms.includes("claude") ? prompts.length * samples : 0
+  // Each prompt on each assistant at that assistant's own rate, summed.
+  const addQuote = usePromptRunQuote(prompts.flatMap(() => platforms.map((platform) => ({ platform, samples }))))
+  const [confirmRun, setConfirmRun] = useState(false)
 
   const toggle = (p: Platform) =>
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]))
@@ -1140,8 +1171,11 @@ function AddPromptsModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Enter fires the primary action, which is Add & run.
-    void submit("run")
+    if (disabled) return
+    // Enter fires the primary action, which is Add & run — confirmed first
+    // when the run it starts is a big one.
+    if (addQuote.applies && (addQuote.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
+    else void submit("run")
   }
 
   return (
@@ -1246,7 +1280,15 @@ function AddPromptsModal({
           <div className="modal-f split">
             {/* The price of the run this button would start. The modal decided
                 the spend and showed no cost at all until now. */}
-            <RunCost base={addBase} claude={addClaude} everyHours={freq === "off" ? null : Number(freq)} />
+            <RunCost quote={addQuote} everyHours={freq === "off" ? null : Number(freq)} />
+            <CreditCostConfirm
+              action={CREDIT_ACTION_KEYS.llmPromptSample}
+              cost={addQuote.cost}
+              title="Add & run"
+              open={confirmRun}
+              onOpenChange={setConfirmRun}
+              onConfirm={() => void submit("run")}
+            />
             <div className="row" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={onClose} disabled={loading}>
                 Cancel
@@ -1274,33 +1316,35 @@ function AddPromptsModal({
  * run can span two rates at once.
  */
 function RunCost({
-  base,
-  claude,
+  quote,
   everyHours,
 }: {
-  base: number
-  claude: number
+  quote: CreditQuote
   /** Set when a cadence is chosen, to also price the recurring commitment. */
   everyHours?: number | null
 }) {
-  const flat = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(base, 1))
-  const pricey = useCreditQuote(CREDIT_ACTION_KEYS.llmPromptSample, Math.max(claude, 1), "claude")
-  if (!flat.applies || flat.cost == null || pricey.cost == null) return null
-
-  const total = (base > 0 ? flat.cost : 0) + (claude > 0 ? pricey.cost : 0)
-  if (total === 0) return null
-  const short = flat.balance != null && total > flat.balance
+  const t = useTranslations("credits")
+  const { cost, balance, short, applies } = quote
+  if (!applies || !cost) return null
 
   return (
     <div className="tiny" style={{ marginBottom: 12, color: short ? "var(--warn)" : "var(--muted)" }}>
-      Uses {formatCredits(total)} credit{total === 1 ? "" : "s"}
-      {flat.balance != null && (short ? ` \u00b7 only ${formatCredits(flat.balance)} left` : ` \u00b7 ${formatCredits(flat.balance)} left`)}
+      {t("costUses", { count: cost, n: formatCredits(cost) })}
+      {balance != null && ` ${t(short ? "costOnlyLeft" : "costLeft", { n: formatCredits(balance) })}`}
+      {short && (
+        <>
+          {" "}
+          <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+            {t("buyCredits")}
+          </Link>
+        </>
+      )}
       {/* The number above prices ONE run, which is the right one next to a button
           that starts one run. A schedule is a standing commitment, so it gets its
           own line rather than quietly changing what the first number means. */}
       {everyHours ? (
         <div style={{ marginTop: 2 }}>
-          Then about {formatCredits(total * runsPerMonth(everyHours))} a month while scheduled.
+          {t("monthlyWhileScheduled", { n: formatCredits(cost * runsPerMonth(everyHours)) })}
         </div>
       ) : null}
     </div>

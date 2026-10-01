@@ -16,6 +16,7 @@ import { SectionHead } from "@/components/dashboard/ai-tracker/engine-hero"
 import { AddPromptsAction } from "@/components/dashboard/ai-tracker/add-prompts-action"
 import { pct, type AnswersDetail, type PlatformView, type ProjectRef } from "@/lib/ai-tracker"
 import type { EngineProfile } from "@/lib/ai-engines"
+import { formatCredits, useAnswerRate } from "@/lib/credits"
 
 /** Where this assistant reads about your category. */
 export function SourcesLeaderboard({
@@ -168,12 +169,17 @@ export function FanOut({ engine, fanOut }: { engine: EngineProfile; fanOut: Answ
  * cost and understate this one. Mirrors the reasoning in the credits catalog.
  */
 export function EngineCost({ engine, view }: { engine: EngineProfile; view: PlatformView }) {
+  // Priced from the rate card. A worker subscriber is not charged per answer,
+  // so for them this whole panel would be describing a bill they never get.
+  const { rate, base, applies } = useAnswerRate(engine.id)
+  if (!applies || rate == null) return null
+
   const answers = view.prompts
     .filter((p) => p.runs[0]?.status === "COMPLETED")
     .reduce((n, p) => n + (p.runs[0]!.samplesSucceeded ?? p.runs[0]!.samplesCompleted), 0)
-  const credits = answers * engine.creditsPerAnswer
+  const credits = answers * rate
   const appearances = view.summary?.mentioned ?? 0
-  const rerun = view.prompts.reduce((n, p) => n + p.samplesPerRun, 0) * engine.creditsPerAnswer
+  const rerun = view.prompts.reduce((n, p) => n + p.samplesPerRun, 0) * rate
 
   return (
     <>
@@ -204,9 +210,9 @@ export function EngineCost({ engine, view }: { engine: EngineProfile; view: Plat
         <div className="llm-cost-flag">
           <TriangleAlert aria-hidden />
           <div>
-            A {engine.label} answer costs <b>{engine.creditsPerAnswer} credits</b> — roughly six times what a ChatGPT
-            answer costs to collect. It is billed apart rather than averaged in, so a run here is never quietly three
-            times the price you expected.
+            A {engine.label} answer costs <b>{formatCredits(rate)} credits</b>
+            {base != null && rate > base ? ` — ${Math.round((rate / base) * 10) / 10}× a ChatGPT answer` : ""}. It is
+            billed apart rather than averaged in, so a run here is never quietly dearer than you expected.
           </div>
         </div>
       </div>

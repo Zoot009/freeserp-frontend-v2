@@ -296,7 +296,10 @@ export interface CreditQuote {
 export function useCreditQuote(action: string, units = 1, variant?: string | null): CreditQuote {
   const { rates } = useCreditRates()
   const { credits } = useCredits()
-  const cost = quoteCredits(rates, action, units, variant)
+  return toQuote(quoteCredits(rates, action, units, variant), credits)
+}
+
+function toQuote(cost: number | null, credits: CreditSummary | null): CreditQuote {
   const balance = credits?.balance ?? null
   const applies = credits?.mode === "credits"
   return {
@@ -305,5 +308,74 @@ export function useCreditQuote(action: string, units = 1, variant?: string | nul
     applies,
     short: applies && cost != null && balance != null && cost > balance,
     after: cost != null && balance != null ? balance - cost : null,
+  }
+}
+
+// ── Rank checks ───────────────────────────────────────────────────────────
+
+/**
+ * Which rate a manual rank check is charged at. Mirrors rankings.service:
+ * a free plan is always charged the standard rate; a paid plan jumps the
+ * queue at the priority rate when the batch it ASKED for is no larger than
+ * the server's interactive-priority limit (`/api/usage` rankCheck
+ * .priorityMaxKeywords, 0 when priority is off), and pays standard above it.
+ *
+ * Decided on the requested count, not on what survives trimming, because that
+ * is what the server decides on — quoting the trimmed count could promise the
+ * cheap rate for a batch the server prices at the dear one.
+ */
+export function rankCheckAction(requested: number, opts: { free: boolean; priorityMax: number }): CreditActionKey {
+  return !opts.free && requested > 0 && requested <= opts.priorityMax
+    ? CREDIT_ACTION_KEYS.rankCheckPriority
+    : CREDIT_ACTION_KEYS.rankCheck
+}
+
+// ── AI prompt runs ────────────────────────────────────────────────────────
+
+/** One prompt asked on one assistant, `samples` times — the unit a run is charged in. */
+export interface PromptRunUnit {
+  platform: string
+  samples: number
+}
+
+/**
+ * What a batch of AI prompt runs costs.
+ *
+ * Mirrors llmRun.service: each prompt on each assistant is reserved on its
+ * own, priced at that assistant's rate (variant = platform). Claude and
+ * Perplexity answer through a dearer endpoint than ChatGPT and Gemini, so one
+ * rate times the answer count — or treating every platform but Claude as the
+ * cheap one, which is what this replaced — under-quotes any batch with them.
+ */
+export function quotePromptRuns(rates: CreditRateCard | null, runs: PromptRunUnit[]): number | null {
+  if (!rates) return null
+  let total = 0
+  for (const r of runs) {
+    const c = quoteCredits(rates, CREDIT_ACTION_KEYS.llmPromptSample, r.samples, r.platform)
+    if (c == null) return null
+    total += c
+  }
+  return total
+}
+
+/** useCreditQuote for a batch of AI prompt runs, which can span several rates. */
+export function usePromptRunQuote(runs: PromptRunUnit[]): CreditQuote {
+  const { rates } = useCreditRates()
+  const { credits } = useCredits()
+  return toQuote(quotePromptRuns(rates, runs), credits)
+}
+
+/**
+ * Credits for one answer on this assistant, and the cheapest assistant's rate
+ * beside it so a dearer one can be marked. Nulls while the rate card loads;
+ * `applies` false for a worker subscriber, who is not charged per answer.
+ */
+export function useAnswerRate(platform: string): { rate: number | null; base: number | null; applies: boolean } {
+  const { rates } = useCreditRates()
+  const { credits } = useCredits()
+  return {
+    rate: quoteCredits(rates, CREDIT_ACTION_KEYS.llmPromptSample, 1, platform),
+    base: quoteCredits(rates, CREDIT_ACTION_KEYS.llmPromptSample, 1),
+    applies: credits?.mode === "credits",
   }
 }

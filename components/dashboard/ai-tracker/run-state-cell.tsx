@@ -66,7 +66,16 @@ function inFlight(state: RunState): boolean {
   return state.kind === "queued" || state.kind === "running"
 }
 
-export function RunStateCell({ state, onRetry }: { state: RunState; onRetry?: () => void }) {
+export function RunStateCell({
+  state,
+  onRetry,
+  retryTitle,
+}: {
+  state: RunState
+  onRetry?: () => void
+  /** Hover text for Retry — where the page says what the re-run costs. */
+  retryTitle?: string
+}) {
   switch (state.kind) {
     case "none":
       return <span className="chip outline">Not run</span>
@@ -138,7 +147,7 @@ export function RunStateCell({ state, onRetry }: { state: RunState; onRetry?: ()
             </span>
           )}
           {onRetry && (
-            <button type="button" className="btn sm" onClick={onRetry}>
+            <button type="button" className="btn sm" onClick={onRetry} title={retryTitle}>
               <Icon.refresh /> Retry
             </button>
           )}

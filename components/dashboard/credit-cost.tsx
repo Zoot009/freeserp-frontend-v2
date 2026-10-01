@@ -106,10 +106,14 @@ export function CreditCostConfirm({
   onOpenChange,
   onConfirm,
   children,
+  cost: fixedCost,
 }: {
   action: string
   units?: number
   variant?: string | null
+  /** A total priced elsewhere, for a run that spans several rates at once (AI
+   *  prompt runs across assistants). Replaces the quote for `action`. */
+  cost?: number | null
   title: string
   description?: ReactNode
   confirmLabel?: string
@@ -119,7 +123,11 @@ export function CreditCostConfirm({
   children?: ReactNode
 }) {
   const t = useTranslations("credits")
-  const { cost, balance, after, short, applies } = useCreditQuote(action, units, variant)
+  const quote = useCreditQuote(action, units, variant)
+  const { balance, applies } = quote
+  const cost = fixedCost !== undefined ? fixedCost : quote.cost
+  const short = applies && cost != null && balance != null && cost > balance
+  const after = cost != null && balance != null ? balance - cost : null
   const [busy, setBusy] = useState(false)
 
   const run = () => {
@@ -134,7 +142,9 @@ export function CreditCostConfirm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
+      {/* Above the dashboard's own .modal-bg (z-index 100), so a confirm
+          raised from inside one of those modals is not drawn behind it. */}
+      <DialogContent className="z-[110] sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

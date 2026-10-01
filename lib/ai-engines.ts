@@ -93,16 +93,9 @@ export type EngineProfile = {
   label: string
   /** One line. What this assistant is, not what the feature does. */
   tagline: string
-  /**
-   * Mirrors the credits catalog's rate cards (backend credits/catalog.ts).
-   *
-   * 3 on the two assistants answered through DataForSEO's `responses` endpoint —
-   * Claude at ~$0.023 an answer and Perplexity at ~$0.015 — against 1 on the two
-   * read from the cheap scraper endpoint. It is the ENDPOINT that splits the
-   * price, not Claude being Claude, which is why this said "except Claude" and
-   * was wrong about Perplexity for as long as that was the only exception.
-   */
-  creditsPerAnswer: 1 | 3
+  // No price here. What an answer costs comes from the rate card at render
+  // time (useAnswerRate in lib/credits.ts): a copy typed into this file is how
+  // Perplexity sat on the cheap rate in the UI while being charged the dear one.
   caps: Capability[]
   metrics: MetricKey[]
   columns: ColumnKey[]
@@ -116,7 +109,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     label: "ChatGPT",
     tagline:
       "Scraped from the live product with web search forced on — and the only assistant that hands back a link to the answer it actually gave.",
-    creditsPerAnswer: 1,
     caps: [
       {
         state: "yes",
@@ -134,7 +126,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
         label: "Reproduce any answer",
         detail: "Every sample links back to the live page it came from. No other assistant returns one.",
       },
-      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
     ],
     // Position leads: ChatGPT is the assistant where being named early is both
     // measurable and verifiable, and position is the figure this audience
@@ -150,7 +141,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     label: "Gemini",
     tagline:
       "The live product reading Google's index. It answers on its own terms: no country targeting, and retrieval you cannot force.",
-    creditsPerAnswer: 1,
     caps: [
       {
         state: "no",
@@ -170,7 +160,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
         detail:
           "Scraped from the live product, so its sources are the pages Google is surfacing about you right now.",
       },
-      { state: "note", label: "1 credit an answer", detail: "A five-answer run costs five credits." },
     ],
     metrics: ["tracked", "appear", "rate", "cited"],
     columns: ["prompt", "trend", "status", "rate", "cited"],
@@ -187,7 +176,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     label: "Perplexity",
     tagline:
       "A search engine that writes. Every answer is retrieved and sourced, so on this page a citation — not a mention — is the score that counts.",
-    creditsPerAnswer: 3,
     caps: [
       {
         state: "yes",
@@ -205,12 +193,6 @@ export const ENGINES: Record<Platform, EngineProfile> = {
         label: "Reproduce the answer",
         detail: "An API answer has no shareable page. The full answer text is stored with the run instead.",
       },
-      {
-        state: "note",
-        label: "3 credits an answer",
-        detail:
-          "Answered through the same endpoint as Claude, not the cheap one ChatGPT and Gemini use. A five-answer run costs fifteen credits.",
-      },
     ],
     // The same four numbers as everyone else, reordered to make a different
     // claim about which one matters.
@@ -225,14 +207,7 @@ export const ENGINES: Record<Platform, EngineProfile> = {
     label: "Claude",
     tagline:
       "An API answer with web search forced on. The most expensive assistant to measure — priced apart rather than averaged in.",
-    creditsPerAnswer: 3,
     caps: [
-      {
-        state: "note",
-        label: "3 credits an answer",
-        detail:
-          "Roughly six times what a ChatGPT answer costs to collect, so it is priced on its own rather than folded into an average.",
-      },
       {
         state: "yes",
         label: "Live web search",
@@ -276,6 +251,6 @@ export const ENGINE_ORDER: Platform[] = ["chat_gpt", "gemini", "perplexity", "cl
 export const ENGINE_NOTE: Record<Platform, string> = {
   chat_gpt: "Live product output, with a link back to the answer",
   gemini: "Live product output; no country targeting",
-  perplexity: "API answer; always retrieves, so almost always cited. 3 credits each, not 1",
-  claude: "API answer; 3 credits each, not 1",
+  perplexity: "API answer; always retrieves, so almost always cited",
+  claude: "API answer with web search forced on",
 }

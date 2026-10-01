@@ -1772,7 +1772,10 @@
     "balanceRenews": "Ihre {n} Monats-Credits werden am {date} erneuert.",
     "balanceTopUp": "Laden Sie auf, um weiter zu tracken.",
     "balanceExpiring": "{n} verfallen in den nächsten zwei Wochen.",
-    "costPerAuditNote": "Abgerechnet pro gecrawlter Seite — eine Website mit {pages} Seiten verbraucht {credits} Credits."
+    "costPerAuditNote": "Abgerechnet pro gecrawlter Seite — eine Website mit {pages} Seiten verbraucht {credits} Credits.",
+    "withCost": "{label} · {count, plural, one {{n} Credit} other {{n} Credits}}",
+    "monthlyWhileScheduled": "Danach etwa {n} pro Monat, solange der Zeitplan aktiv ist.",
+    "perAnswer": "{count, plural, one {{n} Credit pro Antwort} other {{n} Credits pro Antwort}}"
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",

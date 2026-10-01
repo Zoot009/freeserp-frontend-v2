@@ -1772,7 +1772,10 @@
     "balanceRenews": "Vos {n} crédits mensuels sont renouvelés le {date}.",
     "balanceTopUp": "Rechargez pour continuer le suivi.",
     "balanceExpiring": "{n} expirent dans les deux semaines.",
-    "costPerAuditNote": "Facturé par page explorée — un site de {pages} pages utilise {credits} crédits."
+    "costPerAuditNote": "Facturé par page explorée — un site de {pages} pages utilise {credits} crédits.",
+    "withCost": "{label} · {count, plural, one {{n} crédit} other {{n} crédits}}",
+    "monthlyWhileScheduled": "Ensuite, environ {n} par mois tant que la planification est active.",
+    "perAnswer": "{count, plural, one {{n} crédit par réponse} other {{n} crédits par réponse}}"
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

@@ -18,6 +18,7 @@
 import Link from "next/link"
 import { PlatformMark } from "@/components/dashboard/platform-marks"
 import type { EngineProfile } from "@/lib/ai-engines"
+import { formatCredits, useAnswerRate } from "@/lib/credits"
 
 export function EngineHero({
   engine,
@@ -33,6 +34,8 @@ export function EngineHero({
    *  none at all once it had data. */
   actions?: React.ReactNode
 }) {
+  const { rate, base, applies } = useAnswerRate(engine.id)
+
   return (
     <header className="llm-hero">
       {/* The mark AS PUBLISHED, oversized and faint, bleeding off the right
@@ -68,15 +71,18 @@ export function EngineHero({
               <dt>Prompts here</dt>
               <dd>{prompts}</dd>
             </div>
-            <div>
-              <dt>Credits an answer</dt>
-              <dd>
-                {engine.creditsPerAnswer}
-                {/* Claude is three, and a user who finds that out from an
-                    invoice has been misled by this page. */}
-                {engine.creditsPerAnswer === 3 && <small> · 3×</small>}
-              </dd>
-            </div>
+            {/* From the rate card, and only for an account that pays per
+                answer. A dearer assistant says by how much: a user who finds
+                that out from an invoice has been misled by this page. */}
+            {applies && rate != null && (
+              <div>
+                <dt>Credits an answer</dt>
+                <dd>
+                  {formatCredits(rate)}
+                  {base != null && base > 0 && rate > base && <small> · {Math.round((rate / base) * 10) / 10}×</small>}
+                </dd>
+              </div>
+            )}
           </dl>
           {actions && <div className="llm-hero-actions">{actions}</div>}
         </div>
@@ -119,6 +125,7 @@ export function HowItWorks({
   engine: EngineProfile
   samples?: number
 }) {
+  const { rate, applies } = useAnswerRate(engine.id)
   // The assistant's own caveats, kept from the strip this panel replaced. Only
   // the ones that are NOT a plain "yes": a capability that simply works needs no
   // warning, and four cards of which three were ticks is most of what made the
@@ -135,7 +142,7 @@ export function HowItWorks({
     {
       n: 2,
       title: `We ask ${engine.label} ${samples} times`,
-      detail: `The same question, asked ${samples} times a run. Identical prompts measurably return different brand lists, so a single answer is a coin flip — ${samples} makes it something you can compare. ${engine.creditsPerAnswer} credit${engine.creditsPerAnswer === 1 ? "" : "s"} an answer here.`,
+      detail: `The same question, asked ${samples} times a run. Identical prompts measurably return different brand lists, so a single answer is a coin flip — ${samples} makes it something you can compare.${applies && rate != null ? ` ${rate} credit${rate === 1 ? "" : "s"} an answer here.` : ""}`,
     },
     {
       n: 3,
