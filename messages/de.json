@@ -266,8 +266,8 @@
     "footerCopyright": "© FreeSERP — Preise",
     "eyebrow": "Preise",
     "title": "Einfache Pläne. <hl>Keine Überraschungen.</hl>",
-    "subtitle": "Starte kostenlos mit 100 Credits pro Monat. Ein Guthaben zahlt für jedes Tool — du buchst also nie einen Plan wegen einer einzigen Funktion.",
-    "trialBannerLead": "Kostenlos starten — 100 Credits pro Monat, keine Karte nötig.",
+    "subtitle": "Starten Sie kostenlos mit monatlichen Credits, ohne Karte. Ein Guthaben bezahlt jedes Tool — Sie buchen also nie einen Tarif wegen einer einzigen Funktion.",
+    "trialBannerLead": "Kostenlos starten — {credits} Credits pro Monat, keine Karte nötig.",
     "trialBannerRest": "Aufladen oder upgraden, wann immer du mehr brauchst.",
     "freeTitle": "Kostenlos",
     "perMonth": "/Monat",
@@ -460,7 +460,124 @@
     "billedAnnually": "Jährliche Abrechnung über <b>Stripe</b>.",
     "perDollarEachYear": "Jede {price} $/Jahr bringt {searches} Checks/Tag",
     "getChecksYear": "{checks, number} Checks/Tag sichern — {price} $/Jahr →",
-    "annualSaveNote": "Spare {save} $/Jahr ggü. monatlich ({pct}% Rabatt)"
+    "annualSaveNote": "Spare {save} $/Jahr ggü. monatlich ({pct}% Rabatt)",
+    "compareRowsCredits": [
+      {
+        "group": "Credits"
+      },
+      {
+        "feature": "Credits pro Monat",
+        "free": "{free}",
+        "paid": "{paid}"
+      },
+      {
+        "feature": "Credit-Pakete zum Aufladen",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "69 Länder & beide Geräte",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automatisierung & Berichte"
+      },
+      {
+        "feature": "Automatische, wiederkehrende Checks",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Ranking- und SERP-Feature-Alerts",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "E-Mail-Alerts & Zusammenfassungen",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "PDF-Berichte",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Priorisierter Support",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "group": "Analyse-Tools"
+      },
+      {
+        "feature": "KI-Wettbewerbsanalyse",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "KI-Audit-Copilot-Chat",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "On-Page- & Keyword-Analyse",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "12 Monate Ranking-Historie",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "CSV-Export & Share-Links",
+        "free": "✓",
+        "paid": "✓"
+      }
+    ],
+    "faqCredits": [
+      {
+        "q": "Was ist ein Credit?",
+        "a": "Mit Credits wird jedes Tool aus einem einzigen Guthaben bezahlt. Den Preis jedes Tools finden Sie in der Tabelle oben, und jede Schaltfläche in der App zeigt vor dem Klick, was sie verbraucht."
+      },
+      {
+        "q": "Gibt es einen kostenlosen Tarif?",
+        "a": "Ja. Jedes Konto erhält {free} Credits pro Monat ohne Karte, und jedes Tool ist freigeschaltet — setzen Sie sie ein, wofür Sie möchten."
+      },
+      {
+        "q": "Werden ungenutzte Credits übertragen?",
+        "a": "Monats-Credits werden zu Ihrem Abrechnungsdatum erneuert und nicht übertragen. Credits aus Aufladepaketen gelten 12 Monate. Was zuerst verfällt, wird immer zuerst ausgegeben."
+      },
+      {
+        "q": "Was passiert, wenn mein Guthaben aufgebraucht ist?",
+        "a": "Es wird nichts berechnet, was Ihr Guthaben nicht deckt — die Aktion wird dann einfach nicht ausgeführt, und Ihnen wird ein Aufladepaket angeboten. Oder Sie warten, bis Ihre Monats-Credits erneuert werden."
+      },
+      {
+        "q": "Kann ich jederzeit kündigen?",
+        "a": "Ja. Verwalte oder kündige über das Kundenportal deines Zahlungsanbieters — dein Zugang läuft bis zum Ende des bezahlten Zeitraums weiter."
+      },
+      {
+        "q": "Wie sieht die Rückerstattung aus?",
+        "a": "7 Tage Geld-zurück-Garantie auf deinen ersten Kauf und auf Jahresverlängerungen. Monatliche Verlängerungen sind nach Beginn des Zyklus nicht erstattungsfähig. Schreib an support@freeserp.com — wir bearbeiten das in 5–10 Werktagen."
+      }
+    ]
   },
   "billingResult": {
     "eyebrow": "Zahlung",

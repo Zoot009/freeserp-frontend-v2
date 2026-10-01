@@ -266,8 +266,8 @@
     "footerCopyright": "© FreeSERP — Tarifs",
     "eyebrow": "Tarifs",
     "title": "Des forfaits simples. <hl>Sans surprises.</hl>",
-    "subtitle": "Commencez gratuitement avec 100 crédits par mois. Un seul solde paie tous les outils : vous ne prenez jamais un forfait pour une seule fonctionnalité.",
-    "trialBannerLead": "Commencez gratuitement : 100 crédits par mois, sans carte bancaire.",
+    "subtitle": "Commencez gratuitement avec des crédits mensuels, sans carte bancaire. Un seul solde paie tous les outils : vous ne prenez jamais un forfait pour une seule fonctionnalité.",
+    "trialBannerLead": "Commencez gratuitement : {credits} crédits par mois, sans carte bancaire.",
     "trialBannerRest": "Rechargez ou passez à l'offre supérieure dès que vous en avez besoin.",
     "freeTitle": "Gratuit",
     "perMonth": "/mois",
@@ -460,7 +460,124 @@
     "billedAnnually": "Facturation annuelle via <b>Stripe</b>.",
     "perDollarEachYear": "Chaque {price} $/an ajoute {searches} vérifications/jour",
     "getChecksYear": "Obtenir {checks, number} vérifications/jour — {price} $/an →",
-    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)"
+    "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)",
+    "compareRowsCredits": [
+      {
+        "group": "Crédits"
+      },
+      {
+        "feature": "Crédits chaque mois",
+        "free": "{free}",
+        "paid": "{paid}"
+      },
+      {
+        "feature": "Packs de recharge de crédits",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "69 pays et les deux appareils",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automatisation et rapports"
+      },
+      {
+        "feature": "Vérifications récurrentes automatisées",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Alertes de classement et fonctionnalités SERP",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Alertes et synthèses par e-mail",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Rapports PDF",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Support prioritaire",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "group": "Outils d'analyse"
+      },
+      {
+        "feature": "Analyse concurrentielle IA",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Chat avec le Copilote d'Audit IA",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Analyse on-page et de mots-clés",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Historique sur 12 mois",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Export CSV et liens de partage",
+        "free": "✓",
+        "paid": "✓"
+      }
+    ],
+    "faqCredits": [
+      {
+        "q": "Qu’est-ce qu’un crédit ?",
+        "a": "Les crédits permettent de payer chaque outil à partir d’un seul solde. Le prix de chaque outil figure dans le tableau ci-dessus, et chaque bouton de l’application indique ce qu’il utilisera avant que vous cliquiez."
+      },
+      {
+        "q": "Existe-t-il un forfait gratuit ?",
+        "a": "Oui. Chaque compte reçoit {free} crédits par mois sans carte, et tous les outils sont débloqués — utilisez-les comme vous le souhaitez."
+      },
+      {
+        "q": "Les crédits inutilisés sont-ils reportés ?",
+        "a": "Les crédits mensuels sont renouvelés à votre date de facturation et ne sont pas reportés. Les crédits des packs de recharge durent 12 mois. Ce qui expire le plus tôt est toujours dépensé en premier."
+      },
+      {
+        "q": "Que se passe-t-il si je n’ai plus de crédits ?",
+        "a": "Rien n’est facturé au-delà de votre solde : l’action ne s’exécute tout simplement pas, et un pack de recharge vous est proposé. Ou attendez le renouvellement de vos crédits mensuels."
+      },
+      {
+        "q": "Puis-je annuler à tout moment ?",
+        "a": "Oui. Gérez ou annulez depuis le portail client de votre prestataire de paiement — votre accès continue jusqu'à la fin de la période payée."
+      },
+      {
+        "q": "Quelle est votre politique de remboursement ?",
+        "a": "Satisfait ou remboursé sous 7 jours sur votre premier achat et sur les renouvellements annuels. Les renouvellements mensuels ne sont pas remboursables une fois le cycle entamé. Écrivez à support@freeserp.com, nous traitons la demande sous 5 à 10 jours ouvrés."
+      }
+    ]
   },
   "billingResult": {
     "eyebrow": "Paiement",

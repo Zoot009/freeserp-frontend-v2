@@ -266,8 +266,8 @@
     "footerCopyright": "© FreeSERP — Precios",
     "eyebrow": "Precios",
     "title": "Planes simples. <hl>Sin sorpresas.</hl>",
-    "subtitle": "Empieza gratis con 100 créditos al mes. Un solo saldo paga todas las herramientas, así que nunca contratas un plan por una única función.",
-    "trialBannerLead": "Empieza gratis: 100 créditos al mes, sin tarjeta.",
+    "subtitle": "Empieza gratis con créditos mensuales, sin tarjeta. Un solo saldo paga todas las herramientas, así que nunca contratas un plan por una única función.",
+    "trialBannerLead": "Empieza gratis: {credits} créditos al mes, sin tarjeta.",
     "trialBannerRest": "Recarga o mejora tu plan cuando necesites más.",
     "freeTitle": "Gratis",
     "perMonth": "/mes",
@@ -460,7 +460,124 @@
     "billedAnnually": "Facturación anual vía <b>Stripe</b>.",
     "perDollarEachYear": "Cada {price} $/año añade {searches} comprobaciones/día",
     "getChecksYear": "Obtén {checks, number} comprobaciones/día — {price} $/año →",
-    "annualSaveNote": "Ahorra {save} $/año frente a mensual ({pct}% de descuento)"
+    "annualSaveNote": "Ahorra {save} $/año frente a mensual ({pct}% de descuento)",
+    "compareRowsCredits": [
+      {
+        "group": "Créditos"
+      },
+      {
+        "feature": "Créditos al mes",
+        "free": "{free}",
+        "paid": "{paid}"
+      },
+      {
+        "feature": "Paquetes de recarga de créditos",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "69 países y ambos dispositivos",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automatización e informes"
+      },
+      {
+        "feature": "Comprobaciones automáticas recurrentes",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Alertas de ranking y funciones SERP",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Alertas y resúmenes por email",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Informes PDF",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Soporte prioritario",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "group": "Herramientas de análisis"
+      },
+      {
+        "feature": "Análisis de competencia con IA",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Chat con el Copiloto de Auditoría IA",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Análisis on-page y de keywords",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Histórico de 12 meses",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Exportación CSV y enlaces para compartir",
+        "free": "✓",
+        "paid": "✓"
+      }
+    ],
+    "faqCredits": [
+      {
+        "q": "¿Qué es un crédito?",
+        "a": "Con los créditos, cada herramienta se paga desde un único saldo. El precio de cada herramienta aparece en la tabla de arriba, y cada botón de la app muestra lo que va a usar antes de que hagas clic."
+      },
+      {
+        "q": "¿Hay un plan gratuito?",
+        "a": "Sí. Cada cuenta recibe {free} créditos al mes sin tarjeta y todas las herramientas están desbloqueadas: úsalos en lo que necesites."
+      },
+      {
+        "q": "¿Los créditos sin usar se acumulan?",
+        "a": "Los créditos mensuales se renuevan en tu fecha de facturación y no se acumulan. Los créditos de los paquetes de recarga duran 12 meses. Siempre se gasta primero lo que caduca antes."
+      },
+      {
+        "q": "¿Qué pasa si me quedo sin créditos?",
+        "a": "No se cobra nada que tu saldo no cubra: la acción simplemente no se ejecuta y te ofrecemos un paquete de recarga. O espera a que se renueven tus créditos mensuales."
+      },
+      {
+        "q": "¿Puedo cancelar cuando quiera?",
+        "a": "Sí. Gestiona o cancela desde el portal de cliente de tu proveedor de pagos — tu acceso continúa hasta el final del periodo pagado."
+      },
+      {
+        "q": "¿Cuál es la política de reembolso?",
+        "a": "Garantía de devolución de 7 días en tu primera compra y en las renovaciones anuales. Las renovaciones mensuales no son reembolsables una vez iniciado el ciclo. Escríbenos a support@freeserp.com y lo procesamos en 5–10 días hábiles."
+      }
+    ]
   },
   "billingResult": {
     "eyebrow": "Pago",

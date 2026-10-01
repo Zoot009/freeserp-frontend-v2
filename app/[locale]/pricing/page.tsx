@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useSearchParams } from "next/navigation"
 import { Link, useRouter } from "@/i18n/navigation"
 import { CreditPricing } from "@/components/dashboard/credit-pricing"
-import { useCredits } from "@/lib/credits"
+import { useCredits, useCreditRates, formatCredits } from "@/lib/credits"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Icon } from "@/components/dashboard/icons"
 import { useAuth } from "@/lib/auth"
@@ -65,14 +65,38 @@ function PricingPageInner() {
   // product now; workers are a legacy path with an existing subscription.
   const { credits: creditSummary } = useCredits()
   const mode = creditSummary?.mode ?? "credits"
+  const { rates } = useCreditRates()
 
-  const compareRows = t.raw("compareRows") as CompareRow[]
+  // The comparison and the FAQ come in two editions. The worker ones describe
+  // daily checks bought in $1 steps, which is simply false for a credits
+  // account — so only a grandfathered worker subscriber sees them. The credits
+  // edition leaves its numbers as {free} / {paid} so they are filled from the
+  // rate card here rather than typed into four message files.
+  const planCredits = (rates?.plans ?? []).map((p) => p.credits)
+  const fillCredits = (s: string) =>
+    s
+      .replace("{free}", rates ? formatCredits(rates.freeMonthly) : "")
+      .replace(
+        "{paid}",
+        planCredits.length
+          ? `${formatCredits(Math.min(...planCredits))}–${formatCredits(Math.max(...planCredits))}`
+          : "",
+      )
+  const compareRows =
+    mode === "worker"
+      ? (t.raw("compareRows") as CompareRow[])
+      : (t.raw("compareRowsCredits") as CompareRow[]).map((r) =>
+          "group" in r ? r : { ...r, free: fillCredits(r.free), paid: fillCredits(r.paid) },
+        )
   const stats = [
     { label: t("statMarketsLabel"), value: t("statMarketsValue"), icon: <Icon.globe /> },
     { label: t("statResultTimeLabel"), value: t("statResultTimeValue"), icon: <Icon.zap /> },
     { label: t("statCommitmentLabel"), value: t("statCommitmentValue"), icon: <Icon.shield /> },
   ]
-  const faq = t.raw("faq") as { q: string; a: string }[]
+  const faq = (t.raw(mode === "worker" ? "faq" : "faqCredits") as { q: string; a: string }[]).map((f) => ({
+    ...f,
+    a: fillCredits(f.a),
+  }))
   const { user, token, loading } = useAuth()
   const router = useRouter()
   // Arriving from a "Get Pro" link on the marketing site, which appends
@@ -305,11 +329,11 @@ function PricingPageInner() {
         {/* Free-tier callout. It is a recurring monthly allowance now, not a
             one-off trial, so it keeps arriving — but paid users already have a
             larger one, and it would only confuse them. */}
-        {!isPaid && (
+        {!isPaid && rates && (
           <p className="trial-banner">
             <Icon.zap />
             <span>
-              <b>{t("trialBannerLead")}</b> {t("trialBannerRest")}
+              <b>{t("trialBannerLead", { credits: formatCredits(rates.freeMonthly) })}</b> {t("trialBannerRest")}
             </span>
           </p>
         )}
@@ -317,7 +341,11 @@ function PricingPageInner() {
         {/* Pricing cards */}
         {/* The current model. Rendered from the credit rate card, so the prices
             here are the rows that will actually be charged. */}
-        {mode !== "worker" && <CreditPricing className="mb-10" highlight={highlight} />}
+        {mode !== "worker" && (
+          <div id="credit-plans">
+            <CreditPricing className="mb-10" highlight={highlight} />
+          </div>
+        )}
 
         {/* The worker plans, kept for subscribers who are grandfathered onto
             them. New visitors never see this — showing both models at once
@@ -562,9 +590,13 @@ function PricingPageInner() {
         </div>
         )}
 
-        <p className="tiny muted" style={{ marginTop: 24, textAlign: "center" }}>
-          {t("limitsReset")}
-        </p>
+        {/* Daily limits are the worker model. Credits never reset at midnight,
+            and the credit plans carry their own expiry note. */}
+        {mode === "worker" && (
+          <p className="tiny muted" style={{ marginTop: 24, textAlign: "center" }}>
+            {t("limitsReset")}
+          </p>
+        )}
 
         {/* Comparison */}
         <div style={{ marginTop: 56 }}>
@@ -650,7 +682,13 @@ function PricingPageInner() {
             className="btn on-brand"
             style={{ marginTop: 22, paddingLeft: 20, paddingRight: 20 }}
             onClick={() => {
-              if (isPaid) window.scrollTo({ top: 0, behavior: "smooth" })
+              // A credits visitor picks one of the credit plans above. The
+              // checkout below this button would have bought the legacy worker
+              // plan, which a new account was never meant to be sold.
+              if (mode !== "worker") {
+                trackEvent("clicked-buy-button")
+                document.getElementById("credit-plans")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              } else if (isPaid) window.scrollTo({ top: 0, behavior: "smooth" })
               else void handleUpgrade()
             }}
           >

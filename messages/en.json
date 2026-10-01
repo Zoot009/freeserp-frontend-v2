@@ -266,8 +266,8 @@
     "footerCopyright": "© FreeSERP — Pricing",
     "eyebrow": "Pricing",
     "title": "Simple plans. <hl>No surprises.</hl>",
-    "subtitle": "Start free with 100 credits every month. One balance pays for every tool, so you never buy a plan around the one feature you need.",
-    "trialBannerLead": "Start free — 100 credits every month, no card required.",
+    "subtitle": "Start free with monthly credits, no card required. One balance pays for every tool, so you never buy a plan around the one feature you need.",
+    "trialBannerLead": "Start free — {credits} credits every month, no card required.",
     "trialBannerRest": "Top up or upgrade whenever you need more.",
     "freeTitle": "Free",
     "perMonth": "/month",
@@ -460,7 +460,124 @@
     "billedAnnually": "Billed yearly via <b>Stripe</b>.",
     "perDollarEachYear": "Every ${price}/yr adds {searches} checks/day",
     "getChecksYear": "Get {checks, number} checks/day — ${price}/yr →",
-    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)"
+    "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)",
+    "compareRowsCredits": [
+      {
+        "group": "Credits"
+      },
+      {
+        "feature": "Credits every month",
+        "free": "{free}",
+        "paid": "{paid}"
+      },
+      {
+        "feature": "Top-up credit packs",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "69 countries & both devices",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "group": "Automation & reporting"
+      },
+      {
+        "feature": "Automated recurring checks",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Rank & SERP-feature alerts",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Email alerts & digests",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "PDF reports",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "feature": "Priority support",
+        "free": "—",
+        "paid": "✓"
+      },
+      {
+        "group": "Analysis tools"
+      },
+      {
+        "feature": "AI competitor analysis",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "AI Audit Co-Pilot chat",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Competitor Spy",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Quick SERP checker",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "On-page & keyword analysis",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "Google Search Console",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "12-month rank history",
+        "free": "✓",
+        "paid": "✓"
+      },
+      {
+        "feature": "CSV export & share links",
+        "free": "✓",
+        "paid": "✓"
+      }
+    ],
+    "faqCredits": [
+      {
+        "q": "What is a credit?",
+        "a": "Credits are how every tool is priced, from one balance. Each tool’s price is listed in the table above, and every button in the app shows what it will use before you click."
+      },
+      {
+        "q": "Is there a free plan?",
+        "a": "Yes. Every account gets {free} credits a month with no card, and every tool is unlocked — spend them on whatever you need."
+      },
+      {
+        "q": "Do unused credits roll over?",
+        "a": "Monthly credits renew on your billing date and don’t roll over. Credits from top-up packs last 12 months. Whatever expires soonest is always spent first."
+      },
+      {
+        "q": "What happens when I run out?",
+        "a": "Nothing is charged that your balance can’t cover — the action simply doesn’t run, and you’re offered a top-up pack. Or wait for your monthly credits to renew."
+      },
+      {
+        "q": "Can I cancel anytime?",
+        "a": "Yes. Manage or cancel from your payment provider's customer portal — your access continues until the end of the paid period."
+      },
+      {
+        "q": "What's your refund policy?",
+        "a": "A 7-day money-back guarantee on your first purchase and on annual renewals. Monthly renewals aren't refundable once the cycle starts. Email support@freeserp.com and we'll process it in 5–10 business days."
+      }
+    ]
   },
   "billingResult": {
     "eyebrow": "Payment",
