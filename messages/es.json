@@ -1630,7 +1630,18 @@
     "costPerPage": "3 / página",
     "costPerLookup": "1 / consulta",
     "costFree": "Gratis",
-    "costPerKeywordNote": "Las comprobaciones programadas y masivas cuestan 1. Una comprobación manual pequeña salta la cola para dar resultados más rápidos y cuesta 2."
+    "costPerKeywordNote": "Las comprobaciones programadas y masivas cuestan 1. Una comprobación manual pequeña salta la cola para dar resultados más rápidos y cuesta 2.",
+    "costUses": "{count, plural, one {Usa {n} crédito} other {Usa {n} créditos}}",
+    "costUpTo": "{count, plural, one {Hasta {n} crédito} other {Hasta {n} créditos}}",
+    "costLeft": "· te quedan {n}",
+    "costOnlyLeft": "· solo te quedan {n}",
+    "buyCredits": "Comprar créditos",
+    "confirmCosts": "Esta ejecución cuesta",
+    "creditCount": "{count, plural, one {{n} crédito} other {{n} créditos}}",
+    "confirmBalanceAfter": "Saldo después",
+    "confirmShort": "No tienes créditos suficientes: te faltan {n}.",
+    "cancel": "Cancelar",
+    "runIt": "Ejecutar"
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

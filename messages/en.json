@@ -1630,7 +1630,18 @@
     "costPerPage": "3 / page",
     "costPerLookup": "1 / lookup",
     "costFree": "Free",
-    "costPerKeywordNote": "Scheduled and bulk checks cost 1. A small manual check jumps the queue for faster results and costs 2."
+    "costPerKeywordNote": "Scheduled and bulk checks cost 1. A small manual check jumps the queue for faster results and costs 2.",
+    "costUses": "{count, plural, one {Uses {n} credit} other {Uses {n} credits}}",
+    "costUpTo": "{count, plural, one {Up to {n} credit} other {Up to {n} credits}}",
+    "costLeft": "· {n} left",
+    "costOnlyLeft": "· only {n} left",
+    "buyCredits": "Buy credits",
+    "confirmCosts": "This run costs",
+    "creditCount": "{count, plural, one {{n} credit} other {{n} credits}}",
+    "confirmBalanceAfter": "Balance after",
+    "confirmShort": "Not enough credits — you need {n} more.",
+    "cancel": "Cancel",
+    "runIt": "Run it"
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",

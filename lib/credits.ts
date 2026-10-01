@@ -4,7 +4,7 @@
 // and the pricing page — so all three quote the same numbers from the same
 // place rather than each hardcoding a copy that drifts.
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { api } from "@/lib/api"
 
 export type BillingMode = "worker" | "credits"
@@ -87,7 +87,8 @@ export const CREDIT_ACTION_KEYS = {
 export type CreditActionKey = (typeof CREDIT_ACTION_KEYS)[keyof typeof CREDIT_ACTION_KEYS]
 
 /**
- * Fired after anything spends, so the balance pill refreshes without polling.
+ * Fired after anything spends, so the balance pill refreshes at once rather
+ * than on its next poll.
  *
  * Dispatched centrally by `apiRequest` in lib/api.ts on every successful
  * mutation — see the note there for why it is not fired per surface. This
@@ -100,57 +101,114 @@ export function notifyCreditsChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(CREDITS_REFRESH_EVENT))
 }
 
+/** Where "Buy credits" goes: the billing page, scrolled to the top-up packs. */
+export const BUY_CREDITS_HREF = "/dashboard/billing?topup=packs"
+
 /**
- * Live balance. Refreshes on the app-wide spend signals rather than a timer —
- * `usage:refresh` is the event the rest of the app already fires after a check,
- * so listening to both means no surface has to learn a new convention.
+ * How often an open, visible tab re-reads the balance on its own.
+ *
+ * The spend signals cover what THIS tab did. They cannot see a worker settling
+ * a hold and returning the unused part, a failed check being refunded, or a
+ * scheduled run charging overnight — so without a timer those only showed
+ * after a reload, and the pill disagreed with the statement in the meantime.
  */
-export function useCredits() {
-  const [data, setData] = useState<CreditSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+const CREDITS_POLL_MS = 60_000
 
-  const load = useCallback(async () => {
-    try {
-      setData(await api.get<CreditSummary>("/api/credits"))
-    } catch {
-      // A failed balance read must not break the page it sits in; the pill
-      // simply doesn't render until the next refresh succeeds.
-      setData(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+// One balance for the whole page. Every price label reads it, and when each
+// held its own copy a page with twenty labels made twenty identical requests
+// on every refresh — which made a polling timer unaffordable.
+let creditsData: CreditSummary | null = null
+let creditsLoaded = false
+let creditsInflight: Promise<void> | null = null
+const creditsListeners = new Set<() => void>()
 
-  useEffect(() => {
-    void load()
-    const onRefresh = () => void load()
-    window.addEventListener(CREDITS_REFRESH_EVENT, onRefresh)
-    window.addEventListener("usage:refresh", onRefresh)
-    return () => {
-      window.removeEventListener(CREDITS_REFRESH_EVENT, onRefresh)
-      window.removeEventListener("usage:refresh", onRefresh)
-    }
-  }, [load])
-
-  return { credits: data, loading, reload: load }
+function loadCredits(): Promise<void> {
+  creditsInflight ??= api
+    .get<CreditSummary>("/api/credits")
+    .then(
+      (d) => {
+        creditsData = d
+      },
+      () => {
+        // A failed balance read must not break the page it sits in; the pill
+        // simply doesn't render until the next refresh succeeds.
+        creditsData = null
+      },
+    )
+    .finally(() => {
+      creditsLoaded = true
+      creditsInflight = null
+      creditsListeners.forEach((l) => l())
+    })
+  return creditsInflight
 }
 
-/** The price card. Static enough to fetch once per mount. */
+let stopCreditsRefresh: (() => void) | null = null
+
+/**
+ * Refresh triggers live only while something is subscribed: the spend signals
+ * (`usage:refresh` is the one the rest of the app already fires after a check),
+ * coming back to the tab, and the slow timer — skipped while the tab is hidden,
+ * where nobody is reading the number.
+ */
+function subscribeCredits(listener: () => void): () => void {
+  creditsListeners.add(listener)
+  if (!stopCreditsRefresh) {
+    void loadCredits()
+    const onRefresh = () => void loadCredits()
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadCredits()
+    }
+    const timer = setInterval(onVisible, CREDITS_POLL_MS)
+    window.addEventListener(CREDITS_REFRESH_EVENT, onRefresh)
+    window.addEventListener("usage:refresh", onRefresh)
+    window.addEventListener("focus", onRefresh)
+    document.addEventListener("visibilitychange", onVisible)
+    stopCreditsRefresh = () => {
+      clearInterval(timer)
+      window.removeEventListener(CREDITS_REFRESH_EVENT, onRefresh)
+      window.removeEventListener("usage:refresh", onRefresh)
+      window.removeEventListener("focus", onRefresh)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }
+  return () => {
+    creditsListeners.delete(listener)
+    if (creditsListeners.size === 0) {
+      stopCreditsRefresh?.()
+      stopCreditsRefresh = null
+    }
+  }
+}
+
+/** Live balance, shared by every component on the page. */
+export function useCredits() {
+  const credits = useSyncExternalStore(subscribeCredits, () => creditsData, () => null)
+  const loading = useSyncExternalStore(subscribeCredits, () => !creditsLoaded, () => true)
+  return { credits, loading, reload: loadCredits }
+}
+
+// The price card changes only when an admin edits a rate, so one read per page
+// load is plenty — shared, for the same reason as the balance above.
+let ratesPromise: Promise<CreditRateCard | null> | null = null
+
+/** The price card. */
 export function useCreditRates() {
   const [rates, setRates] = useState<CreditRateCard | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    api
-      .get<CreditRateCard>("/api/credits/rates")
-      .then((r) => {
-        if (!cancelled) setRates(r)
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    ratesPromise ??= api.get<CreditRateCard>("/api/credits/rates").catch(() => {
+      // Let the next mount try again rather than caching the failure.
+      ratesPromise = null
+      return null
+    })
+    void ratesPromise.then((r) => {
+      if (cancelled) return
+      setRates(r)
+      setLoading(false)
+    })
     return () => {
       cancelled = true
     }

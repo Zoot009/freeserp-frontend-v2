@@ -290,6 +290,17 @@ export function CreditPricing({
   // button with no explanation is the worst outcome on a pricing page.
   const [pending, setPending] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
+  const packsRef = useRef<HTMLDivElement>(null)
+
+  // "Buy credits" links from anywhere in the app land here with ?topup=packs.
+  // The packs sit below the plans, so without this the person who came to buy
+  // credits lands on a row of subscriptions and has to go looking. Keyed on
+  // `loading` because the block only exists once the rate card has arrived.
+  useEffect(() => {
+    if (highlight !== "packs" || loading) return
+    const t = setTimeout(() => packsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 120)
+    return () => clearTimeout(t)
+  }, [highlight, loading])
 
   const go = async (key: string, body: { planSlug?: string; packageKey?: string }) => {
     setPending(key)
@@ -351,7 +362,10 @@ export function CreditPricing({
       </div>
 
       {packs.length > 0 && (
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div
+          ref={packsRef}
+          className={cn("rounded-xl border bg-card p-5 shadow-sm", highlight === "packs" && "border-brand ring-2 ring-brand/40")}
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-[15px] font-semibold">{t("packsTitle")}</h3>
             <p className="text-xs text-muted-foreground">

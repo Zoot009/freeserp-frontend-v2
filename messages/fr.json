@@ -1630,7 +1630,18 @@
     "costPerPage": "3 / page",
     "costPerLookup": "1 / recherche",
     "costFree": "Gratuit",
-    "costPerKeywordNote": "Les vérifications planifiées et groupées coûtent 1. Une petite vérification manuelle passe devant la file pour un résultat plus rapide et coûte 2."
+    "costPerKeywordNote": "Les vérifications planifiées et groupées coûtent 1. Une petite vérification manuelle passe devant la file pour un résultat plus rapide et coûte 2.",
+    "costUses": "{count, plural, one {Utilise {n} crédit} other {Utilise {n} crédits}}",
+    "costUpTo": "{count, plural, one {Jusqu'à {n} crédit} other {Jusqu'à {n} crédits}}",
+    "costLeft": "· {n} restants",
+    "costOnlyLeft": "· plus que {n}",
+    "buyCredits": "Acheter des crédits",
+    "confirmCosts": "Cette exécution coûte",
+    "creditCount": "{count, plural, one {{n} crédit} other {{n} crédits}}",
+    "confirmBalanceAfter": "Solde après",
+    "confirmShort": "Crédits insuffisants — il vous en manque {n}.",
+    "cancel": "Annuler",
+    "runIt": "Lancer"
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",
