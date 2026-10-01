@@ -86,8 +86,10 @@ export function CreditCost({
         </span>
       )}
       {/* Short is the one state where the label has something to offer rather
-          than just report — the way out belongs right beside the warning. */}
-      {short && (
+          than just report — the way out belongs right beside the warning. Not
+          in the compact form, which sits inside other controls (a choice
+          card is a <button>, and a link cannot live in one). */}
+      {short && showBalance && (
         <Link href={BUY_CREDITS_HREF} className="underline underline-offset-2 hover:no-underline">
           {t("buyCredits")}
         </Link>
