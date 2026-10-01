@@ -22,7 +22,7 @@ import { Elapsed, FeatChip, StatTile } from "@/components/dashboard/primitives"
 import { Hint } from "@/components/dashboard/widget"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { AddToTrackerModal } from "@/components/dashboard/add-to-tracker-modal"
-import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { exportCsvRows, exportFileName, kdBand, rowStats, serpChips, viewRows, type ExportRow, type SortKey, type SortState } from "@/lib/keyword-magic"
 import { downloadCSV } from "@/lib/csv"
@@ -57,6 +57,9 @@ type Usage = {
   remaining: number
   keywordLimit: number
   relatedAvailable: boolean
+  /** "credits" when searches are paid from the balance, so the daily
+   *  counters above say nothing. Absent on older APIs. */
+  metered?: string
 }
 
 type MagicResponse = {
@@ -265,7 +268,12 @@ export default function KeywordMagicPage() {
   useEffect(() => {
     void api.get<Usage>("/api/keyword-magic/usage").then(setUsage).catch(() => {})
   }, [])
-  const outOfSearches = usage != null && usage.remaining <= 0
+  // A credits account pays per search; the daily counters only mean something
+  // on the worker model, and a credits account blocked by "0 left today" was
+  // being refused searches it could pay for. `metered` says which directly;
+  // an API without it falls back to the billing mode.
+  const countsSearches = (usage?.metered ?? (creditsMode === "credits" ? "credits" : undefined)) !== "credits"
+  const outOfSearches = countsSearches && usage != null && usage.remaining <= 0
   // The price of one search, for the match toggle. The same quote as the
   // CreditCost label under the form, so the two never disagree.
   const quote = useCreditQuote(CREDIT_ACTION_KEYS.keywordMagicSearch, 1, usage?.plan)
@@ -328,9 +336,13 @@ export default function KeywordMagicPage() {
     [seed, country],
   )
 
+  const [confirmSearch, setConfirmSearch] = useState(false)
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    void run(matchType)
+    // A paid search is a big one (it pulls ten times the rows), so it gets a
+    // light confirm with the balance in view; a free-tier search just runs.
+    if (quote.applies && (quote.cost ?? 0) >= CONFIRM_THRESHOLD && seed.trim()) setConfirmSearch(true)
+    else void run(matchType)
   }
 
   // Switching tab re-runs the search for that match type (a distinct dataset +
@@ -478,7 +490,7 @@ export default function KeywordMagicPage() {
             KNOWN to be worker: `!== "credits"` also passed when the credits
             request failed, putting "3 of 3 searches left" in front of credits
             users. */}
-        {usage && creditsMode === "worker" && (
+        {usage && countsSearches && creditsMode === "worker" && (
           <Hint text={`${usage.plan === "paid" ? "Paid" : "Free"} plan · ${usage.keywordLimit} keywords per search`}>
             <div
               style={{
@@ -637,6 +649,17 @@ export default function KeywordMagicPage() {
           <div style={{ marginTop: 12 }}>
             <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />
           </div>
+        )}
+        {usage && (
+          <CreditCostConfirm
+            action={CREDIT_ACTION_KEYS.keywordMagicSearch}
+            variant={usage.plan}
+            title={t("kmFindKeywords")}
+            confirmLabel={t("kmFindKeywords")}
+            open={confirmSearch}
+            onOpenChange={setConfirmSearch}
+            onConfirm={() => void run(matchType)}
+          />
         )}
       </form>
 
