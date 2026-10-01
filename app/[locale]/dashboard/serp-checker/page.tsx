@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Favicon } from "@/components/favicon"
-import { useCredits } from "@/lib/credits"
+import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates, useCredits } from "@/lib/credits"
 import { useLocale, useTranslations } from "next-intl"
 import { api, ApiError } from "@/lib/api"
 import { fetchBillingConfig } from "@/lib/billing-config"
@@ -115,6 +115,11 @@ export default function SerpCheckerPage() {
   // Worker subscribers still meter in daily checks; everyone else in credits.
   const { credits: creditSummary } = useCredits()
   const onCredits = creditSummary?.mode === "credits"
+  // A credits account is quoted from the rate card. liveCheckCost below is the
+  // worker plan's daily-check units, a different meter that only happens to
+  // share a number today.
+  const { rates } = useCreditRates()
+  const lookupCredits = quoteCredits(rates, CREDIT_ACTION_KEYS.liveCheck)
   const t = useTranslations("dashSerpChecker")
   // Live quota cost per lookup from the backend's pricing config.
   const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
@@ -524,9 +529,12 @@ export default function SerpCheckerPage() {
           </button>
         </div>
 
-        <div className="tiny muted" style={{ marginTop: 12 }}>
-          {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: liveCheckCost })}
-        </div>
+        {/* Waits for the rate card rather than guessing a credit price. */}
+        {(!onCredits || lookupCredits != null) && (
+          <div className="tiny muted" style={{ marginTop: 12 }}>
+            {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: onCredits ? lookupCredits ?? 0 : liveCheckCost })}
+          </div>
+        )}
 
         {error && (
           <div
@@ -875,15 +883,15 @@ export default function SerpCheckerPage() {
                 <div className="eyebrow" style={{ margin: 0, fontSize: 11 }}>
                   <span className="spark"><Icon.zap /></span> {t("confirm.eyebrow")}
                 </div>
-                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t(onCredits ? "confirm.titleCredits" : "confirm.title", { count: liveCheckCost })}</div>
+                <div className="b" style={{ fontSize: 18, marginTop: 4 }}>{t(onCredits ? "confirm.titleCredits" : "confirm.title", { count: onCredits ? lookupCredits ?? liveCheckCost : liveCheckCost })}</div>
               </div>
               <button onClick={() => setShowConfirm(false)} className="icon-btn" aria-label={t("confirm.close")}><Icon.close /></button>
             </div>
             <div className="modal-b">
               <div className="tiny muted">
-                {t.rich("confirm.body", {
+                {t.rich(onCredits ? "confirm.bodyCredits" : "confirm.body", {
                   keyword: keyword.trim(),
-                  count: liveCheckCost,
+                  count: onCredits ? lookupCredits ?? liveCheckCost : liveCheckCost,
                   strong: (chunks) => <strong>{chunks}</strong>,
                 })}
               </div>
@@ -891,7 +899,7 @@ export default function SerpCheckerPage() {
             <div className="modal-f">
               <button className="btn" onClick={() => setShowConfirm(false)}>{t("confirm.cancel")}</button>
               <button className="btn primary" onClick={() => void runCheck()}>
-                <Icon.zap /> {t("confirm.confirm", { count: liveCheckCost })}
+                <Icon.zap /> {t(onCredits ? "confirm.confirmCredits" : "confirm.confirm", { count: onCredits ? lookupCredits ?? liveCheckCost : liveCheckCost })}
               </button>
             </div>
           </div>

@@ -92,7 +92,10 @@ export function SetupRail({
   submitting: boolean
   onRun: () => void
 }) {
-  const { cost } = useCreditQuote(CREDIT_ACTION_KEYS.mapsScanPoint, searches)
+  // A worker subscriber is not charged credits for a scan, so the button
+  // carries no price for them.
+  const { cost: quoted, applies } = useCreditQuote(CREDIT_ACTION_KEYS.mapsScanPoint, searches)
+  const cost = applies ? quoted : null
   const runnable = disabledReason == null && !submitting
 
   return (

@@ -26,7 +26,9 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "@/i18n/navigation"
+import { useTranslations } from "next-intl"
 import { api } from "@/lib/api"
+import { CREDIT_ACTION_KEYS, formatCredits, useCreditQuote } from "@/lib/credits"
 import { Icon } from "./icons"
 
 type Usage = {
@@ -67,6 +69,10 @@ function write(key: string, value: string | null): void {
 
 export function ChecksBackModal() {
   const router = useRouter()
+  const tc = useTranslations("credits")
+  // A free plan's manual check is always the standard rate. Priced from the
+  // rate card, and left unsaid for a worker plan, which pays in checks.
+  const perCheck = useCreditQuote(CREDIT_ACTION_KEYS.rankCheck)
   const [open, setOpen] = useState(false)
   const [limit, setLimit] = useState(3)
 
@@ -143,7 +149,9 @@ export function ChecksBackModal() {
           <div className="modal-b">
             <div className="tiny muted" style={{ lineHeight: 1.6 }}>
               Your daily allowance is back. Run a rank check to see where your keywords
-              sit in Google today — {limit === 1 ? "it costs 1 credit" : `${limit} checks, 1 credit each`}.
+              sit in Google today.
+              {perCheck.applies && perCheck.cost != null &&
+                ` ${tc("checksBackEach", { count: perCheck.cost, n: formatCredits(perCheck.cost) })}`}
             </div>
             {/* Said plainly, because the alternative is finding out at midnight:
                 unused checks are not banked. */}

@@ -1490,7 +1490,9 @@
       "body": "Une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et consommera <strong>{count, plural, one {# de vos vérifications quotidiennes} other {# de vos vérifications quotidiennes}}</strong>. Cette action est irréversible.",
       "cancel": "Annuler",
       "confirm": "Utiliser {count, plural, one {# vérification} other {# vérifications}}",
-      "titleCredits": "Ceci utilise {count, plural, one {# crédit} other {# crédits}}"
+      "titleCredits": "Ceci utilise {count, plural, one {# crédit} other {# crédits}}",
+      "bodyCredits": "Une recherche SERP en direct pour <strong>« {keyword} »</strong> interroge Google en temps réel et utilise <strong>{count, plural, one {# crédit} other {# crédits}}</strong> de votre solde. Cette action est irréversible.",
+      "confirmCredits": "Utiliser {count, plural, one {# crédit} other {# crédits}}"
     },
     "errors": {
       "checkFailed": "La vérification a échoué. Veuillez réessayer.",
@@ -1798,7 +1800,8 @@
     "auditFreshTitle": "Lancer un nouvel audit ?",
     "auditFreshBody": "Le site est exploré à nouveau au lieu de rouvrir le rapport enregistré.",
     "auditStartTitle": "Lancer l'audit du site ?",
-    "auditStartBody": "Facturé par page réellement explorée : un site plus petit coûte donc moins."
+    "auditStartBody": "Facturé par page réellement explorée : un site plus petit coûte donc moins.",
+    "checksBackEach": "{count, plural, one {Chaque vérification utilise {n} crédit.} other {Chaque vérification utilise {n} crédits.}}"
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

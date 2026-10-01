@@ -1490,7 +1490,9 @@
       "body": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count, plural, one {# deiner täglichen Checks} other {# deiner täglichen Checks}}</strong>. Das kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
       "confirm": "{count, plural, one {# Check} other {# Checks}} verwenden",
-      "titleCredits": "Das verbraucht {count, plural, one {# Credit} other {# Credits}}"
+      "titleCredits": "Das verbraucht {count, plural, one {# Credit} other {# Credits}}",
+      "bodyCredits": "Eine Live-SERP-Abfrage für <strong>„{keyword}“</strong> fragt Google in Echtzeit ab und verbraucht <strong>{count, plural, one {# Credit} other {# Credits}}</strong> aus Ihrem Guthaben. Das kann nicht rückgängig gemacht werden.",
+      "confirmCredits": "{count, plural, one {# Credit} other {# Credits}} verwenden"
     },
     "errors": {
       "checkFailed": "Die Prüfung ist fehlgeschlagen. Bitte versuche es erneut.",
@@ -1798,7 +1800,8 @@
     "auditFreshTitle": "Ein neues Audit starten?",
     "auditFreshBody": "Dabei wird die Website erneut gecrawlt, statt den gespeicherten Bericht zu öffnen.",
     "auditStartTitle": "Website-Audit starten?",
-    "auditStartBody": "Berechnet pro tatsächlich gecrawlter Seite — eine kleinere Website kostet also weniger."
+    "auditStartBody": "Berechnet pro tatsächlich gecrawlter Seite — eine kleinere Website kostet also weniger.",
+    "checksBackEach": "{count, plural, one {Jede Prüfung verbraucht {n} Credit.} other {Jede Prüfung verbraucht {n} Credits.}}"
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",

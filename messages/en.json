@@ -1490,7 +1490,9 @@
       "body": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and will consume <strong>{count, plural, one {# of your daily checks} other {# of your daily checks}}</strong>. This can’t be undone.",
       "cancel": "Cancel",
       "confirm": "Use {count, plural, one {# check} other {# checks}}",
-      "titleCredits": "This uses {count, plural, one {# credit} other {# credits}}"
+      "titleCredits": "This uses {count, plural, one {# credit} other {# credits}}",
+      "bodyCredits": "Running a live SERP lookup for <strong>“{keyword}”</strong> queries Google in real time and uses <strong>{count, plural, one {# credit} other {# credits}}</strong> from your balance. This can’t be undone.",
+      "confirmCredits": "Use {count, plural, one {# credit} other {# credits}}"
     },
     "errors": {
       "checkFailed": "The check failed. Please try again.",
@@ -1798,7 +1800,8 @@
     "auditFreshTitle": "Run a fresh audit?",
     "auditFreshBody": "This crawls the site again instead of reopening the saved report.",
     "auditStartTitle": "Start the site audit?",
-    "auditStartBody": "Charged per page we actually crawl, so a smaller site costs less than this."
+    "auditStartBody": "Charged per page we actually crawl, so a smaller site costs less than this.",
+    "checksBackEach": "{count, plural, one {Each check uses {n} credit.} other {Each check uses {n} credits.}}"
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",
