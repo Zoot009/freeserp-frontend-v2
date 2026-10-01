@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react"
+import { useTranslations } from "next-intl"
+import Link from "next/link"
 import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS, useCredits } from "@/lib/credits"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
@@ -79,6 +81,9 @@ function CompetitorAnalysisContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+  const tc = useTranslations("credits")
+  const { credits } = useCredits()
+  const isWorker = credits?.mode === "worker"
 
   // Standalone tool — no project/keyword context, so competitors come from a
   // live SERP lookup (the default) or are typed by hand.
@@ -95,10 +100,13 @@ function CompetitorAnalysisContent() {
   // render, so a fast second click could slip a second POST through first.
   const submittingRef = useRef(false)
   const [error, setError] = useState("")
-  // Set on a 402 from either the analysis or the SERP lookup (out of daily
-  // checks, or out of credits). Keeps the button off for the rest of the
-  // session; a credit top-up or the UTC day rolling over lifts it.
+  // Set on a 402 from either the analysis or the SERP lookup that only the UTC
+  // day rolling over lifts (a worker plan's daily checks). Keeps the button off
+  // for the rest of the session.
   const [quotaBlocked, setQuotaBlocked] = useState(false)
+  // A 402 for credits is different: buying credits lifts it at once, so the
+  // button stays live and the error offers the top-up instead of a dead end.
+  const [shortOfCredits, setShortOfCredits] = useState(false)
 
   // Optional "find competitors from search results" picker — an alternative to
   // typing domains by hand. Runs a live SERP lookup (same one behind the Quick
@@ -110,10 +118,6 @@ function CompetitorAnalysisContent() {
   const [serpError, setSerpError] = useState("")
   const serpPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const serpLookupInFlight = serpLookupId != null
-  // "domain|keyword" pair the last lookup (auto or manual) ran for — guards the
-  // debounced auto-run below from re-firing (and re-spending quota) for values
-  // it's already fetched, while still re-triggering once either field changes.
-  const lastLookupKeyRef = useRef<string | null>(null)
   // Cycles the centered "searching" copy so the wait (a few seconds of
   // polling) feels active rather than frozen on one static line.
   const [searchingMsgIdx, setSearchingMsgIdx] = useState(0)
@@ -176,11 +180,15 @@ function CompetitorAnalysisContent() {
   )
 
   const runSerpLookup = async () => {
-    lastLookupKeyRef.current = `${domain.trim().toLowerCase()}|${keyword.trim().toLowerCase()}`
     setSerpError("")
+    setShortOfCredits(false)
     setSerpResults([])
     setSelectedSerpUrls(new Set())
-    toast(`Searching for competitors — this uses ${liveCheckCost} daily check${liveCheckCost === 1 ? "" : "s"}.`)
+    // A credits account sees the price beside the button before clicking; a
+    // worker plan spends daily checks, which this is the only place that says.
+    if (isWorker) {
+      toast(`Searching for competitors — this uses ${liveCheckCost} daily check${liveCheckCost === 1 ? "" : "s"}.`)
+    }
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
       const res = await axios.post(
@@ -193,7 +201,8 @@ function CompetitorAnalysisContent() {
         const raw = body.error?.message ?? body.error
         const serverMsg = typeof raw === "string" && raw ? raw : ""
         if (res.status === 402) {
-          setQuotaBlocked(true)
+          if (body.error?.code === "insufficient_credits") setShortOfCredits(true)
+          else setQuotaBlocked(true)
           setSerpError(serverMsg || "You've used all your daily checks. Try again tomorrow.")
         } else if (res.status === 429) {
           const wait = retryAfterPhrase(res.headers ?? {})
@@ -218,25 +227,9 @@ function CompetitorAnalysisContent() {
   const remainingSlots = () =>
     MAX_COMPETITORS - competitors.filter((c) => c.trim()).length - selectedSerpUrls.size
 
-  // Auto-run the SERP lookup once both fields are filled and settled — no
-  // button click, no confirm dialog. Debounced so it fires once per pause in
-  // typing rather than on every keystroke; the key-ref guard in runSerpLookup
-  // stops it firing again for a domain/keyword pair it already fetched.
-  useEffect(() => {
-    const d = domain.trim()
-    const k = keyword.trim()
-    if (!d || !k) return
-    if (serpLookupInFlight || quotaBlocked) return
-    if (remainingSlots() <= 0) return
-    const key = `${d.toLowerCase()}|${k.toLowerCase()}`
-    if (key === lastLookupKeyRef.current) return
-
-    const timer = setTimeout(() => {
-      void runSerpLookup()
-    }, 900)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domain, keyword, serpLookupInFlight, quotaBlocked])
+  // No auto-run. The lookup used to fire 900ms after typing settled, which
+  // spent a paid SERP call on every pause — including half-typed keywords —
+  // without a click or a price. It runs from the button below, priced beside it.
 
   const toggleSerpUrl = (u: string) => {
     setSelectedSerpUrls((prev) => {
@@ -316,6 +309,7 @@ function CompetitorAnalysisContent() {
     submittingRef.current = true
 
     setIsAnalyzing(true)
+    setShortOfCredits(false)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -338,7 +332,8 @@ function CompetitorAnalysisContent() {
         const serverMsg = typeof raw === "string" && raw ? raw : ""
 
         if (response.status === 402) {
-          setQuotaBlocked(true)
+          if (body.error?.code === "insufficient_credits") setShortOfCredits(true)
+          else setQuotaBlocked(true)
           setError(serverMsg || "You've used all your AI analyses for today. Try again tomorrow.")
         } else if (response.status === 429) {
           const wait = retryAfterPhrase(response.headers ?? {})
@@ -465,10 +460,13 @@ function CompetitorAnalysisContent() {
 
         {!serpLookupInFlight && serpResults.length === 0 && !serpError && (
           <div className="tiny muted" style={{ marginBottom: 8 }}>
-            {domain.trim() && keyword.trim()
-              ? `Fetching real search results automatically — uses ${liveCheckCost} daily check${liveCheckCost === 1 ? "" : "s"}.`
-              : `Enter your site and target keyword above to see real search results here — uses ${liveCheckCost} daily check${liveCheckCost === 1 ? "" : "s"}.`}
+            {domain.trim() && keyword.trim() ? tc("caSerpReady") : tc("caSerpEnter")}
+            {isWorker && ` — uses ${liveCheckCost} daily check${liveCheckCost === 1 ? "" : "s"}.`}
           </div>
+        )}
+        {/* The lookup's price, under the button that spends it. */}
+        {!serpLookupInFlight && domain.trim() && keyword.trim() && (
+          <CreditCost action={CREDIT_ACTION_KEYS.liveCheck} className="mb-2" />
         )}
 
         {serpLookupInFlight && (
@@ -496,6 +494,14 @@ function CompetitorAnalysisContent() {
         {serpError && (
           <div className="tiny" style={{ marginBottom: 8, color: "var(--neg)" }}>
             {serpError}
+            {shortOfCredits && (
+              <>
+                {" "}
+                <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+                  {tc("buyCredits")}
+                </Link>
+              </>
+            )}
           </div>
         )}
 
@@ -604,6 +610,14 @@ function CompetitorAnalysisContent() {
           }}
         >
           {error}
+          {shortOfCredits && (
+            <>
+              {" "}
+              <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+                {tc("buyCredits")}
+              </Link>
+            </>
+          )}
         </div>
       )}
 

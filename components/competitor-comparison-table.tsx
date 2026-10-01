@@ -5,6 +5,8 @@ import { CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react"
 import type { AnalysisData, OffPageMetrics } from "@/types/competitor-analysis"
 import { computeSeoScore, scoreColor, type SeoScoreBreakdown } from "@/lib/seoScorer"
 import { crawlErrorCopy } from "@/lib/crawl-error"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 
 interface Props {
   analysis: AnalysisData
@@ -173,6 +175,14 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                         ↺ Recrawl
                                       </button>
                                     ) : null}
+                                    {/* A recrawl is charged as an analysis, so it is priced before the click. */}
+                                    {!isRecrawling && err?.retryable && onRecrawl && (
+                                      <CreditCost
+                                        action={CREDIT_ACTION_KEYS.competitorAnalysis}
+                                        showBalance={false}
+                                        className="mt-1 flex text-[10px]"
+                                      />
+                                    )}
                                   </div>
                                 </>
                               ) : (

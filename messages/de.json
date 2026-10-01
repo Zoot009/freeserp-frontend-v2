@@ -1775,7 +1775,9 @@
     "costPerAuditNote": "Abgerechnet pro gecrawlter Seite — eine Website mit {pages} Seiten verbraucht {credits} Credits.",
     "withCost": "{label} · {count, plural, one {{n} Credit} other {{n} Credits}}",
     "monthlyWhileScheduled": "Danach etwa {n} pro Monat, solange der Zeitplan aktiv ist.",
-    "perAnswer": "{count, plural, one {{n} Credit pro Antwort} other {{n} Credits pro Antwort}}"
+    "perAnswer": "{count, plural, one {{n} Credit pro Antwort} other {{n} Credits pro Antwort}}",
+    "caSerpEnter": "Geben Sie oben Ihre Website und Ihr Ziel-Keyword ein und finden Sie dann die Websites, die dafür ranken.",
+    "caSerpReady": "Finden Sie die Websites, die für dieses Keyword ranken — es läuft nichts, bevor Sie klicken."
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",

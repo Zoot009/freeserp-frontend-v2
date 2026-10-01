@@ -1775,7 +1775,9 @@
     "costPerAuditNote": "Se cobra por página rastreada: un sitio de {pages} páginas usa {credits} créditos.",
     "withCost": "{label} · {count, plural, one {{n} crédito} other {{n} créditos}}",
     "monthlyWhileScheduled": "Después, unos {n} al mes mientras esté programado.",
-    "perAnswer": "{count, plural, one {{n} crédito por respuesta} other {{n} créditos por respuesta}}"
+    "perAnswer": "{count, plural, one {{n} crédito por respuesta} other {{n} créditos por respuesta}}",
+    "caSerpEnter": "Introduce arriba tu sitio y tu palabra clave objetivo, y luego encuentra los sitios que posicionan por ella.",
+    "caSerpReady": "Encuentra los sitios que posicionan por esta palabra clave: no se ejecuta nada hasta que hagas clic."
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

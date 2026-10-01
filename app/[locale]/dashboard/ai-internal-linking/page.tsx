@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react"
 import { CreditCost } from "@/components/dashboard/credit-cost"
-import { CREDIT_ACTION_KEYS } from "@/lib/credits"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
+import Link from "next/link"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import axios from "@/lib/axios"
@@ -38,6 +40,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function AiInternalLinkingPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const tc = useTranslations("credits")
+  // A 402 for credits is lifted by a top-up, so unlike the daily cap it never
+  // latches the button off — the error offers the top-up instead.
+  const [shortOfCredits, setShortOfCredits] = useState(false)
 
   const [domain, setDomain] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -63,6 +69,7 @@ export default function AiInternalLinkingPage() {
     submittingRef.current = true
 
     setIsAnalyzing(true)
+    setShortOfCredits(false)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -78,7 +85,8 @@ export default function AiInternalLinkingPage() {
         const serverMsg = typeof raw === "string" && raw ? raw : ""
 
         if (response.status === 402) {
-          setQuotaBlocked(true)
+          if (body.error?.code === "insufficient_credits") setShortOfCredits(true)
+          else setQuotaBlocked(true)
           setError(serverMsg || "You've used all your internal-link analyses for today. Try again tomorrow.")
         } else if (response.status === 429) {
           const wait = retryAfterPhrase(response.headers ?? {})
@@ -178,6 +186,14 @@ export default function AiInternalLinkingPage() {
           }}
         >
           {error}
+          {shortOfCredits && (
+            <>
+              {" "}
+              <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+                {tc("buyCredits")}
+              </Link>
+            </>
+          )}
         </div>
       )}
 

@@ -8,6 +8,9 @@ import { useTutorial } from "@/lib/tutorial"
 import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
 import axios from "@/lib/axios"
+import { useTranslations } from "next-intl"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
 
 interface SerpCompetitor {
   position: number
@@ -80,6 +83,7 @@ function CompetitorAnalysisContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+  const tc = useTranslations("credits")
   const { advanceFromStep } = useTutorial()
 
   // Project id comes from the path (/dashboard/project/[id]/competitor-analysis).
@@ -102,6 +106,9 @@ function CompetitorAnalysisContent() {
   // the button off for the rest of the session, since no retry can succeed until
   // the UTC day rolls over.
   const [quotaBlocked, setQuotaBlocked] = useState(false)
+  // Out of CREDITS is the other 402, and the opposite case: a top-up lifts it
+  // at once, so the button stays live and the error offers one.
+  const [shortOfCredits, setShortOfCredits] = useState(false)
   const [serpCompetitors, setSerpCompetitors] = useState<SerpCompetitor[]>([])
   const [loadingSerpData, setLoadingSerpData] = useState(false)
   // Selection is keyed by each result's full ranking-page URL (c.url), not its
@@ -185,6 +192,7 @@ function CompetitorAnalysisContent() {
     submittingRef.current = true
 
     setIsAnalyzing(true)
+    setShortOfCredits(false)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
@@ -213,7 +221,8 @@ function CompetitorAnalysisContent() {
           // Re-arming is what caused the 429s: users disbelieved the cap, retried,
           // and each rejected attempt still spent an hourly rate-limit token until
           // the honest 402 became a 429 claiming analyses had been "started".
-          setQuotaBlocked(true)
+          if (body.error?.code === "insufficient_credits") setShortOfCredits(true)
+          else setQuotaBlocked(true)
           setError(serverMsg || "You've used all your AI analyses for today. Try again tomorrow.")
         } else if (response.status === 429) {
           // Genuinely started too many. Quote the real window from the server
@@ -307,6 +316,8 @@ function CompetitorAnalysisContent() {
               </>
             )}
           </button>
+          {/* The price, beside the button that spends it. */}
+          <CreditCost action={CREDIT_ACTION_KEYS.competitorAnalysis} className="mt-2 w-full justify-end" />
         </div>
       </div>
 
@@ -497,6 +508,14 @@ function CompetitorAnalysisContent() {
           }}
         >
           {error}
+          {shortOfCredits && (
+            <>
+              {" "}
+              <Link href={BUY_CREDITS_HREF} style={{ color: "inherit", textDecoration: "underline" }}>
+                {tc("buyCredits")}
+              </Link>
+            </>
+          )}
         </div>
       )}
     </div>

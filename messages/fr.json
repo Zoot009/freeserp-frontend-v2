@@ -1775,7 +1775,9 @@
     "costPerAuditNote": "Facturé par page explorée — un site de {pages} pages utilise {credits} crédits.",
     "withCost": "{label} · {count, plural, one {{n} crédit} other {{n} crédits}}",
     "monthlyWhileScheduled": "Ensuite, environ {n} par mois tant que la planification est active.",
-    "perAnswer": "{count, plural, one {{n} crédit par réponse} other {{n} crédits par réponse}}"
+    "perAnswer": "{count, plural, one {{n} crédit par réponse} other {{n} crédits par réponse}}",
+    "caSerpEnter": "Saisissez ci-dessus votre site et votre mot-clé cible, puis trouvez les sites qui se positionnent dessus.",
+    "caSerpReady": "Trouvez les sites qui se positionnent sur ce mot-clé — rien ne se lance avant votre clic."
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

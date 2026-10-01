@@ -16,6 +16,8 @@ import { SeoQuoteOfDay } from "@/components/seo-quote"
 import type { AnalysisData, AiPlan, CompetitorResult } from "@/types/competitor-analysis"
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
 import axios from "@/lib/axios"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { toast } from "sonner"
 
 function CompetitorAnalysisResultsContent() {
@@ -1162,6 +1164,11 @@ function CompetitorAnalysisResultsContent() {
               </p>
             </div>
             <div className="modal-f">
+              {/* Regenerating is charged as a fresh analysis; the first plan
+                  came with the analysis that was already paid for. */}
+              {aiPlan && (
+                <CreditCost action={CREDIT_ACTION_KEYS.competitorAnalysis} showBalance={false} className="mr-auto" />
+              )}
               <button className="btn" onClick={() => setShowAiKwModal(false)}>Cancel</button>
               <button
                 className="btn primary"

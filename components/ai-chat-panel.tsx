@@ -13,6 +13,8 @@ import type {
 } from "@/types/competitor-analysis"
 import { renderChatMarkdown } from "@/lib/chat-md"
 import axios from "@/lib/axios"
+import { CreditCost } from "@/components/dashboard/credit-cost"
+import { CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { apiErrorMessage } from "@/lib/api"
 
 /**
@@ -584,6 +586,9 @@ export function AiChatPanel({ analysisId, selectedCategory, categories, onScopeC
               </form>
               <div className="hint mono">
                 <span>Audit Co-Pilot may misjudge edge cases</span>
+                {/* Every message is charged — typed or sent from a quick-action
+                    chip — so the price sits where both are sent from. */}
+                <CreditCost action={CREDIT_ACTION_KEYS.competitorChat} />
                 <span><kbd>Enter</kbd> to send</span>
               </div>
             </>
