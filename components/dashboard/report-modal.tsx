@@ -23,7 +23,9 @@ export function ReportModal({ projectId, onClose }: { projectId: string; onClose
     setGenerating(true)
     setError("")
     try {
-      const data = await api.post<GeneratedReport>(`/api/projects/${projectId}/reports`)
+      // The reports router is mounted at /api/reports (backend server.ts); the
+      // /api/projects/... paths this used were never served and answered 404.
+      const data = await api.post<GeneratedReport>(`/api/reports/${projectId}/reports`)
       setReport(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate report")
@@ -50,7 +52,7 @@ export function ReportModal({ projectId, onClose }: { projectId: string; onClose
     setDownloading(true)
     setError("")
     try {
-      const res = await fetch(`${API_BASE}/api/projects/${projectId}/reports/${report.reportId}/pdf`, {
+      const res = await fetch(`${API_BASE}/api/reports/${projectId}/reports/${report.reportId}/pdf`, {
         headers: { Authorization: `Bearer ${getAccessToken() ?? ""}` },
         credentials: "include",
       })
