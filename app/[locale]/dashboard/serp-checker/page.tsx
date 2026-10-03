@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Favicon } from "@/components/favicon"
 import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates, useCredits } from "@/lib/credits"
 import { useLocale, useTranslations } from "next-intl"
@@ -11,7 +11,6 @@ import { Flag } from "@/components/flag"
 import { Icon } from "@/components/dashboard/icons"
 import { Dropdown } from "@/components/dashboard/dropdown"
 import {
-  StatTile,
   FeatChip,
   serpFeaturesToChips,
   type SerpFeatures,
@@ -168,6 +167,7 @@ export default function SerpCheckerPage() {
   }, [history])
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const domainInputRef = useRef<HTMLInputElement>(null)
   // Which check is on screen. The URL sync below compares against this so it is
   // idempotent — it can run again without re-fetching what is already shown.
   const shownIdRef = useRef<string | null>(null)
@@ -388,6 +388,28 @@ export default function SerpCheckerPage() {
     return () => window.removeEventListener("popstate", sync)
   }, [loadCheckById])
 
+  /** Put a result's query back in the form, so it can be run again as-is or tweaked. */
+  function prefillFrom(r: CheckResponse, withDomain: boolean) {
+    setKeyword(r.keyword)
+    setDomain(withDomain ? (r.domain ?? "") : "")
+    setCountry(r.country)
+    setDevice(r.device)
+  }
+
+  function rerun() {
+    if (!result || processing) return
+    prefillFrom(result, true)
+    setShowConfirm(true)
+  }
+
+  /** The no-domain result's way forward: same query, back in the form, cursor in Domain. */
+  function checkWithDomain() {
+    if (!result) return
+    prefillFrom(result, false)
+    clearResult()
+    setTimeout(() => domainInputRef.current?.focus(), 0)
+  }
+
   function exportReport() {
     if (!result) return
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })
@@ -435,6 +457,9 @@ export default function SerpCheckerPage() {
             <button className="btn" onClick={clearResult}>
               <Icon.search /> {t("newCheck")}
             </button>
+            <button className="btn" onClick={rerun} disabled={processing}>
+              <Icon.refresh /> {t("hero.rerun")}
+            </button>
             <button className="btn" onClick={exportReport}>
               <Icon.download /> {t("exportReport")}
             </button>
@@ -451,41 +476,49 @@ export default function SerpCheckerPage() {
           thing on a page that had not run anything yet. */}
       {!result && (
       <form className="card" onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-          {/* The one required field, so it leads and takes the width. */}
-          <Field label={t("form.keyword")} style={{ flex: "1 1 320px" }}>
-            <div style={{ position: "relative" }}>
-              <span style={FIELD_ICON}><Icon.search /></span>
-              <input
-                className="input lg"
-                style={{ paddingLeft: 38 }}
-                placeholder={t("form.keywordPlaceholder")}
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
-          </Field>
-          <Field label={t("form.domain")} hint={t("form.optional")} style={{ flex: "1 1 260px" }}>
-            <div style={{ position: "relative" }}>
-              <span style={FIELD_ICON}><Icon.globe /></span>
-              <input
-                className="input lg"
-                style={{ paddingLeft: 38 }}
-                placeholder={t("form.domainPlaceholder")}
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-              />
-            </div>
-          </Field>
+        {/* One search bar: the query, the optional domain, and the button that
+            runs them, on one line — read left to right like any search box.
+            Labels live in aria-label/placeholder; four uppercase field labels
+            were more chrome than the form had fields. */}
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <div style={{ position: "relative", flex: "3 1 320px", minWidth: 0 }}>
+            <span style={FIELD_ICON}><Icon.search /></span>
+            <input
+              className="input lg"
+              style={{ paddingLeft: 38, width: "100%" }}
+              placeholder={t("form.keywordPlaceholder")}
+              aria-label={t("form.keyword")}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+          <div style={{ position: "relative", flex: "1 1 200px", minWidth: 0 }}>
+            <span style={FIELD_ICON}><Icon.globe /></span>
+            <input
+              ref={domainInputRef}
+              className="input lg"
+              style={{ paddingLeft: 38, width: "100%" }}
+              placeholder={`${t("form.domainPlaceholder")} (${t("form.optional")})`}
+              aria-label={`${t("form.domain")} (${t("form.optional")})`}
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn primary"
+            style={{ flex: "0 0 auto", minWidth: 160, height: 46, justifyContent: "center" }}
+            disabled={!canSubmit}
+          >
+            {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
+          </button>
         </div>
 
-        {/* Country, device, and the submit pushed to the end of the same line.
-            margin-left:auto rather than a spacer element, so the button still
-            sits right when the row wraps on a narrow screen. */}
-        <div className="row" style={{ gap: 12, marginTop: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <Field label={t("form.country")} style={{ flex: "0 1 220px" }}>
+        {/* Settings most people never change, so they sit small under the bar. */}
+        <div className="row" style={{ gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ width: 200 }}>
             <Dropdown
               block
               menuAlign="left"
@@ -501,40 +534,29 @@ export default function SerpCheckerPage() {
               onChange={setCountry}
               ariaLabel={t("form.country")}
             />
-          </Field>
-          <Field label={t("form.device")} style={{ flex: "0 0 auto" }}>
-            <div className="pill-toggle">
-              {(["desktop", "mobile"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={device === d ? "active" : ""}
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "7px 14px" }}
-                  onClick={() => setDevice(d)}
-                >
-                  {d === "desktop" ? <Icon.monitor size={15} /> : <Icon.smartphone size={15} />}
-                  {d === "desktop" ? t("form.desktop") : t("form.mobile")}
-                </button>
-              ))}
-            </div>
-          </Field>
-
-          <button
-            type="submit"
-            className="btn primary"
-            style={{ marginLeft: "auto", minWidth: 180, height: 38, justifyContent: "center" }}
-            disabled={!canSubmit}
-          >
-            {processing ? <><Icon.refresh /> {t("form.checking")}</> : <><Icon.zap /> {t("form.checkRankings")}</>}
-          </button>
-        </div>
-
-        {/* Waits for the rate card rather than guessing a credit price. */}
-        {(!onCredits || lookupCredits != null) && (
-          <div className="tiny muted" style={{ marginTop: 12 }}>
-            {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: onCredits ? lookupCredits ?? 0 : liveCheckCost })}
           </div>
-        )}
+          <div className="pill-toggle" role="group" aria-label={t("form.device")}>
+            {(["desktop", "mobile"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={device === d ? "active" : ""}
+                aria-pressed={device === d}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 12px" }}
+                onClick={() => setDevice(d)}
+              >
+                {d === "desktop" ? <Icon.monitor size={14} /> : <Icon.smartphone size={14} />}
+                {d === "desktop" ? t("form.desktop") : t("form.mobile")}
+              </button>
+            ))}
+          </div>
+          {/* Waits for the rate card rather than guessing a credit price. */}
+          {(!onCredits || lookupCredits != null) && (
+            <span className="tiny muted" style={{ marginLeft: "auto" }}>
+              {t(onCredits ? "form.costNoteCredits" : "form.costNote", { count: onCredits ? lookupCredits ?? 0 : liveCheckCost })}
+            </span>
+          )}
+        </div>
 
         {error && (
           <div
@@ -609,47 +631,7 @@ export default function SerpCheckerPage() {
       {/* Results */}
       {result && (
         <>
-          <div className="grid g-4" style={{ marginBottom: 16 }}>
-            <StatTile
-              lbl={t("stats.yourPosition")}
-              val={result.domain ? (result.found ? `#${result.position}` : "100+") : "—"}
-              tip={
-                result.domain
-                  ? result.found
-                    ? t("stats.forDomain", { domain: result.domain })
-                    : t("stats.notInTop100")
-                  : t("stats.addDomain")
-              }
-            />
-            <StatTile
-              lbl={t("stats.serpFeatures")}
-              val={chips.length}
-              tip={chips.length ? chips.map((c) => featLabel(c, t)).join(" · ") : t("stats.featuresNone")}
-            />
-            <StatTile
-              lbl={t("stats.topCompetitor")}
-              val={
-                result.topCompetitor ? (
-                  // The mark makes the competitor recognisable at a glance; the
-                  // domain alone reads as text and is easy to skim past.
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-                    <Favicon domain={result.topCompetitor.domain} size={20} bare />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {result.topCompetitor.domain}
-                    </span>
-                  </span>
-                ) : (
-                  "—"
-                )
-              }
-              tip={result.topCompetitor ? t("stats.competitorResult", { position: result.topCompetitor.position }) : undefined}
-            />
-            <StatTile
-              lbl={t("stats.searchVolume")}
-              val={fmtVolume(result.searchVolume)}
-              tip={t("stats.volumePerMonth", { country: result.country.toUpperCase() })}
-            />
-          </div>
+          <ResultHero result={result} chips={chips} t={t} onAddDomain={checkWithDomain} />
 
           <div className="grid g-21">
             {/* Results list */}
@@ -702,20 +684,40 @@ export default function SerpCheckerPage() {
                 </div>
               ) : (
                 <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                  {result.results.map((r) => {
-                    const mine =
-                      result.domain != null &&
-                      (r.domain === result.domain || r.domain.endsWith(`.${result.domain}`))
+                  {result.results.map((r, i) => {
+                    const mine = isMine(r.domain, result.domain)
+                    // Google pages hold ten organic results; marking where page 2
+                    // starts is what turns "#14" into something people feel.
+                    const page = Math.ceil(r.position / 10)
+                    const newPage = i > 0 && page > Math.ceil(result.results[i - 1]!.position / 10)
                     return (
+                      <Fragment key={r.position}>
+                      {newPage && (
+                        <li
+                          className="tiny muted"
+                          style={{
+                            padding: "6px 16px",
+                            background: "var(--bg-sub)",
+                            borderBottom: "1px solid var(--border)",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {t("results.pageDivider", { page })}
+                        </li>
+                      )}
                       <li
-                        key={r.position}
+                        id={mine ? "sc-your-result" : undefined}
                         className="row"
                         style={{
                           gap: 12,
                           alignItems: "flex-start",
                           padding: "12px 16px",
                           borderBottom: "1px solid var(--border)",
-                          background: mine ? "var(--pos-soft)" : undefined,
+                          background: mine ? "var(--brand-soft)" : undefined,
+                          boxShadow: mine ? "inset 3px 0 0 var(--brand)" : undefined,
+                          scrollMarginTop: 80,
                         }}
                       >
                         <span className={"pos-badge " + (r.position <= 3 ? "top3" : r.position <= 10 ? "top10" : "")}>
@@ -727,7 +729,7 @@ export default function SerpCheckerPage() {
                             <span className="b" style={{ fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {r.title || r.domain}
                             </span>
-                            {mine && <span className="chip">{t("results.you")}</span>}
+                            {mine && <span className="chip brand">{t("results.you")}</span>}
                           </div>
                           <a
                             className="url tiny"
@@ -745,6 +747,7 @@ export default function SerpCheckerPage() {
                           )}
                         </div>
                       </li>
+                      </Fragment>
                     )
                   })}
                 </ol>
@@ -1006,34 +1009,163 @@ const FIELD_ICON: React.CSSProperties = {
   color: "var(--text-mute)", display: "inline-flex", pointerEvents: "none",
 }
 
-function Field({
-  label, hint, style, children,
-}: {
-  label: string
-  /** Sits beside the label — "optional" and the like. */
-  hint?: string
-  style?: React.CSSProperties
-  children: React.ReactNode
-}) {
-  return (
-    <label className="col" style={{ gap: 6, minWidth: 0, ...style }}>
-      <span className="row" style={{ gap: 6, alignItems: "baseline" }}>
-        <span className="tiny muted" style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>
-          {label}
-        </span>
-        {/* Beside the label, not in the placeholder: the placeholder disappears
-            the moment you type, which is when you would wonder whether the
-            field was required. */}
-        {hint && (
-          <span className="tiny muted" style={{ fontWeight: 500, opacity: 0.7 }}>{hint}</span>
-        )}
-      </span>
-      {children}
-    </label>
-  )
-}
-
 function featLabel(code: string, t: ReturnType<typeof useTranslations>): string {
   const labels = t.raw("featLabels") as Record<string, string>
   return labels[code] ?? code
+}
+
+/** Subdomains count as yours: blog.example.com ranking is example.com ranking. */
+function isMine(rowDomain: string, domain: string | null): boolean {
+  return domain != null && (rowDomain === domain || rowDomain.endsWith(`.${domain}`))
+}
+
+/** Plain-language reading of a Google position. */
+function verdictFor(position: number | null): { key: string; page: number; tone: string } {
+  if (position == null) return { key: "notFound", page: 0, tone: "var(--neg)" }
+  const page = Math.ceil(position / 10)
+  if (position === 1) return { key: "top1", page, tone: "var(--pos)" }
+  if (position <= 3) return { key: "top3", page, tone: "var(--pos)" }
+  if (position <= 10) return { key: "page1", page, tone: "var(--brand)" }
+  if (position <= 20) return { key: "page2", page, tone: "var(--warn)" }
+  return { key: "deeper", page, tone: "var(--warn)" }
+}
+
+/**
+ * The answer first: where you rank, in one big number and one sentence, with
+ * the market context (volume, top competitor, features) beside it. Replaces
+ * four equal stat tiles, which gave "Your position" the same weight as the
+ * feature count and left the user to work out what the number meant.
+ */
+function ResultHero({
+  result,
+  chips,
+  t,
+  onAddDomain,
+}: {
+  result: CheckResponse
+  chips: string[]
+  t: ReturnType<typeof useTranslations>
+  onAddDomain: () => void
+}) {
+  const v = verdictFor(result.found ? result.position : null)
+
+  const facts: { label: string; value: React.ReactNode; tip?: string }[] = [
+    {
+      label: t("stats.searchVolume"),
+      value: fmtVolume(result.searchVolume),
+      tip: t("stats.volumePerMonth", { country: result.country.toUpperCase() }),
+    },
+    {
+      label: t("stats.topCompetitor"),
+      value: result.topCompetitor ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <Favicon domain={result.topCompetitor.domain} size={16} bare />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {result.topCompetitor.domain}
+          </span>
+        </span>
+      ) : (
+        "—"
+      ),
+      tip: result.topCompetitor ? t("stats.competitorResult", { position: result.topCompetitor.position }) : undefined,
+    },
+    {
+      label: t("stats.serpFeatures"),
+      value: chips.length,
+      tip: chips.length ? chips.map((c) => featLabel(c, t)).join(" · ") : t("stats.featuresNone"),
+    },
+  ]
+
+  return (
+    <div className="card" style={{ marginBottom: 16, padding: 20 }}>
+      <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))" }}>
+        {result.domain ? (
+          <div className="row" style={{ gap: 18, alignItems: "center", minWidth: 0 }}>
+            <div
+              className="tabular"
+              style={{
+                fontSize: result.found ? 64 : 40,
+                fontWeight: 700,
+                lineHeight: 1,
+                letterSpacing: "-0.04em",
+                color: v.tone,
+                minWidth: 96,
+                textAlign: "center",
+                flexShrink: 0,
+              }}
+            >
+              {result.found ? `#${result.position}` : "100+"}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: v.tone }}>
+                {t(`hero.verdicts.${v.key}.title`, { page: v.page })}
+              </div>
+              <div className="tiny muted" style={{ marginTop: 2, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Favicon domain={result.domain} size={14} bare /> {result.domain}
+              </div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>
+                {t(`hero.verdicts.${v.key}.body`, { domain: result.domain })}
+              </div>
+              {result.found && (
+                <div className="row" style={{ gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
+                  <button
+                    className="btn sm"
+                    onClick={() =>
+                      document.getElementById("sc-your-result")?.scrollIntoView({ behavior: "smooth", block: "center" })
+                    }
+                  >
+                    <Icon.arrowDown /> {t("hero.jumpToResult")}
+                  </button>
+                  {result.url && (
+                    <a
+                      className="url tiny"
+                      href={result.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={t("hero.rankingPage")}
+                      style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}
+                    >
+                      {result.url.replace(/^https?:\/\//, "")}
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="col" style={{ gap: 6, justifyContent: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>{t("hero.noDomain.title")}</div>
+            <div className="tiny muted">{t("hero.noDomain.body")}</div>
+            <div>
+              <button className="btn primary sm" onClick={onAddDomain} style={{ marginTop: 6 }}>
+                <Icon.globe /> {t("hero.noDomain.cta")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Market context — secondary, so smaller and stacked, not three more tiles. */}
+        <div className="col" style={{ gap: 10, justifyContent: "center", minWidth: 0 }}>
+          {facts.map((f) => (
+            <div
+              key={f.label}
+              className="row"
+              style={{ justifyContent: "space-between", alignItems: "baseline", gap: 12, minWidth: 0 }}
+              title={f.tip}
+            >
+              <span className="tiny muted" style={{ flexShrink: 0 }}>{f.label}</span>
+              <span style={{ display: "inline-flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+                <span className="b tabular" style={{ fontSize: 15, minWidth: 0 }}>{f.value}</span>
+                {f.tip && (
+                  <span className="tiny muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
+                    {f.tip}
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }

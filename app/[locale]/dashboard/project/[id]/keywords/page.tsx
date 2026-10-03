@@ -543,6 +543,8 @@ function AddKeywordsModal({
   // A manual pick is final: once the user has touched the picker, a geo lookup
   // that lands late must not overwrite what they chose.
   const locationTouchedRef = useRef(false)
+  const locationFieldRef = useRef<HTMLDivElement>(null)
+  const [locationMissing, setLocationMissing] = useState(false)
 
   // Late arrival — the lookup finished after the modal opened.
   useEffect(() => {
@@ -726,6 +728,15 @@ function AddKeywordsModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // The button stays clickable without a location so the click can point at
+    // the missing field — a disabled button just read as "nothing happens".
+    if (!location) {
+      setLocationMissing(true)
+      setError("Pick a search location before adding keywords.")
+      locationFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      locationFieldRef.current?.querySelector<HTMLButtonElement>("button[role=combobox]")?.focus({ preventScroll: true })
+      return
+    }
     // A big first check is confirmed with the balance in view, like any other
     // spend of that size; a small one goes straight through, priced on the button.
     if (firstCheck.applies && newChecks > 0 && (firstCheck.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmAdd(true)
@@ -853,6 +864,53 @@ function AddKeywordsModal({
                   </span>
                 )}
 
+              </div>
+              <div className="field" ref={locationFieldRef}>
+                <label style={locationMissing ? { color: "var(--neg)" } : undefined}>Search location{!location && " *"}</label>
+                <div style={locationMissing ? { borderRadius: 8, boxShadow: "0 0 0 2px var(--neg)" } : undefined}>
+                  <LocationPicker
+                    value={location}
+                    onChange={(code, loc) => {
+                      locationTouchedRef.current = true
+                      setLocation(code)
+                      setLocationCountry(loc?.countryIso ?? code)
+                      setLocationMissing(false)
+                      setError("")
+                    }}
+                    variant="dashboard"
+                    showFlags
+                    placeholder={geoPending ? "Detecting your location…" : "Select a location"}
+                  />
+                </div>
+                {/* Only once the lookup has given up — while it's still running
+                    the placeholder already says what's happening, and flashing a
+                    "we couldn't detect it" note at everyone would be a lie. */}
+                {!location && !geoPending && (
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      fontSize: 12,
+                      color: locationMissing ? "var(--neg)" : "var(--text-mute)",
+                    }}
+                  >
+                    We couldn&rsquo;t detect your location — choose the country or city
+                    whose results you want to track.
+                  </p>
+                )}
+              </div>
+              <div className="field">
+                <label>Device</label>
+                <div className="pill-toggle" style={{ width: "fit-content" }}>
+                  {(["desktop", "mobile"] as const).map((d) => (
+                    <button key={d} type="button" onClick={() => setDevice(d)} className={device === d ? "active" : ""}>
+                      {d.charAt(0).toUpperCase() + d.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Suggestions sit below location/device so those required
+                  controls stay in view instead of being pushed under the chips. */}
+              <div className="field">
                 {/* AI suggestions for the whole site, from a crawl of the
                     homepage. Rendered ABOVE the Google strip and independent of
                     it: these answer "what should this site target?", the ones
@@ -931,45 +989,6 @@ function AddKeywordsModal({
                   </div>
                 )}
               </div>
-              <div className="field">
-                <label>Search location{!location && " *"}</label>
-                <LocationPicker
-                  value={location}
-                  onChange={(code, loc) => {
-                    locationTouchedRef.current = true
-                    setLocation(code)
-                    setLocationCountry(loc?.countryIso ?? code)
-                  }}
-                  variant="dashboard"
-                  showFlags
-                  placeholder={geoPending ? "Detecting your location…" : "Select a location"}
-                />
-                {/* Only once the lookup has given up — while it's still running
-                    the placeholder already says what's happening, and flashing a
-                    "we couldn't detect it" note at everyone would be a lie. */}
-                {!location && !geoPending && (
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      fontSize: 12,
-                      color: "var(--text-mute)",
-                    }}
-                  >
-                    We couldn&rsquo;t detect your location — choose the country or city
-                    whose results you want to track.
-                  </p>
-                )}
-              </div>
-              <div className="field">
-                <label>Device</label>
-                <div className="pill-toggle" style={{ width: "fit-content" }}>
-                  {(["desktop", "mobile"] as const).map((d) => (
-                    <button key={d} type="button" onClick={() => setDevice(d)} className={device === d ? "active" : ""}>
-                      {d.charAt(0).toUpperCase() + d.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
             {/* Outside .modal-b on purpose.
                 .modal-b scrolls (the modal is capped at 100dvh - 80px) and this
@@ -1002,8 +1021,7 @@ function AddKeywordsModal({
               <button
                 type="submit"
                 className="btn primary"
-                disabled={loading || selectedEngines.length === 0 || !location}
-                title={!location ? "Pick a search location first" : undefined}
+                disabled={loading || selectedEngines.length === 0}
               >
                 {loading ? "Adding…" : "Add keywords"}
               </button>

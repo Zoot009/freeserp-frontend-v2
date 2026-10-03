@@ -326,8 +326,8 @@ export function VolatilityNote({ checkUrl, compact = false }: { checkUrl?: strin
           <div className="tiny muted">
             {/* {" "}, not a literal space: SWC drops a space after {expr} when the
                 text that follows holds an entity (&apos;) in multi-line JSX. */}
-            {text}{" "}A gap in the chart means the target wasn&apos;t found within the depth checked for that run — not
-            that it vanished from YouTube.
+            {text}{" "}A drop to the bottom of the chart means the target wasn&apos;t found within the depth checked for
+            that run — not that it vanished from YouTube.
           </div>
           {checkUrl && (
             <a

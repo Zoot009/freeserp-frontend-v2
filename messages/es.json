@@ -1462,7 +1462,8 @@
       "heading": "Top {count} resultados para «{keyword}»",
       "openInGoogle": "Abrir en Google",
       "empty": "No se devolvieron resultados orgánicos.",
-      "you": "Tú"
+      "you": "Tú",
+      "pageDivider": "Página {page} de Google"
     },
     "aiOverview": {
       "label": "Resumen de IA",
@@ -1526,7 +1527,43 @@
       "featuresBody": "AI Overview, fragmento destacado, «Otras preguntas», packs de vídeo y locales."
     },
     "newCheck": "Nueva comprobación",
-    "checkedWhen": "comprobado {when}"
+    "checkedWhen": "comprobado {when}",
+    "hero": {
+      "verdicts": {
+        "top1": {
+          "title": "Primera posición",
+          "body": "Eres el primer resultado orgánico que ve la gente."
+        },
+        "top3": {
+          "title": "Top 3",
+          "body": "Estás entre los resultados que reciben la mayoría de los clics."
+        },
+        "page1": {
+          "title": "En la página 1",
+          "body": "Visible en la primera página, pero por debajo del top 3."
+        },
+        "page2": {
+          "title": "En la página 2",
+          "body": "Cerca, pero pocos usuarios llegan a la página 2."
+        },
+        "deeper": {
+          "title": "Página {page}",
+          "body": "La mayoría de los usuarios nunca llegan tan lejos."
+        },
+        "notFound": {
+          "title": "Fuera del top 100",
+          "body": "{domain} no aparece en los primeros 100 resultados."
+        }
+      },
+      "noDomain": {
+        "title": "¿En qué posición estás?",
+        "body": "Añade tu dominio para ver tu posición en esta búsqueda.",
+        "cta": "Comprobar con mi dominio"
+      },
+      "rankingPage": "Página posicionada",
+      "jumpToResult": "Ver en resultados",
+      "rerun": "Repetir comprobación"
+    }
   },
   "notifications": {
     "title": "Notificaciones",

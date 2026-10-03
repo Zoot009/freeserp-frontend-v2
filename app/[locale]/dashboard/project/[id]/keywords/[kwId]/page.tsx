@@ -21,6 +21,7 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
+import { SerpDebugPanel } from "@/components/dashboard/serp-debug-panel"
 import { Favicon } from "@/components/favicon"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
 
@@ -1316,6 +1317,8 @@ export default function KeywordDetailPage() {
           )}
         </div>
       )}
+
+      {process.env.NODE_ENV !== "production" && <SerpDebugPanel projectId={projectId} keywordId={kwId} />}
     </div>
   )
 }
