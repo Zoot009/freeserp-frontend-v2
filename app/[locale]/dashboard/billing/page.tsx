@@ -23,13 +23,6 @@ interface Usage {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
-  // One-time, non-recurring free-plan trial state. Always null/false for paid.
-  freeCheckTrialEndsAt: string | null
-  freeCheckTrialExhausted: boolean
-  // One-time trial extension. Optional so a backend predating the feature simply
-  // hides the offer rather than rendering a broken CTA.
-  freeTrialExtensionAvailable?: boolean
-  freeTrialExtended?: boolean
   aiAnalyses?: AiAnalyses
 }
 
@@ -104,8 +97,6 @@ function formatDate(iso: string): string {
  */
 function WorkerBillingPage() {
   const t = useTranslations("dashBilling")
-  const searchParams = useSearchParams()
-  const trialExpiredRedirect = searchParams.get("trial") === "expired"
   const upgradePerks = t.raw("upgradePerks") as string[]
   const [usage, setUsage] = useState<Usage | null>(null)
   const [sub, setSub] = useState<Subscription | null>(null)
@@ -159,7 +150,6 @@ function WorkerBillingPage() {
   }, [load])
 
   const isPaid = usage?.plan === "paid"
-  const trialEndsAtDate = !isPaid && usage?.freeCheckTrialEndsAt ? new Date(usage.freeCheckTrialEndsAt) : null
   const perWorker = usage?.perWorkerDailyChecks ?? SEARCHES_PER_WORKER
   const currentWorkers = usage?.workerCount ?? 1
   // Current billing interval, derived from the subscription's plan slug (there is
@@ -298,24 +288,6 @@ function WorkerBillingPage() {
     }
   }
 
-  // Redeem the one-time trial extension. Reloads rather than patching state
-  // locally so the meter, the trial-ends date and the banner all re-derive from
-  // the server's summary — the same numbers the backend will enforce.
-  const extendTrial = async () => {
-    setBusy(true)
-    try {
-      const { extension } = await api.post<{ extension: { days: number; checks: number } }>(
-        "/api/billing/trial/extend",
-      )
-      toast.success(t("extendSuccess", { days: extension.days, checks: extension.checks }))
-      await load()
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("extendError"))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const Header = (
     <div className="page-h">
       <div>
@@ -363,46 +335,6 @@ function WorkerBillingPage() {
       {/* Header */}
       {Header}
 
-      {/* Yields to the offer banner below, which carries the same message plus the
-          CTAs — otherwise an expiry redirect stacks two near-identical warnings. */}
-      {trialExpiredRedirect && !isPaid && !usage?.freeCheckTrialExhausted && (
-        <div
-          className="tiny"
-          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)" }}
-        >
-          {t("trialExpiredBanner")}
-        </div>
-      )}
-
-      {/* Post-expiry offer: extend once, or go straight to a plan. Persistent
-          counterpart to the QuotaUpsellModal, which only fires on a live 402. */}
-      {!isPaid && usage?.freeCheckTrialExhausted && (
-        <div
-          className="tiny"
-          style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--r-sm)", background: "var(--warn-soft)", color: "var(--warn)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
-        >
-          <span style={{ flex: 1, minWidth: 220 }}>
-            {usage.freeTrialExtensionAvailable
-              ? t("trialExtendOffer")
-              : usage.freeTrialExtended
-                ? t("trialExtendUsed")
-                : t("trialExpiredBanner")}
-          </span>
-          {usage.freeTrialExtensionAvailable && (
-            <button className="btn" onClick={extendTrial} disabled={busy} style={{ flexShrink: 0 }}>
-              {busy ? t("saving") : t("trialExtendCta")}
-            </button>
-          )}
-          <button
-            className="btn primary"
-            onClick={() => workerCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
-            style={{ flexShrink: 0 }}
-          >
-            {t("trialSubscribeCta")}
-          </button>
-        </div>
-      )}
-
       {isPastDue && (
         <div
           className="tiny"
@@ -445,7 +377,7 @@ function WorkerBillingPage() {
           tip={isPaid ? (currentInterval === "year" ? t("tileBilledAnnually") : t("tileBilledMonthly")) : t("tileFreeForever")}
         />
         <StatTile
-          lbl={isPaid ? t("tileChecksToday") : t("tileChecksTrial")}
+          lbl={t("tileChecksToday")}
           val={`${usage?.dailyUsed ?? 0} / ${usage?.dailyLimit ?? 0}`}
           tip={t("tileRemaining", { count: usage?.dailyRemaining ?? 0 })}
         />
@@ -464,11 +396,7 @@ function WorkerBillingPage() {
           {!isPaid ? (
             <div>
               <p className="tiny muted" style={{ marginBottom: 14 }}>
-                {usage?.freeCheckTrialExhausted
-                  ? t("freePlanLineExhausted")
-                  : trialEndsAtDate
-                    ? t("freePlanLine", { count: usage?.dailyLimit ?? 10, date: formatDate(trialEndsAtDate.toISOString()) })
-                    : t("freePlanLineExhausted")}
+                {t("freePlanLine", { count: usage?.dailyLimit ?? 10 })}
               </p>
               <ul style={{ listStyle: "none", margin: "0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {upgradePerks.map(perk => (
@@ -662,15 +590,13 @@ function WorkerBillingPage() {
         </div>
       </div>
 
-      {/* Usage — shown for every plan; free users get a one-time trial allowance. */}
+      {/* Usage — a daily allowance on every plan, reset at UTC midnight. */}
       {usage && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-h">
             <div>
-              <div className="t">{isPaid ? t("dailyUsage") : t("trialUsage")}</div>
-              <div className="tiny muted">
-                {isPaid ? t("resetsMidnight") : trialEndsAtDate ? t("trialEndsOn", { date: formatDate(trialEndsAtDate.toISOString()) }) : t("trialEnded")}
-              </div>
+              <div className="t">{t("dailyUsage")}</div>
+              <div className="tiny muted">{t("resetsMidnight")}</div>
             </div>
             <div className="tiny muted tabular">{t("usageChecks", { used: usage.dailyUsed, limit: usage.dailyLimit })}</div>
           </div>
@@ -678,10 +604,6 @@ function WorkerBillingPage() {
           <div className="tiny muted" style={{ marginTop: 8 }}>
             {isPaid ? (
               t("usageLinePaid", { remaining: usage.dailyRemaining, limit: usage.dailyLimit })
-            ) : usage.freeCheckTrialExhausted ? (
-              t.rich("usageLineFreeExhausted", {
-                link: (chunks) => <Link href="/pricing?clicked-buy-button" style={{ color: "var(--brand)", fontWeight: 600 }}>{chunks}</Link>,
-              })
             ) : (
               t.rich("usageLineFree", {
                 remaining: usage.dailyRemaining,

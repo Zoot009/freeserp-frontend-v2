@@ -153,9 +153,7 @@
   gap: 6px;
   position: sticky;
   top: 0;
-  /* --tb-h is published by TrialCountdownBanner while it occupies the row above
-     this one; without it the sticky 100vh would run past the fold. */
-  height: calc(100vh - var(--tb-h, 0px));
+  height: 100vh;
 }
 .fs-app .sb-brand {
   display: flex; align-items: center; gap: 9px;
@@ -292,125 +290,6 @@
   100% { background-position: -200% 0; }
 }
 
-/* === TRIAL COUNTDOWN BANNER ===
-   A brand-blue gradient promo bar. It sits on the light dashboard surface and is
-   meant to read as an ad, not as page chrome, so its colours are hard-coded
-   rather than themed — it looks the same in light and dark mode. */
-.fs-app .tb-bar {
-  /* Own row across the full app grid — above the sidebar, not beside it. */
-  grid-column: 1 / -1;
-  position: relative;
-  display: flex; align-items: center; gap: 20px;
-  /* Full-bleed: flush to the top and both edges, so it reads as a page-level
-     promo bar rather than a card floating on the app background. */
-  margin: 0;
-  /* Extra bottom room for the countdown labels, which now hang below the tiles. */
-  padding: 16px 22px 20px;
-  border-radius: 0;
-  /* Two layers: a soft highlight bleeding in from the top-right so the bar has
-     some depth, over a diagonal ramp from deep navy up to the brand blue. */
-  background:
-    radial-gradient(120% 200% at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 58%),
-    linear-gradient(100deg, #0C1742 0%, #14276F 34%, #1B36A6 68%, #2246D6 100%);
-  color: #fff;
-}
-/* Escalate to a warm tone on the last day, so the brand treatment doesn't lose
-   its meaning by crying wolf for a week. */
-.fs-app .tb-bar.urgent {
-  background:
-    radial-gradient(120% 200% at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 58%),
-    linear-gradient(100deg, #3D1503 0%, #7A2C05 34%, #B2470A 68%, #D9600D 100%);
-}
-
-.fs-app .tb-lead {
-  flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 3px;
-  padding-right: 22px;
-  border-right: 1px solid rgba(255, 255, 255, 0.22);
-}
-.fs-app .tb-eyebrow {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  opacity: 0.8;
-}
-.fs-app .tb-lead-word { font-size: 17px; font-weight: 700; line-height: 1.1; }
-
-.fs-app .tb-message {
-  flex: 1; min-width: 0; margin: 0;
-  font-size: 15px; font-weight: 400; line-height: 1.4;
-  color: rgba(255, 255, 255, 0.95);
-}
-.fs-app .tb-hl { font-weight: 700; color: #fff; }
-
-.fs-app .tb-countdown { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
-.fs-app .tb-unit { position: relative; display: flex; }
-.fs-app .tb-tile {
-  min-width: 46px; height: 42px; padding: 0 8px;
-  border-radius: 10px;
-  display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  font-size: 18px; font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-/* Labels hang BELOW the tiles without adding height (position:absolute), so the
-   tiles line up on the same centre-line as the message, the colons and the
-   button — instead of the whole tile+label stack being centred, which pushed the
-   numbers up. */
-.fs-app .tb-unit-label {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  opacity: 0.75; white-space: nowrap;
-}
-.fs-app .tb-sep { font-size: 16px; font-weight: 700; opacity: 0.5; }
-
-.fs-app .tb-cta { flex-shrink: 0; }
-.fs-app .tb-cta button {
-  border: none; cursor: pointer;
-  padding: 12px 24px; border-radius: 9px;
-  font-size: 14px; font-weight: 700;
-  background: #fff; color: var(--brand);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.fs-app .tb-bar.urgent .tb-cta button { color: #D2570A; }
-.fs-app .tb-cta button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-}
-
-.fs-app .tb-close {
-  flex-shrink: 0;
-  width: 34px; height: 34px;
-  background: rgba(255, 255, 255, 0.18); border: none; color: #fff;
-  border-radius: 8px;
-  display: grid; place-items: center; cursor: pointer;
-  transition: background .15s ease;
-}
-.fs-app .tb-close:hover, .fs-app .tb-close:focus-visible { background: rgba(255, 255, 255, 0.32); }
-
-/* The message is the first thing to get its own row; the lead keeps the icon
-   beside it so the two read as one unit. */
-@media (max-width: 1140px) {
-  .fs-app .tb-bar { flex-wrap: wrap; gap: 14px 16px; }
-  .fs-app .tb-lead { order: 2; padding-right: 0; border-right: none; }
-  .fs-app .tb-message { order: 4; flex-basis: 100%; }
-  .fs-app .tb-countdown { order: 5; }
-  .fs-app .tb-cta { order: 6; margin-left: auto; }
-  .fs-app .tb-close { order: 7; }
-}
-@media (max-width: 560px) {
-  /* Own full-width row here, so reserve space for the absolutely-positioned
-     labels that hang below the tiles — otherwise they'd touch the CTA row. */
-  .fs-app .tb-countdown { flex-basis: 100%; justify-content: space-between; gap: 4px; margin-bottom: 14px; }
-  .fs-app .tb-tile { min-width: 0; width: 100%; }
-  .fs-app .tb-unit { flex: 1; }
-  /* CTA takes the rest of the row with the dismiss square parked beside it. */
-  .fs-app .tb-cta { flex: 1; margin-left: 0; }
-  .fs-app .tb-cta button { width: 100%; }
-}
 .fs-app .sb-user {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 8px;

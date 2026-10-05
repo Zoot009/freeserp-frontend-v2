@@ -1,8 +1,8 @@
 "use client"
 
 // Global paywall upsell. Listens for the `billing:quota` window event fired by
-// lib/api.ts whenever ANY request returns 402 (daily quota, free trial, project
-// or keyword limits) and offers the upgrade path right at the moment of intent:
+// lib/api.ts whenever ANY request returns 402 (daily quota, project or keyword
+// limits) and offers the upgrade path right at the moment of intent:
 //  - credits accounts → how many credits short, and a link to buy them. Never a
 //    worker tier: the backend refuses that PATCH for them (not_worker_plan).
 //  - free users → subscribe CTA to /pricing
@@ -32,10 +32,6 @@ interface Usage {
   dailyUsed: number
   dailyLimit: number
   dailyRemaining: number
-  // One-time trial extension: available only to a free user whose trial is over
-  // and who has never redeemed. Absent on backends predating the feature.
-  freeTrialExtensionAvailable?: boolean
-  freeTrialExtended?: boolean
 }
 
 interface WorkersPreview {
@@ -60,10 +56,8 @@ const KNOWN_CODES = new Set([
   // today", which is neither true nor actionable.
   "plan_upgrade_required",
   "daily_quota_exhausted",
-  "free_trial_exhausted",
-  // Free user out of checks for TODAY only — the trial is still running and
-  // resets at midnight UTC. Deliberately not a paywall: there is nothing to
-  // buy yet and no extension to redeem, so this renders as an FYI.
+  // Free user out of checks for TODAY only — they reset at midnight UTC.
+  // Deliberately not a paywall, so this renders as an FYI.
   "free_daily_quota_exhausted",
   "project_limit_reached",
   // Sticky daily project-creation cap (delete→recreate can't farm past it).
@@ -113,7 +107,6 @@ export function QuotaUpsellModal() {
   const [checksPerDay, setChecksPerDay] = useState(15)
   const [preview, setPreview] = useState<WorkersPreview | null>(null)
   const [busy, setBusy] = useState(false)
-  const [extension, setExtension] = useState<{ days: number; checks: number } | null>(null)
   const lastShownAt = useRef(0)
 
   const close = useCallback(() => {
@@ -134,7 +127,6 @@ export function QuotaUpsellModal() {
       setUsage(null)
       setNextTier(null)
       setPreview(null)
-      setExtension(null)
       setOpen(true)
 
       // Out of credits has nothing to read here: the 402 carries the numbers.
@@ -144,10 +136,6 @@ export function QuotaUpsellModal() {
         const [u, cfg] = await Promise.all([api.get<Usage>("/api/usage"), fetchBillingConfig()])
         setUsage(u)
         setChecksPerDay(cfg.perWorkerDailyChecks)
-        setExtension({
-          days: cfg.freeTrial?.extensionDays ?? 2,
-          checks: cfg.freeTrial?.extensionChecks ?? 20,
-        })
         // A worker tier is only ever offered to a KNOWN worker subscriber. A
         // paid credits account is refused that PATCH (not_worker_plan), so it
         // never fetches the preview — let alone sees the button.
@@ -191,24 +179,6 @@ export function QuotaUpsellModal() {
     }
   }, [nextTier, checksPerDay, close, t])
 
-  const redeemExtension = useCallback(async () => {
-    setBusy(true)
-    try {
-      await api.post("/api/billing/trial/extend", {})
-      window.dispatchEvent(new Event("usage:refresh"))
-      toast.success(
-        t("extendSuccess", { days: extension?.days ?? 2, checks: extension?.checks ?? 20 }),
-      )
-      close()
-    } catch (err) {
-      // A 409 here means it was already redeemed (another tab, or a double click
-      // that raced the server's compare-and-set) — the message says so.
-      toast.error(err instanceof ApiError ? err.message : t("extendFailed"))
-    } finally {
-      setBusy(false)
-    }
-  }, [extension, close, t])
-
   if (!open) return null
 
   const isWorker = credits?.mode === "worker"
@@ -219,29 +189,21 @@ export function QuotaUpsellModal() {
   // A free account's daily runs of a paid tool. Comes back tomorrow, so the
   // dismiss button leads, like the free-daily FYI below.
   const isFreeDailyLimit = code === "free_daily_limit"
-  // Out of checks for today, trial still alive. Informational — no upgrade push,
-  // no extension offer (there's nothing to extend yet), and the dismiss button
-  // becomes the primary action.
+  // Out of checks for today. Informational — no upgrade push, and the dismiss
+  // button becomes the primary action.
   const isFreeDaily = code === "free_daily_quota_exhausted"
-  // Only offered on the trial-exhausted paywall: the other 402 codes (project /
-  // keyword / AI caps) aren't time-limited, so more trial days wouldn't lift them.
-  const canExtend =
-    !isPaid && code === "free_trial_exhausted" && usage?.freeTrialExtensionAvailable === true
   const refillDate = credits?.nextRefillAt
     ? new Date(credits.nextRefillAt).toLocaleDateString(undefined, { day: "numeric", month: "long" })
     : null
-  const bodyKey =
-    code === "free_trial_exhausted"
-      ? "bodyFreeTrial"
-      : isFreeDaily
-        ? "bodyFreeDailyQuota"
-        : code === "project_limit_reached" || code === "project_create_limit_reached"
-          ? "bodyProjectLimit"
-          : code === "keyword_limit_reached" || code === "keyword_add_limit_reached"
-            ? "bodyKeywordLimit"
-            : code === "ai_analysis_limit_reached"
-              ? "bodyAiLimit"
-              : "bodyDailyQuota"
+  const bodyKey = isFreeDaily
+    ? "bodyFreeDailyQuota"
+    : code === "project_limit_reached" || code === "project_create_limit_reached"
+      ? "bodyProjectLimit"
+      : code === "keyword_limit_reached" || code === "keyword_add_limit_reached"
+        ? "bodyKeywordLimit"
+        : code === "ai_analysis_limit_reached"
+          ? "bodyAiLimit"
+          : "bodyDailyQuota"
 
   return (
     <div className="fs-app">
@@ -332,24 +294,6 @@ export function QuotaUpsellModal() {
             {isPaid && nextTier === null && usage && (
               <div className="tiny muted" style={{ lineHeight: 1.6 }}>{t("maxTier")}</div>
             )}
-
-            {canExtend && (
-              <div
-                className="card tight"
-                style={{ display: "flex", flexDirection: "column", gap: 6 }}
-              >
-                <div className="b" style={{ fontSize: 14 }}>
-                  {t("extendTitle", { days: extension?.days ?? 2 })}
-                </div>
-                <div className="tiny muted" style={{ lineHeight: 1.55 }}>
-                  {t("extendBody", {
-                    days: extension?.days ?? 2,
-                    checks: extension?.checks ?? 20,
-                  })}
-                </div>
-                <div className="tiny muted" style={{ opacity: 0.8 }}>{t("extendOnce")}</div>
-              </div>
-            )}
           </div>
 
           <div className="modal-f">
@@ -374,8 +318,8 @@ export function QuotaUpsellModal() {
             ) : isFreeDaily ? (
               // Dismissal is the primary action — the user has done nothing wrong
               // and their checks come back tomorrow. Plans stay one click away as
-              // a secondary, so this is still an upsell surface without pretending
-              // the trial is over.
+              // a secondary, so this is still an upsell surface without being a
+              // paywall.
               <>
                 <Link href="/pricing?clicked-buy-button" onClick={close}>
                   <button type="button" className="btn">{t("seePlans")}</button>
@@ -389,11 +333,6 @@ export function QuotaUpsellModal() {
                 <button type="button" className="btn" onClick={close} disabled={busy}>
                   {t("notNow")}
                 </button>
-                {canExtend && (
-                  <button type="button" className="btn" onClick={redeemExtension} disabled={busy}>
-                    {busy ? t("working") : t("extendCta", { days: extension?.days ?? 2 })}
-                  </button>
-                )}
                 {isPaid && nextTier !== null ? (
                   <button type="button" className="btn primary" onClick={confirmUpgrade} disabled={busy}>
                     {busy ? t("working") : t("upgradeCta", { checks: nextTier * checksPerDay })}
