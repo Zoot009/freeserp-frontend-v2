@@ -620,6 +620,7 @@
     "guest": "Invitado",
     "accountMenu": "Menú de cuenta",
     "signOut": "Cerrar sesión",
+    "deleteAccount": "Eliminar cuenta",
     "keywordAnalysis": "Análisis de palabras clave",
     "competitorAnalysis": "Análisis de la competencia",
     "googleTracker": "Rastreador de posiciones de Google",
@@ -680,6 +681,18 @@
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "working": "Procesando…"
+  },
+  "deleteAccount": {
+    "eyebrow": "ELIMINAR CUENTA",
+    "title": "¿Eliminar tu cuenta?",
+    "body": "Se cerrará tu sesión en todos los dispositivos y no podrás volver a iniciar sesión en esta cuenta. Cualquier suscripción activa se cancela al final del periodo de facturación actual.",
+    "typeEmail": "Escribe <strong>{email}</strong> para confirmar.",
+    "cancel": "Cancelar",
+    "confirm": "Eliminar cuenta",
+    "working": "Eliminando…",
+    "close": "Cerrar",
+    "deleted": "Tu cuenta ha sido eliminada.",
+    "error": "No se pudo eliminar tu cuenta. Inténtalo de nuevo."
   },
   "dashAlerts": {
     "title": "Alertas",

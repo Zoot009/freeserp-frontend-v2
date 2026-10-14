@@ -620,6 +620,7 @@
     "guest": "Guest",
     "accountMenu": "Account menu",
     "signOut": "Sign out",
+    "deleteAccount": "Delete account",
     "keywordAnalysis": "Keyword Score Checker",
     "competitorAnalysis": "Competitor Analysis",
     "googleTracker": "Google Rank Tracker",
@@ -680,6 +681,18 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "working": "Working…"
+  },
+  "deleteAccount": {
+    "eyebrow": "DELETE ACCOUNT",
+    "title": "Delete your account?",
+    "body": "You'll be signed out on every device and won't be able to sign in to this account again. Any active subscription is cancelled at the end of the current billing period.",
+    "typeEmail": "Type <strong>{email}</strong> to confirm.",
+    "cancel": "Cancel",
+    "confirm": "Delete account",
+    "working": "Deleting…",
+    "close": "Close",
+    "deleted": "Your account has been deleted.",
+    "error": "Couldn't delete your account. Please try again."
   },
   "dashAlerts": {
     "title": "Alerts",

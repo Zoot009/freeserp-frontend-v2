@@ -25,6 +25,18 @@
     "confirm": "Bevestigen",
     "working": "Bezig…"
   },
+  "deleteAccount": {
+    "eyebrow": "ACCOUNT VERWIJDEREN",
+    "title": "Je account verwijderen?",
+    "body": "Je wordt op alle apparaten uitgelogd en kunt niet meer inloggen op dit account. Een actief abonnement wordt opgezegd aan het einde van de huidige factuurperiode.",
+    "typeEmail": "Typ <strong>{email}</strong> om te bevestigen.",
+    "cancel": "Annuleren",
+    "confirm": "Account verwijderen",
+    "working": "Bezig met verwijderen…",
+    "close": "Sluiten",
+    "deleted": "Je account is verwijderd.",
+    "error": "Je account kon niet worden verwijderd. Probeer het opnieuw."
+  },
   "cookieConsent": {
     "ariaLabel": "Cookietoestemming",
     "title": "Cookiebeleid",
@@ -157,6 +169,7 @@
     "guest": "Gast",
     "accountMenu": "Accountmenu",
     "signOut": "Uitloggen",
+    "deleteAccount": "Account verwijderen",
     "keywordAnalysis": "Keyword Score Checker",
     "competitorAnalysis": "Concurrentieanalyse",
     "trialDaysLeft": "nog {days, plural, one {# dag} other {# dagen}} in de proefperiode",

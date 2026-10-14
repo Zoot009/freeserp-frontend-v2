@@ -620,6 +620,7 @@
     "guest": "Invité",
     "accountMenu": "Menu du compte",
     "signOut": "Se déconnecter",
+    "deleteAccount": "Supprimer le compte",
     "keywordAnalysis": "Analyse de mots-clés",
     "competitorAnalysis": "Analyse de la concurrence",
     "googleTracker": "Suivi de position Google",
@@ -680,6 +681,18 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "working": "Traitement…"
+  },
+  "deleteAccount": {
+    "eyebrow": "SUPPRIMER LE COMPTE",
+    "title": "Supprimer votre compte ?",
+    "body": "Vous serez déconnecté sur tous vos appareils et ne pourrez plus vous connecter à ce compte. Tout abonnement actif est résilié à la fin de la période de facturation en cours.",
+    "typeEmail": "Saisissez <strong>{email}</strong> pour confirmer.",
+    "cancel": "Annuler",
+    "confirm": "Supprimer le compte",
+    "working": "Suppression…",
+    "close": "Fermer",
+    "deleted": "Votre compte a été supprimé.",
+    "error": "Impossible de supprimer votre compte. Veuillez réessayer."
   },
   "dashAlerts": {
     "title": "Alertes",

@@ -620,6 +620,7 @@
     "guest": "Gast",
     "accountMenu": "Kontomenü",
     "signOut": "Abmelden",
+    "deleteAccount": "Konto löschen",
     "keywordAnalysis": "Keyword-Analyse",
     "competitorAnalysis": "Konkurrenzanalyse",
     "googleTracker": "Google Rank Tracker",
@@ -680,6 +681,18 @@
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
     "working": "Wird ausgeführt…"
+  },
+  "deleteAccount": {
+    "eyebrow": "KONTO LÖSCHEN",
+    "title": "Konto löschen?",
+    "body": "Du wirst auf allen Geräten abgemeldet und kannst dich nicht mehr bei diesem Konto anmelden. Ein aktives Abonnement wird zum Ende des aktuellen Abrechnungszeitraums gekündigt.",
+    "typeEmail": "Gib zur Bestätigung <strong>{email}</strong> ein.",
+    "cancel": "Abbrechen",
+    "confirm": "Konto löschen",
+    "working": "Wird gelöscht…",
+    "close": "Schließen",
+    "deleted": "Dein Konto wurde gelöscht.",
+    "error": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es erneut."
   },
   "dashAlerts": {
     "title": "Benachrichtigungen",

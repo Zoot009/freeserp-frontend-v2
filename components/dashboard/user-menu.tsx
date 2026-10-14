@@ -1,12 +1,13 @@
 "use client"
 
 import type * as React from "react"
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useLocale, useTranslations } from "next-intl"
-import { Languages, LogOut, Settings, Sparkles, Star } from "lucide-react"
+import { Languages, LogOut, Settings, Sparkles, Star, Trash2 } from "lucide-react"
 import { usePathname, useRouter } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import { useAuth } from "@/lib/auth"
+import { DeleteAccountDialog } from "@/components/dashboard/delete-account-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,7 @@ export function UserMenu({
   const tCommon = useTranslations("common")
   const tLang = useTranslations("languages")
   const [isPending, startTransition] = useTransition()
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const isPaid = user?.plan === "paid"
   const name = user?.name || user?.email?.split("@")[0] || t("guest")
@@ -73,6 +75,7 @@ export function UserMenu({
     // `overflow-x: clip`), so the whole layout jumped sideways on every open.
     // A menu doesn't need the background inert the way a dialog does; click
     // outside and Escape still close it.
+    <>
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       {/* max-h-none / overflow-visible: the base content caps itself at Radix's
@@ -180,7 +183,13 @@ export function UserMenu({
           <LogOut />
           {t("signOut")}
         </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+          <Trash2 />
+          {t("deleteAccount")}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <DeleteAccountDialog open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+    </>
   )
 }
