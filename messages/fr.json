@@ -685,7 +685,16 @@
   "deleteAccount": {
     "eyebrow": "SUPPRIMER LE COMPTE",
     "title": "Supprimer votre compte ?",
-    "body": "Vous serez déconnecté sur tous vos appareils et ne pourrez plus vous connecter à ce compte. Tout abonnement actif est résilié à la fin de la période de facturation en cours.",
+    "lostTitle": "Toutes vos données seront perdues, notamment :",
+    "lostItems": [
+      "Tous les projets et mots-clés suivis",
+      "Tout votre historique de positions, vos rapports et vos alertes",
+      "Toutes les analyses de concurrents, analyses de mots-clés et audits de site",
+      "Votre suivi AI Prompt Tracker, YouTube et Maps",
+      "Les crédits restants",
+      "Votre forfait : tout abonnement actif est résilié et ne sera pas renouvelé"
+    ],
+    "body": "Vous serez déconnecté sur tous vos appareils et ne pourrez récupérer ni ce compte ni ses données. Cette action est irréversible.",
     "typeEmail": "Saisissez <strong>{email}</strong> pour confirmer.",
     "cancel": "Annuler",
     "confirm": "Supprimer le compte",

@@ -685,7 +685,16 @@
   "deleteAccount": {
     "eyebrow": "ELIMINAR CUENTA",
     "title": "¿Eliminar tu cuenta?",
-    "body": "Se cerrará tu sesión en todos los dispositivos y no podrás volver a iniciar sesión en esta cuenta. Cualquier suscripción activa se cancela al final del periodo de facturación actual.",
+    "lostTitle": "Perderás todos tus datos, incluidos:",
+    "lostItems": [
+      "Todos los proyectos y palabras clave rastreadas",
+      "Todo tu historial de posiciones, informes y alertas",
+      "Todos los análisis de competencia, análisis de palabras clave y auditorías del sitio",
+      "Tu seguimiento en AI Prompt Tracker, YouTube y Maps",
+      "Los créditos restantes",
+      "Tu plan: cualquier suscripción activa se cancela y no se renovará"
+    ],
+    "body": "Se cerrará tu sesión en todos los dispositivos y no podrás recuperar esta cuenta ni sus datos. Esta acción no se puede deshacer.",
     "typeEmail": "Escribe <strong>{email}</strong> para confirmar.",
     "cancel": "Cancelar",
     "confirm": "Eliminar cuenta",

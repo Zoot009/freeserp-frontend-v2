@@ -36,6 +36,9 @@ export function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose:
   if (!open || !user) return null
 
   const matches = typed.trim().toLowerCase() === user.email.toLowerCase()
+  // Guarded like project-limit-modal: t.raw is undefined for a locale missing the key.
+  const lostRaw = t.raw("lostItems")
+  const lostItems = Array.isArray(lostRaw) ? (lostRaw as string[]) : []
 
   const confirm = async () => {
     setBusy(true)
@@ -67,6 +70,15 @@ export function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose:
         </div>
 
         <div className="modal-b">
+          <div
+            role="alert"
+            style={{ marginBottom: 12, padding: "10px 12px", borderRadius: "var(--r-sm)", background: "var(--neg-soft)", color: "var(--neg)" }}
+          >
+            <div className="tiny" style={{ fontWeight: 600, marginBottom: 6 }}>{t("lostTitle")}</div>
+            <ul className="tiny" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, listStyle: "disc" }}>
+              {lostItems.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
           <p className="tiny muted" style={{ margin: "0 0 12px", lineHeight: 1.55 }}>{t("body")}</p>
           <label htmlFor="delete-account-email" className="tiny" style={{ display: "block", marginBottom: 6 }}>
             {t.rich("typeEmail", {

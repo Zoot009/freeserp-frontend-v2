@@ -685,7 +685,16 @@
   "deleteAccount": {
     "eyebrow": "KONTO LÖSCHEN",
     "title": "Konto löschen?",
-    "body": "Du wirst auf allen Geräten abgemeldet und kannst dich nicht mehr bei diesem Konto anmelden. Ein aktives Abonnement wird zum Ende des aktuellen Abrechnungszeitraums gekündigt.",
+    "lostTitle": "Alle deine Daten gehen verloren, darunter:",
+    "lostItems": [
+      "Alle Projekte und getrackten Keywords",
+      "Dein gesamter Ranking-Verlauf, Berichte und Benachrichtigungen",
+      "Alle Wettbewerbsanalysen, Keyword-Analysen und Website-Audits",
+      "Dein AI-Prompt-Tracker-, YouTube- und Maps-Tracking",
+      "Alle verbleibenden Credits",
+      "Dein Tarif: Ein aktives Abonnement wird gekündigt und nicht verlängert"
+    ],
+    "body": "Du wirst auf allen Geräten abgemeldet und kannst weder dieses Konto noch seine Daten wiederherstellen. Dies kann nicht rückgängig gemacht werden.",
     "typeEmail": "Gib zur Bestätigung <strong>{email}</strong> ein.",
     "cancel": "Abbrechen",
     "confirm": "Konto löschen",
