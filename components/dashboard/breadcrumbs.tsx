@@ -79,6 +79,7 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   // without the header.
   "/dashboard/site-audit": [WORKSPACE, { key: "websiteAudit" }],
   "/dashboard/page-audit": [WORKSPACE, { key: "pageAudit" }],
+  "/dashboard/aeo-audit": [WORKSPACE, { key: "aeoAudit" }],
 }
 
 // Path segments that are database ids (uuid/cuid/ObjectId…) shouldn't become

@@ -26,6 +26,7 @@ import {
   Tag,
   Users,
   Link2,
+  Bot,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import {
@@ -112,6 +113,7 @@ const AUDIT: Item[] = [
   { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store, soon: true },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
   { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
+  { key: "aeoAudit", url: "/dashboard/aeo-audit", icon: Bot },
 ]
 
 const TOOLS: Item[] = [
