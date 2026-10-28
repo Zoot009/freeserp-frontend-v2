@@ -6,18 +6,20 @@ import Link from "next/link"
 import { ArrowLeft, ExternalLink, Printer, RefreshCw, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { isRunning, type GbpAuditResponse } from "@/lib/gbp-audit"
+import { CACHE_DAYS, isRunning, type GbpAuditResponse } from "@/lib/gbp-audit"
 import { Button } from "@/components/ui/button"
 import {
   ActionPlan,
   Alarm,
+  heroButton,
+  heroButtonPrimary,
   Notice,
   OtherAudits,
   Overview,
   ProfileAudit,
   Progress,
   Rankings,
-  ReportHeader,
+  ReportHero,
   Reviews,
   Tabs,
   TABS,
@@ -35,7 +37,7 @@ export default function GoogleMapsAuditReportPage() {
 
   const [data, setData] = useState<GbpAuditResponse | null>(null)
   const [error, setError] = useState("")
-  const [rerunning, setRerunning] = useState(false)
+  const [starting, setStarting] = useState<"refresh" | "keyword" | null>(null)
   const [tab, setTab] = useState<TabKey>("overview")
   // One poll chain at a time: leaving the page or switching audit bumps the generation, so an in-flight poll drops its
   // result instead of rescheduling.
@@ -51,7 +53,6 @@ export default function GoogleMapsAuditReportPage() {
   const openTab = (t: TabKey) => {
     setTab(t)
     window.history.replaceState(null, "", `#${t}`)
-    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   useEffect(() => {
@@ -89,17 +90,23 @@ export default function GoogleMapsAuditReportPage() {
     }
   }
 
-  const rerun = async () => {
-    if (!data || rerunning) return
-    setRerunning(true)
+  /**
+   * A new audit of the same listing. `fresh` skips the cache and asks Google
+   * again (charged); a new keyword reuses the cached listing and reviews and
+   * only fetches that keyword's grid.
+   */
+  const start = async (kind: "refresh" | "keyword", keyword?: string) => {
+    if (!data || starting) return
+    setStarting(kind)
     try {
       // The listing's own Maps link when we have it: it names the business exactly, whatever was pasted the first time.
       const url = data.facts?.business.mapsUrl ?? data.audit.input
-      const { audit } = await api.post<{ audit: { id: string } }>("/api/gbp-audit", { url })
-      router.push(`/dashboard/google-maps-audit/${audit.id}`)
+      const body = kind === "refresh" ? { url, keyword: data.audit.keyword, fresh: true } : { url, keyword }
+      const { audit } = await api.post<{ audit: { id: string } }>("/api/gbp-audit", body)
+      router.push(`/dashboard/google-maps-audit/${audit.id}${kind === "keyword" ? "#rankings" : ""}`)
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : "Couldn't start the audit. Please try again.")
-      setRerunning(false)
+      setStarting(null)
     }
   }
 
@@ -146,33 +153,37 @@ export default function GoogleMapsAuditReportPage() {
   return (
     <div className="page">
       {back}
-      <ReportHeader
+      <ReportHero
         data={data}
         actions={
           !running && (
-            <div className="flex flex-wrap gap-2 print:hidden">
+            <>
               {mapsUrl && (
-                <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-3 w-3" /> Google Maps
-                  </a>
-                </Button>
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={heroButton}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Open on Google Maps
+                </a>
               )}
               {report && (
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => window.print()}>
-                  <Printer className="h-3 w-3" /> Print / PDF
-                </Button>
+                <button type="button" className={heroButton} onClick={() => window.print()}>
+                  <Printer className="h-3.5 w-3.5" /> Print / PDF
+                </button>
               )}
-              <Button size="sm" className="gap-1.5 bg-brand text-xs text-white hover:bg-brand-deep" onClick={rerun} disabled={rerunning}>
-                <RefreshCw className={`h-3 w-3 ${rerunning ? "animate-spin" : ""}`} />
-                {rerunning ? "Starting…" : "Run again"}
-              </Button>
-            </div>
+              <button
+                type="button"
+                className={`${heroButtonPrimary} ml-auto`}
+                onClick={() => start("refresh")}
+                disabled={starting !== null}
+                title={`Skips the ${CACHE_DAYS}-day cache and fetches everything from Google again (charged)`}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${starting === "refresh" ? "animate-spin" : ""}`} />
+                {starting === "refresh" ? "Starting…" : "Refresh from Google"}
+              </button>
+            </>
           )
         }
       />
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {error && <Alarm>{error}</Alarm>}
         {running && <Progress step={audit.progress?.step ?? null} />}
         {audit.status === "FAILED" && audit.error && <Alarm>{audit.error}</Alarm>}
@@ -184,12 +195,12 @@ export default function GoogleMapsAuditReportPage() {
             {tab === "overview" && <Overview data={data} report={report} onOpen={openTab} />}
             {tab === "profile" && <ProfileAudit facts={facts} report={report} />}
             {tab === "reviews" && <Reviews facts={facts} report={report} />}
-            {tab === "rankings" && <Rankings facts={facts} report={report} />}
+            {tab === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={(k) => start("keyword", k)} checking={starting === "keyword"} />}
             {tab === "plan" && <ActionPlan report={report} />}
-            <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Data from Google via DataForSEO, fetched {new Date(facts.fetchedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.
-              The profile score is FreeSERP&apos;s weighted checklist, not a score Google publishes; rankings are one search from the
-              business&apos;s own location.
+            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Data from Google via DataForSEO, fetched {new Date(facts.fetchedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+              {audit.fromCache ? ` and reused from the ${CACHE_DAYS}-day cache — this audit wasn't charged` : ""}. The profile score is FreeSERP&apos;s weighted
+              checklist, not a score Google publishes.
             </p>
             <OtherAudits audits={data.others} />
           </>

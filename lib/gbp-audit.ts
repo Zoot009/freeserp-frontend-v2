@@ -72,11 +72,50 @@ export type CompetitorRow = {
   isTarget: boolean
 }
 
+export type GridPoint = {
+  row: number
+  col: number
+  lat: number
+  lng: number
+  isCenter: boolean
+  status: "SUCCEEDED" | "FAILED"
+  rank: number | null
+  top: { rank: number; title: string; rating: number | null; reviewCount: number | null; isTarget: boolean }[]
+}
+
+export type Grid = {
+  keyword: string
+  gridSize: number
+  radiusMeters: number
+  spacingMeters: number
+  zoom: number
+  depth: number
+  centerLat: number
+  centerLng: number
+  points: GridPoint[]
+  metrics: {
+    arp: number | null
+    atrp: number | null
+    solv: number | null
+    visibility: number | null
+    foundPoints: number
+    scoredPoints: number
+    top3Points: number
+  }
+}
+
+export type SourceInfo = { fetchedAt: string; cached: boolean }
+
 export type Facts = {
   target: { cid: string | null; placeId: string | null; name: string | null; lat: number | null; lng: number | null; input: string }
   business: Business
   reviews: { requested: number; items: Review[] } | null
   visibility: { keyword: string; lat: number; lng: number; depth: number; rank: number | null; results: CompetitorRow[] } | null
+  /** Absent on audits from before the grid existed. */
+  grid?: Grid | null
+  keyword?: string | null
+  /** Absent on audits from before the cache existed. */
+  sources?: { profile: SourceInfo; reviews: SourceInfo | null; grid: SourceInfo | null }
   notes: string[]
   costUsd: number
   fetchedAt: string
@@ -129,6 +168,8 @@ export type GbpAuditResponse = {
     id: string
     input: string
     name: string | null
+    keyword: string | null
+    fromCache: boolean
     status: AuditStatus
     error: string | null
     progress: { step: AuditStep } | null
@@ -147,6 +188,8 @@ export type AuditListItem = {
   id: string
   input: string
   name: string | null
+  keyword: string | null
+  fromCache: boolean
   status: AuditStatus
   error: string | null
   score: number | null
@@ -158,7 +201,7 @@ export const isRunning = (s: AuditStatus) => s === "QUEUED" || s === "RUNNING"
 export const STEPS: { key: AuditStep; label: string; hint: string }[] = [
   { key: "profile", label: "Reading the profile", hint: "Categories, contact details, hours, photos and attributes" },
   { key: "reviews", label: "Reading the newest reviews", hint: "Ratings, recency and owner replies" },
-  { key: "rankings", label: "Checking local rankings", hint: "Where the business ranks for its category, and who outranks it" },
+  { key: "rankings", label: "Running the 3×3 rank grid", hint: "The keyword searched from nine points around the business, and who outranks it" },
 ]
 
 export const STATUS_LABEL: Record<CheckStatus, string> = {
@@ -196,4 +239,34 @@ export function hostOf(url: string | null): string | null {
   } catch {
     return url
   }
+}
+
+/** Days a fetched profile is reused before Google is asked again (backend GBP_AUDIT_CACHE_DAYS). */
+export const CACHE_DAYS = 10
+
+/** The score's verdict, by grade band. */
+export function verdict(score: number): string {
+  if (score >= 90) return "Excellent"
+  if (score >= 80) return "Strong"
+  if (score >= 70) return "Good, with gaps"
+  if (score >= 60) return "Needs work"
+  return "Needs urgent work"
+}
+
+/** Where a grid point sits relative to the business, in words. */
+export function pointPlace(row: number, col: number, size: number): string {
+  const mid = (size - 1) / 2
+  if (row === mid && col === mid) return "At the business"
+  const ns = row < mid ? "North" : row > mid ? "South" : ""
+  const ew = col < mid ? "west" : col > mid ? "east" : ""
+  if (!ns) return ew.charAt(0).toUpperCase() + ew.slice(1)
+  return ew ? `${ns}-${ew}` : ns
+}
+
+/** "2 days ago" style age of a fetch. */
+export function age(iso: string, now = Date.now()): string {
+  const days = Math.floor((now - Date.parse(iso)) / 86_400_000)
+  if (days <= 0) return "today"
+  if (days === 1) return "yesterday"
+  return `${days} days ago`
 }
