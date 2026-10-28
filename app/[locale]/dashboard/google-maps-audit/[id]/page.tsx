@@ -37,7 +37,7 @@ export default function GoogleMapsAuditReportPage() {
 
   const [data, setData] = useState<GbpAuditResponse | null>(null)
   const [error, setError] = useState("")
-  const [starting, setStarting] = useState<"refresh" | "keyword" | null>(null)
+  const [starting, setStarting] = useState<"rerun" | "keyword" | null>(null)
   const [tab, setTab] = useState<TabKey>("overview")
   // One poll chain at a time: leaving the page or switching audit bumps the generation, so an in-flight poll drops its
   // result instead of rescheduling.
@@ -91,17 +91,18 @@ export default function GoogleMapsAuditReportPage() {
   }
 
   /**
-   * A new audit of the same listing. `fresh` skips the cache and asks Google
-   * again (charged); a new keyword reuses the cached listing and reviews and
-   * only fetches that keyword's grid.
+   * A new audit of the same listing. Inside the cache window "Run again" is
+   * served from the cache (free) — the business isn't fetched from Google again
+   * for CACHE_DAYS, whoever asks. A new keyword reuses the cached listing and
+   * reviews and only runs that keyword's grid.
    */
-  const start = async (kind: "refresh" | "keyword", keyword?: string) => {
+  const start = async (kind: "rerun" | "keyword", keyword?: string) => {
     if (!data || starting) return
     setStarting(kind)
     try {
       // The listing's own Maps link when we have it: it names the business exactly, whatever was pasted the first time.
       const url = data.facts?.business.mapsUrl ?? data.audit.input
-      const body = kind === "refresh" ? { url, keyword: data.audit.keyword, fresh: true } : { url, keyword }
+      const body = { url, keyword: kind === "rerun" ? data.audit.keyword : keyword }
       const { audit } = await api.post<{ audit: { id: string } }>("/api/gbp-audit", body)
       router.push(`/dashboard/google-maps-audit/${audit.id}${kind === "keyword" ? "#rankings" : ""}`)
     } catch (err) {
@@ -171,12 +172,12 @@ export default function GoogleMapsAuditReportPage() {
               <button
                 type="button"
                 className={`${heroButtonPrimary} ml-auto`}
-                onClick={() => start("refresh")}
+                onClick={() => start("rerun")}
                 disabled={starting !== null}
-                title={`Skips the ${CACHE_DAYS}-day cache and fetches everything from Google again (charged)`}
+                title={`Google data is kept for ${CACHE_DAYS} days: running again inside that window reuses it for free`}
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${starting === "refresh" ? "animate-spin" : ""}`} />
-                {starting === "refresh" ? "Starting…" : "Refresh from Google"}
+                <RefreshCw className={`h-3.5 w-3.5 ${starting === "rerun" ? "animate-spin" : ""}`} />
+                {starting === "rerun" ? "Starting…" : "Run again"}
               </button>
             </>
           )

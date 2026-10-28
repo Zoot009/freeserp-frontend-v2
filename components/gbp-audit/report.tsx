@@ -180,7 +180,7 @@ function Bar({ value, className = "h-2" }: { value: number; className?: string }
   )
 }
 
-/** A score out of 100 as a ring. `onDark` draws it for the navy hero. */
+/** A score out of 100 as a ring. `onDark` draws it all in white for the navy hero. */
 export function ScoreRing({ score, size = 112, stroke = 10, onDark = false }: { score: number; size?: number; stroke?: number; onDark?: boolean }) {
   const [filled, setFilled] = useState(false)
   useEffect(() => {
@@ -203,7 +203,7 @@ export function ScoreRing({ score, size = 112, stroke = 10, onDark = false }: { 
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c - ((filled ? score : 0) / 100) * c}
-          className={`transition-all duration-1000 ease-out ${gradeStroke(grade)}`}
+          className={`transition-all duration-1000 ease-out ${onDark ? "stroke-white" : gradeStroke(grade)}`}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
@@ -372,8 +372,8 @@ export function ReportHero({ data, actions }: { data: GbpAuditResponse; actions?
         </div>
 
         {report?.score != null && (
-          <div className="flex items-center gap-4 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10 backdrop-blur-sm lg:flex-col lg:gap-2 lg:px-6">
-            <ScoreRing score={report.score} size={116} onDark />
+          <div className="flex items-center gap-3 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10 backdrop-blur-sm lg:flex-col lg:gap-1.5 lg:px-5">
+            <ScoreRing score={report.score} size={80} stroke={7} onDark />
             <div className="lg:text-center">
               <div className="text-[11px] uppercase tracking-wider text-white/60">Profile health</div>
               <div className="text-sm font-semibold">{verdict(report.score)}</div>
