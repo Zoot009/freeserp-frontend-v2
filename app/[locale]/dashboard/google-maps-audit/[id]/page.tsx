@@ -199,8 +199,8 @@ export default function GoogleMapsAuditReportPage() {
             {tab === "plan" && <ActionPlan report={report} />}
             <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
               Data from Google via DataForSEO, fetched {new Date(facts.fetchedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
-              {audit.fromCache ? ` and reused from the ${CACHE_DAYS}-day cache — this audit wasn't charged` : ""}. The profile score is FreeSERP&apos;s weighted
-              checklist, not a score Google publishes.
+              {audit.fromCache ? `; the profile and reviews were reused from the ${CACHE_DAYS}-day cache and not charged` : ""}. The rank grid is a Google Maps
+              Tracker scan. The profile score is FreeSERP&apos;s weighted checklist, not a score Google publishes.
             </p>
             <OtherAudits audits={data.others} />
           </>

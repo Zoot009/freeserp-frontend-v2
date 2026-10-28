@@ -755,13 +755,20 @@ function GridPanel({ facts, grid, onOpen, large = false }: { facts: Facts; grid:
           <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">“{grid.keyword}”</span>
         </span>
       }
-      hint={`${grid.gridSize}×${grid.gridSize} grid · the keyword searched on Google Maps from ${grid.points.length} points around the business`}
+      hint={`${grid.gridSize}×${grid.gridSize} Google Maps Tracker scan · the keyword searched from ${grid.points.length} points around the business`}
       right={
-        onOpen && (
-          <button type="button" className="text-xs font-semibold text-brand hover:underline print:hidden" onClick={onOpen}>
-            Open grid →
-          </button>
-        )
+        <div className="flex items-center gap-3 print:hidden">
+          {grid.scanId && (
+            <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
+              <MapPin className="h-3.5 w-3.5" /> Open in Maps Tracker
+            </Link>
+          )}
+          {onOpen && (
+            <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={onOpen}>
+              Open grid →
+            </button>
+          )}
+        </div>
       }
     >
       <div className={`grid gap-5 p-5 ${large ? "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"}`}>
@@ -1258,7 +1265,7 @@ function KeywordForm({ current, onSubmit, busy }: { current: string; onSubmit: (
         <div className="min-w-0">
           <div className="text-sm font-semibold">Check another keyword</div>
           <div className="text-xs text-muted-foreground">
-            Now showing “{current}”. The profile and reviews are reused from the {CACHE_DAYS}-day cache, so only the new grid is charged.
+            Now showing “{current}”. The profile and reviews are reused from the {CACHE_DAYS}-day cache; the new keyword runs as a 3×3 Maps Tracker scan (3 credits).
           </div>
         </div>
       </div>

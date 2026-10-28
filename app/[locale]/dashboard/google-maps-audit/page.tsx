@@ -143,7 +143,11 @@ export default function GoogleMapsAuditPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/70">
-            <CreditCost action={CREDIT_ACTION_KEYS.gbpAudit} className="[&_*]:!text-white/70" />
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              Profile <CreditCost action={CREDIT_ACTION_KEYS.gbpAudit} showBalance={false} className="[&_*]:!text-white/70" />
+              <span className="text-white/40">+</span>
+              3×3 Maps Tracker grid <CreditCost action={CREDIT_ACTION_KEYS.mapsScanPoint} units={9} className="[&_*]:!text-white/70" />
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5 text-sky-300" /> Re-auditing the same business within {CACHE_DAYS} days is free — the data is cached
             </span>

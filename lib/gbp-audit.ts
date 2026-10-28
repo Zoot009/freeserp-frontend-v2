@@ -102,6 +102,8 @@ export type Grid = {
     scoredPoints: number
     top3Points: number
   }
+  /** The Google Maps Tracker scan this grid is, when it ran as one. */
+  scanId?: string | null
 }
 
 export type SourceInfo = { fetchedAt: string; cached: boolean }
