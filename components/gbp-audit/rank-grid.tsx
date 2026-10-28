@@ -2,9 +2,10 @@
 
 // The audit's 3×3 rank grid, drawn the way Google Maps Tracker draws a scan:
 // the same rank colours and bands, and — when a Maps key is configured — the
-// tracker's own map with its own pins. Without a key it falls back to a
-// heatmap tile grid, so the report never shows an empty box.
-import { useState } from "react"
+// tracker's own map with its own pins. Without a key, or when Google refuses the
+// one there is, it falls back to a heatmap tile grid, so the report never shows
+// an empty box or loses the page to a map error.
+import { Component, useEffect, useState, type ReactNode } from "react"
 import { APIProvider } from "@vis.gl/react-google-maps"
 import { Grid3x3, Map as MapIcon, MapPin } from "lucide-react"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
@@ -14,6 +15,26 @@ import { pointPlace, type Grid, type GridPoint } from "@/lib/gbp-audit"
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
 const keyOf = (p: { row: number; col: number }) => `${p.row}:${p.col}`
+
+/**
+ * Contains a map that throws. A rejected key (InvalidKeyMapError, a referrer
+ * restriction, billing off) makes the Maps library throw while the markers
+ * mount, and uncaught that took the whole report down to the dashboard's error
+ * page. Here it only swaps the map for the tile grid.
+ */
+class MapBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    console.warn("[gbp-audit] map failed, showing the tile grid instead:", error)
+    this.props.onError()
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
+}
 
 /** The view switch, the grid itself (map or tiles), and the band legend. */
 export function RankGridView({
@@ -30,32 +51,57 @@ export function RankGridView({
   size?: "md" | "lg"
 }) {
   const [view, setView] = useState<"map" | "tiles">(GOOGLE_MAPS_API_KEY ? "map" : "tiles")
+  const [mapFailed, setMapFailed] = useState(false)
   const height = size === "lg" ? 500 : 320
+
+  // Google reports a rejected key through this global rather than by throwing.
+  useEffect(() => {
+    if (!GOOGLE_MAPS_API_KEY) return
+    const w = window as Window & { gm_authFailure?: () => void }
+    const previous = w.gm_authFailure
+    w.gm_authFailure = () => {
+      setMapFailed(true)
+      previous?.()
+    }
+    return () => {
+      w.gm_authFailure = previous
+    }
+  }, [])
+
+  const tiles = <TileGrid grid={grid} selected={selected} onSelect={onSelect} />
+  const canMap = !!GOOGLE_MAPS_API_KEY && !mapFailed
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-xl border border-border" style={{ height }}>
-        {view === "map" && GOOGLE_MAPS_API_KEY ? (
-          <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-            <ScanMap
-              centerLat={grid.centerLat}
-              centerLng={grid.centerLng}
-              gridSize={grid.gridSize}
-              radiusMeters={grid.radiusMeters}
-              pins={grid.points.map<MapPinData>((p) => ({ row: p.row, col: p.col, lat: p.lat, lng: p.lng, status: p.status, rank: p.rank, pointId: keyOf(p) }))}
-              unit={unit}
-              showCenterMarker={false}
-              interactive={false}
-              zoomable
-              openPointId={selected}
-              onPinClick={(pin) => pin.pointId && onSelect(pin.pointId)}
-              framePadding={0.12}
-              pinBoost={size === "lg" ? 1.5 : 1.25}
-            />
-          </APIProvider>
+        {view === "map" && canMap ? (
+          <MapBoundary fallback={tiles} onError={() => setMapFailed(true)}>
+            <APIProvider apiKey={GOOGLE_MAPS_API_KEY!}>
+              <ScanMap
+                centerLat={grid.centerLat}
+                centerLng={grid.centerLng}
+                gridSize={grid.gridSize}
+                radiusMeters={grid.radiusMeters}
+                pins={grid.points.map<MapPinData>((p) => ({ row: p.row, col: p.col, lat: p.lat, lng: p.lng, status: p.status, rank: p.rank, pointId: keyOf(p) }))}
+                unit={unit}
+                showCenterMarker={false}
+                interactive={false}
+                zoomable
+                openPointId={selected}
+                onPinClick={(pin) => pin.pointId && onSelect(pin.pointId)}
+                framePadding={0.12}
+                pinBoost={size === "lg" ? 1.5 : 1.25}
+              />
+            </APIProvider>
+          </MapBoundary>
         ) : (
-          <TileGrid grid={grid} selected={selected} onSelect={onSelect} />
+          tiles
         )}
-        {GOOGLE_MAPS_API_KEY && (
+        {mapFailed && (
+          <div className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-card/95 px-2.5 py-1.5 text-[11px] text-muted-foreground shadow-sm ring-1 ring-border print:hidden">
+            Google Maps didn&apos;t load (check the Maps API key), so the grid is shown without the map.
+          </div>
+        )}
+        {canMap && (
           <div className="absolute left-2 top-2 z-10 flex rounded-lg border border-border bg-card/95 p-0.5 text-[11px] font-medium shadow-sm backdrop-blur print:hidden">
             {(
               [
