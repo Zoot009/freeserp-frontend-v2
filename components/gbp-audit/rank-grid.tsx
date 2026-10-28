@@ -1,16 +1,16 @@
 "use client"
 
-// The audit's 3×3 rank grid, drawn the way Google Maps Tracker draws a scan:
-// the same rank colours and bands, and — when a Maps key is configured — the
-// tracker's own map with its own pins. Without a key, or when Google refuses the
-// one there is, it falls back to a heatmap tile grid, so the report never shows
-// an empty box or loses the page to a map error.
+// The audit's 3×3 rank grid on the real Google map, drawn exactly as Google
+// Maps Tracker draws a scan: its ScanMap, its pins, its rank colours and bands.
+// The grid IS a Maps Tracker scan, so it is shown the tracker's way. Without a
+// key, or when Google refuses the one there is, the box says so instead of
+// letting a map error take the whole report down.
 import { Component, useEffect, useState, type ReactNode } from "react"
 import { APIProvider } from "@vis.gl/react-google-maps"
-import { Grid3x3, Map as MapIcon, MapPin } from "lucide-react"
+import { MapPinOff } from "lucide-react"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
 import { formatDistance, RANK_BANDS, rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
-import { pointPlace, type Grid, type GridPoint } from "@/lib/gbp-audit"
+import { pointPlace, type Grid } from "@/lib/gbp-audit"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -20,7 +20,7 @@ const keyOf = (p: { row: number; col: number }) => `${p.row}:${p.col}`
  * Contains a map that throws. A rejected key (InvalidKeyMapError, a referrer
  * restriction, billing off) makes the Maps library throw while the markers
  * mount, and uncaught that took the whole report down to the dashboard's error
- * page. Here it only swaps the map for the tile grid.
+ * page. Here it only replaces the map with a note.
  */
 class MapBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
@@ -28,7 +28,7 @@ class MapBoundary extends Component<{ fallback: ReactNode; onError: () => void; 
     return { failed: true }
   }
   componentDidCatch(error: unknown) {
-    console.warn("[gbp-audit] map failed, showing the tile grid instead:", error)
+    console.warn("[gbp-audit] map failed to load:", error)
     this.props.onError()
   }
   render() {
@@ -36,7 +36,7 @@ class MapBoundary extends Component<{ fallback: ReactNode; onError: () => void; 
   }
 }
 
-/** The view switch, the grid itself (map or tiles), and the band legend. */
+/** The map box, and the band legend under it. */
 export function RankGridView({
   grid,
   unit,
@@ -50,9 +50,9 @@ export function RankGridView({
   onSelect: (key: string) => void
   size?: "md" | "lg"
 }) {
-  const [view, setView] = useState<"map" | "tiles">(GOOGLE_MAPS_API_KEY ? "map" : "tiles")
   const [mapFailed, setMapFailed] = useState(false)
-  const height = size === "lg" ? 500 : 320
+  // Compact: the map sits beside the grid's numbers, it shouldn't dwarf them.
+  const height = size === "lg" ? 380 : 260
 
   // Google reports a rejected key through this global rather than by throwing.
   useEffect(() => {
@@ -68,14 +68,23 @@ export function RankGridView({
     }
   }, [])
 
-  const tiles = <TileGrid grid={grid} selected={selected} onSelect={onSelect} />
-  const canMap = !!GOOGLE_MAPS_API_KEY && !mapFailed
+  const unavailable = (
+    <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/40 px-6 text-center">
+      <MapPinOff className="h-6 w-6 text-muted-foreground" />
+      <p className="text-xs text-muted-foreground">
+        {GOOGLE_MAPS_API_KEY
+          ? "Google Maps didn’t load — check the Maps API key."
+          : "Map unavailable — NEXT_PUBLIC_GOOGLE_MAPS_API_KEY isn’t configured."}
+      </p>
+    </div>
+  )
+
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-xl border border-border" style={{ height }}>
-        {view === "map" && canMap ? (
-          <MapBoundary fallback={tiles} onError={() => setMapFailed(true)}>
-            <APIProvider apiKey={GOOGLE_MAPS_API_KEY!}>
+        {GOOGLE_MAPS_API_KEY && !mapFailed ? (
+          <MapBoundary fallback={unavailable} onError={() => setMapFailed(true)}>
+            <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
               <ScanMap
                 centerLat={grid.centerLat}
                 centerLng={grid.centerLng}
@@ -88,37 +97,13 @@ export function RankGridView({
                 zoomable
                 openPointId={selected}
                 onPinClick={(pin) => pin.pointId && onSelect(pin.pointId)}
-                framePadding={0.12}
-                pinBoost={size === "lg" ? 1.5 : 1.25}
+                framePadding={0.14}
+                pinBoost={size === "lg" ? 1.3 : 1.1}
               />
             </APIProvider>
           </MapBoundary>
         ) : (
-          tiles
-        )}
-        {mapFailed && (
-          <div className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-card/95 px-2.5 py-1.5 text-[11px] text-muted-foreground shadow-sm ring-1 ring-border print:hidden">
-            Google Maps didn&apos;t load (check the Maps API key), so the grid is shown without the map.
-          </div>
-        )}
-        {canMap && (
-          <div className="absolute left-2 top-2 z-10 flex rounded-lg border border-border bg-card/95 p-0.5 text-[11px] font-medium shadow-sm backdrop-blur print:hidden">
-            {(
-              [
-                ["map", MapIcon, "Map"],
-                ["tiles", Grid3x3, "Grid"],
-              ] as const
-            ).map(([v, Icon, label]) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={`flex items-center gap-1 rounded-md px-2 py-1 transition-colors ${view === v ? "bg-brand text-white" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <Icon className="h-3 w-3" /> {label}
-              </button>
-            ))}
-          </div>
+          unavailable
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -133,55 +118,6 @@ export function RankGridView({
         <span className="text-[11px] text-muted-foreground">{formatDistance(grid.spacingMeters, unit)} between points</span>
       </div>
     </div>
-  )
-}
-
-/** The fallback: nine rank tiles on a stylised street grid, the business at the centre. */
-function TileGrid({ grid, selected, onSelect }: { grid: Grid; selected: string | null; onSelect: (key: string) => void }) {
-  const ordered = [...grid.points].sort((a, b) => a.row - b.row || a.col - b.col)
-  return (
-    <div className="relative h-full w-full bg-[#e9eef5] dark:bg-[#111823]">
-      {/* Streets and blocks, so the tiles read as places rather than a table. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-70 dark:opacity-[0.12]"
-        style={{
-          backgroundImage:
-            "linear-gradient(0deg, transparent 47%, rgba(255,255,255,.95) 47%, rgba(255,255,255,.95) 53%, transparent 53%), linear-gradient(90deg, transparent 47%, rgba(255,255,255,.95) 47%, rgba(255,255,255,.95) 53%, transparent 53%)",
-          backgroundSize: "64px 64px",
-        }}
-      />
-      {/* One main road across the blocks, under the tiles. */}
-      <div aria-hidden className="absolute -left-10 top-[58%] h-5 w-[140%] -rotate-[8deg] bg-white/90 dark:bg-white/10" />
-
-      <div className="absolute inset-0 m-auto grid aspect-square h-[82%] max-w-full grid-cols-3 grid-rows-3 place-items-center">
-        {ordered.map((p) => (
-          <Tile key={keyOf(p)} point={p} size={grid.gridSize} selected={selected === keyOf(p)} onClick={() => onSelect(keyOf(p))} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Tile({ point, size, selected, onClick }: { point: GridPoint; size: number; selected: boolean; onClick: () => void }) {
-  const c = rankColor(point.rank, point.status)
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${pointPlace(point.row, point.col, size)}: ${point.status === "FAILED" ? "search failed" : point.rank ? `#${point.rank}` : "not in the top 20"}`}
-      className={`relative flex h-14 w-14 items-center justify-center rounded-full text-base font-bold shadow-[0_6px_16px_-6px_rgba(15,23,42,.55)] ring-4 transition-transform hover:scale-110 sm:h-16 sm:w-16 sm:text-lg ${
-        selected ? "scale-110 ring-brand" : "ring-white/90 dark:ring-white/20"
-      }`}
-      style={{ background: c.bg, color: c.fg }}
-    >
-      {c.label}
-      {point.isCenter && (
-        <span className="absolute -top-3 left-1/2 flex h-6 w-6 -translate-x-1/2 items-center justify-center rounded-full bg-[#0f2440] text-white shadow ring-2 ring-white">
-          <MapPin className="h-3.5 w-3.5" />
-        </span>
-      )}
-    </button>
   )
 }
 

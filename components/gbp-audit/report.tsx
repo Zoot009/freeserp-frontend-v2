@@ -785,7 +785,7 @@ function GridPanel({ facts, grid, onOpen, large = false }: { facts: Facts; grid:
           </div>
           <PointDetail grid={grid} pointKey={selected} />
           {large && <PointList grid={grid} selected={selected} onSelect={setSelected} />}
-          {!large && <p className="text-[11px] text-muted-foreground">Click a point to see who ranks there.</p>}
+          {!large && <p className="text-[11px] text-muted-foreground">Click a pin on the map to see who ranks there.</p>}
         </div>
       </div>
     </Panel>
