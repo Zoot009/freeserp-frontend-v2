@@ -110,7 +110,10 @@ const AUDIT: Item[] = [
   // URL, title and history.
   { key: "websiteAudit", url: "/dashboard/site-audit", icon: ScanSearch },
   { key: "pageAudit", url: "/dashboard/page-audit", icon: FileSearch },
-  { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store, soon: true },
+  // A Business Profile audit from a pasted Maps link: the listing, its reviews,
+  // and where it ranks for its own category. Sits with the audits, not under
+  // Maps, because what it produces is a report, like the two above it.
+  { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
   { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
   { key: "aeoAudit", url: "/dashboard/aeo-audit", icon: Bot },
