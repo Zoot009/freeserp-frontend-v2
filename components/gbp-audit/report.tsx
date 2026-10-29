@@ -1,52 +1,26 @@
 "use client"
 
-// The Google Business Profile audit report, section by section. The navy hero,
-// tinted KPI tiles and severity-edged rows give it the weight of a report you'd
-// hand to a client; the grade colours and rings are the AEO / Page Audit ones
-// (components/page-audit/audit-ui.tsx), and the rank grid is Maps Tracker's, so
-// it still reads as one product.
+// The Google Business Profile audit report, section by section. It is built
+// from the dashboard's own parts: StatCard for the headline figures, plain
+// bordered panels with an InfoHint in the header, and brand blue for the one
+// primary action. The grade colours are the AEO / Page Audit ones
+// (components/page-audit/audit-ui.tsx) and the rank grid is Maps Tracker's, so
+// it reads as one product.
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import Link from "next/link"
-import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-  BadgeCheck,
-  CalendarClock,
-  Camera,
-  CheckCircle2,
-  CircleDashed,
-  Clock,
-  Database,
-  ExternalLink,
-  Globe,
-  Grid3x3,
-  LayoutDashboard,
-  ListChecks,
-  MapPin,
-  MessageSquareText,
-  Phone,
-  Search,
-  Sparkles,
-  Star,
-  Store,
-  Tag,
-  Target,
-  Trophy,
-  Users,
-  XCircle,
-} from "lucide-react"
+import { AlertCircle, AlertTriangle, BadgeCheck, CheckCircle2, CircleDashed, Globe, MapPin, Phone, Star, XCircle } from "lucide-react"
 import { gradeStroke, sectionScoreToGrade } from "@/components/page-audit/audit-ui"
 import { rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
 import { PointDetail, RankGridView, gridPointKey } from "@/components/gbp-audit/rank-grid"
+import { StatCard } from "@/components/dashboard/stat-card"
+import { Hint, InfoHint } from "@/components/dashboard/widget"
+import { EngineMark } from "@/components/dashboard/engine-marks"
 import {
   CACHE_DAYS,
   DAY_LABEL,
   PRIORITY_LABEL,
   STATUS_LABEL,
   STEPS,
-  age,
   fmtDay,
   hostOf,
   initials,
@@ -54,7 +28,6 @@ import {
   verdict,
   type AuditStep,
   type Business,
-  type CategoryKey,
   type Check,
   type CheckStatus,
   type CompetitorRow,
@@ -74,79 +47,54 @@ const scoreText = (score: number) => {
   const g = sectionScoreToGrade(score)
   return g === "A" ? "text-green-600 dark:text-green-400" : g === "B" ? "text-lime-600 dark:text-lime-400" : g === "C" ? "text-yellow-600 dark:text-yellow-400" : g === "D" ? "text-orange-500" : "text-red-500"
 }
+/** Fill colour for a 0–100 score, on the same bands. */
+const scoreFill = (score: number) => gradeStroke(sectionScoreToGrade(score)).replaceAll("stroke-", "bg-")
 
-type Tone = { tile: string; bar: string }
-const TONES = {
-  blue: { tile: "bg-blue-500/10 text-blue-600 dark:text-blue-400", bar: "bg-blue-500" },
-  amber: { tile: "bg-amber-500/10 text-amber-600 dark:text-amber-400", bar: "bg-amber-400" },
-  green: { tile: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
-  rose: { tile: "bg-rose-500/10 text-rose-600 dark:text-rose-400", bar: "bg-rose-500" },
-  violet: { tile: "bg-violet-500/10 text-violet-600 dark:text-violet-400", bar: "bg-violet-500" },
-  cyan: { tile: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", bar: "bg-cyan-500" },
-} satisfies Record<string, Tone>
-
-const CATEGORY_STYLE: Record<CategoryKey, { icon: typeof Star; tone: Tone }> = {
-  profile: { icon: Store, tone: TONES.blue },
-  reviews: { icon: Star, tone: TONES.amber },
-  content: { icon: Camera, tone: TONES.violet },
-  website: { icon: Globe, tone: TONES.cyan },
-  visibility: { icon: Trophy, tone: TONES.green },
-}
-
-const STATUS_STYLE: Record<CheckStatus, { Icon: typeof Star; tone: string; soft: string; edge: string }> = {
-  pass: { Icon: CheckCircle2, tone: "text-emerald-600 dark:text-emerald-400", soft: "bg-emerald-500/10", edge: "border-l-emerald-500" },
-  warn: { Icon: AlertTriangle, tone: "text-amber-600 dark:text-amber-400", soft: "bg-amber-500/10", edge: "border-l-amber-500" },
-  fail: { Icon: XCircle, tone: "text-red-500", soft: "bg-red-500/10", edge: "border-l-red-500" },
-  unknown: { Icon: CircleDashed, tone: "text-muted-foreground", soft: "bg-muted", edge: "border-l-border" },
+const STATUS_STYLE: Record<CheckStatus, { Icon: typeof CheckCircle2; tone: string }> = {
+  pass: { Icon: CheckCircle2, tone: "text-green-600 dark:text-green-400" },
+  warn: { Icon: AlertTriangle, tone: "text-amber-500" },
+  fail: { Icon: XCircle, tone: "text-red-500" },
+  unknown: { Icon: CircleDashed, tone: "text-muted-foreground" },
 }
 
 const PRIORITY_STYLE: Record<Priority, string> = {
-  high: "bg-red-500/10 text-red-600 ring-red-500/25 dark:text-red-400",
-  medium: "bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400",
-  low: "bg-muted text-muted-foreground ring-border",
+  high: "bg-red-500/10 text-red-600 dark:text-red-400",
+  medium: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  low: "bg-muted text-muted-foreground",
 }
-
-const AVATAR_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0d9488", "#4f46e5", "#0891b2", "#65a30d", "#c026d3"]
-const avatarColor = (s: string) => AVATAR_COLORS[[...s].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AVATAR_COLORS.length]!
 
 /** Distance in the business's own units: miles in the US and UK, km elsewhere. */
 export const unitFor = (b: Business): DistanceUnit => (b.countryCode && ["US", "GB", "LR", "MM"].includes(b.countryCode) ? "IMPERIAL" : "METRIC")
 
+const LINK = "text-[13px] font-medium text-brand hover:underline print:hidden"
+
 // ── Building blocks ──────────────────────────────────────────────────────────
 
-/** A report section: a rounded card with a tinted icon, a title, a line of context and an optional right-hand slot. */
+/** A report section: a bordered card with a title, an explanation behind the "i", and a right-hand slot. */
 export function Panel({
-  icon: Icon,
-  tone = TONES.blue,
   title,
   hint,
-  right,
-  children,
+  meta,
+  flush = false,
   className = "",
+  children,
 }: {
-  icon: typeof Star
-  tone?: Tone
   title: ReactNode
   hint?: ReactNode
-  right?: ReactNode
-  children: ReactNode
+  meta?: ReactNode
+  /** Body without padding, for rows and tables that run edge to edge. */
+  flush?: boolean
   className?: string
+  children: ReactNode
 }) {
   return (
-    <section className={`overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,.04)] ${className}`}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone.tile}`}>
-            <Icon className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
-            {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
-          </div>
-        </div>
-        {right}
+    <section className={`flex min-w-0 flex-col rounded-[10px] border border-border bg-card shadow-sm ${className}`}>
+      <header className="flex min-h-[47px] flex-wrap items-center gap-1.5 border-b border-border px-4 py-3">
+        <h2 className="text-[15px] font-semibold leading-tight">{title}</h2>
+        {hint && <InfoHint>{hint}</InfoHint>}
+        {meta && <div className="ml-auto flex items-center gap-4 text-[13px] text-muted-foreground">{meta}</div>}
       </header>
-      {children}
+      <div className={`min-w-0 flex-1 ${flush ? "" : "p-4"}`}>{children}</div>
     </section>
   )
 }
@@ -154,7 +102,7 @@ export function Panel({
 /** Something wrong, said plainly: a failed audit. */
 export function Alarm({ children }: { children: ReactNode }) {
   return (
-    <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-foreground">
+    <p role="alert" className="flex items-start gap-2 rounded-[10px] border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-foreground">
       <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
       <span>{children}</span>
     </p>
@@ -164,24 +112,51 @@ export function Alarm({ children }: { children: ReactNode }) {
 /** A heads-up that isn't a failure of the audit: a step that didn't run. */
 export function Notice({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-foreground">
+    <p className="flex items-start gap-2 rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-foreground">
       <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
       <span>{children}</span>
     </p>
   )
 }
 
-function Bar({ value, className = "h-2" }: { value: number; className?: string }) {
-  const fill = gradeStroke(sectionScoreToGrade(value)).replaceAll("stroke-", "bg-")
+function Bar({ value, fill }: { value: number; fill: string }) {
   return (
-    <span className={`block overflow-hidden rounded-full bg-muted ${className}`} aria-hidden>
+    <span className="block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
       <span className={`block h-full rounded-full transition-all duration-700 ${fill}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
     </span>
   )
 }
 
-/** A score out of 100 as a ring. `onDark` draws it all in white for the navy hero. */
-export function ScoreRing({ score, size = 112, stroke = 10, onDark = false }: { score: number; size?: number; stroke?: number; onDark?: boolean }) {
+/** Label / value rows with hairlines between them. */
+function KeyValues({ rows }: { rows: [ReactNode, ReactNode][] }) {
+  return (
+    <dl className="m-0 divide-y divide-border">
+      {rows.map(([k, v], i) => (
+        <div key={i} className="flex items-baseline justify-between gap-4 py-2 text-[13px] first:pt-0 last:pb-0">
+          <dt className="text-muted-foreground">{k}</dt>
+          <dd className="m-0 text-right font-medium tabular-nums">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/** A score out of 100 as a ring. */
+export function ScoreRing({
+  score,
+  size = 64,
+  stroke = 6,
+  ringClass,
+  showMax = false,
+}: {
+  score: number
+  size?: number
+  stroke?: number
+  /** Overrides the grade colour. */
+  ringClass?: string
+  /** "/100" under the number. */
+  showMax?: boolean
+}) {
   const [filled, setFilled] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setFilled(true), 60)
@@ -189,11 +164,10 @@ export function ScoreRing({ score, size = 112, stroke = 10, onDark = false }: { 
   }, [])
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
-  const grade = sectionScoreToGrade(score)
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Score ${score} out of 100`}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} className={onDark ? "stroke-white/15" : "stroke-muted"} strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} className="stroke-muted" strokeWidth={stroke} fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -203,84 +177,76 @@ export function ScoreRing({ score, size = 112, stroke = 10, onDark = false }: { 
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c - ((filled ? score : 0) / 100) * c}
-          className={`transition-all duration-1000 ease-out ${onDark ? "stroke-white" : gradeStroke(grade)}`}
+          className={`transition-all duration-1000 ease-out ${ringClass ?? gradeStroke(sectionScoreToGrade(score))}`}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className={`font-bold tabular-nums ${onDark ? "text-white" : scoreText(score)}`} style={{ fontSize: Math.round(size * 0.3) }}>
+      <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        <span className="font-semibold tabular-nums" style={{ fontSize: Math.round(size * 0.3) }}>
           {score}
         </span>
-        <span className={`mt-1 text-[11px] ${onDark ? "text-white/60" : "text-muted-foreground"}`}>/100</span>
-      </div>
+        {showMax && <span className="mt-1 text-[10px] font-medium text-muted-foreground">/100</span>}
+      </span>
     </div>
   )
 }
 
-function Stars({ value, className = "h-3.5 w-3.5", muted = "text-muted-foreground/30" }: { value: number; className?: string; muted?: string }) {
+function Stars({ value, size = "h-3.5 w-3.5" }: { value: number; size?: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${value.toFixed(1)} out of 5 stars`}>
+    <span className="inline-flex items-center gap-0.5" role="img" aria-label={`${value.toFixed(1)} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star key={i} className={`${className} ${value >= i - 0.25 ? "fill-amber-400 text-amber-400" : value >= i - 0.75 ? "fill-amber-400/50 text-amber-400" : muted}`} />
+        <Star
+          key={i}
+          aria-hidden
+          className={`${size} ${value >= i - 0.25 ? "fill-amber-400 text-amber-400" : value >= i - 0.75 ? "fill-amber-400/50 text-amber-400" : "fill-muted text-muted-foreground/30"}`}
+        />
       ))}
     </span>
   )
 }
 
-function StatusTile({ status }: { status: CheckStatus }) {
-  const { Icon, tone, soft } = STATUS_STYLE[status]
-  return (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${soft} ${tone}`} title={STATUS_LABEL[status]}>
-      <Icon className="h-4 w-4" />
-    </span>
-  )
-}
-
 function PriorityBadge({ priority }: { priority: Priority }) {
+  return <span className={`shrink-0 whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium ${PRIORITY_STYLE[priority]}`}>{PRIORITY_LABEL[priority]}</span>
+}
+
+function StatusIcon({ status }: { status: CheckStatus }) {
+  const { Icon, tone } = STATUS_STYLE[status]
+  return <Icon className={`mt-0.5 h-[15px] w-[15px] shrink-0 ${tone}`} aria-label={STATUS_LABEL[status]} />
+}
+
+/** One check: what it is, what we found, why it matters and the fix. */
+function CheckRow({ check: c, showPriority = true }: { check: Check; showPriority?: boolean }) {
   return (
-    <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${PRIORITY_STYLE[priority]}`}>
-      {PRIORITY_LABEL[priority]}
-    </span>
+    <div className="flex items-start gap-3 px-4 py-3">
+      <StatusIcon status={c.status} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <b className="text-[13px] font-medium">{c.label}</b>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="max-w-[220px] truncate text-xs text-muted-foreground">{c.value}</span>
+            {showPriority && (c.status === "fail" || c.status === "warn") && <PriorityBadge priority={c.priority} />}
+          </span>
+        </div>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{c.detail}</p>
+        {c.fix && <p className="mt-1 text-[13px] leading-relaxed text-foreground">→ {c.fix}</p>}
+      </div>
+    </div>
   )
 }
 
-function Delta({ from, to }: { from?: number | null; to: number }) {
-  if (from == null || from === to) return null
-  const up = to > from
-  const Icon = up ? ArrowUpRight : ArrowDownRight
-  return (
-    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${up ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500"}`}>
-      <Icon className="h-3 w-3" />
-      {Math.abs(to - from)}
-    </span>
-  )
-}
-
-/** The listing's photo, or a monogram when Google has none (or it fails to load). */
-function BusinessTile({ business, size = 48, className = "" }: { business: Business; size?: number; className?: string }) {
+/** The listing's photo, or its initials when Google has none (or it fails to load). */
+function BusinessTile({ business, size = 56 }: { business: Business; size?: number }) {
   const [broken, setBroken] = useState(false)
   const src = business.logo ?? business.mainImage
   if (src && !broken) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- Google-hosted photo, not ours to optimise
-      <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} className={`shrink-0 rounded-2xl object-cover ${className}`} style={{ width: size, height: size }} />
+      <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="shrink-0 rounded-[10px] object-cover ring-1 ring-border" style={{ width: size, height: size }} />
     )
   }
   return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-2xl font-bold tracking-tight text-white ${className}`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.34), background: avatarColor(business.name) }}
-      aria-hidden
-    >
+    <div className="grid shrink-0 place-items-center rounded-[10px] bg-muted text-lg font-semibold text-muted-foreground" style={{ width: size, height: size }} aria-hidden>
       {initials(business.name)}
     </div>
-  )
-}
-
-function Avatar({ name, size = 28 }: { name: string; size?: number }) {
-  return (
-    <span className="flex shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ width: size, height: size, background: avatarColor(name) }} aria-hidden>
-      {initials(name)}
-    </span>
   )
 }
 
@@ -290,143 +256,153 @@ const ExtLink = ({ href, children, className = "" }: { href: string; children: R
   </a>
 )
 
-// ── Hero and progress ────────────────────────────────────────────────────────
+// ── Header and progress ──────────────────────────────────────────────────────
 
-/** The top of the report: who was audited, the score, and the report's actions, on a navy band. */
-export function ReportHero({ data, actions }: { data: GbpAuditResponse; actions?: ReactNode }) {
+/** The top of the report: who was audited, the score, and how to reach them. */
+export function ReportHero({ data, onOpenPlan }: { data: GbpAuditResponse; /** Opens the Action plan tab. */ onOpenPlan?: () => void }) {
   const { audit, facts, report } = data
   const b = facts?.business
-  const photo = b?.mainImage ?? b?.logo
-  const keyword = facts?.grid?.keyword ?? facts?.visibility?.keyword ?? audit.keyword
-  const cachedFrom = facts?.sources?.profile.cached ? facts.sources.profile.fetchedAt : null
+  // Only a keyword the user typed. Left blank, the audit uses the primary
+  // category, which the line already shows.
+  const customKeyword = audit.keyword
   return (
-    <section className="relative mb-5 overflow-hidden rounded-2xl bg-[#0c1f38] text-white shadow-[0_18px_40px_-24px_rgba(12,31,56,.9)]">
-      {photo && (
-        // eslint-disable-next-line @next/next/no-img-element -- decorative backdrop from Google's CDN
-        <img src={photo} alt="" referrerPolicy="no-referrer" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-md" />
-      )}
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-[#0c1f38]/95 via-[#102b52]/90 to-[#1e40af]/85" />
-      <div aria-hidden className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
-
-      <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
-          {b ? (
-            <BusinessTile business={b} size={84} className="ring-4 ring-white/20" />
-          ) : (
-            <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center rounded-2xl bg-white/10">
-              <Store className="h-8 w-8 text-white/70" />
-            </div>
-          )}
-          <div className="min-w-0 space-y-2.5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-300">Google Business Profile audit</div>
-            <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-[28px]">{b?.name ?? audit.name ?? "Reading the profile…"}</h1>
-            {b && (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                {b.rating !== null && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Stars value={b.rating} className="h-4 w-4" muted="text-white/25" />
-                    <b>{b.rating.toFixed(1)}</b>
-                    <span className="text-white/70">({b.reviewCount?.toLocaleString() ?? 0} reviews)</span>
-                  </span>
-                )}
-                {b.category && <HeroChip icon={Tag}>{b.category}</HeroChip>}
-                {b.isClaimed === true && (
-                  <HeroChip icon={BadgeCheck} className="bg-emerald-400/15 text-emerald-200 ring-emerald-300/30">
-                    Claimed
-                  </HeroChip>
-                )}
-                {b.isClaimed === false && (
-                  <HeroChip icon={AlertTriangle} className="bg-red-400/15 text-red-200 ring-red-300/30">
-                    Unclaimed
-                  </HeroChip>
-                )}
-                {keyword && <HeroChip icon={Search}>Keyword: {keyword}</HeroChip>}
-              </div>
-            )}
-            {b && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-white/75">
-                {b.address && (
-                  <span className="inline-flex items-start gap-1.5">
-                    <MapPin className="mt-px h-3.5 w-3.5 shrink-0 text-sky-300" /> {b.address}
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 text-sky-300" /> {b.phone ?? <span className="text-red-300">No phone number</span>}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5 text-sky-300" />
-                  {b.website ? <ExtLink href={b.website}>{hostOf(b.website)}</ExtLink> : <span className="text-red-300">No website</span>}
-                </span>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/55">
-              <span>Audited {fmtDay(audit.createdAt)}</span>
-              {audit.status === "COMPLETED" && audit.seconds !== null && <span>· finished in {audit.seconds}s</span>}
-              {cachedFrom && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-white/80">
-                  <Database className="h-3 w-3" /> Google data from {age(cachedFrom)} (cached)
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {report?.score != null && (
-          <div className="flex items-center gap-3 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10 backdrop-blur-sm lg:flex-col lg:gap-1.5 lg:px-5">
-            <ScoreRing score={report.score} size={80} stroke={7} onDark />
-            <div className="lg:text-center">
-              <div className="text-[11px] uppercase tracking-wider text-white/60">Profile health</div>
-              <div className="text-sm font-semibold">{verdict(report.score)}</div>
-              {data.previous?.score != null && data.previous.score !== report.score && (
-                <div className="mt-1 text-[11px] text-white/60">
-                  <Delta from={data.previous.score} to={report.score} /> vs {fmtDay(data.previous.createdAt)}
-                </div>
-              )}
-            </div>
+    <section className="flex flex-col gap-4 rounded-[10px] border border-border bg-card p-4 shadow-sm md:flex-row md:items-center md:gap-6">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        {b ? (
+          <BusinessTile business={b} size={112} />
+        ) : (
+          <div className="grid h-28 w-28 shrink-0 place-items-center rounded-[10px] bg-muted text-muted-foreground" aria-hidden>
+            <MapPin className="h-7 w-7" />
           </div>
         )}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="text-lg font-semibold leading-snug tracking-[-0.01em]">{b?.name ?? audit.name ?? "Reading the profile…"}</h1>
+            {b?.isClaimed === true && (
+              <Hint text="The owner has verified this business on Google Business Profile. Only they can edit its details, post updates and reply to reviews.">
+                <button type="button" className="inline-flex cursor-help items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                  <BadgeCheck className="h-3 w-3" /> Claimed
+                </button>
+              </Hint>
+            )}
+            {b?.isClaimed === false && (
+              <Hint text="No one has verified ownership of this business on Google. Anyone can suggest changes to its details, and nobody can reply to reviews as the owner. Claim it at business.google.com.">
+                <button type="button" className="inline-flex cursor-help items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                  <AlertTriangle className="h-3 w-3" /> Unclaimed
+                </button>
+              </Hint>
+            )}
+          </div>
+          {b && (
+            <>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                {b.category && <span>{b.category}</span>}
+                {customKeyword && (
+                  <span>
+                    Keyword: <span className="font-medium text-foreground">{customKeyword}</span>
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-col gap-1 text-[13px] text-foreground/80">
+                {b.address && (
+                  <span className="flex min-w-0 items-start gap-1.5">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" /> <span className="leading-snug">{b.address}</span>
+                  </span>
+                )}
+                <span className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {b.phone ? <span className="tabular-nums">{b.phone}</span> : <span className="text-red-500">No phone</span>}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {b.website ? (
+                    <ExtLink href={b.website} className="text-brand">
+                      {hostOf(b.website)}
+                    </ExtLink>
+                  ) : (
+                    <span className="text-red-500">No website</span>
+                  )}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      {actions && <div className="relative flex flex-wrap gap-2 border-t border-white/10 bg-black/10 px-5 py-3 sm:px-7 print:hidden">{actions}</div>}
+      {b?.rating != null && (
+        <div className="flex shrink-0 flex-col gap-1.5 md:items-end">
+          <div className="flex items-center gap-2">
+            <b className="text-3xl font-semibold leading-none tracking-tight tabular-nums">{b.rating.toFixed(1)}</b>
+            <Stars value={b.rating} size="h-[18px] w-[18px]" />
+          </div>
+          <span className="inline-flex items-center gap-2 text-base text-muted-foreground">
+            <EngineMark id="google" label="Google" size={18} />
+            Reviews <span className="font-medium text-foreground tabular-nums">({b.reviewCount?.toLocaleString() ?? 0})</span>
+          </span>
+        </div>
+      )}
+      {report?.score != null && (
+        // Brand blue and plain words, not a red alarm: this sums up a to-do list,
+        // and the findings below already say what matters most.
+        <div className="flex shrink-0 items-center gap-4 rounded-xl bg-muted/50 py-3 pl-3 pr-5">
+          <ScoreRing score={report.score} size={80} stroke={7} ringClass="stroke-brand" showMax />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              Profile health
+              <InfoHint>
+                FreeSERP&apos;s weighted checklist of {report.checks.length} checks across the profile, reviews, photos, website and local
+                rankings, out of 100. It isn&apos;t a score Google publishes.
+              </InfoHint>
+            </div>
+            <div className="mt-0.5 text-lg font-semibold leading-tight">{verdict(report.score)}</div>
+            {data.previous?.score != null && data.previous.score !== report.score && (
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {report.score > data.previous.score ? "Up" : "Down"} {Math.abs(report.score - data.previous.score)} since {fmtDay(data.previous.createdAt)}
+              </div>
+            )}
+            {report.findings.length > 0 &&
+              (onOpenPlan ? (
+                <button type="button" onClick={onOpenPlan} className="mt-1.5 text-[13px] font-medium text-brand hover:underline print:no-underline">
+                  {report.findings.length} {report.findings.length === 1 ? "thing" : "things"} to improve →
+                </button>
+              ) : (
+                <div className="mt-1.5 text-[13px] text-muted-foreground">
+                  {report.findings.length} {report.findings.length === 1 ? "thing" : "things"} to improve
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
 
-function HeroChip({ icon: Icon, children, className = "bg-white/10 text-white/90 ring-white/15" }: { icon: typeof Star; children: ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${className}`}>
-      <Icon className="h-3 w-3" /> {children}
-    </span>
-  )
-}
-
-/** The hero's buttons: glassy on navy. */
+/** The header's buttons: a quiet outline, and one brand-blue primary. */
 export const heroButton =
-  "inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white ring-1 ring-inset ring-white/15 transition-colors hover:bg-white/20 disabled:opacity-60"
+  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-border bg-card px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
 export const heroButtonPrimary =
-  "inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#0c1f38] transition-colors hover:bg-sky-50 disabled:opacity-60"
+  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-brand bg-brand px-3 text-[13px] font-medium text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
 
 /** While the audit runs: the three steps, with the current one spinning. */
 export function Progress({ step }: { step: AuditStep | null }) {
   const at = step ? STEPS.findIndex((s) => s.key === step) : 0
   return (
-    <Panel icon={Clock} title="Auditing this profile" hint="This page updates by itself. Most audits finish in under a minute.">
-      <ol className="grid gap-3 p-5 sm:grid-cols-3">
+    <Panel title="Auditing this profile" hint="This page updates by itself. Most audits finish in under a minute.">
+      <ol className="grid gap-3 sm:grid-cols-3">
         {STEPS.map((s, i) => {
           const done = i < at
           const current = i === at
           return (
-            <li key={s.key} className={`rounded-xl border p-4 ${current ? "border-brand/40 bg-brand-soft/50" : "border-border"}`}>
+            <li key={s.key} className={`rounded-lg border p-3.5 ${current ? "border-brand/40 bg-brand-soft/50" : "border-border"}`}>
               <div className="flex items-center gap-2">
                 {done ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
                 ) : current ? (
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
                 ) : (
-                  <CircleDashed className="h-5 w-5 text-muted-foreground/50" />
+                  <CircleDashed className="h-4 w-4 text-muted-foreground/50" />
                 )}
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Step {i + 1}</span>
+                <span className="text-xs text-muted-foreground">Step {i + 1}</span>
               </div>
-              <div className={`mt-2 text-sm font-medium ${done || current ? "" : "text-muted-foreground"}`}>{s.label}</div>
+              <div className={`mt-2 text-[13px] font-medium ${done || current ? "" : "text-muted-foreground"}`}>{s.label}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">{s.hint}</div>
             </li>
           )
@@ -439,162 +415,135 @@ export function Progress({ step }: { step: AuditStep | null }) {
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
 export type TabKey = "overview" | "profile" | "reviews" | "rankings" | "plan"
-export const TABS: { key: TabKey; label: string; icon: typeof Star }[] = [
-  { key: "overview", label: "Overview", icon: LayoutDashboard },
-  { key: "profile", label: "Profile audit", icon: ListChecks },
-  { key: "reviews", label: "Reviews", icon: MessageSquareText },
-  { key: "rankings", label: "Rankings & grid", icon: Grid3x3 },
-  { key: "plan", label: "Action plan", icon: Target },
+export const TABS: { key: TabKey; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "profile", label: "Profile audit" },
+  { key: "reviews", label: "Reviews" },
+  { key: "rankings", label: "Rankings" },
+  { key: "plan", label: "Action plan" },
 ]
 
 export function Tabs({ active, onChange, counts }: { active: TabKey; onChange: (t: TabKey) => void; counts: Partial<Record<TabKey, number>> }) {
   return (
-    <div className="mb-1 flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 print:hidden" role="tablist">
-      {TABS.map(({ key, label, icon: Icon }) => (
+    <nav className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-border [scrollbar-width:none] print:hidden [&::-webkit-scrollbar]:hidden" role="tablist">
+      {TABS.map(({ key, label }) => (
         <button
           key={key}
           type="button"
           role="tab"
           aria-selected={active === key}
           onClick={() => onChange(key)}
-          className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${
-            active === key ? "bg-[#0c1f38] text-white shadow-sm dark:bg-brand" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 py-2.5 text-sm font-medium transition-colors ${
+            active === key ? "border-brand text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Icon className="h-4 w-4" />
           {label}
-          {counts[key] ? (
-            <span className={`rounded-full px-1.5 py-px text-[10px] font-bold tabular-nums ${active === key ? "bg-white/20 text-white" : "bg-red-500/10 text-red-600"}`}>{counts[key]}</span>
-          ) : null}
+          {counts[key] ? <span className="rounded-[5px] bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{counts[key]}</span> : null}
         </button>
       ))}
-    </div>
+    </nav>
   )
 }
 
 // ── Overview ─────────────────────────────────────────────────────────────────
 
-function Kpi({ icon: Icon, tone, label, value, suffix, foot }: { icon: typeof Star; tone: Tone; label: string; value: ReactNode; suffix?: string; foot: ReactNode }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)]">
-      <div className="flex items-center gap-2.5">
-        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone.tile}`}>
-          <Icon className="h-[18px] w-[18px]" />
-        </span>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      </div>
-      <div className="mt-3 flex items-baseline gap-1 text-[30px] font-semibold leading-none tracking-tight tabular-nums">
-        {value}
-        {suffix && <span className="text-sm font-medium text-muted-foreground">{suffix}</span>}
-      </div>
-      <div className="mt-2 text-xs text-muted-foreground">{foot}</div>
-      <span aria-hidden className={`absolute inset-x-0 bottom-0 h-1 ${tone.bar} opacity-80`} />
-    </div>
-  )
-}
+const rankLabel = (vis: NonNullable<Facts["visibility"]>) => (vis.rank !== null ? `#${vis.rank}` : `${vis.depth}+`)
 
 export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; report: Report; onOpen: (t: TabKey) => void }) {
   const facts = data.facts!
   const b = facts.business
   const vis = facts.visibility
   const grid = facts.grid
+  const m = grid?.metrics
+  const rs = report.reviewStats
   const by = (p: Priority) => report.findings.filter((f) => f.priority === p).length
+  const issues = [by("high") > 0 && <span key="h" className="text-red-500">{by("high")} high</span>, by("medium") > 0 && `${by("medium")} medium`, by("low") > 0 && `${by("low")} low`].filter(Boolean)
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={ListChecks}
-          tone={TONES.blue}
-          label="Profile health"
-          value={report.score ?? "—"}
-          suffix={report.score !== null ? "/100" : undefined}
-          foot={report.score !== null ? <span className={`font-medium ${scoreText(report.score)}`}>{verdict(report.score)}</span> : "Not scored"}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Owner replies"
+          hint={`Of the ${rs.sampled} newest reviews, how many the owner has replied to. Replies show searchers, and Google, that the business is active.`}
+          value={rs.responseRate !== null ? `${Math.round(rs.responseRate * 100)}%` : "—"}
+          tone="text-foreground"
+          caption={rs.sampled ? `${rs.replied} of ${rs.sampled} newest reviews` : "No reviews to read"}
+          fill={rs.responseRate !== null ? rs.responseRate * 100 : null}
+          fillClass={rs.responseRate !== null ? scoreFill(rs.responseRate * 100) : undefined}
         />
-        <Kpi
-          icon={Star}
-          tone={TONES.amber}
-          label="Google rating"
-          value={b.rating !== null ? b.rating.toFixed(1) : "—"}
-          suffix={b.rating !== null ? "/5" : undefined}
-          foot={
-            <span className="inline-flex items-center gap-1.5">
-              {b.rating !== null && <Stars value={b.rating} className="h-3 w-3" />}
-              {b.reviewCount !== null ? `${b.reviewCount.toLocaleString()} reviews` : "No reviews"}
-            </span>
-          }
-        />
-        <Kpi
-          icon={Trophy}
-          tone={TONES.green}
+        <StatCard
           label={vis ? `Rank for “${vis.keyword}”` : "Local rank"}
-          value={vis ? (vis.rank !== null ? `#${vis.rank}` : `${vis.depth}+`) : "—"}
-          foot={grid ? `Top 3 at ${grid.metrics.top3Points} of ${grid.metrics.scoredPoints} grid points` : vis ? "At the business’s location" : "Ranking check didn't run"}
+          hint="Where the business ranks on Google Maps for the keyword, searched from its own location. 20+ means it isn't in the top 20."
+          value={vis ? rankLabel(vis) : "—"}
+          tone={vis?.rank != null && vis.rank <= 3 ? "text-green-600 dark:text-green-400" : "text-foreground"}
+          caption={vis ? "At the business’s location" : "Ranking check didn't run"}
         />
-        <Kpi
-          icon={AlertTriangle}
-          tone={TONES.rose}
+        <StatCard
+          label="Grid visibility"
+          hint={`How visible the business is across the ${grid?.points.length ?? 9} grid points: top-3 spots count fully, lower ranks less.`}
+          value={m?.visibility != null ? `${Math.round(m.visibility)}%` : "—"}
+          tone="text-foreground"
+          caption={m ? `Top 3 at ${m.top3Points} of ${m.scoredPoints} points` : "No grid for this audit"}
+          fill={m?.visibility ?? null}
+          fillClass={m?.visibility != null ? scoreFill(m.visibility) : undefined}
+        />
+        <StatCard
           label="Issues found"
+          hint="Checks that failed or need attention, by how much they matter."
           value={report.findings.length}
-          foot={
-            <span className="inline-flex flex-wrap gap-1.5">
-              <PriorityPill n={by("high")} p="high" />
-              <PriorityPill n={by("medium")} p="medium" />
-              <PriorityPill n={by("low")} p="low" />
-            </span>
-          }
+          tone="text-foreground"
+          caption={issues.length ? issues.map((x, i) => [i > 0 && " · ", x]) : "Nothing to fix"}
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        {grid ? (
-          <GridPanel facts={facts} grid={grid} onOpen={() => onOpen("rankings")} />
-        ) : (
-          <Panel icon={Grid3x3} tone={TONES.green} title="Local rank grid" hint="Run the audit again to add a 3×3 rank grid">
-            <p className="p-5 text-sm text-muted-foreground">This audit was run before the rank grid existed, or the grid couldn&apos;t run.</p>
-          </Panel>
-        )}
-        <CategoryHealth report={report} />
-      </div>
+      {/* Full width: the grid is the report's one picture, and squeezed beside
+          another panel its nine points sat on top of each other. */}
+      {grid ? (
+        <GridPanel facts={facts} grid={grid} onOpen={() => onOpen("rankings")} />
+      ) : (
+        <Panel title="Local rank grid">
+          <p className="text-[13px] text-muted-foreground">This audit was run before the rank grid existed, or the grid couldn&apos;t run. Run it again to add one.</p>
+        </Panel>
+      )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid gap-5 xl:grid-cols-3">
         <Panel
-          icon={AlertTriangle}
-          tone={TONES.rose}
           title="Priority findings"
-          hint="The issues that matter most, first"
-          right={
-            <button type="button" className="text-xs font-semibold text-brand hover:underline print:hidden" onClick={() => onOpen("profile")}>
-              All {report.checks.length} checks →
+          hint="The issues that matter most, highest priority first."
+          meta={
+            <button type="button" className={LINK} onClick={() => onOpen("profile")}>
+              All {report.checks.length} checks
             </button>
           }
+          flush
+          className="xl:col-span-2"
         >
           {report.findings.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-muted-foreground">Nothing to fix — every check we could run passed.</p>
+            <p className="p-4 text-[13px] text-muted-foreground">Nothing to fix — every check we could run passed.</p>
           ) : (
-            <ul className="divide-y divide-border/60">
+            <div className="divide-y divide-border">
               {report.findings.slice(0, 5).map((f) => (
-                <FindingRow key={f.id} check={f} />
+                <CheckRow key={f.id} check={f} />
               ))}
-            </ul>
+            </div>
           )}
         </Panel>
         <div className="space-y-5">
-          <ProfileSnapshot facts={facts} />
+          <CategoryHealth report={report} />
+          <ProfileFacts facts={facts} />
           <Strengths report={report} />
         </div>
       </div>
 
       {report.competitors.rows.length > 0 && (
         <Panel
-          icon={Users}
-          tone={TONES.violet}
-          title="Competitor snapshot"
-          hint={vis ? `Who ranks for “${vis.keyword}” at the business’s location` : undefined}
-          right={
-            <button type="button" className="text-xs font-semibold text-brand hover:underline print:hidden" onClick={() => onOpen("rankings")}>
-              Compare all →
+          title="Competitors"
+          hint={vis ? `Who ranks for “${vis.keyword}” on Google Maps, searched from the business’s location.` : undefined}
+          meta={
+            <button type="button" className={LINK} onClick={() => onOpen("rankings")}>
+              Compare all
             </button>
           }
+          flush
         >
           <CompetitorTable rows={snapshotRows(facts)} business={b} />
         </Panel>
@@ -605,35 +554,22 @@ export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; rep
   )
 }
 
-function PriorityPill({ n, p }: { n: number; p: Priority }) {
-  if (n === 0) return null
-  return <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset ${PRIORITY_STYLE[p]}`}>{n} {PRIORITY_LABEL[p].toLowerCase()}</span>
-}
-
 function CategoryHealth({ report }: { report: Report }) {
   return (
-    <Panel icon={ListChecks} tone={TONES.blue} title="Audit health by category" hint="What couldn't be verified is left out, not counted against you">
-      <ul className="space-y-1 p-3">
+    <Panel title="Health by category" hint="Each category's checks, weighted. Anything we couldn't verify is left out rather than counted against you.">
+      <ul className="space-y-4">
         {report.categories.map((c) => {
-          const { icon: Icon, tone } = CATEGORY_STYLE[c.key]
           const toFix = c.failed + c.warned
           return (
-            <li key={c.key} className="rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/40">
-              <div className="flex items-center gap-3">
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tone.tile}`}>
-                  <Icon className="h-4 w-4" />
+            <li key={c.key}>
+              <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
+                <span className="font-medium">{c.label}</span>
+                <span className="flex items-baseline gap-2">
+                  <span className="text-xs text-muted-foreground">{toFix ? `${toFix} to fix` : "All clear"}</span>
+                  <span className={`w-7 text-right font-semibold tabular-nums ${c.score !== null ? scoreText(c.score) : "text-muted-foreground"}`}>{c.score ?? "—"}</span>
                 </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[13px] font-medium">{c.label}</span>
-                    <span className={`text-sm font-bold tabular-nums ${c.score !== null ? scoreText(c.score) : "text-muted-foreground"}`}>{c.score ?? "—"}</span>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    {c.score !== null ? <Bar value={c.score} className="h-1.5 flex-1" /> : <span className="block h-1.5 flex-1 rounded-full bg-muted" />}
-                    <span className="w-14 shrink-0 text-right text-[11px] text-muted-foreground">{toFix ? `${toFix} to fix` : "All clear"}</span>
-                  </div>
-                </div>
               </div>
+              {c.score !== null ? <Bar value={c.score} fill={scoreFill(c.score)} /> : <span className="block h-1.5 rounded-full bg-muted" />}
             </li>
           )
         })}
@@ -642,37 +578,16 @@ function CategoryHealth({ report }: { report: Report }) {
   )
 }
 
-function FindingRow({ check }: { check: Check }) {
-  return (
-    <li className={`flex items-start gap-3 border-l-[3px] px-5 py-3.5 ${STATUS_STYLE[check.status].edge}`}>
-      <StatusTile status={check.status} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[13px] font-semibold">{check.label}</span>
-          <span className="text-xs text-muted-foreground">{check.value}</span>
-        </div>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{check.detail}</p>
-        {check.fix && (
-          <p className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs leading-relaxed text-foreground/85">
-            <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-brand" /> {check.fix}
-          </p>
-        )}
-      </div>
-      <PriorityBadge priority={check.priority} />
-    </li>
-  )
-}
-
 function Strengths({ report }: { report: Report }) {
   if (report.strengths.length === 0) return null
   return (
-    <Panel icon={CheckCircle2} tone={TONES.green} title="Strengths" hint="Already working for this profile">
-      <ul className="space-y-2 p-4">
+    <Panel title="Strengths" hint="The checks this profile already passes that count the most.">
+      <ul className="space-y-2 text-[13px]">
         {report.strengths.slice(0, 5).map((s) => (
-          <li key={s.id} className="flex items-start gap-2.5 text-xs">
-            <CheckCircle2 className="mt-px h-4 w-4 shrink-0 text-emerald-500" />
+          <li key={s.id} className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-[13px] w-[13px] shrink-0 text-green-600 dark:text-green-400" />
             <span>
-              <b className="font-semibold">{s.label}</b> <span className="text-muted-foreground">· {s.value}</span>
+              {s.label} <span className="text-muted-foreground">· {s.value}</span>
             </span>
           </li>
         ))}
@@ -681,53 +596,31 @@ function Strengths({ report }: { report: Report }) {
   )
 }
 
-function ProfileSnapshot({ facts }: { facts: Facts }) {
+function ProfileFacts({ facts }: { facts: Facts }) {
   const b = facts.business
   const today = b.hours?.[(new Date(facts.fetchedAt).getDay() + 6) % 7]
-  const chips: { label: string; ok: boolean }[] = [
-    { label: b.website ? "Website" : "No website", ok: !!b.website },
-    { label: b.phone ? "Phone" : "No phone", ok: !!b.phone },
-    { label: b.hours ? "Hours set" : "No hours", ok: !!b.hours },
-    { label: `${b.totalPhotos ?? 0} photos`, ok: (b.totalPhotos ?? 0) >= 10 },
-    { label: `${b.attributes.reduce((n, g) => n + g.items.length, 0)} attributes`, ok: b.attributes.length > 0 },
-  ]
+  const short = (d: string) => DAY_LABEL[d as keyof typeof DAY_LABEL].slice(0, 3)
+  const missing = (text: string) => <span className="text-red-500">{text}</span>
   return (
     <Panel
-      icon={Store}
-      tone={TONES.cyan}
-      title="Profile snapshot"
-      hint="As Google shows it"
-      right={
+      title="Profile"
+      meta={
         b.mapsUrl && (
-          <ExtLink href={b.mapsUrl} className="inline-flex items-center gap-1 text-xs font-semibold text-brand print:hidden">
-            Open on Maps <ExternalLink className="h-3 w-3" />
+          <ExtLink href={b.mapsUrl} className="text-[13px] font-medium text-brand print:hidden">
+            Open on Maps
           </ExtLink>
         )
       }
     >
-      <div className="space-y-1.5 p-4 text-xs text-muted-foreground">
-        {b.category && (
-          <div className="flex items-center gap-2">
-            <Tag className="h-3.5 w-3.5 shrink-0" /> <span className="text-foreground">{[b.category, ...b.additionalCategories.slice(0, 2)].join(" · ")}</span>
-          </div>
-        )}
-        {today && (
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 shrink-0" /> {DAY_LABEL[today.day]}: <span className="text-foreground">{today.open.length ? today.open.join(", ") : "Closed"}</span>
-          </div>
-        )}
-        {b.description && <p className="line-clamp-3 pt-1 leading-relaxed">{b.description}</p>}
-      </div>
-      <div className="flex flex-wrap gap-1.5 border-t border-border/60 px-4 py-3">
-        {chips.map((c) => (
-          <span
-            key={c.label}
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${c.ok ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400" : "bg-red-500/10 text-red-600 ring-red-500/20 dark:text-red-400"}`}
-          >
-            {c.ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} {c.label}
-          </span>
-        ))}
-      </div>
+      <KeyValues
+        rows={[
+          ["Categories", b.category ? 1 + b.additionalCategories.length : missing("None")],
+          ["Photos", (b.totalPhotos ?? 0) >= 50 ? (b.totalPhotos ?? 0) : missing(String(b.totalPhotos ?? 0))],
+          ["Attributes", b.attributes.reduce((n, g) => n + g.items.length, 0)],
+          ["Hours", !b.hours ? missing("Not set") : today ? (today.open.length ? `${short(today.day)} ${today.open.join(", ")}` : `Closed ${short(today.day)}`) : "Set"],
+          ["Description", b.description ? `${b.description.length} chars` : missing("None")],
+        ]}
+      />
     </Panel>
   )
 }
@@ -735,57 +628,42 @@ function ProfileSnapshot({ facts }: { facts: Facts }) {
 // ── The rank grid ────────────────────────────────────────────────────────────
 
 /** The grid with its headline numbers beside it. `large` is the Rankings tab's version, with every point listed. */
-function GridPanel({ facts, grid, onOpen, large = false }: { facts: Facts; grid: Grid; onOpen?: () => void; large?: boolean }) {
+function GridPanel({ facts, grid, onOpen, large = false, className = "" }: { facts: Facts; grid: Grid; onOpen?: () => void; large?: boolean; className?: string }) {
   const [selected, setSelected] = useState<string | null>(null)
   const m = grid.metrics
-  const unit = unitFor(facts.business)
-  const stats: { label: string; value: string; hint: string }[] = [
-    { label: "Visibility", value: m.visibility !== null ? `${Math.round(m.visibility)}%` : "—", hint: "100% = #1 everywhere" },
-    { label: "Top 3 coverage", value: `${m.top3Points}/${m.scoredPoints}`, hint: "points in the local pack" },
-    { label: "Avg. rank", value: m.arp !== null ? m.arp.toFixed(1) : "—", hint: "where found" },
-    { label: "Found at", value: `${m.foundPoints}/${m.scoredPoints}`, hint: `points in the top ${grid.depth}` },
-  ]
   return (
     <Panel
-      icon={Grid3x3}
-      tone={TONES.green}
-      title={
-        <span className="inline-flex flex-wrap items-center gap-2">
-          Local rank grid
-          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">“{grid.keyword}”</span>
-        </span>
-      }
-      hint={`${grid.gridSize}×${grid.gridSize} Google Maps Tracker scan · the keyword searched from ${grid.points.length} points around the business`}
-      right={
-        <div className="flex items-center gap-3 print:hidden">
+      title={`Local rank grid · “${grid.keyword}”`}
+      hint={`A ${grid.gridSize}×${grid.gridSize} Google Maps Tracker scan: the keyword searched on Google Maps from ${grid.points.length} points around the business. Click a pin to see who ranks there.`}
+      meta={
+        <>
           {grid.scanId && (
-            <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline">
-              <MapPin className="h-3.5 w-3.5" /> Open in Maps Tracker
+            <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className={LINK}>
+              Open in Maps Tracker
             </Link>
           )}
           {onOpen && (
-            <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={onOpen}>
-              Open grid →
+            <button type="button" className={LINK} onClick={onOpen}>
+              Details
             </button>
           )}
-        </div>
+        </>
       }
+      className={className}
     >
-      <div className={`grid gap-5 p-5 ${large ? "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"}`}>
-        <RankGridView grid={grid} unit={unit} selected={selected} onSelect={setSelected} size={large ? "lg" : "md"} />
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            {stats.map((s) => (
-              <div key={s.label} className="rounded-xl bg-muted/50 px-3 py-2.5">
-                <div className="text-xl font-semibold tabular-nums">{s.value}</div>
-                <div className="text-[11px] font-medium">{s.label}</div>
-                <div className="text-[10px] text-muted-foreground">{s.hint}</div>
-              </div>
-            ))}
-          </div>
+      <div className={`grid gap-5 ${large ? "lg:grid-cols-[minmax(0,1fr)_320px]" : "md:grid-cols-[minmax(0,1fr)_300px]"}`}>
+        <RankGridView grid={grid} unit={unitFor(facts.business)} selected={selected} onSelect={setSelected} size={large ? "lg" : "md"} />
+        <div className="min-w-0 space-y-4">
+          <KeyValues
+            rows={[
+              ["Visibility", m.visibility !== null ? `${Math.round(m.visibility)}%` : "—"],
+              ["Top 3 at", `${m.top3Points} of ${m.scoredPoints} points`],
+              ["Found at", `${m.foundPoints} of ${m.scoredPoints} points`],
+              ["Avg. rank where found", m.arp !== null ? m.arp.toFixed(1) : "—"],
+            ]}
+          />
           <PointDetail grid={grid} pointKey={selected} />
           {large && <PointList grid={grid} selected={selected} onSelect={setSelected} />}
-          {!large && <p className="text-[11px] text-muted-foreground">Click a pin on the map to see who ranks there.</p>}
         </div>
       </div>
     </Panel>
@@ -795,19 +673,19 @@ function GridPanel({ facts, grid, onOpen, large = false }: { facts: Facts; grid:
 function PointList({ grid, selected, onSelect }: { grid: Grid; selected: string | null; onSelect: (k: string) => void }) {
   const ordered = [...grid.points].sort((a, b) => a.row - b.row || a.col - b.col)
   return (
-    <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
+    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
       {ordered.map((p) => {
         const c = rankColor(p.rank, p.status)
         const k = gridPointKey(p)
         const leader = p.top[0]
         return (
           <li key={k}>
-            <button type="button" onClick={() => onSelect(k)} className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/40 ${selected === k ? "bg-brand-soft/60" : ""}`}>
-              <span className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold" style={{ background: c.bg, color: c.fg }}>
+            <button type="button" onClick={() => onSelect(k)} className={`flex w-full items-center gap-3 px-3 py-[7px] text-left text-[13px] transition-colors hover:bg-muted ${selected === k ? "bg-muted" : ""}`}>
+              <span className="flex h-5 w-8 shrink-0 items-center justify-center rounded text-[11px] font-semibold" style={{ background: c.bg, color: c.fg }}>
                 {c.label}
               </span>
-              <span className="w-28 shrink-0 font-medium">{pointPlace(p.row, p.col, grid.gridSize)}</span>
-              <span className="min-w-0 flex-1 truncate text-muted-foreground">{leader ? `#1 ${leader.isTarget ? "You" : leader.title}` : "—"}</span>
+              <span className="w-24 shrink-0">{pointPlace(p.row, p.col, grid.gridSize)}</span>
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">{leader ? (leader.isTarget ? "You lead here" : `#1 ${leader.title}`) : "—"}</span>
             </button>
           </li>
         )
@@ -820,132 +698,84 @@ function PointList({ grid, selected, onSelect }: { grid: Grid; selected: string 
 
 export function ProfileAudit({ facts, report }: { facts: Facts; report: Report }) {
   const b = facts.business
-  const counts = (s: CheckStatus) => report.checks.filter((c) => c.status === s).length
+  const count = (s: CheckStatus) => report.checks.filter((c) => c.status === s).length
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div className="space-y-5">
-        {report.categories.map((cat) => {
-          const checks = report.checks.filter((c) => c.category === cat.key)
-          const { icon, tone } = CATEGORY_STYLE[cat.key]
-          return (
-            <Panel
-              key={cat.key}
-              icon={icon}
-              tone={tone}
-              title={cat.label}
-              hint={`${cat.passed} passed · ${cat.warned} need attention · ${cat.failed} failed`}
-              right={
-                cat.score !== null ? (
-                  <span className={`rounded-xl bg-muted/60 px-3 py-1 text-lg font-bold tabular-nums ${scoreText(cat.score)}`}>{cat.score}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Not scored</span>
-                )
-              }
-            >
-              <ul className="divide-y divide-border/60">
-                {checks.map((c) => (
-                  <li key={c.id} className={`flex items-start gap-3 border-l-[3px] px-5 py-3.5 ${STATUS_STYLE[c.status].edge}`}>
-                    <StatusTile status={c.status} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <span className="text-[13px] font-semibold">{c.label}</span>
-                        <span className="max-w-full truncate text-xs font-medium text-muted-foreground">{c.value}</span>
-                      </div>
-                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{c.detail}</p>
-                      {c.fix && (
-                        <p className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs leading-relaxed text-foreground/85">
-                          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-brand" /> {c.fix}
-                        </p>
-                      )}
-                    </div>
-                  </li>
+    <div className="grid items-start gap-5 xl:grid-cols-3">
+      <div className="space-y-5 xl:col-span-2">
+        {report.categories.map((cat) => (
+          <Panel
+            key={cat.key}
+            title={cat.label}
+            meta={
+              <>
+                <span>
+                  {cat.passed} passed · {cat.warned + cat.failed} to fix
+                </span>
+                <span className={`text-[15px] font-semibold tabular-nums ${cat.score !== null ? scoreText(cat.score) : ""}`}>{cat.score ?? "—"}</span>
+              </>
+            }
+            flush
+          >
+            <div className="divide-y divide-border">
+              {report.checks
+                .filter((c) => c.category === cat.key)
+                .map((c) => (
+                  <CheckRow key={c.id} check={c} showPriority={false} />
                 ))}
-              </ul>
-            </Panel>
-          )
-        })}
+            </div>
+          </Panel>
+        ))}
       </div>
 
       <div className="space-y-5">
-        <Panel icon={ListChecks} tone={TONES.blue} title="How the score works">
-          <div className="flex flex-col items-center gap-3 p-5">
-            {report.score !== null && <ScoreRing score={report.score} size={128} />}
-            <p className="text-center text-xs text-muted-foreground">FreeSERP&apos;s weighted checklist — not a score Google publishes</p>
-            <div className="grid w-full grid-cols-2 gap-2">
-              {(["pass", "warn", "fail", "unknown"] as const).map((s) => {
-                const { Icon, tone, soft } = STATUS_STYLE[s]
-                return (
-                  <div key={s} className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${soft}`}>
-                    <Icon className={`h-4 w-4 ${tone}`} />
-                    <div>
-                      <div className={`text-lg font-bold leading-none tabular-nums ${tone}`}>{counts(s)}</div>
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">{STATUS_LABEL[s]}</div>
-                    </div>
-                  </div>
-                )
-              })}
+        <Panel
+          title="Score"
+          hint="Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories weigh Profile 30, Reviews 25, Local visibility 20, Photos 15, Website 10. FreeSERP's checklist, not a score Google publishes."
+        >
+          <div className="flex items-center gap-5">
+            {report.score !== null && <ScoreRing score={report.score} size={76} stroke={7} />}
+            <div className="flex-1">
+              <KeyValues rows={(["pass", "warn", "fail", "unknown"] as const).map((s) => [<span key={s} className={STATUS_STYLE[s].tone}>{STATUS_LABEL[s]}</span>, count(s)])} />
             </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories are weighted
-              Profile 30, Reviews 25, Local visibility 20, Photos 15, Website 10. Anything we couldn&apos;t get is left out.
-            </p>
           </div>
         </Panel>
 
-        <Panel icon={CalendarClock} tone={TONES.cyan} title="Opening hours">
+        <Panel title="Opening hours">
           {b.hours ? (
-            <table className="w-full text-xs">
-              <tbody>
-                {b.hours.map((d) => (
-                  <tr key={d.day} className="border-b border-border/60 last:border-0">
-                    <td className="px-5 py-2 font-medium">{DAY_LABEL[d.day]}</td>
-                    <td className={`px-5 py-2 text-right ${d.open.length ? "text-muted-foreground" : "text-red-500"}`}>{d.open.length ? d.open.join(", ") : "Closed"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <KeyValues rows={b.hours.map((d) => [DAY_LABEL[d.day], d.open.length ? d.open.join(", ") : <span className="text-red-500">Closed</span>])} />
           ) : (
-            <p className="px-5 py-4 text-xs text-muted-foreground">No opening hours on the profile.</p>
+            <p className="text-[13px] text-muted-foreground">No opening hours on the profile.</p>
           )}
         </Panel>
 
-        <Panel icon={Tag} tone={TONES.violet} title="Categories & attributes">
-          <div className="space-y-4 p-5 text-xs">
-            <div>
-              <div className="mb-2 font-semibold">Categories</div>
-              <div className="flex flex-wrap gap-1.5">
-                {b.category && <span className="rounded-full bg-brand px-2.5 py-1 font-medium text-white">{b.category}</span>}
-                {b.additionalCategories.map((c) => (
-                  <span key={c} className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-                    {c}
-                  </span>
-                ))}
-                {!b.category && <span className="text-muted-foreground">None set</span>}
-              </div>
+        <Panel title="Categories & attributes">
+          <div className="space-y-3.5 text-[13px]">
+            <div className="flex flex-wrap gap-1.5">
+              {b.category ? <Tag primary>{b.category}</Tag> : <span className="text-muted-foreground">No category set</span>}
+              {b.additionalCategories.map((c) => (
+                <Tag key={c}>{c}</Tag>
+              ))}
             </div>
             {b.attributes.map((g) => (
               <div key={g.group}>
-                <div className="mb-2 font-semibold">{g.group}</div>
+                <div className="mb-1.5 text-xs text-muted-foreground">{g.group}</div>
                 <div className="flex flex-wrap gap-1.5">
                   {g.items.map((i) => (
-                    <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-                      {i}
-                    </span>
+                    <Tag key={i}>{i}</Tag>
                   ))}
                 </div>
               </div>
             ))}
-            {b.description && (
-              <div>
-                <div className="mb-2 font-semibold">Description</div>
-                <p className="leading-relaxed text-muted-foreground">{b.description}</p>
-              </div>
-            )}
+            {b.description && <p className="leading-relaxed text-muted-foreground">{b.description}</p>}
           </div>
         </Panel>
       </div>
     </div>
   )
+}
+
+function Tag({ children, primary = false }: { children: ReactNode; primary?: boolean }) {
+  return <span className={`rounded-[5px] px-2 py-0.5 text-xs ${primary ? "bg-brand-soft font-medium text-brand" : "bg-muted"}`}>{children}</span>
 }
 
 // ── Reviews ──────────────────────────────────────────────────────────────────
@@ -956,120 +786,109 @@ export function Reviews({ facts, report }: { facts: Facts; report: Report }) {
   const dist = b.ratingDistribution
   const total = dist ? Object.values(dist).reduce((n, v) => n + v, 0) : 0
   const reviews = facts.reviews?.items ?? []
-  const activity = [
-    { icon: MessageSquareText, tone: TONES.blue, label: "Owner replies", value: s.responseRate !== null ? `${Math.round(s.responseRate * 100)}%` : "—", sub: `${s.replied} of ${s.sampled} newest` },
-    { icon: CalendarClock, tone: TONES.green, label: "Newest review", value: s.daysSinceNewest !== null ? (s.daysSinceNewest === 0 ? "Today" : `${s.daysSinceNewest}d ago`) : "—", sub: s.newestAt ? fmtDay(s.newestAt) : "—" },
-    { icon: AlertTriangle, tone: TONES.rose, label: "Low ratings", value: String(s.negative), sub: `${s.negativeUnanswered} without a reply` },
-    { icon: Star, tone: TONES.amber, label: "Recent average", value: s.sampleAverage?.toFixed(1) ?? "—", sub: "across the newest reviews" },
-  ]
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        <Panel icon={Star} tone={TONES.amber} title="Rating" hint="How the stars are spread, as Google shows it">
-          <div className="flex flex-col gap-6 p-5 sm:flex-row sm:items-center">
-            <div className="rounded-2xl bg-gradient-to-br from-amber-400/15 to-amber-400/5 px-6 py-5 text-center">
-              <div className="text-5xl font-semibold tracking-tight tabular-nums">{b.rating?.toFixed(1) ?? "—"}</div>
-              {b.rating !== null && <Stars value={b.rating} className="h-4 w-4" />}
-              <div className="mt-1 text-xs text-muted-foreground">{b.reviewCount?.toLocaleString() ?? 0} reviews</div>
-            </div>
-            {dist && total > 0 ? (
-              <div className="flex-1 space-y-2">
-                {(["5", "4", "3", "2", "1"] as const).map((k) => (
-                  <div key={k} className="flex items-center gap-2.5 text-xs">
-                    <span className="flex w-7 items-center gap-0.5 text-muted-foreground">
-                      {k}
-                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                    </span>
-                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span
-                        className={`block h-full rounded-full ${Number(k) >= 4 ? "bg-emerald-500" : k === "3" ? "bg-amber-400" : "bg-red-500"}`}
-                        style={{ width: `${(dist[k] / total) * 100}%` }}
-                      />
-                    </span>
-                    <span className="w-12 text-right tabular-nums text-muted-foreground">{dist[k]}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="flex-1 text-xs text-muted-foreground">Google didn&apos;t return the rating breakdown for this profile.</p>
-            )}
-          </div>
-        </Panel>
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Rating"
+          hint="The average star rating Google shows."
+          value={b.rating?.toFixed(1) ?? "—"}
+          tone="text-foreground"
+          caption={`${b.reviewCount?.toLocaleString() ?? 0} reviews`}
+          fill={b.rating !== null ? (b.rating / 5) * 100 : null}
+          fillClass="bg-amber-400"
+        />
+        <StatCard
+          label="Owner replies"
+          hint={`Of the ${s.sampled} newest reviews, how many have a reply from the owner.`}
+          value={s.responseRate !== null ? `${Math.round(s.responseRate * 100)}%` : "—"}
+          tone="text-foreground"
+          caption={`${s.replied} of ${s.sampled} newest`}
+          fill={s.responseRate !== null ? s.responseRate * 100 : null}
+        />
+        <StatCard
+          label="Newest review"
+          hint="How long ago the most recent review was left."
+          value={s.daysSinceNewest !== null ? (s.daysSinceNewest === 0 ? "Today" : `${s.daysSinceNewest}d`) : "—"}
+          tone="text-foreground"
+          caption={s.newestAt ? fmtDay(s.newestAt) : "—"}
+        />
+        <StatCard
+          label="Low ratings"
+          hint={`Reviews of 3★ or lower among the ${s.sampled} newest, and how many have no reply.`}
+          value={s.negative}
+          tone={s.negativeUnanswered > 0 ? "text-red-500" : "text-foreground"}
+          caption={`${s.negativeUnanswered} without a reply`}
+        />
+      </div>
 
-        <Panel icon={MessageSquareText} tone={TONES.blue} title="Review activity" hint={s.sampled ? `From the ${s.sampled} newest reviews` : "No reviews to read"}>
-          <div className="grid grid-cols-2 gap-3 p-5 lg:grid-cols-4">
-            {activity.map(({ icon: Icon, tone, label, value, sub }) => (
-              <div key={label} className="rounded-xl border border-border p-3">
-                <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${tone.tile}`}>
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <div className="mt-2 text-xl font-semibold tabular-nums">{value}</div>
-                <div className="text-[11px] font-medium">{label}</div>
-                <div className="text-[11px] text-muted-foreground">{sub}</div>
-              </div>
-            ))}
-          </div>
+      <div className="grid items-start gap-5 xl:grid-cols-3">
+        <Panel title="Rating breakdown" hint="How the stars are spread, as Google shows it.">
+          {dist && total > 0 ? (
+            <div className="space-y-2.5">
+              {(["5", "4", "3", "2", "1"] as const).map((k) => (
+                <div key={k} className="flex items-center gap-3 text-[13px]">
+                  <span className="w-6 text-muted-foreground">{k}★</span>
+                  <span className="flex-1">
+                    <Bar value={(dist[k] / total) * 100} fill="bg-amber-400" />
+                  </span>
+                  <span className="w-10 text-right tabular-nums text-muted-foreground">{dist[k]}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">Google didn&apos;t return the rating breakdown for this profile.</p>
+          )}
           {b.placeTopics.length > 0 && (
-            <div className="border-t border-border/60 px-5 py-4">
-              <div className="mb-2 text-xs font-semibold">What reviewers mention</div>
+            <div className="mt-5 border-t border-border pt-4">
+              <div className="mb-2 text-xs text-muted-foreground">What reviewers mention</div>
               <div className="flex flex-wrap gap-1.5">
                 {b.placeTopics.slice(0, 12).map((t) => (
-                  <span key={t.topic} className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                    {t.topic} <b className="text-foreground/70">{t.count}</b>
-                  </span>
+                  <Tag key={t.topic}>
+                    {t.topic} <span className="text-muted-foreground">{t.count}</span>
+                  </Tag>
                 ))}
               </div>
             </div>
           )}
         </Panel>
-      </div>
 
-      <Panel icon={MessageSquareText} tone={TONES.violet} title="Newest reviews" hint="Low ratings without a reply are highlighted">
-        {reviews.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-muted-foreground">No reviews were returned for this profile.</p>
-        ) : (
-          <ul className="divide-y divide-border/60">
-            {reviews.map((r, i) => (
-              <ReviewRow key={i} review={r} />
-            ))}
-          </ul>
-        )}
-      </Panel>
+        <Panel title="Newest reviews" hint="Low ratings without a reply are marked." flush className="xl:col-span-2">
+          {reviews.length === 0 ? (
+            <p className="p-4 text-[13px] text-muted-foreground">No reviews were returned for this profile.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {reviews.map((r, i) => (
+                <ReviewRow key={i} review={r} />
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
     </div>
   )
 }
 
 function ReviewRow({ review: r }: { review: Review }) {
   const needsReply = r.rating !== null && r.rating <= 3 && !r.ownerAnswer
-  const name = r.author ?? "A Google user"
   return (
-    <li className={`flex gap-3 px-5 py-4 ${needsReply ? "border-l-[3px] border-l-red-500 bg-red-500/[0.03]" : "border-l-[3px] border-l-transparent"}`}>
-      <Avatar name={name} size={32} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className="font-semibold">{name}</span>
-          {r.localGuide && <span className="rounded-full bg-muted px-1.5 py-px text-[10px] text-muted-foreground">Local Guide</span>}
-          {r.rating !== null && <Stars value={r.rating} className="h-3 w-3" />}
-          <span className="text-muted-foreground">{r.timeAgo ?? (r.publishedAt ? fmtDay(r.publishedAt) : "")}</span>
-          <span className="ml-auto">
-            {r.ownerAnswer ? (
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">Replied</span>
-            ) : (
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${needsReply ? "bg-red-500/10 text-red-600" : "bg-muted text-muted-foreground"}`}>
-                {needsReply ? "Needs a reply" : "No reply"}
-              </span>
-            )}
-          </span>
-        </div>
-        {r.text && <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-foreground/80">{r.text}</p>}
-        {r.ownerAnswer && (
-          <p className="mt-2 line-clamp-2 rounded-lg bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground/70">Owner: </span>
-            {r.ownerAnswer}
-          </p>
-        )}
+    <div className="px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+        <b className="font-medium">{r.author ?? "A Google user"}</b>
+        {r.rating !== null && <Stars value={r.rating} />}
+        <span className="text-xs text-muted-foreground">{r.timeAgo ?? (r.publishedAt ? fmtDay(r.publishedAt) : "")}</span>
+        <span className={`ml-auto text-xs ${r.ownerAnswer ? "text-green-600 dark:text-green-400" : needsReply ? "font-medium text-red-500" : "text-muted-foreground"}`}>
+          {r.ownerAnswer ? "Replied" : needsReply ? "Needs a reply" : "No reply"}
+        </span>
       </div>
-    </li>
+      {r.text && <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{r.text}</p>}
+      {r.ownerAnswer && (
+        <p className="mt-1.5 border-l-2 border-border pl-3 text-[13px] leading-relaxed text-muted-foreground">
+          <b className="font-medium text-foreground">Owner: </b>
+          {r.ownerAnswer}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -1088,70 +907,51 @@ function snapshotRows(facts: Facts): CompetitorRow[] {
   return target && !top.includes(target) ? [...top, target] : top
 }
 
+const TH = "whitespace-nowrap border-b border-border px-2 py-2.5 text-left text-xs font-medium text-muted-foreground first:pl-4 last:pr-4"
+const TD = "px-2 py-2.5 align-middle first:pl-4 last:pr-4"
+
 function CompetitorTable({ rows, business }: { rows: CompetitorRow[]; business: Business }) {
-  const maxReviews = Math.max(1, ...rows.map((r) => r.reviewCount ?? 0))
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[680px] text-xs">
+      <table className="w-full min-w-[640px] border-collapse text-[13px]">
         <thead>
-          <tr className="border-b border-border bg-muted/40 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-            <th className="w-16 px-5 py-3 font-semibold">Rank</th>
-            <th className="px-3 py-3 font-semibold">Business</th>
-            <th className="px-3 py-3 font-semibold">Rating</th>
-            <th className="w-44 px-3 py-3 font-semibold">Reviews</th>
-            <th className="px-3 py-3 font-semibold">Category</th>
-            <th className="px-5 py-3 font-semibold">Website</th>
+          <tr>
+            <th className={`${TH} w-14`}>Rank</th>
+            <th className={TH}>Business</th>
+            <th className={`${TH} w-[72px] text-right`}>Rating</th>
+            <th className={`${TH} w-[88px] text-right`}>Reviews</th>
+            <th className={TH}>Category</th>
+            <th className={TH}>Website</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-border">
           {rows.map((r) => {
             const c = rankColor(r.rank, "SUCCEEDED")
             const more = r.reviewCount !== null && business.reviewCount !== null && !r.isTarget && r.reviewCount > business.reviewCount
             return (
-              <tr key={`${r.rank}-${r.title}`} className={`border-b border-border/60 last:border-0 ${r.isTarget ? "bg-brand-soft/70" : "hover:bg-muted/30"}`}>
-                <td className="px-5 py-3">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold shadow-sm" style={{ background: c.bg, color: c.fg }}>
+              <tr key={`${r.rank}-${r.title}`} className={r.isTarget ? "bg-brand/5" : "hover:bg-muted/60"}>
+                <td className={TD}>
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold" style={{ background: c.bg, color: c.fg }}>
                     {r.rank}
                   </span>
                 </td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar name={r.title} />
-                    <div className="min-w-0">
-                      <div className="font-semibold">
-                        {r.title}
-                        {r.isTarget && <span className="ml-1.5 rounded bg-brand px-1.5 py-px text-[10px] font-bold text-white">YOU</span>}
-                      </div>
-                      {r.address && <div className="max-w-[260px] truncate text-[11px] text-muted-foreground">{r.address}</div>}
-                    </div>
+                <td className={`${TD} max-w-[320px]`}>
+                  <div className="truncate font-medium">
+                    {r.title}
+                    {r.isTarget && <span className="ml-1.5 rounded bg-brand px-1.5 align-[1px] text-[10px] font-semibold text-white">You</span>}
                   </div>
+                  {r.address && <div className="truncate text-xs text-muted-foreground">{r.address}</div>}
                 </td>
-                <td className="px-3 py-3">
-                  {r.rating !== null ? (
-                    <span className="inline-flex items-center gap-1 font-medium">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                      {r.rating.toFixed(1)}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-10 tabular-nums ${more ? "font-semibold text-red-500" : ""}`}>{r.reviewCount?.toLocaleString() ?? "—"}</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span className={`block h-full rounded-full ${r.isTarget ? "bg-brand" : "bg-slate-400 dark:bg-slate-500"}`} style={{ width: `${((r.reviewCount ?? 0) / maxReviews) * 100}%` }} />
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-muted-foreground">{r.category ?? "—"}</td>
-                <td className="px-5 py-3">
+                <td className={`${TD} text-right tabular-nums`}>{r.rating !== null ? r.rating.toFixed(1) : "—"}</td>
+                <td className={`${TD} text-right tabular-nums ${more ? "text-red-500" : ""}`}>{r.reviewCount?.toLocaleString() ?? "—"}</td>
+                <td className={`${TD} text-muted-foreground`}>{r.category ?? "—"}</td>
+                <td className={TD}>
                   {r.website ? (
                     <ExtLink href={r.website} className="text-brand">
                       {hostOf(r.website)}
                     </ExtLink>
                   ) : (
-                    <span className="text-muted-foreground">None</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </td>
               </tr>
@@ -1178,69 +978,74 @@ export function Rankings({
   const b = facts.business
   const c = report.competitors
   const rows = mapsResults(facts)
-  const compare = [
-    { icon: Trophy, tone: TONES.green, label: vis ? `Rank for “${vis.keyword}”` : "Local rank", value: vis ? (vis.rank !== null ? `#${vis.rank}` : `${vis.depth}+`) : "—", sub: "searched at the business’s own pin" },
-    { icon: MessageSquareText, tone: TONES.blue, label: "Reviews vs. competitors", value: `${b.reviewCount?.toLocaleString() ?? "—"}`, sub: `median nearby: ${c.medianReviews?.toLocaleString() ?? "—"}` },
-    { icon: Star, tone: TONES.amber, label: "Rating vs. competitors", value: b.rating?.toFixed(1) ?? "—", sub: `average nearby: ${c.avgRating?.toFixed(1) ?? "—"}` },
-    { icon: Tag, tone: TONES.violet, label: "Most-used category", value: c.topCategory?.name ?? "—", sub: c.topCategory ? `${c.topCategory.count} of ${c.rows.length} competitors` : "not enough data" },
-  ]
+  const fewerReviews = c.medianReviews !== null && b.reviewCount !== null && b.reviewCount < c.medianReviews
   return (
     <div className="space-y-5">
-      {onCheckKeyword && <KeywordForm current={facts.grid?.keyword ?? vis?.keyword ?? ""} onSubmit={onCheckKeyword} busy={!!checking} />}
-      {facts.grid ? (
-        <GridPanel facts={facts} grid={facts.grid} large />
-      ) : (
-        <Notice>The rank grid didn&apos;t run for this audit. Run it again to add one.</Notice>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {compare.map(({ icon: Icon, tone, label, value, sub }) => (
-          <div key={label} className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2.5">
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone.tile}`}>
-                <Icon className="h-4 w-4" />
-              </span>
-              <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            </div>
-            <div className="mt-2.5 truncate text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label={vis ? `Rank for “${vis.keyword}”` : "Local rank"}
+          hint="Searched on Google Maps from the business's own location."
+          value={vis ? rankLabel(vis) : "—"}
+          tone="text-foreground"
+          caption="At the business"
+        />
+        <StatCard
+          label="Reviews"
+          hint="This profile's reviews against the median of the businesses ranking around it."
+          value={b.reviewCount?.toLocaleString() ?? "—"}
+          tone={fewerReviews ? "text-red-500" : "text-foreground"}
+          caption={`Median nearby: ${c.medianReviews?.toLocaleString() ?? "—"}`}
+        />
+        <StatCard
+          label="Rating"
+          hint="This profile's rating against the average of the businesses ranking around it."
+          value={b.rating?.toFixed(1) ?? "—"}
+          tone="text-foreground"
+          caption={`Average nearby: ${c.avgRating?.toFixed(1) ?? "—"}`}
+        />
+        <StatCard
+          label="Top category nearby"
+          hint="The category most of the businesses ranking around it use."
+          value={<span className="text-[22px]">{c.topCategory?.name ?? "—"}</span>}
+          tone="text-foreground"
+          caption={c.topCategory ? `${c.topCategory.count} of ${c.rows.length} competitors` : "Not enough data"}
+        />
       </div>
 
-      <Panel icon={Users} tone={TONES.violet} title="Google Maps results" hint={vis ? `Top ${rows.length} for “${vis.keyword}” at the business’s location · ads excluded` : undefined}>
-        {rows.length ? <CompetitorTable rows={rows} business={b} /> : <p className="px-5 py-8 text-sm text-muted-foreground">No results to show.</p>}
+      {facts.grid ? <GridPanel facts={facts} grid={facts.grid} large /> : <Notice>The rank grid didn&apos;t run for this audit. Run it again to add one.</Notice>}
+
+      {onCheckKeyword && <KeywordForm current={facts.grid?.keyword ?? vis?.keyword ?? ""} onSubmit={onCheckKeyword} busy={!!checking} />}
+
+      <Panel title="Google Maps results" hint={vis ? `The top ${rows.length} results for “${vis.keyword}” at the business’s location. Ads are left out.` : undefined} flush>
+        {rows.length ? <CompetitorTable rows={rows} business={b} /> : <p className="p-4 text-[13px] text-muted-foreground">No results to show.</p>}
       </Panel>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="flex items-start gap-3 rounded-2xl border border-brand/30 bg-gradient-to-br from-brand-soft to-card p-5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
-            <Grid3x3 className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold">See the whole area, not just the neighbourhood</div>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              This audit runs a 3×3 grid 1 km apart. Google Maps Tracker scans up to 21×21, tracks it over time, and compares you with each competitor point by point.
-            </p>
-            <Link href="/dashboard/google-maps-tracker/new" className="mt-3 inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-deep print:hidden">
-              Run a bigger grid in Maps Tracker →
+        <Panel
+          title="See the whole area"
+          meta={
+            <Link href="/dashboard/google-maps-tracker/new" className={LINK}>
+              Open Maps Tracker
             </Link>
-          </div>
-        </div>
+          }
+        >
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            This audit runs a 3×3 grid 1 km apart. Google Maps Tracker scans up to 21×21, tracks it over time, and compares you with each competitor point by point.
+          </p>
+        </Panel>
         {b.peopleAlsoSearch.length > 0 && (
-          <Panel icon={Users} tone={TONES.cyan} title="People also search for" hint="Google's own list of related businesses">
-            <ul className="divide-y divide-border/60">
+          <Panel title="People also search for" hint="Google's own list of related businesses." flush>
+            <div className="divide-y divide-border">
               {b.peopleAlsoSearch.slice(0, 6).map((p) => (
-                <li key={`${p.cid}-${p.title}`} className="flex items-center gap-2.5 px-5 py-2.5 text-xs">
-                  <Avatar name={p.title} size={24} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{p.title}</span>
-                  <span className="shrink-0 text-muted-foreground">
+                <div key={`${p.cid}-${p.title}`} className="flex items-baseline justify-between gap-4 px-4 py-2.5 text-[13px]">
+                  <span className="truncate">{p.title}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
                     {p.rating !== null ? `${p.rating.toFixed(1)}★` : ""}
                     {p.reviewCount !== null ? ` · ${p.reviewCount.toLocaleString()}` : ""}
                   </span>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </Panel>
         )}
       </div>
@@ -1257,28 +1062,25 @@ function KeywordForm({ current, onSubmit, busy }: { current: string; onSubmit: (
     if (v && v.toLowerCase() !== current.toLowerCase()) onSubmit(v)
   }
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center print:hidden">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-          <Search className="h-4 w-4" />
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-[10px] border border-border bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center print:hidden">
+      <div className="min-w-0 flex-1 text-[13px]">
+        <b className="font-medium">Check another keyword</b>
+        <span className="text-muted-foreground">
+          {" "}
+          · the profile and reviews are reused from the {CACHE_DAYS}-day cache; the new keyword runs as a 3×3 Maps Tracker scan (3 credits)
         </span>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">Check another keyword</div>
-          <div className="text-xs text-muted-foreground">
-            Now showing “{current}”. The profile and reviews are reused from the {CACHE_DAYS}-day cache; the new keyword runs as a 3×3 Maps Tracker scan (3 credits).
-          </div>
-        </div>
       </div>
       <div className="flex gap-2">
         <input
-          className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-brand sm:w-64"
-          placeholder="e.g. exporter in navi mumbai"
+          className="h-8 w-full rounded-[7px] border border-border bg-background px-2.5 text-[13px] outline-none focus:border-brand sm:w-56"
+          placeholder={current ? `Instead of “${current}”` : "e.g. helmet shop"}
+          aria-label="Another keyword to check"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           maxLength={80}
         />
-        <button type="submit" disabled={busy || !value.trim()} className="h-9 shrink-0 rounded-lg bg-brand px-3 text-xs font-semibold text-white hover:bg-brand-deep disabled:opacity-50">
-          {busy ? "Starting…" : "Check rank"}
+        <button type="submit" disabled={busy || !value.trim()} className={heroButtonPrimary}>
+          {busy ? "Starting…" : "Check"}
         </button>
       </div>
     </form>
@@ -1287,79 +1089,67 @@ function KeywordForm({ current, onSubmit, busy }: { current: string; onSubmit: (
 
 // ── Action plan ──────────────────────────────────────────────────────────────
 
-const PHASES = [
-  { ring: "bg-brand text-white", edge: "from-brand/80 to-brand/10" },
-  { ring: "bg-amber-500 text-white", edge: "from-amber-500/80 to-amber-500/10" },
-  { ring: "bg-emerald-600 text-white", edge: "from-emerald-600/80 to-emerald-600/10" },
-]
-
 export function Plan({ plan }: { plan: PlanPhase[] }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-5 lg:grid-cols-3">
       {plan.map((p, i) => (
-        <div key={p.window} className="relative overflow-hidden rounded-2xl border border-border bg-card p-5">
-          <span aria-hidden className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${PHASES[i]?.edge ?? ""}`} />
-          <div className="flex items-center gap-3">
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${PHASES[i]?.ring ?? "bg-muted"}`}>{i + 1}</span>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{p.window}</div>
-              <h3 className="text-sm font-semibold">{p.title}</h3>
-            </div>
-          </div>
-          <ul className="mt-4 space-y-2.5">
+        <Panel
+          key={p.window}
+          title={
+            <span className="inline-flex items-center">
+              <span className="mr-2 inline-grid h-5 w-5 place-items-center rounded-full bg-brand text-[11px] font-semibold text-white">{i + 1}</span>
+              {p.title}
+            </span>
+          }
+          meta={p.window}
+        >
+          <ul className="space-y-2">
             {p.items.map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-xs leading-relaxed text-muted-foreground">
-                <span className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-2 border-border" aria-hidden />
+              <li key={item} className="flex gap-2.5 text-[13px] leading-relaxed text-muted-foreground">
+                <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
                 {item}
               </li>
             ))}
           </ul>
-        </div>
+        </Panel>
       ))}
     </div>
   )
 }
 
 export function ActionPlan({ report }: { report: Report }) {
+  const area = (k: Check["category"]) => report.categories.find((c) => c.key === k)?.label ?? ""
   return (
     <div className="space-y-5">
       <Plan plan={report.plan} />
-      <Panel icon={ListChecks} tone={TONES.rose} title="Every recommendation" hint="All findings, highest priority first">
+      <Panel title="Every recommendation" hint="All findings, highest priority first." flush>
         {report.findings.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-muted-foreground">Nothing to fix — every check we could run passed.</p>
+          <p className="p-4 text-[13px] text-muted-foreground">Nothing to fix — every check we could run passed.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-xs">
+            <table className="w-full min-w-[640px] border-collapse text-[13px]">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3 font-semibold">Recommendation</th>
-                  <th className="px-3 py-3 font-semibold">Found</th>
-                  <th className="px-3 py-3 font-semibold">Area</th>
-                  <th className="px-5 py-3 font-semibold">Priority</th>
+                <tr>
+                  <th className={TH}>Recommendation</th>
+                  <th className={`${TH} w-40`}>Found</th>
+                  <th className={`${TH} w-44`}>Area</th>
+                  <th className={`${TH} w-[90px] text-right`}>Priority</th>
                 </tr>
               </thead>
-              <tbody>
-                {report.findings.map((f) => {
-                  const { icon: Icon, tone } = CATEGORY_STYLE[f.category]
-                  return (
-                    <tr key={f.id} className="border-b border-border/60 align-top last:border-0 hover:bg-muted/30">
-                      <td className="px-5 py-3">
-                        <div className="font-semibold">{f.label}</div>
-                        <div className="mt-0.5 leading-relaxed text-muted-foreground">{f.fix}</div>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">{f.value}</td>
-                      <td className="whitespace-nowrap px-3 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone.tile}`}>
-                          <Icon className="h-3 w-3" />
-                          {report.categories.find((c) => c.key === f.category)?.label}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <PriorityBadge priority={f.priority} />
-                      </td>
-                    </tr>
-                  )
-                })}
+              <tbody className="divide-y divide-border">
+                {report.findings.map((f) => (
+                  <tr key={f.id} className="align-top">
+                    <td className={TD}>
+                      <div className="font-medium">{f.label}</div>
+                      <div className="mt-0.5 leading-relaxed text-muted-foreground">{f.fix}</div>
+                    </td>
+                    <td className={`${TD} text-muted-foreground`}>{f.value}</td>
+                    <td className={`${TD} text-muted-foreground`}>{area(f.category)}</td>
+                    <td className={`${TD} text-right`}>
+                      <PriorityBadge priority={f.priority} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1373,17 +1163,15 @@ export function ActionPlan({ report }: { report: Report }) {
 export function OtherAudits({ audits }: { audits: GbpAuditResponse["others"] }) {
   if (audits.length === 0) return null
   return (
-    <Panel icon={CalendarClock} tone={TONES.cyan} title="Earlier audits of this profile">
-      <ul className="divide-y divide-border/60">
+    <Panel title="Earlier audits of this profile" flush>
+      <div className="divide-y divide-border">
         {audits.map((a) => (
-          <li key={a.id}>
-            <Link href={`/dashboard/google-maps-audit/${a.id}`} className="flex items-center justify-between gap-4 px-5 py-3 text-sm transition-colors hover:bg-muted/30">
-              <span>{fmtDay(a.createdAt)}</span>
-              <span className={`font-bold tabular-nums ${a.score !== null ? scoreText(a.score) : "text-muted-foreground"}`}>{a.score ?? "—"}</span>
-            </Link>
-          </li>
+          <Link key={a.id} href={`/dashboard/google-maps-audit/${a.id}`} className="flex items-center justify-between gap-4 px-4 py-2.5 text-[13px] transition-colors hover:bg-muted">
+            <span>{fmtDay(a.createdAt)}</span>
+            <b className={`tabular-nums ${a.score !== null ? scoreText(a.score) : "text-muted-foreground"}`}>{a.score ?? "—"}</b>
+          </Link>
         ))}
-      </ul>
+      </div>
     </Panel>
   )
 }

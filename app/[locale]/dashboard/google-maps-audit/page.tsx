@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { Camera, Database, Globe, Grid3x3, Link2, MapPin, Search, Star, Store, Zap } from "lucide-react"
+import { Camera, Database, Globe, Grid3x3, Link2, Search, Star, Store, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
@@ -30,7 +30,7 @@ const COVERS = [
 ]
 
 const STEPS = [
-  { icon: Link2, title: "Paste a Maps link", text: "Share → Copy link on Google Maps, or the address bar" },
+  { icon: Link2, title: "Paste a Maps link", text: "On Google Maps, tap Share → Copy link, and paste it here" },
   { icon: Search, title: "Pick a keyword", text: "Optional: we use the primary category if you leave it blank" },
   { icon: Zap, title: "Get the report", text: "Score, rank grid, competitors and a 30-day plan in about a minute" },
 ]
@@ -85,73 +85,71 @@ export default function GoogleMapsAuditPage() {
 
   return (
     <div className="page">
-      <section className="relative overflow-hidden rounded-2xl bg-[#0c1f38] text-white shadow-[0_18px_40px_-24px_rgba(12,31,56,.9)]">
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-[#0c1f38] via-[#102b52] to-[#1e40af]" />
-        <div aria-hidden className="absolute -right-20 -top-28 h-80 w-80 rounded-full bg-sky-400/25 blur-3xl" />
-        <div
-          aria-hidden
-          className="absolute inset-y-0 right-0 hidden w-1/3 opacity-[0.12] lg:block"
-          style={{ backgroundImage: "radial-gradient(circle, #fff 2px, transparent 2.5px)", backgroundSize: "28px 28px" }}
-        />
-        <div className="relative p-6 sm:p-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200 ring-1 ring-inset ring-white/15">
-            <MapPin className="h-3 w-3" /> Local SEO audit
-          </div>
-          <h1 className="mt-3 text-[28px] font-semibold leading-tight tracking-tight sm:text-[34px]">Google Maps Audit</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
+      <div className="page-h">
+        <div>
+          <h1>Google Maps Audit</h1>
+          <div className="sub">
             Paste any Google Business Profile link. We read the live listing and its newest reviews, check where it ranks on a 3×3 map
             grid for your keyword, and hand you a score with a prioritised fix list.
-          </p>
+          </div>
+        </div>
+      </div>
 
-          <div className="mt-6 grid gap-2 rounded-2xl bg-white p-2 shadow-lg dark:bg-[#14181f] lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_auto]">
-            <label className="flex items-center gap-2.5 rounded-xl px-3 py-2 ring-1 ring-inset ring-border focus-within:ring-brand">
-              <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_auto] lg:items-end">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Google Maps link</span>
+            <span className="flex h-11 items-center gap-2.5 rounded-xl border border-border bg-background px-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+              <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               {/* type="text", not "url": a bare Place ID or "maps.app.goo.gl/…" without a scheme is fine too */}
               <input
-                className="h-8 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                placeholder="https://maps.app.goo.gl/…  or  google.com/maps/place/…"
+                className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                placeholder="https://maps.app.goo.gl/…"
                 inputMode="url"
                 autoComplete="off"
                 spellCheck={false}
-                aria-label="Google Maps link"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && start()}
               />
-            </label>
-            <label className="flex items-center gap-2.5 rounded-xl px-3 py-2 ring-1 ring-inset ring-border focus-within:ring-brand">
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Keyword <span className="font-normal">(optional)</span>
+            </span>
+            <span className="flex h-11 items-center gap-2.5 rounded-xl border border-border bg-background px-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
               <input
-                className="h-8 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                placeholder="Keyword (optional)"
-                aria-label="Keyword to rank-check"
+                className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                placeholder="e.g. helmet shop"
                 maxLength={80}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && start()}
               />
-            </label>
-            <button
-              type="button"
-              onClick={start}
-              disabled={starting}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-deep disabled:opacity-60"
-            >
-              <Zap className="h-4 w-4" />
-              {starting ? "Starting…" : "Run audit"}
-            </button>
-          </div>
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={start}
+            disabled={starting}
+            className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Zap className="h-4 w-4" aria-hidden />
+            {starting ? "Starting…" : "Run audit"}
+          </button>
+        </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/70">
-            <span className="inline-flex flex-wrap items-center gap-1.5">
-              Profile <CreditCost action={CREDIT_ACTION_KEYS.gbpAudit} showBalance={false} className="[&_*]:!text-white/70" />
-              <span className="text-white/40">+</span>
-              3×3 Maps Tracker grid <CreditCost action={CREDIT_ACTION_KEYS.mapsScanPoint} units={9} className="[&_*]:!text-white/70" />
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Database className="h-3.5 w-3.5 text-sky-300" /> Re-auditing the same business within {CACHE_DAYS} days is free — the data is cached
-            </span>
-          </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            Profile <CreditCost action={CREDIT_ACTION_KEYS.gbpAudit} showBalance={false} />
+            <span className="text-muted-foreground/50">+</span>
+            3×3 Maps Tracker grid <CreditCost action={CREDIT_ACTION_KEYS.mapsScanPoint} units={9} />
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Database className="h-3.5 w-3.5" aria-hidden /> Re-auditing the same business within {CACHE_DAYS} days is free — the data is cached
+          </span>
         </div>
       </section>
 
@@ -176,7 +174,7 @@ export default function GoogleMapsAuditPage() {
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         {STEPS.map(({ icon: StepIcon, title, text }, i) => (
           <div key={title} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0c1f38] text-sm font-bold text-white dark:bg-brand">{i + 1}</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand">{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-[13px] font-semibold">
                 <StepIcon className="h-3.5 w-3.5 text-brand" /> {title}

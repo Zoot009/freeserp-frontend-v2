@@ -51,8 +51,9 @@ export function RankGridView({
   size?: "md" | "lg"
 }) {
   const [mapFailed, setMapFailed] = useState(false)
-  // Compact: the map sits beside the grid's numbers, it shouldn't dwarf them.
-  const height = size === "lg" ? 380 : 260
+  // The grid card runs the full width of the report, so the map can be tall
+  // enough for its nine pins to sit apart.
+  const height = size === "lg" ? 440 : 360
 
   // Google reports a rejected key through this global rather than by throwing.
   useEffect(() => {

@@ -153,38 +153,40 @@ export default function GoogleMapsAuditReportPage() {
 
   return (
     <div className="page">
-      {back}
-      <ReportHero
-        data={data}
-        actions={
-          !running && (
-            <>
-              {mapsUrl && (
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={heroButton}>
-                  <ExternalLink className="h-3.5 w-3.5" /> Open on Google Maps
-                </a>
-              )}
-              {report && (
-                <button type="button" className={heroButton} onClick={() => window.print()}>
-                  <Printer className="h-3.5 w-3.5" /> Print / PDF
-                </button>
-              )}
-              <button
-                type="button"
-                className={`${heroButtonPrimary} ml-auto`}
-                onClick={() => start("rerun")}
-                disabled={starting !== null}
-                title={`Google data is kept for ${CACHE_DAYS} days: running again inside that window reuses it for free`}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${starting === "rerun" ? "animate-spin" : ""}`} />
-                {starting === "rerun" ? "Starting…" : "Run again"}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <Button asChild variant="ghost" size="sm" className="-ml-2 gap-1.5 text-[13px]">
+          <Link href="/dashboard/google-maps-audit">
+            <ArrowLeft className="h-4 w-4" /> All Google Maps audits
+          </Link>
+        </Button>
+        {!running && (
+          <div className="flex flex-wrap gap-2">
+            {mapsUrl && (
+              <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={heroButton}>
+                <ExternalLink className="h-3.5 w-3.5" /> Open on Google Maps
+              </a>
+            )}
+            {report && (
+              <button type="button" className={heroButton} onClick={() => window.print()}>
+                <Printer className="h-3.5 w-3.5" /> Print / PDF
               </button>
-            </>
-          )
-        }
-      />
+            )}
+            <button
+              type="button"
+              className={heroButtonPrimary}
+              onClick={() => start("rerun")}
+              disabled={starting !== null}
+              title={`Google data is kept for ${CACHE_DAYS} days: running again inside that window reuses it for free`}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${starting === "rerun" ? "animate-spin" : ""}`} />
+              {starting === "rerun" ? "Starting…" : "Run again"}
+              </button>
+          </div>
+        )}
+      </div>
+      <ReportHero data={data} onOpenPlan={() => openTab("plan")} />
 
-      <div className="space-y-5">
+      <div className="mt-5 space-y-5">
         {error && <Alarm>{error}</Alarm>}
         {running && <Progress step={audit.progress?.step ?? null} />}
         {audit.status === "FAILED" && audit.error && <Alarm>{audit.error}</Alarm>}
@@ -198,7 +200,7 @@ export default function GoogleMapsAuditReportPage() {
             {tab === "reviews" && <Reviews facts={facts} report={report} />}
             {tab === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={(k) => start("keyword", k)} checking={starting === "keyword"} />}
             {tab === "plan" && <ActionPlan report={report} />}
-            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
               Data from Google via DataForSEO, fetched {new Date(facts.fetchedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
               {audit.fromCache ? `; the profile and reviews were reused from the ${CACHE_DAYS}-day cache and not charged` : ""}. The rank grid is a Google Maps
               Tracker scan. The profile score is FreeSERP&apos;s weighted checklist, not a score Google publishes.
