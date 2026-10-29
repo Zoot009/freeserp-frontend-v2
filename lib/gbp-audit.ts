@@ -250,9 +250,9 @@ export const CACHE_DAYS = 10
 export function verdict(score: number): string {
   if (score >= 90) return "Excellent"
   if (score >= 80) return "Strong"
-  if (score >= 70) return "Good, with gaps"
-  if (score >= 60) return "Needs work"
-  return "Needs urgent work"
+  if (score >= 70) return "Good"
+  if (score >= 60) return "Fair"
+  return "Room to grow"
 }
 
 /** Where a grid point sits relative to the business, in words. */
