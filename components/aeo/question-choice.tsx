@@ -83,8 +83,8 @@ export function QuestionChoice({ auditId, until }: { auditId: string; until: str
           <DialogHeader>
             <DialogTitle>How should we ask the AI engines?</DialogTitle>
             <DialogDescription>
-              The audit is about to ask ChatGPT, Claude, Perplexity, Gemini and Google&apos;s AI Overviews 10 questions about your kind of business, and
-              check which sites their answers cite. Which questions?
+              The audit is about to ask the AI engines you picked 10 questions about your kind of business, and check which sites their answers cite.
+              Which questions?
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

@@ -128,6 +128,12 @@ export const CATEGORIES: Category[] = ["CRAWL_ACCESS", "RENDERING", "STRUCTURED_
 
 export const EFFORT_LABELS: Record<Effort, string> = { LOW: "Low effort", MEDIUM: "Medium effort", HIGH: "High effort" }
 
+/** The engines an audit can ask, in report order (MEASURED in the backend's visibility.ts). Not Copilot. */
+export const MEASURED = ["chatgpt", "claude", "perplexity", "gemini", "ai-overviews"] as const
+export type MeasuredEngine = (typeof MEASURED)[number]
+/** What each engine adds to the audit's price, in aeo.audit units (ENGINE_UNITS in the backend's visibility.ts). */
+export const ENGINE_UNITS: Record<MeasuredEngine, number> = { chatgpt: 1, claude: 20, perplexity: 2, gemini: 1, "ai-overviews": 1 }
+
 export const ENGINE_NAMES: Record<string, string> = {
   chatgpt: "ChatGPT",
   claude: "Claude",
