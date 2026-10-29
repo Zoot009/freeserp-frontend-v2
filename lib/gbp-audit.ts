@@ -363,3 +363,57 @@ export function bestOf(values: (number | null)[], low = false): number | null {
   if (known.length < 2) return null
   return low ? Math.min(...known) : Math.max(...known)
 }
+
+// ── Competitors' grids (pure: the report draws them) ─────────────────────────
+
+/** One business's row in the Maps Tracker competitor leaderboard: who it is, and its rank by point index. */
+export type LeaderboardRow = {
+  name: string
+  cid: string | null
+  placeId: string | null
+  isTarget: boolean
+  visibility: number | null
+  arp: number | null
+  ranks: Record<number, number>
+}
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+/** A competitor from the Maps results, found in the leaderboard by Google id first, then by name. */
+export function findLeaderboardRow<T extends LeaderboardRow>(rows: T[], rival: Pick<CompetitorRow, "cid" | "placeId" | "title">): T | null {
+  return (
+    (rival.cid && rows.find((r) => !r.isTarget && r.cid === rival.cid)) ||
+    (rival.placeId && rows.find((r) => !r.isTarget && r.placeId === rival.placeId)) ||
+    rows.find((r) => !r.isTarget && sameName(r.name, rival.title)) ||
+    null
+  )
+}
+
+/**
+ * A competitor's own 3×3: the audit's grid with each point re-ranked for that
+ * competitor, from the leaderboard's sparse point-index → rank map. A point the
+ * leaderboard doesn't score failed, and stays out of the counts; a scored point
+ * with no rank is a real "not in the top 20".
+ */
+export function rivalGrid(grid: Grid, leaderboardPoints: { row: number; col: number }[], row: LeaderboardRow): Grid {
+  const indexOf = new Map(leaderboardPoints.map((p, i) => [`${p.row}:${p.col}`, i]))
+  const points = grid.points.map<GridPoint>((p) => {
+    const i = indexOf.get(`${p.row}:${p.col}`)
+    if (p.status !== "SUCCEEDED" || i === undefined) return { ...p, status: "FAILED", rank: null, top: [] }
+    return { ...p, rank: row.ranks[i] ?? null, top: [] }
+  })
+  const scored = points.filter((p) => p.status === "SUCCEEDED")
+  const found = scored.filter((p) => p.rank !== null)
+  return {
+    ...grid,
+    points,
+    metrics: {
+      ...grid.metrics,
+      arp: row.arp,
+      visibility: row.visibility,
+      foundPoints: found.length,
+      scoredPoints: scored.length,
+      top3Points: found.filter((p) => p.rank! <= 3).length,
+    },
+  }
+}

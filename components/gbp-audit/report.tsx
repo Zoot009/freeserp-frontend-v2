@@ -10,8 +10,11 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import Link from "next/link"
 import { AlertCircle, AlertTriangle, BadgeCheck, CheckCircle2, CircleDashed, Globe, MapPin, Phone, Star, XCircle } from "lucide-react"
 import { gradeStroke, sectionScoreToGrade } from "@/components/page-audit/audit-ui"
-import { rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
-import { PointDetail, RankGridView, gridPointKey } from "@/components/gbp-audit/rank-grid"
+import { formatDistance, rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
+import { useCompetitors } from "@/components/maps-tracker/use-competitors"
+import type { Scan } from "@/components/maps-tracker/types"
+import { PointDetail, RankGridView, RankLegend, gridPointKey } from "@/components/gbp-audit/rank-grid"
+import { api } from "@/lib/api"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Hint, InfoHint } from "@/components/dashboard/widget"
 import { EngineMark } from "@/components/dashboard/engine-marks"
@@ -26,6 +29,8 @@ import {
   initials,
   pointPlace,
   verdict,
+  findLeaderboardRow,
+  rivalGrid,
   bestOf,
   contenders,
   gaps,
@@ -503,7 +508,10 @@ export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; rep
       {/* Full width: the grid is the report's one picture, and squeezed beside
           another panel its nine points sat on top of each other. */}
       {grid ? (
-        <GridPanel facts={facts} grid={grid} onOpen={() => onOpen("rankings")} />
+        <>
+          <GridPanel facts={facts} grid={grid} onOpen={() => onOpen("rankings")} />
+          <RivalGrids facts={facts} />
+        </>
       ) : (
         <Panel title="Local rank grid">
           <p className="text-[13px] text-muted-foreground">This audit was run before the rank grid existed, or the grid couldn&apos;t run. Run it again to add one.</p>
@@ -657,6 +665,106 @@ function GridPanel({ facts, grid, onOpen, large = false, className = "" }: { fac
           <PointDetail grid={grid} pointKey={selected} />
           {large && <PointList grid={grid} selected={selected} onSelect={setSelected} />}
         </div>
+      </div>
+    </Panel>
+  )
+}
+
+/** The Maps Tracker keyword the audit's grid is, so its competitor leaderboard can be read. */
+function useScanKeywordId(scanId: string | null | undefined, keyword: string | undefined) {
+  const [id, setId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!scanId) return
+    let cancelled = false
+    api
+      .get<{ scan: Scan }>(`/api/maps-tracker/scans/${scanId}`)
+      .then(({ scan }) => {
+        if (cancelled) return
+        const k = scan.keywords.find((x) => x.normalizedKeyword === keyword) ?? scan.keywords[0]
+        setId(k?.id ?? null)
+      })
+      .catch(() => {
+        // Non-fatal: the report reads fine without the competitors' grids.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [scanId, keyword])
+  return id
+}
+
+/**
+ * The three nearest competitors, each on their own 3×3 from the same nine
+ * points as the business's grid. Read from the grid's Maps Tracker scan, which
+ * already holds every point's full result list, so nothing new is searched.
+ */
+function RivalGrids({ facts }: { facts: Facts }) {
+  const grid = facts.grid
+  const keywordId = useScanKeywordId(grid?.scanId, grid?.keyword)
+  const { leaderboard, loading } = useCompetitors(grid?.scanId ?? null, keywordId, !!grid?.scanId)
+  if (!grid?.scanId) return null
+
+  const unit = unitFor(facts.business)
+  const rivals = mapsResults(facts)
+    .filter((r) => !r.isTarget)
+    .slice(0, 3)
+    .map((r) => {
+      const row = leaderboard ? findLeaderboardRow(leaderboard.rows, r) : null
+      return { result: r, grid: row && leaderboard ? rivalGrid(grid, leaderboard.points, row) : null }
+    })
+  if (rivals.length === 0 || (!loading && !leaderboard)) return null
+
+  return (
+    <Panel
+      title="Your top 3 competitors on the grid"
+      hint={`Where each of your three nearest competitors ranks for “${grid.keyword}” from the same ${grid.points.length} points as your grid. Read from the grid’s Maps Tracker scan, so nothing new is searched.`}
+      meta={
+        <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className={LINK}>
+          Compare in Maps Tracker
+        </Link>
+      }
+    >
+      <div className="grid gap-5 lg:grid-cols-3">
+        {rivals.map(({ result: r, grid: g }) => (
+          <div key={`${r.rank}-${r.title}`} className="min-w-0">
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[13px] font-medium" title={r.title}>
+                  {r.title}
+                </div>
+                <div className="text-xs text-muted-foreground">#{r.rank} at your location</div>
+              </div>
+              {g && g.metrics.visibility !== null && (
+                <div className="shrink-0 text-right">
+                  <div className="text-[15px] font-semibold tabular-nums">{Math.round(g.metrics.visibility)}%</div>
+                  <div className="text-[11px] text-muted-foreground">visibility</div>
+                </div>
+              )}
+            </div>
+            {g ? (
+              <>
+                <RankGridView grid={g} unit={unit} selected={null} onSelect={() => {}} size="sm" legend={false} />
+                <div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Top 3 at <b className="font-medium text-foreground">{g.metrics.top3Points}</b> of {g.metrics.scoredPoints}
+                  </span>
+                  <span>
+                    Avg. rank <b className="font-medium text-foreground">{g.metrics.arp !== null ? g.metrics.arp.toFixed(1) : "—"}</b>
+                  </span>
+                </div>
+              </>
+            ) : loading ? (
+              <div className="h-[250px] animate-pulse rounded-xl bg-muted" aria-label="Loading" />
+            ) : (
+              <p className="grid h-[250px] place-items-center rounded-xl border border-dashed border-border px-6 text-center text-xs text-muted-foreground">
+                Not found in this grid&apos;s results.
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4">
+        <RankLegend spacing={formatDistance(grid.spacingMeters, unit)} />
       </div>
     </Panel>
   )
@@ -1130,7 +1238,14 @@ export function Rankings({
         />
       </div>
 
-      {facts.grid ? <GridPanel facts={facts} grid={facts.grid} large /> : <Notice>The rank grid didn&apos;t run for this audit. Run it again to add one.</Notice>}
+      {facts.grid ? (
+        <>
+          <GridPanel facts={facts} grid={facts.grid} large />
+          <RivalGrids facts={facts} />
+        </>
+      ) : (
+        <Notice>The rank grid didn&apos;t run for this audit. Run it again to add one.</Notice>
+      )}
 
       {onCheckKeyword && <KeywordForm current={facts.grid?.keyword ?? vis?.keyword ?? ""} onSubmit={onCheckKeyword} busy={!!checking} />}
 

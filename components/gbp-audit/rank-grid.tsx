@@ -43,17 +43,21 @@ export function RankGridView({
   selected,
   onSelect,
   size = "md",
+  legend = true,
 }: {
   grid: Grid
   unit: DistanceUnit
   selected: string | null
   onSelect: (key: string) => void
-  size?: "md" | "lg"
+  /** sm: one of a row of small maps (the competitors' grids). */
+  size?: "sm" | "md" | "lg"
+  /** Off when several maps share one legend. */
+  legend?: boolean
 }) {
   const [mapFailed, setMapFailed] = useState(false)
   // The grid card runs the full width of the report, so the map can be tall
   // enough for its nine pins to sit apart.
-  const height = size === "lg" ? 440 : 360
+  const height = size === "lg" ? 440 : size === "sm" ? 250 : 360
 
   // Google reports a rejected key through this global rather than by throwing.
   useEffect(() => {
@@ -99,7 +103,7 @@ export function RankGridView({
                 openPointId={selected}
                 onPinClick={(pin) => pin.pointId && onSelect(pin.pointId)}
                 framePadding={0.14}
-                pinBoost={size === "lg" ? 1.3 : 1.1}
+                pinBoost={size === "lg" ? 1.3 : size === "sm" ? 0.95 : 1.1}
               />
             </APIProvider>
           </MapBoundary>
@@ -107,6 +111,14 @@ export function RankGridView({
           unavailable
         )}
       </div>
+      {legend && <RankLegend spacing={formatDistance(grid.spacingMeters, unit)} />}
+    </div>
+  )
+}
+
+/** The rank bands' colours, and how far apart the points are. */
+export function RankLegend({ spacing }: { spacing: string }) {
+  return (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {RANK_BANDS.map((b) => (
@@ -116,9 +128,8 @@ export function RankGridView({
             </span>
           ))}
         </div>
-        <span className="text-[11px] text-muted-foreground">{formatDistance(grid.spacingMeters, unit)} between points</span>
+        <span className="text-[11px] text-muted-foreground">{spacing} between points</span>
       </div>
-    </div>
   )
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { bestOf, contenders, gaps, type Facts } from "@/lib/gbp-audit"
+import { bestOf, contenders, findLeaderboardRow, gaps, rivalGrid, type Facts, type Grid } from "@/lib/gbp-audit"
 
 const row = (rank: number, title: string, reviewCount: number, rating: number, isTarget = false) => ({
   rank, title, reviewCount, rating, isTarget, cid: null, placeId: null, category: "Cafe", domain: null, website: null, address: null, imageUrl: null,
@@ -45,5 +45,40 @@ describe("you vs your top 3", () => {
     expect(bestOf([2, 1, 3], true)).toBe(1)
     expect(bestOf([41, 340, null])).toBe(340)
     expect(bestOf([41, null])).toBeNull()
+  })
+})
+
+
+describe("competitors' grids", () => {
+  const point = (row: number, col: number, status: "SUCCEEDED" | "FAILED" = "SUCCEEDED") =>
+    ({ row, col, lat: 0, lng: 0, isCenter: row === 1 && col === 1, status, rank: 2, top: [] })
+  const grid = {
+    points: [point(0, 0), point(0, 1), point(1, 1), point(2, 2, "FAILED")],
+    metrics: { arp: 2, atrp: 2, solv: 100, visibility: 90, foundPoints: 3, scoredPoints: 3, top3Points: 3 },
+  } as unknown as Grid
+  // The leaderboard scores three points, in its own order.
+  const lbPoints = [{ row: 1, col: 1 }, { row: 0, col: 0 }, { row: 0, col: 1 }]
+  const rival = { name: "Prairie", cid: "11", placeId: null, isTarget: false, visibility: 70, arp: 4, ranks: { 0: 1, 1: 6 } }
+
+  it("re-ranks each point for the competitor, by the leaderboard's point index", () => {
+    const g = rivalGrid(grid, lbPoints, rival)
+    expect(g.points.map((p) => [p.row, p.col, p.status, p.rank])).toEqual([
+      [0, 0, "SUCCEEDED", 6],
+      [0, 1, "SUCCEEDED", null], // scored, not in the top 20
+      [1, 1, "SUCCEEDED", 1],
+      [2, 2, "FAILED", null],
+    ])
+    expect(g.metrics).toMatchObject({ scoredPoints: 3, foundPoints: 2, top3Points: 1, visibility: 70, arp: 4 })
+  })
+
+  it("finds the competitor by Google id, then by name, never the business itself", () => {
+    const rows = [
+      { ...rival, name: "You", cid: "99", isTarget: true },
+      { ...rival, name: "Prairie Grounds", cid: "11" },
+      { ...rival, name: "Third Street", cid: null },
+    ]
+    expect(findLeaderboardRow(rows, { cid: "11", placeId: null, title: "Prairie" })?.name).toBe("Prairie Grounds")
+    expect(findLeaderboardRow(rows, { cid: null, placeId: null, title: "third street " })?.name).toBe("Third Street")
+    expect(findLeaderboardRow(rows, { cid: "99", placeId: null, title: "You" })).toBeNull()
   })
 })
