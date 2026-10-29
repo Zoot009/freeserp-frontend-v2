@@ -272,3 +272,94 @@ export function age(iso: string, now = Date.now()): string {
   if (days === 1) return "yesterday"
   return `${days} days ago`
 }
+
+// ── You vs your top three (pure: the report draws it) ─────────────────────────
+
+/** The organic Maps results at the business's own location, the business itself included, best first. */
+export function mapsResults(facts: Facts): CompetitorRow[] {
+  return (facts.visibility?.results ?? []).filter((r, i, all) => all.findIndex((x) => x.rank === r.rank) === i).slice(0, 20)
+}
+
+export type Contender = {
+  name: string
+  you: boolean
+  photo: string | null
+  rank: number | null
+  /** Grid points where they're in the top 3, of `scored`. Null when there's no grid. */
+  top3: number | null
+  rating: number | null
+  reviews: number | null
+  category: string | null
+  website: string | null
+}
+
+/**
+ * The business against the three that outrank (or trail) it at its own pin,
+ * from data the audit already holds: the Maps results at the business, and the
+ * grid points' top lists for how far each one's reach goes.
+ */
+export function contenders(facts: Facts): { you: Contender; rivals: Contender[]; scored: number | null } {
+  const b = facts.business
+  const vis = facts.visibility
+  const grid = facts.grid
+  const scored = grid ? grid.metrics.scoredPoints : null
+  const top3Points = (title: string) =>
+    grid ? grid.points.filter((p) => p.status === "SUCCEEDED" && p.top.some((t) => !t.isTarget && t.title === title && t.rank <= 3)).length : null
+  const rivals = mapsResults(facts)
+    .filter((r) => !r.isTarget)
+    .slice(0, 3)
+    .map<Contender>((r) => ({
+      name: r.title,
+      you: false,
+      photo: r.imageUrl,
+      rank: r.rank,
+      top3: top3Points(r.title),
+      rating: r.rating,
+      reviews: r.reviewCount,
+      category: r.category,
+      website: r.website,
+    }))
+  const you: Contender = {
+    name: b.name,
+    you: true,
+    photo: b.logo ?? b.mainImage,
+    rank: vis?.rank ?? null,
+    top3: grid ? grid.metrics.top3Points : null,
+    rating: b.rating,
+    reviews: b.reviewCount,
+    category: b.category,
+    website: b.website,
+  }
+  return { you, rivals, scored }
+}
+
+/** Plain-words takeaways: where the nearest rivals are ahead, biggest gap first. */
+export function gaps(you: Contender, rivals: Contender[], scored: number | null): string[] {
+  const out: string[] = []
+  const mostReviews = [...rivals].sort((a, z) => (z.reviews ?? 0) - (a.reviews ?? 0))[0]
+  if (mostReviews?.reviews && you.reviews !== null && mostReviews.reviews > you.reviews) {
+    const x = you.reviews > 0 ? mostReviews.reviews / you.reviews : null
+    out.push(
+      x && x >= 1.5
+        ? `${mostReviews.name} has ${x.toFixed(1)}× your reviews (${mostReviews.reviews.toLocaleString()} vs ${you.reviews.toLocaleString()}).`
+        : `${mostReviews.name} has more reviews (${mostReviews.reviews.toLocaleString()} vs ${you.reviews.toLocaleString()}).`,
+    )
+  }
+  const bestRated = [...rivals].sort((a, z) => (z.rating ?? 0) - (a.rating ?? 0))[0]
+  if (bestRated?.rating && you.rating !== null && bestRated.rating > you.rating) {
+    out.push(`${bestRated.name} is rated higher (${bestRated.rating.toFixed(1)}★ vs your ${you.rating.toFixed(1)}★).`)
+  }
+  const widest = [...rivals].sort((a, z) => (z.top3 ?? 0) - (a.top3 ?? 0))[0]
+  if (scored && widest?.top3 != null && you.top3 != null && widest.top3 > you.top3) {
+    out.push(`${widest.name} is in the top 3 at ${widest.top3} of ${scored} grid points; you are at ${you.top3}.`)
+  }
+  if (out.length === 0 && rivals.length) out.push("You match or beat your nearest three competitors on rank, rating, reviews and reach. Keep the reviews coming.")
+  return out
+}
+
+/** The best value in a row, so it can be marked. `low` means smaller is better (rank). */
+export function bestOf(values: (number | null)[], low = false): number | null {
+  const known = values.filter((v): v is number => v !== null)
+  if (known.length < 2) return null
+  return low ? Math.min(...known) : Math.max(...known)
+}

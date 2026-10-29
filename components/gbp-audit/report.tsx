@@ -26,6 +26,11 @@ import {
   initials,
   pointPlace,
   verdict,
+  bestOf,
+  contenders,
+  gaps,
+  mapsResults,
+  type Contender,
   type AuditStep,
   type Business,
   type Check,
@@ -534,20 +539,7 @@ export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; rep
         </div>
       </div>
 
-      {report.competitors.rows.length > 0 && (
-        <Panel
-          title="Competitors"
-          hint={vis ? `Who ranks for “${vis.keyword}” on Google Maps, searched from the business’s location.` : undefined}
-          meta={
-            <button type="button" className={LINK} onClick={() => onOpen("rankings")}>
-              Compare all
-            </button>
-          }
-          flush
-        >
-          <CompetitorTable rows={snapshotRows(facts)} business={b} />
-        </Panel>
-      )}
+      <HeadToHead facts={facts} onOpenAll={() => onOpen("rankings")} />
 
       <Plan plan={report.plan} />
     </div>
@@ -894,17 +886,143 @@ function ReviewRow({ review: r }: { review: Review }) {
 
 // ── Rankings & competitors ───────────────────────────────────────────────────
 
-/** The organic Maps results at the business's own location, the business itself included, best first. */
-function mapsResults(facts: Facts): CompetitorRow[] {
-  return (facts.visibility?.results ?? []).filter((r, i, all) => all.findIndex((x) => x.rank === r.rank) === i).slice(0, 20)
-}
+// ── You vs your top three ────────────────────────────────────────────────────
 
-/** The top five, plus the business itself when it ranks below them. */
-function snapshotRows(facts: Facts): CompetitorRow[] {
-  const all = mapsResults(facts)
-  const top = all.slice(0, 5)
-  const target = all.find((r) => r.isTarget)
-  return target && !top.includes(target) ? [...top, target] : top
+export function HeadToHead({ facts, onOpenAll }: { facts: Facts; onOpenAll?: () => void }) {
+  const { you, rivals, scored } = contenders(facts)
+  if (rivals.length === 0) return null
+  const all = [you, ...rivals]
+  const keyword = facts.visibility?.keyword
+  const rows: { label: string; hint?: string; values: (c: Contender) => ReactNode; best?: number | null; num?: (c: Contender) => number | null }[] = [
+    {
+      label: "Rank here",
+      hint: keyword ? `Position on Google Maps for “${keyword}”, searched from your business’s location.` : undefined,
+      num: (c) => c.rank,
+      best: bestOf(all.map((c) => c.rank), true),
+      values: (c) => (c.rank !== null ? `#${c.rank}` : `${facts.visibility?.depth ?? 20}+`),
+    },
+    ...(scored
+      ? [
+          {
+            label: "Top 3 across the area",
+            hint: `In how many of the ${scored} grid points around you they show in the top 3.`,
+            num: (c: Contender) => c.top3,
+            best: bestOf(all.map((c) => c.top3)),
+            values: (c: Contender) => (c.top3 !== null ? `${c.top3} of ${scored}` : "—"),
+          },
+        ]
+      : []),
+    {
+      label: "Rating",
+      num: (c) => c.rating,
+      best: bestOf(all.map((c) => c.rating)),
+      values: (c) =>
+        c.rating !== null ? (
+          <span className="inline-flex items-center gap-1">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden />
+            {c.rating.toFixed(1)}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      label: "Reviews",
+      num: (c) => c.reviews,
+      best: bestOf(all.map((c) => c.reviews)),
+      values: (c) => c.reviews?.toLocaleString() ?? "—",
+    },
+    { label: "Category", values: (c) => <span className="text-muted-foreground">{c.category ?? "—"}</span> },
+    {
+      label: "Website",
+      values: (c) =>
+        c.website ? (
+          <ExtLink href={c.website} className="text-brand">
+            {hostOf(c.website)}
+          </ExtLink>
+        ) : (
+          <span className="text-red-500">None</span>
+        ),
+    },
+  ]
+  return (
+    <Panel
+      title="You vs your top 3 competitors"
+      hint={keyword ? `The three businesses closest to you for “${keyword}” on Google Maps, side by side. The best in each row is marked.` : undefined}
+      meta={
+        onOpenAll && (
+          <button type="button" className={LINK} onClick={onOpenAll}>
+            All results
+          </button>
+        )
+      }
+      flush
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] table-fixed border-collapse text-[13px]">
+          <colgroup>
+            <col className="w-44" />
+            {all.map((c) => (
+              <col key={c.name} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="border-b border-border px-4 py-3" />
+              {all.map((c) => (
+                <th key={c.name} className={`border-b border-border px-3 py-3 text-left align-bottom font-normal ${c.you ? "bg-brand/5" : ""}`}>
+                  <div className="flex min-w-0 items-center gap-2">
+                    {c.photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- Google-hosted photo
+                      <img src={c.photo} alt="" referrerPolicy="no-referrer" className="h-8 w-8 shrink-0 rounded-md object-cover ring-1 ring-border" />
+                    ) : (
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground" aria-hidden>
+                        {initials(c.name)}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-medium" title={c.name}>
+                        {c.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{c.you ? <span className="font-medium text-brand">You</span> : c.rank !== null ? `#${c.rank} here` : "Competitor"}</div>
+                    </div>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <th scope="row" className="px-4 py-2.5 text-left font-normal text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    {row.label}
+                    {row.hint && <InfoHint>{row.hint}</InfoHint>}
+                  </span>
+                </th>
+                {all.map((c) => {
+                  const lead = row.num && row.best != null && row.num(c) === row.best
+                  return (
+                    <td key={c.name} className={`truncate px-3 py-2.5 tabular-nums ${c.you ? "bg-brand/5" : ""} ${lead ? "font-semibold text-green-700 dark:text-green-400" : ""}`}>
+                      {row.values(c)}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="space-y-1.5 border-t border-border px-4 py-3 text-[13px]">
+        {gaps(you, rivals, scored).map((g) => (
+          <li key={g} className="flex gap-2 text-muted-foreground">
+            <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
+            <span>{g}</span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  )
 }
 
 const TH = "whitespace-nowrap border-b border-border px-2 py-2.5 text-left text-xs font-medium text-muted-foreground first:pl-4 last:pr-4"
@@ -1015,6 +1133,8 @@ export function Rankings({
       {facts.grid ? <GridPanel facts={facts} grid={facts.grid} large /> : <Notice>The rank grid didn&apos;t run for this audit. Run it again to add one.</Notice>}
 
       {onCheckKeyword && <KeywordForm current={facts.grid?.keyword ?? vis?.keyword ?? ""} onSubmit={onCheckKeyword} busy={!!checking} />}
+
+      <HeadToHead facts={facts} />
 
       <Panel title="Google Maps results" hint={vis ? `The top ${rows.length} results for “${vis.keyword}” at the business’s location. Ads are left out.` : undefined} flush>
         {rows.length ? <CompetitorTable rows={rows} business={b} /> : <p className="p-4 text-[13px] text-muted-foreground">No results to show.</p>}
