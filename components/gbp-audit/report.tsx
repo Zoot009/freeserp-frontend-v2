@@ -6,7 +6,8 @@
 // primary action. The grade colours are the AEO / Page Audit ones
 // (components/page-audit/audit-ui.tsx) and the rank grid is Maps Tracker's, so
 // it reads as one product.
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { flushSync } from "react-dom"
 import Link from "next/link"
 import { AlertCircle, AlertTriangle, BadgeCheck, CheckCircle2, CircleDashed, Globe, MapPin, Phone, Star, XCircle } from "lucide-react"
 import { gradeStroke, sectionScoreToGrade } from "@/components/page-audit/audit-ui"
@@ -78,6 +79,13 @@ export const unitFor = (b: Business): DistanceUnit => (b.countryCode && ["US", "
 
 const LINK = "text-[13px] font-medium text-brand hover:underline print:hidden"
 
+/**
+ * Set on the public share page. Owner-only links (Maps Tracker, which needs an
+ * account) are left out, and the competitors' grids come with the report
+ * instead of being asked for.
+ */
+export const SharedReportContext = createContext<{ leaderboard: GbpAuditResponse["leaderboard"] } | null>(null)
+
 // ── Building blocks ──────────────────────────────────────────────────────────
 
 /** A report section: a bordered card with a title, an explanation behind the "i", and a right-hand slot. */
@@ -98,7 +106,7 @@ export function Panel({
   children: ReactNode
 }) {
   return (
-    <section className={`flex min-w-0 flex-col rounded-[10px] border border-border bg-card shadow-sm ${className}`}>
+    <section className={`flex min-w-0 flex-col rounded-[10px] border border-border bg-card shadow-sm print:break-inside-avoid print:shadow-none ${className}`}>
       <header className="flex min-h-[47px] flex-wrap items-center gap-1.5 border-b border-border px-4 py-3">
         <h2 className="text-[15px] font-semibold leading-tight">{title}</h2>
         {hint && <InfoHint>{hint}</InfoHint>}
@@ -459,7 +467,7 @@ export function Tabs({ active, onChange, counts }: { active: TabKey; onChange: (
 
 const rankLabel = (vis: NonNullable<Facts["visibility"]>) => (vis.rank !== null ? `#${vis.rank}` : `${vis.depth}+`)
 
-export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; report: Report; onOpen: (t: TabKey) => void }) {
+export function Overview({ data, report, onOpen, printing = false }: { data: GbpAuditResponse; report: Report; onOpen: (t: TabKey) => void; printing?: boolean }) {
   const facts = data.facts!
   const b = facts.business
   const vis = facts.visibility
@@ -549,7 +557,7 @@ export function Overview({ data, report, onOpen }: { data: GbpAuditResponse; rep
 
       <HeadToHead facts={facts} onOpenAll={() => onOpen("rankings")} />
 
-      <Plan plan={report.plan} />
+      {!printing && <Plan plan={report.plan} />}
     </div>
   )
 }
@@ -630,14 +638,15 @@ function ProfileFacts({ facts }: { facts: Facts }) {
 /** The grid with its headline numbers beside it. `large` is the Rankings tab's version, with every point listed. */
 function GridPanel({ facts, grid, onOpen, large = false, className = "" }: { facts: Facts; grid: Grid; onOpen?: () => void; large?: boolean; className?: string }) {
   const [selected, setSelected] = useState<string | null>(null)
+  const shared = useContext(SharedReportContext)
   const m = grid.metrics
   return (
     <Panel
-      title={`Local rank grid · “${grid.keyword}”`}
+      title={`Your business · “${grid.keyword}”`}
       hint={`A ${grid.gridSize}×${grid.gridSize} Google Maps Tracker scan: the keyword searched on Google Maps from ${grid.points.length} points around the business. Click a pin to see who ranks there.`}
       meta={
         <>
-          {grid.scanId && (
+          {grid.scanId && !shared && (
             <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className={LINK}>
               Open in Maps Tracker
             </Link>
@@ -700,8 +709,12 @@ function useScanKeywordId(scanId: string | null | undefined, keyword: string | u
  */
 function RivalGrids({ facts }: { facts: Facts }) {
   const grid = facts.grid
-  const keywordId = useScanKeywordId(grid?.scanId, grid?.keyword)
-  const { leaderboard, loading } = useCompetitors(grid?.scanId ?? null, keywordId, !!grid?.scanId)
+  // On the public page the grids arrive with the report: a visitor can't ask Maps Tracker.
+  const shared = useContext(SharedReportContext)
+  const keywordId = useScanKeywordId(shared ? null : grid?.scanId, grid?.keyword)
+  const fetched = useCompetitors(shared ? null : (grid?.scanId ?? null), keywordId, !shared && !!grid?.scanId)
+  const leaderboard = shared ? (shared.leaderboard ?? null) : fetched.leaderboard
+  const loading = shared ? false : fetched.loading
   if (!grid?.scanId) return null
 
   const unit = unitFor(facts.business)
@@ -719,9 +732,11 @@ function RivalGrids({ facts }: { facts: Facts }) {
       title="Your top 3 competitors on the grid"
       hint={`Where each of your three nearest competitors ranks for “${grid.keyword}” from the same ${grid.points.length} points as your grid. Read from the grid’s Maps Tracker scan, so nothing new is searched.`}
       meta={
-        <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className={LINK}>
-          Compare in Maps Tracker
-        </Link>
+        !shared && (
+          <Link href={`/dashboard/google-maps-tracker/${grid.scanId}`} className={LINK}>
+            Compare in Maps Tracker
+          </Link>
+        )
       }
     >
       <div className="grid gap-5 lg:grid-cols-3">
@@ -729,7 +744,7 @@ function RivalGrids({ facts }: { facts: Facts }) {
           <div key={`${r.rank}-${r.title}`} className="min-w-0">
             <div className="mb-2 flex items-baseline justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-[13px] font-medium" title={r.title}>
+                <div className="truncate text-sm font-semibold text-foreground" title={r.title}>
                   {r.title}
                 </div>
                 <div className="text-xs text-muted-foreground">#{r.rank} at your location</div>
@@ -1194,16 +1209,20 @@ export function Rankings({
   report,
   onCheckKeyword,
   checking,
+  printing = false,
 }: {
   facts: Facts
   report: Report
   onCheckKeyword?: (keyword: string) => void
   checking?: boolean
+  /** In the full-report print the grids and the comparison are already in the Overview. */
+  printing?: boolean
 }) {
   const vis = facts.visibility
   const b = facts.business
   const c = report.competitors
   const rows = mapsResults(facts)
+  const shared = useContext(SharedReportContext)
   const fewerReviews = c.medianReviews !== null && b.reviewCount !== null && b.reviewCount < c.medianReviews
   return (
     <div className="space-y-5">
@@ -1238,7 +1257,7 @@ export function Rankings({
         />
       </div>
 
-      {facts.grid ? (
+      {printing ? null : facts.grid ? (
         <>
           <GridPanel facts={facts} grid={facts.grid} large />
           <RivalGrids facts={facts} />
@@ -1249,13 +1268,14 @@ export function Rankings({
 
       {onCheckKeyword && <KeywordForm current={facts.grid?.keyword ?? vis?.keyword ?? ""} onSubmit={onCheckKeyword} busy={!!checking} />}
 
-      <HeadToHead facts={facts} />
+      {!printing && <HeadToHead facts={facts} />}
 
       <Panel title="Google Maps results" hint={vis ? `The top ${rows.length} results for “${vis.keyword}” at the business’s location. Ads are left out.` : undefined} flush>
         {rows.length ? <CompetitorTable rows={rows} business={b} /> : <p className="p-4 text-[13px] text-muted-foreground">No results to show.</p>}
       </Panel>
 
       <div className="grid gap-5 lg:grid-cols-2">
+        {!shared && (
         <Panel
           title="See the whole area"
           meta={
@@ -1268,6 +1288,7 @@ export function Rankings({
             This audit runs a 3×3 grid 1 km apart. Google Maps Tracker scans up to 21×21, tracks it over time, and compares you with each competitor point by point.
           </p>
         </Panel>
+        )}
         {b.peopleAlsoSearch.length > 0 && (
           <Panel title="People also search for" hint="Google's own list of related businesses." flush>
             <div className="divide-y divide-border">
@@ -1349,6 +1370,69 @@ export function Plan({ plan }: { plan: PlanPhase[] }) {
         </Panel>
       ))}
     </div>
+  )
+}
+
+/**
+ * True while the whole report is laid out for printing. Print / PDF turns it on
+ * and waits for the maps that mount to draw; the browser's own print (Ctrl+P)
+ * turns it on in beforeprint, synchronously, so the dialog sees every section.
+ */
+export function usePrintAll() {
+  const [printAll, setPrintAll] = useState(false)
+  useEffect(() => {
+    const before = () => flushSync(() => setPrintAll(true))
+    const after = () => setPrintAll(false)
+    window.addEventListener("beforeprint", before)
+    window.addEventListener("afterprint", after)
+    return () => {
+      window.removeEventListener("beforeprint", before)
+      window.removeEventListener("afterprint", after)
+    }
+  }, [])
+  const print = () => {
+    setPrintAll(true)
+    // Time for the maps that just mounted to load their tiles.
+    setTimeout(() => window.print(), 1500)
+  }
+  return { printAll, print }
+}
+
+/**
+ * The report body: the open tab on screen, every section in order when
+ * printing, so a PDF is the whole report rather than whichever tab was open.
+ */
+export function ReportSections({
+  data,
+  tab,
+  printAll,
+  onOpen,
+  onCheckKeyword,
+  checking,
+}: {
+  data: GbpAuditResponse
+  tab: TabKey
+  printAll: boolean
+  onOpen: (t: TabKey) => void
+  onCheckKeyword?: (keyword: string) => void
+  checking?: boolean
+}) {
+  const facts = data.facts!
+  const report = data.report!
+  const keys = printAll ? TABS.map((t) => t.key) : [tab]
+  return (
+    <>
+      {keys.map((k, i) => (
+        <section key={k} className={`space-y-5 ${printAll && i > 0 ? "print:break-before-page" : ""}`}>
+          {printAll && <h2 className="hidden border-b border-border pb-2 text-xl font-semibold print:block">{TABS.find((t) => t.key === k)!.label}</h2>}
+          {k === "overview" && <Overview data={data} report={report} onOpen={onOpen} printing={printAll} />}
+          {k === "profile" && <ProfileAudit facts={facts} report={report} />}
+          {k === "reviews" && <Reviews facts={facts} report={report} />}
+          {k === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={onCheckKeyword} checking={checking} printing={printAll} />}
+          {k === "plan" && <ActionPlan report={report} />}
+        </section>
+      ))}
+    </>
   )
 }
 

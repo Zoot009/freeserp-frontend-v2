@@ -178,11 +178,15 @@ export type GbpAuditResponse = {
     score: number | null
     createdAt: string
     seconds: number | null
+    /** Set when the owner has shared the report by link (owner's view only). */
+    shareToken?: string | null
   }
   facts: Facts | null
   report: Report | null
   previous: PastAudit | null
   others: PastAudit[]
+  /** The shared view only: the competitors' grids, which a visitor can't ask Maps Tracker for. */
+  leaderboard?: { points: { row: number; col: number }[]; rows: LeaderboardRow[] } | null
 }
 
 /** GET /api/gbp-audit list rows. */

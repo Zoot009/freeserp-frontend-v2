@@ -3,28 +3,26 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ExternalLink, Printer, RefreshCw, XCircle } from "lucide-react"
+import { ArrowLeft, ExternalLink, Printer, RefreshCw, Share2, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { CACHE_DAYS, isRunning, type GbpAuditResponse } from "@/lib/gbp-audit"
 import { Button } from "@/components/ui/button"
 import {
-  ActionPlan,
   Alarm,
   heroButton,
   heroButtonPrimary,
   Notice,
   OtherAudits,
-  Overview,
-  ProfileAudit,
   Progress,
-  Rankings,
   ReportHero,
-  Reviews,
+  ReportSections,
   Tabs,
   TABS,
+  usePrintAll,
   type TabKey,
 } from "@/components/gbp-audit/report"
+import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 
 // Consecutive failed polls (5xx / network) tolerated before giving up.
 const MAX_POLL_FAILURES = 5
@@ -39,6 +37,9 @@ export default function GoogleMapsAuditReportPage() {
   const [error, setError] = useState("")
   const [starting, setStarting] = useState<"rerun" | "keyword" | null>(null)
   const [tab, setTab] = useState<TabKey>("overview")
+  const [shareOpen, setShareOpen] = useState(false)
+  // Print / PDF lays out the whole report, not just the open tab.
+  const { printAll, print } = usePrintAll()
   // One poll chain at a time: leaving the page or switching audit bumps the generation, so an in-flight poll drops its
   // result instead of rescheduling.
   const pollGenRef = useRef(0)
@@ -166,9 +167,14 @@ export default function GoogleMapsAuditReportPage() {
                 <ExternalLink className="h-3.5 w-3.5" /> Open on Google Maps
               </a>
             )}
+            {report && audit.status === "COMPLETED" && (
+              <button type="button" className={heroButton} onClick={() => setShareOpen(true)}>
+                <Share2 className="h-3.5 w-3.5" /> {audit.shareToken ? "Shared" : "Share"}
+              </button>
+            )}
             {report && (
-              <button type="button" className={heroButton} onClick={() => window.print()}>
-                <Printer className="h-3.5 w-3.5" /> Print / PDF
+              <button type="button" className={heroButton} onClick={print} disabled={printAll}>
+                <Printer className="h-3.5 w-3.5" /> {printAll ? "Preparing…" : "Print / PDF"}
               </button>
             )}
             <button
@@ -180,7 +186,7 @@ export default function GoogleMapsAuditReportPage() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${starting === "rerun" ? "animate-spin" : ""}`} />
               {starting === "rerun" ? "Starting…" : "Run again"}
-              </button>
+            </button>
           </div>
         )}
       </div>
@@ -195,20 +201,32 @@ export default function GoogleMapsAuditReportPage() {
         {facts && report && (
           <>
             <Tabs active={tab} onChange={openTab} counts={{ profile: report.findings.length }} />
-            {tab === "overview" && <Overview data={data} report={report} onOpen={openTab} />}
-            {tab === "profile" && <ProfileAudit facts={facts} report={report} />}
-            {tab === "reviews" && <Reviews facts={facts} report={report} />}
-            {tab === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={(k) => start("keyword", k)} checking={starting === "keyword"} />}
-            {tab === "plan" && <ActionPlan report={report} />}
+            <ReportSections
+              data={data}
+              tab={tab}
+              printAll={printAll}
+              onOpen={openTab}
+              onCheckKeyword={(k) => start("keyword", k)}
+              checking={starting === "keyword"}
+            />
             <p className="text-[11px] leading-relaxed text-muted-foreground">
               Data from Google via DataForSEO, fetched {new Date(facts.fetchedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
               {audit.fromCache ? `; the profile and reviews were reused from the ${CACHE_DAYS}-day cache and not charged` : ""}. The rank grid is a Google Maps
               Tracker scan. The profile score is FreeSERP&apos;s weighted checklist, not a score Google publishes.
             </p>
-            <OtherAudits audits={data.others} />
+            <div className="print:hidden">
+              <OtherAudits audits={data.others} />
+            </div>
           </>
         )}
       </div>
+      <ShareAuditDialog
+        auditId={audit.id}
+        shareToken={audit.shareToken ?? null}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        onChange={(token) => setData((d) => (d ? { ...d, audit: { ...d.audit, shareToken: token } } : d))}
+      />
     </div>
   )
 }

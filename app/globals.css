@@ -454,3 +454,26 @@ input[type="checkbox"].brutalist-checkbox:focus {
     animation: none;
   }
 }
+
+/* Printing (a report's Print / PDF): the dashboard's chrome stays on screen,
+   and colour is information (rank pins, score rings, badges), so it prints as
+   shown rather than being washed out to save ink. */
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-rail"] {
+    display: none !important;
+  }
+  [data-slot="sidebar-inset"] {
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    margin: 12mm;
+  }
+}
