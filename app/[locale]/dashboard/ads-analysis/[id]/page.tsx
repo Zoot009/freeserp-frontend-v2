@@ -22,7 +22,6 @@ export default function AdsAnalysisReportPage() {
 
   const [data, setData] = useState<AdsAnalysisResponse | null>(null)
   const [error, setError] = useState("")
-  const [rerunning, setRerunning] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const pollGenRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -64,26 +63,6 @@ export default function AdsAnalysisReportPage() {
   const saveAssumptions = async (a: Partial<Assumptions>) => {
     const res = await api.patch<AdsAnalysisResponse>(`/api/ads-analysis/${id}/assumptions`, a)
     setData(res)
-  }
-
-  const rerun = async () => {
-    if (!data || rerunning) return
-    setRerunning(true)
-    try {
-      const { analysis: a } = data
-      const { analysis } = await api.post<{ analysis: { id: string } }>("/api/ads-analysis", {
-        url: a.origin,
-        location: a.location,
-        services: a.services,
-        servicePages: a.servicePages ?? null,
-        budgetUsd: data.assumptions.budgetUsd,
-        jobValueUsd: data.assumptions.jobValueUsd,
-      })
-      router.push(`/dashboard/ads-analysis/${analysis.id}`)
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : "Couldn't start the analysis.")
-      setRerunning(false)
-    }
   }
 
   if (authLoading || !user) return null
@@ -138,16 +117,16 @@ export default function AdsAnalysisReportPage() {
                 <Printer className="h-3.5 w-3.5" /> Print / PDF
               </button>
             )}
-            <button type="button" className={heroButtonPrimary} onClick={rerun} disabled={rerunning}>
-              <RefreshCw className={`h-3.5 w-3.5 ${rerunning ? "animate-spin" : ""}`} />
-              {rerunning ? "Starting…" : "Run again"}
-            </button>
+            {/* Opens the setup form with this scan's details filled in, to review or change before starting. */}
+            <Link href={`/dashboard/ads-analysis?from=${analysis.id}`} className={heroButtonPrimary}>
+              <RefreshCw className="h-3.5 w-3.5" /> Scan again
+            </Link>
           </div>
         )}
       </div>
 
       <AdsHero data={data} />
-      <div className="mt-5 space-y-5">
+      <div className="mt-4 space-y-4">
         {error && <Alarm>{error}</Alarm>}
         {running && <AdsProgress progress={analysis.progress} />}
         {analysis.status === "FAILED" && analysis.error && <Alarm>{analysis.error}</Alarm>}

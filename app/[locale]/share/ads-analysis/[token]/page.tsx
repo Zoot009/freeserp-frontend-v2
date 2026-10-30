@@ -73,7 +73,7 @@ export default function SharedAdsAnalysisPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-[1400px] space-y-4 px-4 py-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div className="text-[13px] text-muted-foreground">
             <span className="font-semibold text-foreground">FreeSERP</span> · Google Ads analysis

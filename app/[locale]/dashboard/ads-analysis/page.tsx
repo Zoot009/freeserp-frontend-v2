@@ -8,7 +8,7 @@ import { BarChart3, Gauge, Globe, KeyRound, LayoutTemplate, Link2, Plus, Radar, 
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
-import { host, type AnalysisListItem, type AnalysisStatus } from "@/lib/ads-analysis"
+import { host, type AdsAnalysisResponse, type AnalysisListItem, type AnalysisStatus } from "@/lib/ads-analysis"
 import { knownGeoCountry, prefetchGeoCountry } from "@/hooks/use-geo-country"
 import { LocationPicker } from "@/components/location-picker"
 import { CreditCost } from "@/components/dashboard/credit-cost"
@@ -59,6 +59,27 @@ export default function AdsAnalysisPage() {
   useEffect(() => {
     if (!authLoading && !user) router.push("/login")
   }, [user, authLoading, router])
+
+  // "Scan again" from a report lands here as ?from=<id>: fill the form with that scan's details.
+  const [rescanOf, setRescanOf] = useState("")
+  useEffect(() => {
+    const from = new URLSearchParams(window.location.search).get("from")
+    if (!user || !from) return
+    api
+      .get<AdsAnalysisResponse>(`/api/ads-analysis/${encodeURIComponent(from)}`)
+      .then(({ analysis: a, assumptions }) => {
+        locationTouched.current = true
+        setUrl(a.origin)
+        if (a.location) setLocation(a.location)
+        setServices(a.services)
+        setPages(a.servicePages ?? {})
+        setShowPages(!!a.servicePages && Object.keys(a.servicePages).length > 0)
+        setBudget(assumptions.budgetUsd?.toString() ?? "")
+        setJobValue(assumptions.jobValueUsd?.toString() ?? "")
+        setRescanOf(host(a.origin))
+      })
+      .catch(() => undefined) // an old or foreign id just leaves the form empty
+  }, [user?.id])
 
   useEffect(() => {
     prefetchGeoCountry().then((c) => {
@@ -128,6 +149,11 @@ export default function AdsAnalysisPage() {
       </div>
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:p-5">
+        {rescanOf && (
+          <div className="mb-3 rounded-lg bg-brand/10 px-3 py-2 text-xs text-brand">
+            Scanning <span className="font-semibold">{rescanOf}</span> again. Your last scan&apos;s details are filled in: change anything you need, then start.
+          </div>
+        )}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <label className="block">
             <span className={label}>Website</span>
@@ -251,7 +277,7 @@ export default function AdsAnalysisPage() {
             className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Zap className="h-4 w-4" aria-hidden />
-            {starting ? "Starting…" : "Analyse site"}
+            {starting ? "Starting…" : rescanOf ? "Scan again" : "Analyse site"}
           </button>
         </div>
 
@@ -281,7 +307,7 @@ export default function AdsAnalysisPage() {
         </div>
       )}
 
-      <h2 className="mb-3 mt-7 text-[15px] font-semibold tracking-tight">What the analysis checks</h2>
+      <h2 className="mb-3 mt-6 text-[15px] font-semibold tracking-tight">What the analysis checks</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {COVERS.map(({ icon: Icon, tone, title, text }) => (
           <div key={title} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4">

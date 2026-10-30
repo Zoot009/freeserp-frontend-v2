@@ -156,7 +156,7 @@ export function AdsReport({ data, onSaveAssumptions }: { data: AdsAnalysisRespon
   if (!result || !scorecard) return null
   const failed = Object.entries(result.modules).filter(([, m]) => m && m.status === "failed")
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {failed.length > 0 && (
         <p className="flex items-start gap-2 rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
@@ -168,13 +168,13 @@ export function AdsReport({ data, onSaveAssumptions }: { data: AdsAnalysisRespon
       )}
       <Priorities issues={scorecard.issues} />
       <LandingPages data={data} />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <TrackingPanel data={data} />
         <SpeedPanel data={data} />
       </div>
       <BudgetPanel data={data} onSave={onSaveAssumptions} />
       <KeywordsPanel data={data} />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <QuickWinsPanel data={data} />
         <TechnicalPanel data={data} />
       </div>
@@ -201,17 +201,15 @@ function Priorities({ issues }: { issues: Issue[] }) {
       <ul className="divide-y divide-border">
         {/* Past the first 6, hidden on screen until "Show all", but always printed. */}
         {issues.map((i, n) => (
-          <li key={n} className={`${n >= 6 && !all ? "hidden print:grid" : "grid"} gap-1.5 px-4 py-3 sm:grid-cols-[88px_minmax(0,1fr)] sm:gap-3`}>
-            <div>
+          <li key={n} className={`${n >= 6 && !all ? "hidden print:block" : ""} min-w-0 px-4 py-2.5`}>
+            <div className="flex flex-wrap items-center gap-2">
               <Pill tone={PRIORITY_TONE[i.priority]}>{i.priority[0]!.toUpperCase() + i.priority.slice(1)}</Pill>
+              <span className="text-[13px] font-semibold">{i.title}</span>
             </div>
-            <div className="min-w-0">
-              <div className="text-[13px] font-semibold">{i.title}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {i.where} · {i.impact}
-              </div>
-              <div className="mt-1 text-xs leading-relaxed">{i.fix}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {i.where} · {i.impact}
             </div>
+            <div className="mt-0.5 text-xs leading-relaxed">{i.fix}</div>
           </li>
         ))}
       </ul>
@@ -257,7 +255,7 @@ function LandingPages({ data }: { data: AdsAnalysisResponse }) {
         {services.map((s) => {
           const page = s.url ? byUrl.get(s.url) : undefined
           return (
-            <li key={s.name} className="px-4 py-3">
+            <li key={s.name} className="px-4 py-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[13px] font-semibold">{s.name}</span>
                 <Pill tone={MATCH_TONE[s.status]}>{MATCH_LABEL[s.status]}</Pill>
