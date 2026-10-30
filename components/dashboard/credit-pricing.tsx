@@ -309,7 +309,7 @@ function toolRows(rates: CreditRateCard, t: (k: string, v?: Record<string, strin
     { name: "Competitor Analysis", whatKey: "toolCompetitorWhat", costKey: "costPerAnalysis", cost: span(q(CREDIT_ACTION_KEYS.competitorAnalysis), null) },
     { name: "AI Internal Linking", whatKey: "toolLinkingWhat", costKey: "costPerCrawl", cost: span(q(CREDIT_ACTION_KEYS.internalLinking), null) },
     { name: "Keyword Score Checker", whatKey: "toolScoreWhat", costKey: "costPerPage", cost: span(q(CREDIT_ACTION_KEYS.keywordScore), null) },
-    { name: "Quick Serp", whatKey: "toolQuickWhat", costKey: "costPerLookup", cost: span(q(CREDIT_ACTION_KEYS.liveCheck), null) },
+    { name: "Quick Serp", whatKey: "toolQuickWhat", costKey: "costPerLookup", cost: span(q(CREDIT_ACTION_KEYS.liveCheck), q(CREDIT_ACTION_KEYS.liveCheck, 1, "paid")) },
     { name: "Search Console & GA4", whatKey: "toolConsoleWhat", costKey: "costFree", cost: "" },
   ]
 }

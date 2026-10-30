@@ -18,6 +18,11 @@ export interface CreditSummary {
   monthlyAllowance: number
   nextRefillAt: string | null
   planSlug: string
+  /**
+   * The backend's rule for plan-priced actions (a free account holding bought
+   * credits counts as paid). Quote variant "paid" off this, not planSlug.
+   */
+  paid?: boolean
 }
 
 export interface CreditLedgerEntry {

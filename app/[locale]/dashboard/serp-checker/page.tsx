@@ -118,7 +118,8 @@ export default function SerpCheckerPage() {
   // worker plan's daily-check units, a different meter that only happens to
   // share a number today.
   const { rates } = useCreditRates()
-  const lookupCredits = quoteCredits(rates, CREDIT_ACTION_KEYS.liveCheck)
+  // A paid account's lookup also buys volume and difficulty, so it has its own price.
+  const lookupCredits = quoteCredits(rates, CREDIT_ACTION_KEYS.liveCheck, 1, creditSummary?.paid ? "paid" : null)
   const t = useTranslations("dashSerpChecker")
   // Live quota cost per lookup from the backend's pricing config.
   const [liveCheckCost, setLiveCheckCost] = useState(LIVE_CHECK_COST_FALLBACK)
