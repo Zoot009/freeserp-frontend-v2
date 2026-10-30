@@ -52,7 +52,7 @@ const EXAMPLE_AUDIT_PAGES = 100
  *
  * Each line divides by the rate card's own price for that thing, so the lines
  * move when a rate does. A hardcoded divisor is how this once promised 400
- * "full site audits" for Starter, when a full audit is a credit per page.
+ * "full site audits" for Starter, when a full audit is priced per page.
  */
 function whatItBuys(
   credits: number,

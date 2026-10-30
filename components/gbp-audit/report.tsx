@@ -16,6 +16,7 @@ import { useCompetitors } from "@/components/maps-tracker/use-competitors"
 import type { Scan } from "@/components/maps-tracker/types"
 import { PointDetail, RankGridView, RankLegend, gridPointKey } from "@/components/gbp-audit/rank-grid"
 import { api } from "@/lib/api"
+import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates } from "@/lib/credits"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Hint, InfoHint } from "@/components/dashboard/widget"
 import { EngineMark } from "@/components/dashboard/engine-marks"
@@ -1312,6 +1313,9 @@ export function Rankings({
 /** Re-run the grid for another keyword. The listing and reviews come from the cache, so only the grid is charged. */
 function KeywordForm({ current, onSubmit, busy }: { current: string; onSubmit: (keyword: string) => void; busy: boolean }) {
   const [value, setValue] = useState("")
+  // From the rate card, not a literal: a hardcoded "(3 credits)" outlived a repricing.
+  const { rates } = useCreditRates()
+  const scanCredits = quoteCredits(rates, CREDIT_ACTION_KEYS.mapsScanPoint, 3 * 3)
   const submit = (e: FormEvent) => {
     e.preventDefault()
     const v = value.trim()
@@ -1323,7 +1327,7 @@ function KeywordForm({ current, onSubmit, busy }: { current: string; onSubmit: (
         <b className="font-medium">Check another keyword</b>
         <span className="text-muted-foreground">
           {" "}
-          · the profile and reviews are reused from the {CACHE_DAYS}-day cache; the new keyword runs as a 3×3 Maps Tracker scan (3 credits)
+          · the profile and reviews are reused from the {CACHE_DAYS}-day cache; the new keyword runs as a 3×3 Maps Tracker scan{scanCredits != null && ` (${scanCredits} credits)`}
         </span>
       </div>
       <div className="flex gap-2">

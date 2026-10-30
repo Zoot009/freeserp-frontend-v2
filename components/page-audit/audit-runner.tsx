@@ -446,7 +446,7 @@ export function AuditRunner({
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px]">
           <span className="text-muted-foreground">
             {/* "Up to", because the number is a ceiling and not a price. The
-                charge is one credit per page we actually find, so the sentence
+                charge is for the pages we actually find, so the sentence
                 has to carry both or it reads as a flat fee. */}
             {mode === "site"
               ? limits
@@ -505,7 +505,8 @@ export function AuditRunner({
           </Button>
         </form>
         {/*
-          One page, one credit — for a single URL and for a crawl alike.
+          A single URL is one audit; a crawl is priced per page found (the rate
+          card's site_crawl.page, currently a credit per twenty pages).
 
           The units here are the plan's page BUDGET, which is a ceiling and not
           a bill: the server charges for the pages actually crawled, so a

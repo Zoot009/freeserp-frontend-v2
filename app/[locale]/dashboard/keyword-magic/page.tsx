@@ -641,10 +641,10 @@ export default function KeywordMagicPage() {
         </div>
 
         {/* The price, before the search runs. The variant matters: a free
-            search pulls 100 rows, a paid one 1,000, and they cost 3 and 15
-            credits respectively. It waits for the usage answer that says
-            which. Guessing "paid" when that request failed quoted free users
-            15 credits for a 3-credit search. */}
+            search pulls 100 rows, a paid one 1,000, and they are priced apart
+            on the rate card. It waits for the usage answer that says which.
+            Guessing "paid" when that request failed once quoted free users
+            the paid price for a free search. */}
         {usage && (
           <div style={{ marginTop: 12 }}>
             <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />
