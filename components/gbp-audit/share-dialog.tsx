@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { api, ApiError } from "@/lib/api"
 
-const shareUrl = (token: string) => `${window.location.origin}/share/maps-audit/${token}`
 
 export function ShareAuditDialog({
   auditId,
@@ -18,8 +17,13 @@ export function ShareAuditDialog({
   open,
   onOpenChange,
   onChange,
+  apiPath = "/api/gbp-audit",
+  sharePath = "/share/maps-audit",
 }: {
   auditId: string
+  /** The report kind: its API (for /:id/share) and its public page. */
+  apiPath?: string
+  sharePath?: string
   shareToken: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -29,6 +33,7 @@ export function ShareAuditDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [copied, setCopied] = useState(false)
+  const shareUrl = (token: string) => `${window.location.origin}${sharePath}/${token}`
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
@@ -43,12 +48,12 @@ export function ShareAuditDialog({
   }
   const create = () =>
     run(async () => {
-      const { shareToken: token } = await api.post<{ shareToken: string }>(`/api/gbp-audit/${auditId}/share`, {})
+      const { shareToken: token } = await api.post<{ shareToken: string }>(`${apiPath}/${auditId}/share`, {})
       onChange(token)
     })
   const stop = () =>
     run(async () => {
-      await api.delete(`/api/gbp-audit/${auditId}/share`)
+      await api.delete(`${apiPath}/${auditId}/share`)
       onChange(null)
     })
   const copy = async () => {

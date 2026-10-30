@@ -27,6 +27,7 @@ import {
   Users,
   Link2,
   Bot,
+  Megaphone,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import {
@@ -114,6 +115,8 @@ const AUDIT: Item[] = [
   // and where it ranks for its own category. Sits with the audits, not under
   // Maps, because what it produces is a report, like the two above it.
   { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store },
+  // Is this site ready to spend money on Google Ads: landing pages, tracking, speed, keywords and a budget forecast.
+  { key: "adsAnalysis", url: "/dashboard/ads-analysis", icon: Megaphone },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
   { key: "aiInternalLinking", url: "/dashboard/ai-internal-linking", icon: Link2 },
   { key: "aeoAudit", url: "/dashboard/aeo-audit", icon: Bot },

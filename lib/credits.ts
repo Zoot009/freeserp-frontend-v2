@@ -89,6 +89,7 @@ export const CREDIT_ACTION_KEYS = {
   llmPromptSample: "llm.prompt.sample",
   aeoAudit: "aeo.audit",
   gbpAudit: "gbp.audit",
+  adsAnalysis: "ads.analysis",
 } as const
 
 export type CreditActionKey = (typeof CREDIT_ACTION_KEYS)[keyof typeof CREDIT_ACTION_KEYS]
