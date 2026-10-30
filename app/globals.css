@@ -469,6 +469,17 @@ input[type="checkbox"].brutalist-checkbox:focus {
     margin: 0 !important;
     box-shadow: none !important;
   }
+  /* Screen-only overlays: fixed elements repeat on, or cover, every printed page. */
+  .skip-to-content,
+  .app-grid-glow,
+  .noise-overlay {
+    display: none !important;
+  }
+  /* A list row or table row is read as one item: never split it across pages. */
+  li,
+  tr {
+    break-inside: avoid;
+  }
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

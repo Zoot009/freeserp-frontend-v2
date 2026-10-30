@@ -196,12 +196,12 @@ function Priorities({ issues }: { issues: Issue[] }) {
       </Panel>
     )
   }
-  const shown = all ? issues : issues.slice(0, 6)
   return (
     <Panel title="Top priorities" hint="Fix these before spending on ads, in this order." meta={<span>{issues.length} to fix</span>} flush>
       <ul className="divide-y divide-border">
-        {shown.map((i, n) => (
-          <li key={n} className="grid gap-1.5 px-4 py-3 sm:grid-cols-[88px_minmax(0,1fr)] sm:gap-3">
+        {/* Past the first 6, hidden on screen until "Show all", but always printed. */}
+        {issues.map((i, n) => (
+          <li key={n} className={`${n >= 6 && !all ? "hidden print:grid" : "grid"} gap-1.5 px-4 py-3 sm:grid-cols-[88px_minmax(0,1fr)] sm:gap-3`}>
             <div>
               <Pill tone={PRIORITY_TONE[i.priority]}>{i.priority[0]!.toUpperCase() + i.priority.slice(1)}</Pill>
             </div>
@@ -216,7 +216,7 @@ function Priorities({ issues }: { issues: Issue[] }) {
         ))}
       </ul>
       {issues.length > 6 && (
-        <button type="button" onClick={() => setAll((v) => !v)} className="w-full border-t border-border px-4 py-2.5 text-xs font-medium text-brand hover:bg-muted/50 print:hidden">
+        <button type="button" onClick={() => setAll((v) => !v)} className={`w-full border-border px-4 py-2.5 text-xs font-medium text-brand hover:bg-muted/50 print:hidden ${all ? "border-t" : ""}`}>
           {all ? "Show fewer" : `Show all ${issues.length}`}
         </button>
       )}
