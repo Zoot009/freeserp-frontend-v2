@@ -436,7 +436,7 @@ export function CreditPricing({
       <div>
         <h2 className="text-[22px] font-bold tracking-[-0.02em]">{t("pricingTitle")}</h2>
         <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-          {t("pricingIntro", { credits: formatCredits(rates.freeMonthly) })}
+          {t("pricingIntro", { credits: formatCredits(rates.freeMonthly), check: formatCredits(quoteCredits(rates, CREDIT_ACTION_KEYS.rankCheck) ?? 1) })}
         </p>
       </div>
 

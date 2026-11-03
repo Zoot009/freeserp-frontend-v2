@@ -1722,7 +1722,7 @@
     "entryExpire": "Expirés",
     "entryAdjust": "Ajustement",
     "pricingTitle": "Payez ce que vous utilisez",
-    "pricingIntro": "Un crédit couvre une vérification de position. Tout le reste est facturé sur le même solde — un scan de grille locale, un audit de site, une recherche de mots-clés — vous ne payez donc jamais pour un outil que vous n'utilisez pas. Les comptes gratuits reçoivent {credits} crédits par mois, sans carte.",
+    "pricingIntro": "Une vérification de position coûte {check} crédits. Tout le reste est facturé sur le même solde — un scan de grille locale, un audit de site, une recherche de mots-clés — vous ne payez donc jamais pour un outil que vous n'utilisez pas. Les comptes gratuits reçoivent {credits} crédits par mois, sans carte.",
     "loadingPlans": "Chargement des forfaits…",
     "perMonth": "/mois",
     "mostPopular": "Le plus choisi",

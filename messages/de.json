@@ -1722,7 +1722,7 @@
     "entryExpire": "Verfallen",
     "entryAdjust": "Korrektur",
     "pricingTitle": "Zahlen Sie für das, was Sie nutzen",
-    "pricingIntro": "Ein Credit deckt eine Ranking-Prüfung ab. Alles andere wird aus demselben Guthaben bezahlt — ein lokaler Raster-Scan, ein Website-Audit, eine Keyword-Recherche — Sie zahlen also nie für ein Werkzeug, das Sie nicht nutzen. Kostenlose Konten erhalten {credits} Credits pro Monat, ohne Karte.",
+    "pricingIntro": "Eine Ranking-Prüfung kostet {check} Credits. Alles andere wird aus demselben Guthaben bezahlt — ein lokaler Raster-Scan, ein Website-Audit, eine Keyword-Recherche — Sie zahlen also nie für ein Werkzeug, das Sie nicht nutzen. Kostenlose Konten erhalten {credits} Credits pro Monat, ohne Karte.",
     "loadingPlans": "Tarife werden geladen…",
     "perMonth": "/Monat",
     "mostPopular": "Am beliebtesten",

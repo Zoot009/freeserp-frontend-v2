@@ -223,7 +223,7 @@
     "entryExpire": "Verlopen",
     "entryAdjust": "Correctie",
     "pricingTitle": "Betaal voor wat je gebruikt",
-    "pricingIntro": "Eén credit dekt één positiecontrole. Al het andere wordt uit dezelfde pot betaald — een lokale rasterscan, een site-audit, een zoekwoordonderzoek — zo betaal je nooit voor een tool die je niet gebruikt. Gratis accounts krijgen {credits} credits per maand, zonder creditcard.",
+    "pricingIntro": "Een positiecontrole kost {check} credits. Al het andere wordt uit dezelfde pot betaald — een lokale rasterscan, een site-audit, een zoekwoordonderzoek — zo betaal je nooit voor een tool die je niet gebruikt. Gratis accounts krijgen {credits} credits per maand, zonder creditcard.",
     "loadingPlans": "Abonnementen laden…",
     "perMonth": "/maand",
     "mostPopular": "Meest gekozen",

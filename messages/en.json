@@ -1722,7 +1722,7 @@
     "entryExpire": "Expired",
     "entryAdjust": "Adjustment",
     "pricingTitle": "Pay for what you run",
-    "pricingIntro": "One credit covers one rank check. Everything else is priced from the same pool — a local grid scan, a site audit, a keyword search — so you are never paying for a tool you do not use. Free accounts get {credits} credits a month, no card.",
+    "pricingIntro": "A rank check costs {check} credits. Everything else is priced from the same pool — a local grid scan, a site audit, a keyword search — so you are never paying for a tool you do not use. Free accounts get {credits} credits a month, no card.",
     "loadingPlans": "Loading plans…",
     "perMonth": "/month",
     "mostPopular": "Most popular",

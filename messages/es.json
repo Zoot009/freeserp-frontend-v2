@@ -1722,7 +1722,7 @@
     "entryExpire": "Caducados",
     "entryAdjust": "Ajuste",
     "pricingTitle": "Paga por lo que uses",
-    "pricingIntro": "Un crédito cubre una comprobación de posición. Todo lo demás se cobra del mismo saldo —un escaneo de cuadrícula local, una auditoría del sitio, una búsqueda de palabras clave— así que nunca pagas por una herramienta que no usas. Las cuentas gratuitas reciben {credits} créditos al mes, sin tarjeta.",
+    "pricingIntro": "Una comprobación de posición cuesta {check} créditos. Todo lo demás se cobra del mismo saldo —un escaneo de cuadrícula local, una auditoría del sitio, una búsqueda de palabras clave— así que nunca pagas por una herramienta que no usas. Las cuentas gratuitas reciben {credits} créditos al mes, sin tarjeta.",
     "loadingPlans": "Cargando planes…",
     "perMonth": "/mes",
     "mostPopular": "Más popular",
