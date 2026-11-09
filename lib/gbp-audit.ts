@@ -124,6 +124,10 @@ export type CompetitorProfile = {
   reviewCount: number | null
   reviewDates: string[] | null
   reviewsRequested: number
+  address?: string | null
+  city?: string | null
+  phone?: string | null
+  website?: string | null
 }
 
 export type CommercialRank = { keyword: string; rank: number | null; depth: number; top: string[] }
@@ -174,6 +178,7 @@ export type Facts = {
   commercialRanks?: CommercialRank[] | null
   website?: Website | null
   citations?: Citations | null
+  competitorCitations?: { rank: number; title: string; cid: string | null; citations: Citations }[] | null
   notes: string[]
   costUsd: number
   fetchedAt: string
@@ -203,6 +208,8 @@ export type Report = {
   findings: Check[]
   strengths: Check[]
   plan: PlanPhase[]
+  /** Absent on reports built before competitor listings were checked. */
+  directories?: DirectoryRow[]
   competitors: {
     rows: CompetitorRow[]
     medianReviews: number | null
@@ -225,6 +232,16 @@ export type Report = {
     negativeShare?: number | null
     keywordMentions?: { term: string; count: number } | null
   }
+}
+
+export type DirectoryRow = {
+  name: string
+  url: string
+  addUrl: string
+  categoryUrl: string | null
+  you: CitationStatus | null
+  yourListing: string | null
+  competitors: { rank: number; title: string; listingUrl: string }[]
 }
 
 export type PastAudit = { id: string; score: number | null; createdAt: string }

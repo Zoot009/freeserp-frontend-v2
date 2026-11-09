@@ -29,7 +29,7 @@ const COVERS = [
   { icon: Camera, tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400", title: "Photos & visuals", text: "Photo count vs. competitors, logo, cover, and a photo checklist" },
   { icon: Globe, tone: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", title: "Website SEO health", text: "Speed, mobile, titles, schema, broken links, service and location pages" },
   { icon: Megaphone, tone: "bg-pink-500/10 text-pink-600 dark:text-pink-400", title: "Engagement", text: "Google Posts, offers, booking and contact options" },
-  { icon: Link2, tone: "bg-slate-500/10 text-slate-600 dark:text-slate-300", title: "Local citations", text: "Listings on 25 local directories, and where to get listed" },
+  { icon: Link2, tone: "bg-slate-500/10 text-slate-600 dark:text-slate-300", title: "Local citations", text: "Your listings and your top 3 competitors' on 25 local directories" },
 ]
 
 const STEPS = [

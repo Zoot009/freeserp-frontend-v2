@@ -853,7 +853,7 @@ export function ProfileAudit({ facts, report }: { facts: Facts; report: Report }
       <div className="space-y-5">
         <Panel
           title="Score"
-          hint="Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories weigh Profile 20, Reviews 20, Local visibility 15, Keywords 15, Website 12, Engagement 8, Photos 5, Citations 5. Items marked “Check yourself” are things Google doesn't share and aren't scored. FreeSERP's checklist, not a score Google publishes."
+          hint="Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories weigh Local citations 30, Profile 14, Reviews 14, Local visibility 11, Keywords 11, Website 9, Engagement 6, Photos 5. Items marked “Check yourself” are things Google doesn't share and aren't scored. FreeSERP's checklist, not a score Google publishes."
         >
           <div className="flex items-center gap-5">
             {report.score !== null && <ScoreRing score={report.score} size={76} stroke={7} />}
@@ -1681,61 +1681,99 @@ export function LocalCitations({ facts, report }: { facts: Facts; report: Report
     )
   }
   const count = (s: keyof typeof CITATION_STYLE) => c.sites.filter((x) => x.status === s).length
-  const check = report.checks.find((x) => x.id === "partner_citations")
+  const rows = report.directories ?? []
+  const rivals = facts.competitorCitations ?? []
+  const used = rows.filter((r) => r.competitors.length > 0)
+  const gaps = used.filter((r) => r.you === "missing")
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <StatCard label="Listed" hint="Directories where the business already has a listing." value={count("listed")} tone="text-green-600 dark:text-green-400" caption={`of ${c.sites.length} directories`} />
-        <StatCard label="Missing" hint="Directories where the business has no listing yet. Each is a free citation and backlink." value={count("missing")} tone={count("missing") ? "text-red-500" : "text-foreground"} caption="Get listed below" />
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="You're listed on" hint="Directories where the business already has a live listing." value={count("listed")} tone="text-green-600 dark:text-green-400" caption={`of ${c.sites.length} directories`} />
+        <StatCard label="Missing" hint="Directories where the business has no listing yet." value={count("missing")} tone={count("missing") ? "text-red-500" : "text-foreground"} caption="Get listed below" />
+        <StatCard
+          label="Competitors are on"
+          hint="Directories where at least one of the top 3 competitors has a live listing, and how many of those the business is missing from."
+          value={rivals.length ? used.length : "—"}
+          tone="text-foreground"
+          caption={rivals.length ? `You're missing ${gaps.length} of them` : "Not checked in this audit"}
+        />
         <StatCard label="Couldn't check" hint="Directories that didn't answer this time. They aren't counted against the business." value={count("unreachable")} tone="text-foreground" caption={`Checked ${fmtDay(c.checkedAt)}`} />
       </div>
 
+      <CategoryChecks report={report} category="citations" />
+
+      {rivals.length > 0 && (
+        <Panel title="Your top 3 competitors' citations" hint="Live listings the top competitors already have on these directories. Each link opens the published listing.">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {rivals.map((r) => (
+              <RivalCitationCard key={`${r.rank}-${r.title}`} rival={r} profile={facts.competitorProfiles?.find((p) => p.rank === r.rank) ?? null} rows={rows} />
+            ))}
+          </div>
+        </Panel>
+      )}
+
       <Panel
-        title="FreeSERP partner directories"
-        hint="Local directories where the business can rank and earn citations. Each listing repeats the name, address and phone Google checks against the profile, and links to the website."
+        title="Local citation directories"
+        hint="Each listing repeats the business's name, address and phone, which Google checks against the profile, and links to its website. Directories competitors use come first."
         flush
       >
         <p className="border-b border-border px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-          List {b.name} on every directory marked <span className="font-medium text-red-500">Missing</span>, with exactly the same name, address and phone as the Google profile.
-          {check?.status === "pass" ? " The business is already on most of them." : ""}
+          List {b.name} on every directory marked <span className="font-medium text-red-500">Missing</span>, starting with the ones your competitors use, with exactly the same name, address and phone as
+          the Google profile.
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-[13px]">
+          <table className="w-full min-w-[640px] border-collapse text-[13px]">
             <thead>
               <tr>
                 <th className={TH}>Directory</th>
-                <th className={`${TH} w-32`}>Status</th>
+                <th className={`${TH} w-28`}>You</th>
+                {rivals.length > 0 && <th className={TH}>Competitors listed</th>}
                 <th className={`${TH} text-right`}>Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {c.sites.map((s) => (
-                <tr key={s.name}>
+              {rows.map((d) => (
+                <tr key={d.name}>
                   <td className={TD}>
-                    <ExtLink href={s.url} className="font-medium">
-                      {s.name}
+                    <ExtLink href={d.url} className="font-medium">
+                      {d.name}
                     </ExtLink>
                   </td>
-                  <td className={`${TD} ${CITATION_STYLE[s.status].tone}`}>{CITATION_STYLE[s.status].label}</td>
+                  <td className={`${TD} ${d.you ? CITATION_STYLE[d.you].tone : "text-muted-foreground"}`}>{d.you ? CITATION_STYLE[d.you].label : "—"}</td>
+                  {rivals.length > 0 && (
+                    <td className={TD}>
+                      {d.competitors.length ? (
+                        <span className="flex flex-wrap gap-1.5">
+                          {d.competitors.map((x) => (
+                            <ExtLink key={x.rank} href={x.listingUrl} className="rounded-[5px] bg-muted px-1.5 py-0.5 text-xs">
+                              #{x.rank} {x.title}
+                            </ExtLink>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">None</span>
+                      )}
+                    </td>
+                  )}
                   <td className={`${TD} text-right`}>
                     <span className="inline-flex flex-wrap justify-end gap-x-3 gap-y-1">
-                      {s.status === "listed" && s.listingUrl && (
-                        <ExtLink href={s.listingUrl} className="text-brand">
+                      {d.you === "listed" && d.yourListing && (
+                        <ExtLink href={d.yourListing} className="text-brand">
                           View listing
                         </ExtLink>
                       )}
-                      {s.status === "missing" && (
-                        <ExtLink href={s.addUrl} className="font-medium text-brand">
+                      {d.you === "missing" && (
+                        <ExtLink href={d.addUrl} className="font-medium text-brand">
                           Get listed
                         </ExtLink>
                       )}
-                      {s.categoryUrl && s.status !== "unreachable" && (
-                        <ExtLink href={s.categoryUrl} className="text-muted-foreground">
+                      {d.categoryUrl && d.you !== "unreachable" && (
+                        <ExtLink href={d.categoryUrl} className="text-muted-foreground">
                           {b.category ?? "Category"} listings
                         </ExtLink>
                       )}
-                      {s.status === "unreachable" && (
-                        <ExtLink href={s.url} className="text-muted-foreground">
+                      {d.you === "unreachable" && (
+                        <ExtLink href={d.url} className="text-muted-foreground">
                           Open
                         </ExtLink>
                       )}
@@ -1747,6 +1785,67 @@ export function LocalCitations({ facts, report }: { facts: Facts; report: Report
           </table>
         </div>
       </Panel>
+    </div>
+  )
+}
+
+/** One competitor: who they are, and up to five of their live listings, the most shared directories first. */
+function RivalCitationCard({
+  rival,
+  profile,
+  rows,
+}: {
+  rival: NonNullable<Facts["competitorCitations"]>[number]
+  profile: NonNullable<Facts["competitorProfiles"]>[number] | null
+  rows: NonNullable<Report["directories"]>
+}) {
+  const live = rows.flatMap((d) => {
+    const hit = d.competitors.find((x) => x.rank === rival.rank)
+    return hit ? [{ name: d.name, url: hit.listingUrl, shared: d.competitors.length }] : []
+  })
+  const shown = live.slice(0, 5)
+  return (
+    <div className="flex min-w-0 flex-col gap-3 rounded-[10px] border border-border p-4">
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">#{rival.rank} for the keyword</div>
+        <div className="truncate text-[14px] font-semibold">{rival.title}</div>
+        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+          {profile && (
+            <div>
+              {profile.rating != null ? `${profile.rating.toFixed(1)}★` : "No rating"}
+              {profile.reviewCount != null ? ` · ${profile.reviewCount.toLocaleString()} reviews` : ""}
+              {profile.category ? ` · ${profile.category}` : ""}
+            </div>
+          )}
+          {profile?.address && <div className="truncate">{profile.address}</div>}
+          {profile?.phone && <div>{profile.phone}</div>}
+          {profile?.website && (
+            <ExtLink href={profile.website} className="block truncate text-brand">
+              {hostOf(profile.website) ?? profile.website}
+            </ExtLink>
+          )}
+        </div>
+      </div>
+      <div className="border-t border-border pt-3">
+        <div className="mb-1.5 text-xs font-medium">
+          Live citations: {live.length} of {rival.citations.sites.length}
+        </div>
+        {shown.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No listings found on these directories.</p>
+        ) : (
+          <ul className="space-y-1">
+            {shown.map((l) => (
+              <li key={l.name} className="flex items-baseline justify-between gap-2 text-[13px]">
+                <ExtLink href={l.url} className="truncate text-brand">
+                  {l.name}
+                </ExtLink>
+                {l.shared > 1 && <span className="shrink-0 text-[11px] text-muted-foreground">{l.shared} competitors here</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {live.length > shown.length && <div className="mt-1 text-xs text-muted-foreground">and {live.length - shown.length} more in the table below</div>}
+      </div>
     </div>
   )
 }
