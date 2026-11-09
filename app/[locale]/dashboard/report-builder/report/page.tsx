@@ -174,10 +174,16 @@ export default function ReportBuilderReport() {
     if (r?.state !== "done") return <Pending what={r?.state === "waiting" ? "Waiting for the check it builds on" : PENDING_TEXT[def(d).run]} detail="This section fills in by itself." />
     const data = r.data
     switch (d) {
-      case "citations":
-        return <CitationsSection data={data} />
-      case "gbpPlan":
-        return <GbpPlanSection data={data} />
+      case "gbpAudit":
+        return (
+          <div className="space-y-8">
+            <GbpPlanSection data={data} />
+            <div>
+              <h3 className="mb-3 text-[15px] font-semibold tracking-tight">3 citations we&apos;ll create first</h3>
+              <CitationsSection data={data} />
+            </div>
+          </div>
+        )
       case "aiPost":
         return <AiPostSection data={data} post={post} onRegenerate={() => writePost(true)} busy={writing} />
       case "directions":

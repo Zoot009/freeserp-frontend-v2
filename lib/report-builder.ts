@@ -1,6 +1,6 @@
 // The in-house client report builder: every FreeSERP tool as a section of one
 // combined client report. Each section reads one "run" of a tool; several
-// sections can share a run (the Maps audit feeds four), and some runs need
+// sections can share a run (the Maps audit feeds three), and some runs need
 // another first (the Maps Tracker needs the audit's location, Competitor
 // Analysis needs a SERP check's competitors).
 
@@ -9,8 +9,7 @@ export type Deliverable =
   | "quickSerp"
   | "youtube"
   | "mapsTracker"
-  | "citations"
-  | "gbpPlan"
+  | "gbpAudit"
   | "aiPost"
   | "directions"
   | "aiPrompts"
@@ -50,8 +49,7 @@ export const DELIVERABLES: Def[] = [
   { key: "youtube", group: "Search engine", title: "YouTube Rank Tracker", text: "Where the business's YouTube channel ranks for the main keyword.", run: "yt", needs: ["youtube", "keyword"], promise: "Where your YouTube channel ranks for your main keyword." },
   // Maps
   { key: "mapsTracker", group: "Maps", title: "Google Maps Tracker", text: "A rank scan on a grid of points around the business on Google Maps for the main keyword. 3×3 unless you pick a bigger grid.", run: "maps", needs: ["maps"], promise: "How visible you are on Google Maps across your area, point by point." },
-  { key: "citations", group: "Maps", title: "Create 3 citations", text: "Three ready-to-submit local listings on directories the business is missing from, with its exact name, address and phone.", run: "gbp", needs: ["maps"], promise: "Three local listings we'll create first, ready to submit with your exact business details." },
-  { key: "gbpPlan", group: "Maps", title: "Google Maps Audit action plan", text: "The Google Business Profile audit's overall recommendation, 30-day plan and every fix.", run: "gbp", needs: ["maps"], promise: "Your Google Business Profile audit: the overall recommendation, the 30-day plan and every fix." },
+  { key: "gbpAudit", group: "Maps", title: "GMB audit (Google Business Profile)", text: "The full profile audit: the overall recommendation, 30-day plan and every fix, plus 3 ready-to-submit citations on directories the business is missing from.", run: "gbp", needs: ["maps"], promise: "Your Google Business Profile audit: what to fix and in what order, and the first 3 local listings we'll create for you." },
   { key: "aiPost", group: "Maps", title: "AI Google Post", text: "A Google Business Profile post written by AI for the business, a sample of the daily posts we'll publish.", run: "gbp", needs: ["maps"], promise: "A sample of the Google Posts we'll write and publish for you, every day." },
   { key: "directions", group: "Maps", title: "Driving directions map", text: "A map of driving routes from the top competitors' locations to the business, and how we'll add them.", run: "gbp", needs: ["maps"], promise: "Driving routes from your top competitors to you, which we'll build and add for you." },
   // AI
@@ -106,7 +104,7 @@ export function readReport(search: string): { sel: Deliverable[]; inputs: Inputs
   const ids: Partial<Record<RunKey, string>> = {}
   for (const k of RUN_KEYS) if (q.get(`r_${k}`)) ids[k] = q.get(`r_${k}`)!
   return {
-    sel: (q.get("sel") ?? "").split(",").filter((k): k is Deliverable => keys.has(k as Deliverable)),
+    sel: [...new Set((q.get("sel") ?? "").split(",").map((k) => (k === "citations" || k === "gbpPlan" ? "gbpAudit" : k)))].filter((k): k is Deliverable => keys.has(k as Deliverable)),
     inputs: { maps: get("maps"), web: get("web"), kw: get("kw"), loc: get("loc"), name: get("name"), yt: get("yt"), grid: get("grid"), svc: (q.get("svc") ?? "").split("|").filter(Boolean) },
     ids,
   }
