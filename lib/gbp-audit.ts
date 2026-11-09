@@ -3,10 +3,10 @@
 // report.ts); these types are copied from it and must change with it.
 
 export type AuditStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"
-export type AuditStep = "profile" | "reviews" | "rankings"
+export type AuditStep = "profile" | "reviews" | "rankings" | "details"
 export type CheckStatus = "pass" | "warn" | "fail" | "unknown"
 export type Priority = "high" | "medium" | "low"
-export type CategoryKey = "profile" | "reviews" | "content" | "website" | "visibility"
+export type CategoryKey = "profile" | "reviews" | "keywords" | "content" | "website" | "engagement" | "visibility" | "citations"
 export type Weekday = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
 
 export type Business = {
@@ -43,6 +43,8 @@ export type Business = {
   links: { type: string; title: string | null; url: string }[]
   peopleAlsoSearch: { title: string; cid: string | null; rating: number | null; reviewCount: number | null }[]
   lastUpdated: string | null
+  bookOnlineUrl?: string | null
+  contactUrl?: string | null
 }
 
 export type Review = {
@@ -108,6 +110,54 @@ export type Grid = {
 
 export type SourceInfo = { fetchedAt: string; cached: boolean }
 
+export type Post = { publishedAt: string | null; text: string | null; url: string | null; image: string | null; links: { title: string | null; url: string }[] }
+
+export type CompetitorProfile = {
+  rank: number
+  title: string
+  cid: string | null
+  category: string | null
+  additionalCategories: string[]
+  description: string | null
+  totalPhotos: number | null
+  rating: number | null
+  reviewCount: number | null
+  reviewDates: string[] | null
+  reviewsRequested: number
+}
+
+export type CommercialRank = { keyword: string; rank: number | null; depth: number; top: string[] }
+
+export type Website = {
+  url: string
+  finalUrl: string
+  status: number | null
+  error: string | null
+  https: boolean
+  httpsRedirect: boolean | null
+  ssl: { valid: boolean; daysLeft: number | null } | null
+  title: string | null
+  metaDescription: string | null
+  h1: string | null
+  viewport: boolean
+  noindex: boolean
+  robotsBlocked: boolean
+  schemaTypes: string[]
+  localBusinessSchema: boolean
+  psi: { score: number; lcpMs: number; cls: number } | null
+  brokenLinks: { url: string; status: number | null; page: string }[]
+  linksChecked: number
+  servicePages: { term: string; url: string | null }[]
+  locationPages: string[]
+  pagesFound: number
+}
+
+export type CitationStatus = "listed" | "missing" | "unreachable"
+export type Citations = {
+  checkedAt: string
+  sites: { name: string; url: string; status: CitationStatus; listingUrl: string | null; addUrl: string; categoryUrl: string | null }[]
+}
+
 export type Facts = {
   target: { cid: string | null; placeId: string | null; name: string | null; lat: number | null; lng: number | null; input: string }
   business: Business
@@ -117,7 +167,13 @@ export type Facts = {
   grid?: Grid | null
   keyword?: string | null
   /** Absent on audits from before the cache existed. */
-  sources?: { profile: SourceInfo; reviews: SourceInfo | null; grid: SourceInfo | null }
+  sources?: { profile: SourceInfo; reviews: SourceInfo | null; grid: SourceInfo | null; posts?: SourceInfo | null }
+  /** The fields below are absent on audits from before they existed; null = couldn't fetch. */
+  posts?: { requested: number; items: Post[] } | null
+  competitorProfiles?: CompetitorProfile[] | null
+  commercialRanks?: CommercialRank[] | null
+  website?: Website | null
+  citations?: Citations | null
   notes: string[]
   costUsd: number
   fetchedAt: string
@@ -133,6 +189,8 @@ export type Check = {
   fix: string | null
   priority: Priority
   weight: number
+  /** Google doesn't expose it: for the owner to check. Never scored. */
+  manual?: boolean
 }
 
 export type CategoryScore = { key: CategoryKey; label: string; score: number | null; passed: number; warned: number; failed: number }
@@ -160,6 +218,12 @@ export type Report = {
     negative: number
     negativeUnanswered: number
     sampleAverage: number | null
+    /** Absent on reports built before these existed. */
+    last30?: { count: number; atLeast: boolean } | null
+    last90?: { count: number; atLeast: boolean } | null
+    medianReplyHours?: number | null
+    negativeShare?: number | null
+    keywordMentions?: { term: string; count: number } | null
   }
 }
 
@@ -208,6 +272,7 @@ export const STEPS: { key: AuditStep; label: string; hint: string }[] = [
   { key: "profile", label: "Reading the profile", hint: "Categories, contact details, hours, photos and attributes" },
   { key: "reviews", label: "Reading the newest reviews", hint: "Ratings, recency and owner replies" },
   { key: "rankings", label: "Running the 3×3 rank grid", hint: "The keyword searched from nine points around the business, and who outranks it" },
+  { key: "details", label: "Checking the website, posts and competitors", hint: "Website SEO, Google Posts, buying-intent searches, competitors' profiles and local directories" },
 ]
 
 export const STATUS_LABEL: Record<CheckStatus, string> = {

@@ -18,6 +18,7 @@ import {
   ReportHero,
   ReportSections,
   Tabs,
+  tabCounts,
   TABS,
   usePrintAll,
   type TabKey,
@@ -200,7 +201,7 @@ export default function GoogleMapsAuditReportPage() {
 
         {facts && report && (
           <>
-            <Tabs active={tab} onChange={openTab} counts={{ profile: report.findings.length }} />
+            <Tabs active={tab} onChange={openTab} counts={tabCounts(data)} />
             <ReportSections
               data={data}
               tab={tab}

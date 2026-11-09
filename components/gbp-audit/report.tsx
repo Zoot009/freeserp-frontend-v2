@@ -239,7 +239,10 @@ function CheckRow({ check: c, showPriority = true }: { check: Check; showPriorit
       <StatusIcon status={c.status} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
-          <b className="text-[13px] font-medium">{c.label}</b>
+          <b className="text-[13px] font-medium">
+            {c.label}
+            {c.manual && <span className="ml-2 rounded-[5px] bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">Check yourself</span>}
+          </b>
           <span className="flex shrink-0 items-center gap-2">
             <span className="max-w-[220px] truncate text-xs text-muted-foreground">{c.value}</span>
             {showPriority && (c.status === "fail" || c.status === "warn") && <PriorityBadge priority={c.priority} />}
@@ -433,12 +436,14 @@ export function Progress({ step }: { step: AuditStep | null }) {
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
-export type TabKey = "overview" | "profile" | "reviews" | "rankings" | "plan"
+export type TabKey = "overview" | "profile" | "reviews" | "rankings" | "website" | "citations" | "plan"
 export const TABS: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "profile", label: "Profile audit" },
   { key: "reviews", label: "Reviews" },
   { key: "rankings", label: "Rankings" },
+  { key: "website", label: "Website" },
+  { key: "citations", label: "Local citations" },
   { key: "plan", label: "Action plan" },
 ]
 
@@ -814,11 +819,13 @@ function PointList({ grid, selected, onSelect }: { grid: Grid; selected: string 
 
 export function ProfileAudit({ facts, report }: { facts: Facts; report: Report }) {
   const b = facts.business
-  const count = (s: CheckStatus) => report.checks.filter((c) => c.status === s).length
+  const count = (s: CheckStatus) => report.checks.filter((c) => c.status === s && !c.manual).length
   return (
     <div className="grid items-start gap-5 xl:grid-cols-3">
       <div className="space-y-5 xl:col-span-2">
-        {report.categories.map((cat) => (
+        {report.categories
+          .filter((cat) => cat.key !== "website" && cat.key !== "citations")
+          .map((cat) => (
           <Panel
             key={cat.key}
             title={cat.label}
@@ -846,7 +853,7 @@ export function ProfileAudit({ facts, report }: { facts: Facts; report: Report }
       <div className="space-y-5">
         <Panel
           title="Score"
-          hint="Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories weigh Profile 30, Reviews 25, Local visibility 20, Photos 15, Website 10. FreeSERP's checklist, not a score Google publishes."
+          hint="Each check counts by its weight: passed in full, needs attention as half, failed as nothing. Categories weigh Profile 20, Reviews 20, Local visibility 15, Keywords 15, Website 12, Engagement 8, Photos 5, Citations 5. Items marked “Check yourself” are things Google doesn't share and aren't scored. FreeSERP's checklist, not a score Google publishes."
         >
           <div className="flex items-center gap-5">
             {report.score !== null && <ScoreRing score={report.score} size={76} stroke={7} />}
@@ -855,6 +862,8 @@ export function ProfileAudit({ facts, report }: { facts: Facts; report: Report }
             </div>
           </div>
         </Panel>
+
+        <LatestPosts facts={facts} />
 
         <Panel title="Opening hours">
           {b.hours ? (
@@ -937,6 +946,8 @@ export function Reviews({ facts, report }: { facts: Facts; report: Report }) {
           caption={`${s.negativeUnanswered} without a reply`}
         />
       </div>
+
+      <ReviewQuality report={report} />
 
       <div className="grid items-start gap-5 xl:grid-cols-3">
         <Panel title="Rating breakdown" hint="How the stars are spread, as Google shows it.">
@@ -1271,6 +1282,9 @@ export function Rankings({
 
       {!printing && <HeadToHead facts={facts} />}
 
+      <RivalProfiles facts={facts} />
+      <BuyingIntent facts={facts} />
+
       <Panel title="Google Maps results" hint={vis ? `The top ${rows.length} results for “${vis.keyword}” at the business’s location. Ads are left out.` : undefined} flush>
         {rows.length ? <CompetitorTable rows={rows} business={b} /> : <p className="p-4 text-[13px] text-muted-foreground">No results to show.</p>}
       </Panel>
@@ -1433,6 +1447,8 @@ export function ReportSections({
           {k === "profile" && <ProfileAudit facts={facts} report={report} />}
           {k === "reviews" && <Reviews facts={facts} report={report} />}
           {k === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={onCheckKeyword} checking={checking} printing={printAll} />}
+          {k === "website" && <WebsiteHealth facts={facts} report={report} />}
+          {k === "citations" && <LocalCitations facts={facts} report={report} />}
           {k === "plan" && <ActionPlan report={report} />}
         </section>
       ))}
@@ -1497,4 +1513,395 @@ export function OtherAudits({ audits }: { audits: GbpAuditResponse["others"] }) 
       </div>
     </Panel>
   )
+}
+
+// ── Website SEO health ───────────────────────────────────────────────────────
+
+const secs = (ms: number) => `${(Math.ceil(ms / 100) / 10).toFixed(1)}s`
+const pathOf = (url: string) => {
+  try {
+    const u = new URL(url)
+    return u.pathname === "/" ? u.hostname.replace(/^www\./, "") : u.pathname
+  } catch {
+    return url
+  }
+}
+
+function CategoryChecks({ report, category, className = "" }: { report: Report; category: Check["category"]; className?: string }) {
+  const cat = report.categories.find((c) => c.key === category)
+  const checks = report.checks.filter((c) => c.category === category)
+  if (!cat || checks.length === 0) return null
+  return (
+    <Panel
+      title={cat.label}
+      meta={
+        <>
+          <span>
+            {cat.passed} passed · {cat.warned + cat.failed} to fix
+          </span>
+          <span className={`text-[15px] font-semibold tabular-nums ${cat.score !== null ? scoreText(cat.score) : ""}`}>{cat.score ?? "—"}</span>
+        </>
+      }
+      flush
+      className={className}
+    >
+      <div className="divide-y divide-border">
+        {checks.map((c) => (
+          <CheckRow key={c.id} check={c} showPriority={false} />
+        ))}
+      </div>
+    </Panel>
+  )
+}
+
+export function WebsiteHealth({ facts, report }: { facts: Facts; report: Report }) {
+  const w = facts.website
+  const found = w?.servicePages.filter((p) => p.url).length ?? 0
+  return (
+    <div className="space-y-5">
+      {!facts.business.website ? (
+        <Notice>This profile has no website, so there is nothing to crawl. Adding one is the first fix.</Notice>
+      ) : !w ? (
+        <Notice>
+          {facts.website === undefined
+            ? "The website wasn't crawled in this audit. Run the audit again to add the website checks."
+            : "The website couldn't be crawled this time. The checks below are marked not verified."}
+        </Notice>
+      ) : (
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Mobile speed"
+            hint="Google PageSpeed (mobile) for the homepage, and how long the main content takes to appear (LCP; good is 2.5s or less)."
+            value={w.psi ? w.psi.score : "—"}
+            tone={w.psi ? scoreText(w.psi.score) : "text-foreground"}
+            caption={w.psi ? `LCP ${secs(w.psi.lcpMs)}` : "Not measured"}
+            fill={w.psi?.score ?? null}
+            fillClass={w.psi ? scoreFill(w.psi.score) : undefined}
+          />
+          <StatCard
+            label="Service pages"
+            hint="Services from the profile (the keyword and categories) that have a page on the site."
+            value={`${found}/${w.servicePages.length}`}
+            tone={found < w.servicePages.length ? "text-amber-600 dark:text-amber-400" : "text-foreground"}
+            caption={w.locationPages.length ? `${w.locationPages.length} location page${w.locationPages.length === 1 ? "" : "s"}` : "No location pages"}
+          />
+          <StatCard
+            label="Broken links"
+            hint="Links on the homepage and service pages that lead to an error."
+            value={w.brokenLinks.length}
+            tone={w.brokenLinks.length ? "text-red-500" : "text-foreground"}
+            caption={`of ${w.linksChecked} checked`}
+          />
+          <StatCard label="Pages found" hint="Pages on the site found in its links and sitemap." value={w.pagesFound} tone="text-foreground" caption={hostOf(w.finalUrl) ?? w.url} />
+        </div>
+      )}
+
+      <div className="grid items-start gap-5 xl:grid-cols-3">
+        <CategoryChecks report={report} category="website" className="xl:col-span-2" />
+        {w && (
+          <div className="space-y-5">
+            <Panel title="Homepage" meta={<ExtLink href={w.finalUrl} className={LINK}>Open</ExtLink>}>
+              <KeyValues
+                rows={[
+                  ["Title", w.title ? <span className="line-clamp-2">{w.title}</span> : <span className="text-red-500">Missing</span>],
+                  ["Description", w.metaDescription ? `${w.metaDescription.length} chars` : <span className="text-red-500">Missing</span>],
+                  ["Main heading", w.h1 ? <span className="line-clamp-2">{w.h1}</span> : <span className="text-muted-foreground">None</span>],
+                  ["Schema", w.schemaTypes.length ? w.schemaTypes.slice(0, 3).join(", ") : <span className="text-muted-foreground">None</span>],
+                  ["SSL", w.ssl ? (w.ssl.valid ? (w.ssl.daysLeft != null ? `Valid, ${w.ssl.daysLeft} days left` : "Valid") : <span className="text-red-500">Invalid</span>) : "—"],
+                ]}
+              />
+            </Panel>
+            <Panel title="Pages for your services" hint="The page that covers each service best, from its address, title and main heading." flush>
+              <div className="divide-y divide-border">
+                {w.servicePages.map((p) => (
+                  <div key={p.term} className="flex items-baseline justify-between gap-4 px-4 py-2.5 text-[13px]">
+                    <span className="truncate first-letter:uppercase">{p.term}</span>
+                    {p.url ? (
+                      <ExtLink href={p.url} className="max-w-[55%] shrink-0 truncate text-brand">
+                        {pathOf(p.url)}
+                      </ExtLink>
+                    ) : (
+                      <span className="shrink-0 text-red-500">No page</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            {w.locationPages.length > 0 && (
+              <Panel title="Location pages" flush>
+                <div className="divide-y divide-border">
+                  {w.locationPages.map((u) => (
+                    <ExtLink key={u} href={u} className="block truncate px-4 py-2.5 text-[13px] text-brand">
+                      {pathOf(u)}
+                    </ExtLink>
+                  ))}
+                </div>
+              </Panel>
+            )}
+            {w.brokenLinks.length > 0 && (
+              <Panel title="Broken links" flush>
+                <div className="divide-y divide-border">
+                  {w.brokenLinks.slice(0, 15).map((l) => (
+                    <div key={`${l.page}-${l.url}`} className="px-4 py-2.5 text-[13px]">
+                      <div className="flex items-baseline gap-2">
+                        <span className="shrink-0 font-medium tabular-nums text-red-500">{l.status ?? "Error"}</span>
+                        <span className="truncate">{l.url}</span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">on {pathOf(l.page)}</div>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Local citations ──────────────────────────────────────────────────────────
+
+const CITATION_STYLE = {
+  listed: { label: "Listed", tone: "text-green-600 dark:text-green-400" },
+  missing: { label: "Missing", tone: "text-red-500" },
+  unreachable: { label: "Couldn't check", tone: "text-muted-foreground" },
+} as const
+
+export function LocalCitations({ facts, report }: { facts: Facts; report: Report }) {
+  const c = facts.citations
+  const b = facts.business
+  if (!c) {
+    return (
+      <Notice>
+        {c === undefined
+          ? "Local directories weren't checked in this audit. Run the audit again to see where the business is listed."
+          : "The local directories couldn't be reached this time. Run the audit again to check them."}
+      </Notice>
+    )
+  }
+  const count = (s: keyof typeof CITATION_STYLE) => c.sites.filter((x) => x.status === s).length
+  const check = report.checks.find((x) => x.id === "partner_citations")
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <StatCard label="Listed" hint="Directories where the business already has a listing." value={count("listed")} tone="text-green-600 dark:text-green-400" caption={`of ${c.sites.length} directories`} />
+        <StatCard label="Missing" hint="Directories where the business has no listing yet. Each is a free citation and backlink." value={count("missing")} tone={count("missing") ? "text-red-500" : "text-foreground"} caption="Get listed below" />
+        <StatCard label="Couldn't check" hint="Directories that didn't answer this time. They aren't counted against the business." value={count("unreachable")} tone="text-foreground" caption={`Checked ${fmtDay(c.checkedAt)}`} />
+      </div>
+
+      <Panel
+        title="FreeSERP partner directories"
+        hint="Local directories where the business can rank and earn citations. Each listing repeats the name, address and phone Google checks against the profile, and links to the website."
+        flush
+      >
+        <p className="border-b border-border px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
+          List {b.name} on every directory marked <span className="font-medium text-red-500">Missing</span>, with exactly the same name, address and phone as the Google profile.
+          {check?.status === "pass" ? " The business is already on most of them." : ""}
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-[13px]">
+            <thead>
+              <tr>
+                <th className={TH}>Directory</th>
+                <th className={`${TH} w-32`}>Status</th>
+                <th className={`${TH} text-right`}>Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {c.sites.map((s) => (
+                <tr key={s.name}>
+                  <td className={TD}>
+                    <ExtLink href={s.url} className="font-medium">
+                      {s.name}
+                    </ExtLink>
+                  </td>
+                  <td className={`${TD} ${CITATION_STYLE[s.status].tone}`}>{CITATION_STYLE[s.status].label}</td>
+                  <td className={`${TD} text-right`}>
+                    <span className="inline-flex flex-wrap justify-end gap-x-3 gap-y-1">
+                      {s.status === "listed" && s.listingUrl && (
+                        <ExtLink href={s.listingUrl} className="text-brand">
+                          View listing
+                        </ExtLink>
+                      )}
+                      {s.status === "missing" && (
+                        <ExtLink href={s.addUrl} className="font-medium text-brand">
+                          Get listed
+                        </ExtLink>
+                      )}
+                      {s.categoryUrl && s.status !== "unreachable" && (
+                        <ExtLink href={s.categoryUrl} className="text-muted-foreground">
+                          {b.category ?? "Category"} listings
+                        </ExtLink>
+                      )}
+                      {s.status === "unreachable" && (
+                        <ExtLink href={s.url} className="text-muted-foreground">
+                          Open
+                        </ExtLink>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </div>
+  )
+}
+
+// ── Posts, buying-intent searches, competitors' profiles ─────────────────────
+
+function LatestPosts({ facts }: { facts: Facts }) {
+  const posts = facts.posts
+  if (posts === undefined) return null
+  return (
+    <Panel title="Latest Google Posts" hint="The newest posts on the profile: offers, news and events." flush>
+      {!posts ? (
+        <p className="p-4 text-[13px] text-muted-foreground">Posts couldn&apos;t be fetched this time.</p>
+      ) : posts.items.length === 0 ? (
+        <p className="p-4 text-[13px] text-muted-foreground">No posts on this profile.</p>
+      ) : (
+        <div className="divide-y divide-border">
+          {posts.items.slice(0, 5).map((p, i) => (
+            <div key={i} className="px-4 py-2.5 text-[13px]">
+              <div className="text-xs text-muted-foreground">{p.publishedAt ? fmtDay(p.publishedAt) : "Undated"}</div>
+              {p.text && <p className="mt-0.5 line-clamp-3 leading-relaxed">{p.text}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+function BuyingIntent({ facts }: { facts: Facts }) {
+  const ranks = facts.commercialRanks
+  if (!ranks?.length) return null
+  return (
+    <Panel title="Buying-intent searches" hint="What customers ready to call search for, searched from the business's own location." flush>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className={TH}>Search</th>
+              <th className={`${TH} w-24`}>Your rank</th>
+              <th className={TH}>Top 3</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {ranks.map((r) => (
+              <tr key={r.keyword}>
+                <td className={`${TD} font-medium`}>{r.keyword}</td>
+                <td className={`${TD} tabular-nums ${r.rank != null && r.rank <= 3 ? "text-green-600 dark:text-green-400" : r.rank != null && r.rank <= 10 ? "text-amber-600 dark:text-amber-400" : "text-red-500"}`}>
+                  {r.rank != null ? `#${r.rank}` : `${r.depth}+`}
+                </td>
+                <td className={`${TD} text-muted-foreground`}>{r.top.join(" · ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+function RivalProfiles({ facts }: { facts: Facts }) {
+  const rivals = facts.competitorProfiles
+  if (!rivals?.length) return null
+  const b = facts.business
+  const ref = Date.parse(facts.sources?.reviews?.fetchedAt ?? facts.fetchedAt)
+  const in90 = (dates: string[] | null, requested: number) => {
+    if (!dates) return "—"
+    const n = dates.filter((d) => ref - Date.parse(d) <= 90 * 86_400_000).length
+    return `${n}${n === requested ? "+" : ""}`
+  }
+  const own = facts.reviews ? in90(facts.reviews.items.map((r) => r.publishedAt).filter((d): d is string => !!d), facts.reviews.requested) : "—"
+  const rows = [
+    { key: "you", title: `${b.name} (you)`, rating: b.rating, reviews: b.reviewCount, recent: own, photos: b.totalPhotos, categories: [b.category, ...b.additionalCategories].filter(Boolean) as string[] },
+    ...rivals.map((r) => ({
+      key: `${r.rank}-${r.title}`,
+      title: `#${r.rank} ${r.title}`,
+      rating: r.rating,
+      reviews: r.reviewCount,
+      recent: in90(r.reviewDates, r.reviewsRequested),
+      photos: r.totalPhotos,
+      categories: [r.category, ...r.additionalCategories].filter(Boolean) as string[],
+    })),
+  ]
+  return (
+    <Panel title="Competitors' profiles" hint="The top three businesses for the keyword, from their own listings: reviews gained in the last 90 days, photos and categories." flush>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] border-collapse text-[13px]">
+          <thead>
+            <tr>
+              <th className={TH}>Business</th>
+              <th className={`${TH} w-16 text-right`}>Rating</th>
+              <th className={`${TH} w-20 text-right`}>Reviews</th>
+              <th className={`${TH} w-24 text-right`}>New, 90d</th>
+              <th className={`${TH} w-16 text-right`}>Photos</th>
+              <th className={TH}>Categories</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r, i) => (
+              <tr key={r.key} className={i === 0 ? "bg-brand-soft/40" : ""}>
+                <td className={`${TD} font-medium`}>{r.title}</td>
+                <td className={`${TD} text-right tabular-nums`}>{r.rating?.toFixed(1) ?? "—"}</td>
+                <td className={`${TD} text-right tabular-nums`}>{r.reviews?.toLocaleString() ?? "—"}</td>
+                <td className={`${TD} text-right tabular-nums`}>{r.recent}</td>
+                <td className={`${TD} text-right tabular-nums`}>{r.photos?.toLocaleString() ?? "—"}</td>
+                <td className={`${TD} text-muted-foreground`}>{r.categories.slice(0, 3).join(", ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
+/** The second row of review figures: pace, reply time, negative share, and whether reviews name the service. */
+function ReviewQuality({ report }: { report: Report }) {
+  const s = report.reviewStats
+  if (s.last30 === undefined) return null
+  const n = (c: { count: number; atLeast: boolean } | null | undefined) => (c ? `${c.count}${c.atLeast ? "+" : ""}` : "—")
+  const hours = s.medianReplyHours
+  return (
+    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard label="New reviews" hint="Reviews received in the last 30 and 90 days." value={n(s.last30)} tone="text-foreground" caption={`in 30 days · ${n(s.last90)} in 90`} />
+      <StatCard
+        label="Reply time"
+        hint="Typical (median) time from a review to the owner's reply. Good is under two days."
+        value={hours == null ? "—" : hours < 48 ? `${Math.max(1, Math.round(hours))}h` : `${Math.round(hours / 24)}d`}
+        tone={hours != null && hours > 168 ? "text-red-500" : "text-foreground"}
+        caption={hours == null ? "No replies to measure" : "median"}
+      />
+      <StatCard
+        label="Negative reviews"
+        hint="Share of all reviews that are 1 or 2 stars."
+        value={s.negativeShare != null ? `${Math.round(s.negativeShare * 100)}%` : "—"}
+        tone={s.negativeShare != null && s.negativeShare > 0.15 ? "text-red-500" : "text-foreground"}
+        caption="1–2★ of all reviews"
+      />
+      <StatCard
+        label="Mention the service"
+        hint="Recent reviews that name the keyword or category: they help the profile rank for it."
+        value={s.keywordMentions ? `${s.keywordMentions.count}/${s.sampled}` : "—"}
+        tone="text-foreground"
+        caption={s.keywordMentions ? `name “${s.keywordMentions.term}”` : "—"}
+      />
+    </div>
+  )
+}
+
+/** The number beside each tab: what there is to fix there. */
+export function tabCounts(data: GbpAuditResponse): Partial<Record<TabKey, number>> {
+  const findings = data.report?.findings ?? []
+  return {
+    profile: findings.filter((f) => f.category !== "website" && f.category !== "citations").length,
+    website: findings.filter((f) => f.category === "website").length,
+    citations: data.facts?.citations?.sites.filter((s) => s.status === "missing").length ?? 0,
+  }
 }

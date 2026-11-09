@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
-import { Camera, Database, Globe, Grid3x3, Link2, Search, Star, Store, Zap } from "lucide-react"
+import { Camera, Database, Globe, Grid3x3, KeyRound, Link2, Megaphone, Search, Star, Store, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
@@ -23,16 +23,19 @@ const HISTORY_STATUS: Record<AuditStatus, "PENDING" | "PROCESSING" | "COMPLETED"
 // What the audit looks at, so the empty form says what it is for.
 const COVERS = [
   { icon: Store, tone: "bg-blue-500/10 text-blue-600 dark:text-blue-400", title: "Profile completeness", text: "Claim status, categories, description, phone, hours, attributes" },
-  { icon: Star, tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400", title: "Reviews & reputation", text: "Rating, volume vs. competitors, recency, owner replies" },
-  { icon: Grid3x3, tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", title: "3×3 rank grid", text: "Your keyword searched from 9 points around the business" },
-  { icon: Camera, tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400", title: "Photos & content", text: "Photo count, logo and cover image" },
-  { icon: Globe, tone: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", title: "Website & conversion", text: "Website link, HTTPS, UTM tracking, booking links" },
+  { icon: Star, tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400", title: "Review quality", text: "Negative share, reviews in 30/90 days, reply time, growth vs. competitors" },
+  { icon: KeyRound, tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400", title: "Keyword optimization", text: "Keywords in the description, service and town coverage, competitor gaps" },
+  { icon: Grid3x3, tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", title: "Local rankings", text: "A 3×3 rank grid and buying-intent searches like “near me”" },
+  { icon: Camera, tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400", title: "Photos & visuals", text: "Photo count vs. competitors, logo, cover, and a photo checklist" },
+  { icon: Globe, tone: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", title: "Website SEO health", text: "Speed, mobile, titles, schema, broken links, service and location pages" },
+  { icon: Megaphone, tone: "bg-pink-500/10 text-pink-600 dark:text-pink-400", title: "Engagement", text: "Google Posts, offers, booking and contact options" },
+  { icon: Link2, tone: "bg-slate-500/10 text-slate-600 dark:text-slate-300", title: "Local citations", text: "Listings on 25 local directories, and where to get listed" },
 ]
 
 const STEPS = [
   { icon: Link2, title: "Paste a Maps link", text: "On Google Maps, tap Share → Copy link, and paste it here" },
   { icon: Search, title: "Pick a keyword", text: "Optional: we use the primary category if you leave it blank" },
-  { icon: Zap, title: "Get the report", text: "Score, rank grid, competitors and a 30-day plan in about a minute" },
+  { icon: Zap, title: "Get the report", text: "Score, rank grid, website and citation checks, and a 30-day plan in two to three minutes" },
 ]
 
 export default function GoogleMapsAuditPage() {
@@ -186,7 +189,7 @@ export default function GoogleMapsAuditPage() {
       </div>
 
       <h2 className="mb-3 mt-7 text-[15px] font-semibold tracking-tight">What the audit checks</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {COVERS.map(({ icon: CoverIcon, tone, title, text }) => (
           <div key={title} className="rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-md">
             <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>

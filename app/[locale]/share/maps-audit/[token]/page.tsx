@@ -21,6 +21,7 @@ import {
   ReportSections,
   SharedReportContext,
   Tabs,
+  tabCounts,
   TABS,
   usePrintAll,
   type TabKey,
@@ -113,7 +114,7 @@ export default function SharedMapsAuditPage() {
           </div>
 
           <ReportHero data={data} onOpenPlan={() => openTab("plan")} />
-          <Tabs active={tab} onChange={openTab} counts={{ profile: report.findings.length }} />
+          <Tabs active={tab} onChange={openTab} counts={tabCounts(data)} />
           <ReportSections data={data} tab={tab} printAll={printAll} onOpen={openTab} />
 
           <p className="text-[11px] leading-relaxed text-muted-foreground">
