@@ -1575,6 +1575,8 @@ export function ActionPlan({ report }: { report: Report }) {
                       <div className="mb-0.5 text-xs font-medium text-muted-foreground">How to fix it</div>
                       {f.fix}
                     </div>
+                    {f.id === "partner_citations" && <DirectoryLinks rows={report.directories ?? []} />}
+                    {f.id === "competitor_directories" && <DirectoryLinks rows={(report.directories ?? []).filter((d) => d.competitors.length > 0)} />}
                   </div>
                 ))}
               </div>
@@ -1771,6 +1773,30 @@ const CITATION_STYLE = {
   missing: { label: "Missing", tone: "text-red-500" },
   unreachable: { label: "Couldn't check", tone: "text-muted-foreground" },
 } as const
+
+/** The directories behind a citations issue, each a link: the listing if found, else where to add the business. */
+function DirectoryLinks({ rows }: { rows: NonNullable<Report["directories"]> }) {
+  if (rows.length === 0) return null
+  return (
+    <div className="min-w-0 md:col-span-2">
+      <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+        The {rows.length} {rows.length === 1 ? "directory" : "directories"}: click one to {rows.some((d) => d.you === "missing") ? "add the business" : "open it"}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {rows.map((d) => {
+          const s = d.you ? CITATION_STYLE[d.you] : null
+          const href = d.you === "listed" ? (d.yourListing ?? d.url) : d.you === "missing" ? d.addUrl : d.url
+          return (
+            <ExtLink key={d.name} href={href} className="inline-flex items-center gap-1.5 rounded-[5px] border border-border bg-card px-2 py-1 text-xs hover:bg-muted">
+              <span className="font-medium">{d.name}</span>
+              {s && <span className={s.tone}>{s.label}</span>}
+            </ExtLink>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export function LocalCitations({ facts, report }: { facts: Facts; report: Report }) {
   const c = facts.citations
