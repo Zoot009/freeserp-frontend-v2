@@ -28,8 +28,10 @@ import {
   Link2,
   Bot,
   Megaphone,
+  FileStack,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
+import { useAuth } from "@/lib/auth"
 import {
   ChatGptMarkIcon,
   ClaudeMarkIcon,
@@ -122,6 +124,9 @@ const AUDIT: Item[] = [
   { key: "aeoAudit", url: "/dashboard/aeo-audit", icon: Bot },
 ]
 
+// The in-house team's own tools, shown only to the shared team account.
+const TEAM: Item[] = [{ key: "reportBuilder", url: "/dashboard/report-builder", icon: FileStack }]
+
 const TOOLS: Item[] = [
   { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },
   { key: "keywordMagic", url: "/dashboard/keyword-magic", icon: Sparkles },
@@ -162,6 +167,7 @@ type Props = React.ComponentProps<typeof Sidebar> & {
 
 export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const t = useTranslations("dashboardNav")
+  const { user } = useAuth()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const search = searchParams.toString()
@@ -243,6 +249,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />
+        {user?.inhouse && <Group labelKey="teamTools" items={TEAM} />}
         {/*<Group labelKey="comingSoon" items={COMING_SOON} />*/}
       </SidebarContent>
 

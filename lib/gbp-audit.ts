@@ -128,6 +128,8 @@ export type CompetitorProfile = {
   city?: string | null
   phone?: string | null
   website?: string | null
+  lat?: number | null
+  lng?: number | null
 }
 
 export type CommercialRank = { keyword: string; rank: number | null; depth: number; top: string[] }

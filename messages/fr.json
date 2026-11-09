@@ -644,7 +644,9 @@
     "flipkart": "Flipkart",
     "temu": "Temu",
     "ebay": "eBay",
-    "workspace": "Espace de travail"
+    "workspace": "Espace de travail",
+    "teamTools": "Outils de l'équipe",
+    "reportBuilder": "Générateur de rapports clients"
   },
   "dashFavorites": {
     "headerEyebrow": "Enregistrés",

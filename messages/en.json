@@ -644,7 +644,9 @@
     "flipkart": "Flipkart",
     "temu": "Temu",
     "ebay": "eBay",
-    "workspace": "Rank Tracker Workspace"
+    "workspace": "Rank Tracker Workspace",
+    "teamTools": "Team tools",
+    "reportBuilder": "Client Report Builder"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",

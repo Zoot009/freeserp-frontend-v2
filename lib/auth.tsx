@@ -15,6 +15,8 @@ interface User {
   occupationRole?: string | null
   // Free-text detail supplied when occupationRole === "other" (else null).
   occupationRoleOther?: string | null
+  /** The shared in-house team account: sees the team-only tools. */
+  inhouse?: boolean
 }
 
 interface RegisterData {
