@@ -27,6 +27,7 @@ export function StatCard({
   fill,
   fillClass,
   valueStyle,
+  compact = false,
 }: {
   /**
    * Usually a string. Widened to a node so a caller can put a mark beside the
@@ -56,17 +57,20 @@ export function StatCard({
    */
   fill?: number | null
   fillClass?: string
+  /** Tighter padding and a smaller figure, for a row of secondary stats under a bigger headline. */
+  compact?: boolean
 }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-card px-4.5 py-4 shadow-sm">
-      <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+    <div className={cn("min-w-0 rounded-xl border bg-card shadow-sm", compact ? "px-3.5 py-3" : "px-4.5 py-4")}>
+      <div className={cn("flex items-center gap-1.5 font-medium text-muted-foreground", compact ? "text-xs" : "text-[13px]")}>
         <span className="min-w-0 truncate">{label}</span>
         <InfoHint>{hint}</InfoHint>
       </div>
-      <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2">
+      <div className={cn("flex flex-wrap items-baseline gap-x-2", compact ? "mt-1.5" : "mt-2.5")}>
         <span
           className={cn(
-            "text-[34px] font-bold leading-none tracking-[-0.02em] tabular-nums",
+            "font-bold leading-none tracking-[-0.02em] tabular-nums",
+            compact ? "text-[24px]" : "text-[34px]",
             // A caller-supplied colour wins, so the token class is dropped
             // rather than left to lose a specificity race it might not lose.
             valueStyle?.color ? undefined : (tone ?? "text-primary"),
@@ -76,13 +80,13 @@ export function StatCard({
           {value}
         </span>
       </div>
-      <div className="mt-2 min-h-5 text-[13px] text-muted-foreground">{caption}</div>
+      <div className={cn("min-h-5 text-muted-foreground", compact ? "mt-1 text-xs" : "mt-2 text-[13px]")}>{caption}</div>
       {/* The empty track is only drawn when there IS a proportion to show.
           Rendering it regardless put a stray grey rule under every card that
           has no ceiling — position, dates, counts — which read as a divider to
           nowhere rather than as an empty bar. */}
       {fill != null && (
-        <div className="mt-2 h-[5px] overflow-hidden rounded-[3px] bg-muted">
+        <div className={cn("h-[5px] overflow-hidden rounded-[3px] bg-muted", compact ? "mt-1.5" : "mt-2")}>
           {fill > 0 && (
             <div
               className={cn("h-full rounded-[3px]", fillClass ?? "bg-primary")}

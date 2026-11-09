@@ -30,7 +30,6 @@ import {
   hostOf,
   initials,
   pointPlace,
-  verdict,
   findLeaderboardRow,
   rivalGrid,
   bestOf,
@@ -60,6 +59,14 @@ const scoreText = (score: number) => {
   return g === "A" ? "text-green-600 dark:text-green-400" : g === "B" ? "text-lime-600 dark:text-lime-400" : g === "C" ? "text-yellow-600 dark:text-yellow-400" : g === "D" ? "text-orange-500" : "text-red-500"
 }
 /** Fill colour for a 0–100 score, on the same bands. */
+/** Profile health colours: red under 50, yellow 50–79, green 80 and up. */
+const HEALTH_BAND = (score: number) =>
+  score >= 80
+    ? { ring: "stroke-green-500", text: "text-green-600 dark:text-green-400", box: "bg-green-500/10 ring-green-500/30" }
+    : score >= 50
+      ? { ring: "stroke-amber-400", text: "text-amber-600 dark:text-amber-400", box: "bg-amber-400/10 ring-amber-400/40" }
+      : { ring: "stroke-red-500", text: "text-red-600 dark:text-red-400", box: "bg-red-500/10 ring-red-500/30" }
+
 const scoreFill = (score: number) => gradeStroke(sectionScoreToGrade(score)).replaceAll("stroke-", "bg-")
 
 const STATUS_STYLE: Record<CheckStatus, { Icon: typeof CheckCircle2; tone: string }> = {
@@ -167,6 +174,7 @@ export function ScoreRing({
   stroke = 6,
   ringClass,
   showMax = false,
+  numberClass = "",
 }: {
   score: number
   size?: number
@@ -175,6 +183,8 @@ export function ScoreRing({
   ringClass?: string
   /** "/100" under the number. */
   showMax?: boolean
+  /** Colour for the number itself. */
+  numberClass?: string
 }) {
   const [filled, setFilled] = useState(false)
   useEffect(() => {
@@ -200,7 +210,7 @@ export function ScoreRing({
         />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-semibold tabular-nums" style={{ fontSize: Math.round(size * 0.3) }}>
+        <span className={`font-semibold tabular-nums ${numberClass}`} style={{ fontSize: Math.round(size * 0.3) }}>
           {score}
         </span>
         {showMax && <span className="mt-1 text-[10px] font-medium text-muted-foreground">/100</span>}
@@ -362,19 +372,17 @@ export function ReportHero({ data, onOpenPlan }: { data: GbpAuditResponse; /** O
         </div>
       )}
       {report?.score != null && (
-        // Brand blue and plain words, not a red alarm: this sums up a to-do list,
-        // and the findings below already say what matters most.
-        <div className="flex shrink-0 items-center gap-4 rounded-xl bg-muted/50 py-3 pl-3 pr-5">
-          <ScoreRing score={report.score} size={80} stroke={7} ringClass="stroke-brand" showMax />
+        // Coloured by the score itself: red under 50, yellow to 79, green from 80.
+        <div className={`flex shrink-0 items-center gap-5 rounded-xl py-3.5 pl-3.5 pr-6 ring-1 ${HEALTH_BAND(report.score).box}`}>
+          <ScoreRing score={report.score} size={120} stroke={10} ringClass={HEALTH_BAND(report.score).ring} numberClass={HEALTH_BAND(report.score).text} showMax />
           <div className="min-w-0">
-            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[17px] font-semibold leading-tight">
               Profile health
               <InfoHint>
-                FreeSERP&apos;s weighted checklist of {report.checks.length} checks across the profile, reviews, photos, website and local
-                rankings, out of 100. It isn&apos;t a score Google publishes.
+                FreeSERP&apos;s weighted checklist of {report.checks.length} checks across the profile, reviews, keywords, photos, website, posts,
+                local rankings and citations, out of 100. Red is under 50, yellow 50 to 79, green 80 and up. It isn&apos;t a score Google publishes.
               </InfoHint>
             </div>
-            <div className="mt-0.5 text-lg font-semibold leading-tight">{verdict(report.score)}</div>
             {data.previous?.score != null && data.previous.score !== report.score && (
               <div className="mt-0.5 text-xs text-muted-foreground">
                 {report.score > data.previous.score ? "Up" : "Down"} {Math.abs(report.score - data.previous.score)} since {fmtDay(data.previous.createdAt)}
@@ -484,8 +492,9 @@ export function Overview({ data, report, onOpen, printing = false }: { data: Gbp
   const issues = [by("high") > 0 && <span key="h" className="text-red-500">{by("high")} high</span>, by("medium") > 0 && `${by("medium")} medium`, by("low") > 0 && `${by("low")} low`].filter(Boolean)
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
+          compact
           label="Owner replies"
           hint={`Of the ${rs.sampled} newest reviews, how many the owner has replied to. Replies show searchers, and Google, that the business is active.`}
           value={rs.responseRate !== null ? `${Math.round(rs.responseRate * 100)}%` : "—"}
@@ -495,6 +504,7 @@ export function Overview({ data, report, onOpen, printing = false }: { data: Gbp
           fillClass={rs.responseRate !== null ? scoreFill(rs.responseRate * 100) : undefined}
         />
         <StatCard
+          compact
           label={vis ? `Rank for “${vis.keyword}”` : "Local rank"}
           hint="Where the business ranks on Google Maps for the keyword, searched from its own location. 20+ means it isn't in the top 20."
           value={vis ? rankLabel(vis) : "—"}
@@ -502,6 +512,7 @@ export function Overview({ data, report, onOpen, printing = false }: { data: Gbp
           caption={vis ? "At the business’s location" : "Ranking check didn't run"}
         />
         <StatCard
+          compact
           label="Grid visibility"
           hint={`How visible the business is across the ${grid?.points.length ?? 9} grid points: top-3 spots count fully, lower ranks less.`}
           value={m?.visibility != null ? `${Math.round(m.visibility)}%` : "—"}
@@ -511,6 +522,7 @@ export function Overview({ data, report, onOpen, printing = false }: { data: Gbp
           fillClass={m?.visibility != null ? scoreFill(m.visibility) : undefined}
         />
         <StatCard
+          compact
           label="Issues found"
           hint="Checks that failed or need attention, by how much they matter."
           value={report.findings.length}
