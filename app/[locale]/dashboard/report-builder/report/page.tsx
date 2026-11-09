@@ -3,10 +3,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- run payloads are read loosely by the sections */
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle2, Loader2, Printer, XCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle2, History, Loader2, Printer, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
-import { def, readReport, reportHref, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
+import { def, knownSections, readReport, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey, type StoredReport } from "@/lib/report-builder"
 import { RUNS, domainOf, errorMessage } from "@/components/report-builder/runs"
 import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
 import {
@@ -27,6 +27,7 @@ import {
 const TICK_MS = 10_000
 
 type RunState = { id?: string; state: "waiting" | "running" | "done" | "failed"; data?: any; error?: string }
+type Plan = { id: string; createdAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean }
 
 const PENDING_TEXT: Record<RunKey, string> = {
   gbp: "Auditing the Google Business Profile",
@@ -45,44 +46,83 @@ const PENDING_TEXT: Record<RunKey, string> = {
   yt: "Checking YouTube",
 }
 
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
+
 export default function ReportBuilderReport() {
   const { user, loading } = useAuth()
-  const [plan, setPlan] = useState<{ sel: Deliverable[]; inputs: Inputs } | null>(null)
+  const [plan, setPlan] = useState<Plan | null>(null)
+  const [missing, setMissing] = useState("")
   const [runs, setRuns] = useState<Partial<Record<RunKey, RunState>>>({})
   const [post, setPost] = useState<GbpPost | null>(null)
   const [writing, setWriting] = useState(false)
+  const [rebuilding, setRebuilding] = useState(false)
   const runsRef = useRef(runs)
   runsRef.current = runs
   const started = useRef(new Set<RunKey>())
   const alive = useRef(true)
+  const saving = useRef<Promise<unknown>>(Promise.resolve())
 
+  // Open the stored report; an older link with everything in its address is stored first.
   useEffect(() => {
     alive.current = true // re-armed on every mount: React mounts twice in development
-    const r = readReport(window.location.search)
-    setPlan({ sel: r.sel, inputs: r.inputs })
-    const initial: Partial<Record<RunKey, RunState>> = {}
-    for (const [k, id] of Object.entries(r.ids) as [RunKey, string][]) {
-      initial[k] = { id, state: "running" }
-      started.current.add(k)
+    if (!user?.inhouse) return
+    const q = new URLSearchParams(window.location.search)
+    const open = async () => {
+      let report: StoredReport
+      let cached = q.get("cached") === "1"
+      if (q.get("id")) {
+        report = (await api.get<{ report: StoredReport }>(`/api/report-builder/reports/${encodeURIComponent(q.get("id")!)}`)).report
+      } else {
+        const old = readReport(window.location.search)
+        if (!old.sel.length) throw new ApiError("No report was chosen.", 404)
+        const r = await api.post<{ report: StoredReport; reused: boolean }>("/api/report-builder/reports", old)
+        report = r.report
+        cached = r.reused
+        window.history.replaceState(null, "", `${window.location.pathname}?id=${report.id}`)
+      }
+      if (!alive.current) return
+      const initial: Partial<Record<RunKey, RunState>> = {}
+      for (const [k, id] of Object.entries(report.ids) as [RunKey, string][]) {
+        initial[k] = { id, state: "running" }
+        started.current.add(k)
+      }
+      // A run that couldn't start stays failed, rather than starting again on every visit.
+      for (const [k, error] of Object.entries(report.errors) as [RunKey, string][]) {
+        if (initial[k]) continue
+        initial[k] = { state: "failed", error }
+        started.current.add(k)
+      }
+      runsRef.current = initial
+      setRuns(initial)
+      setPlan({ id: report.id, createdAt: report.createdAt, sel: knownSections(report.sel), inputs: report.inputs, cached })
     }
-    setRuns(initial)
+    open().catch((e) => {
+      if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 10 days." : errorMessage(e, "The report couldn't be opened."))
+    })
     return () => {
       alive.current = false
     }
-  }, [])
+  }, [user?.inhouse])
 
   const setRun = useCallback((k: RunKey, s: RunState) => {
     runsRef.current = { ...runsRef.current, [k]: s }
     setRuns(runsRef.current)
   }, [])
 
-  // Keep the started runs in the address, so a reload follows them instead of starting again.
-  const remember = useCallback(() => {
+  // Store the runs' ids and outcomes with the report, one save after another so
+  // an older view never lands last.
+  const persist = useCallback(() => {
     if (!plan) return
-    const ids: Partial<Record<RunKey, string>> = {}
-    for (const [k, s] of Object.entries(runsRef.current) as [RunKey, RunState][]) if (s?.id) ids[k] = s.id
-    const query = reportHref(plan.sel, plan.inputs, ids).split("?")[1]
-    window.history.replaceState(null, "", `${window.location.pathname}?${query}`)
+    const ids: Record<string, string> = {}
+    const status: Record<string, "done" | "failed"> = {}
+    const errors: Record<string, string> = {}
+    for (const [k, s] of Object.entries(runsRef.current) as [RunKey, RunState][]) {
+      if (s.id) ids[k] = s.id
+      if (s.state === "done" || s.state === "failed") status[k] = s.state
+      if (s.state === "failed" && s.error) errors[k] = s.error.slice(0, 500)
+    }
+    const business = runsRef.current.gbp?.data?.facts?.business?.name ?? plan.inputs.name ?? null
+    saving.current = saving.current.then(() => api.patch(`/api/report-builder/reports/${plan.id}`, { ids, status, errors, business }).catch(() => undefined))
   }, [plan])
 
   useEffect(() => {
@@ -90,6 +130,7 @@ export default function ReportBuilderReport() {
     const keys = runsFor(plan.sel)
     let timer: ReturnType<typeof setTimeout> | undefined
     const tick = async () => {
+      let changed = false
       for (const k of keys) {
         if (!alive.current) return
         const r = runsRef.current[k]
@@ -98,8 +139,10 @@ export default function ReportBuilderReport() {
           if (started.current.has(k)) continue
           const dep = runDef.after ? runsRef.current[runDef.after] : undefined
           if (runDef.after && dep?.state !== "done") {
-            if (dep?.state === "failed") setRun(k, { state: "failed", error: "It needed another check that didn't finish." })
-            else setRun(k, { state: "waiting" })
+            if (dep?.state === "failed") {
+              setRun(k, { state: "failed", error: "It needed another check that didn't finish." })
+              changed = true
+            } else setRun(k, { state: "waiting" })
             continue
           }
           started.current.add(k)
@@ -107,10 +150,10 @@ export default function ReportBuilderReport() {
             const deps = Object.fromEntries(Object.entries(runsRef.current).map(([key, s]) => [key, s?.data]))
             const id = await runDef.start(plan.inputs, deps)
             setRun(k, { id, state: "running" })
-            remember()
           } catch (e) {
             setRun(k, { state: "failed", error: errorMessage(e, "Couldn't start this check.") })
           }
+          changed = true
           continue
         }
         if (r.state !== "running") continue
@@ -118,17 +161,22 @@ export default function ReportBuilderReport() {
           const res = await runDef.poll(r.id, plan.inputs)
           if (res.state === "done") setRun(k, { ...r, state: "done", data: res.data })
           else if (res.state === "failed") setRun(k, { ...r, state: "failed", error: res.error })
+          changed ||= res.state !== "running"
         } catch (e) {
           // A refusal is final; a network blip is retried on the next tick.
-          if (e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 429) setRun(k, { ...r, state: "failed", error: e.message })
+          if (e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 429) {
+            setRun(k, { ...r, state: "failed", error: e.message })
+            changed = true
+          }
         }
       }
+      if (changed) persist()
       const open = keys.some((k) => !runsRef.current[k] || ["waiting", "running"].includes(runsRef.current[k]!.state))
       if (open && alive.current) timer = setTimeout(tick, TICK_MS)
     }
     void tick()
     return () => clearTimeout(timer)
-  }, [plan, user?.inhouse, setRun, remember])
+  }, [plan, user?.inhouse, setRun, persist])
 
   // The AI post, once the Maps audit it's written from is in.
   const gbpRun = runs.gbp
@@ -152,7 +200,19 @@ export default function ReportBuilderReport() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gbpRun?.state])
 
-  if (loading || !plan) return null
+  // The same choices and details, run again from scratch as a new report.
+  const rebuild = async () => {
+    if (!plan) return
+    setRebuilding(true)
+    try {
+      const r = await api.post<{ report: StoredReport }>("/api/report-builder/reports", { sel: plan.sel, inputs: plan.inputs, fresh: true })
+      window.location.assign(`${window.location.pathname}?id=${r.report.id}`)
+    } catch {
+      setRebuilding(false)
+    }
+  }
+
+  if (loading) return null
   if (!user?.inhouse) {
     return (
       <div className="page">
@@ -160,6 +220,17 @@ export default function ReportBuilderReport() {
       </div>
     )
   }
+  if (missing) {
+    return (
+      <div className="page space-y-3">
+        <p className="text-[13px] text-muted-foreground">{missing}</p>
+        <Link href="/dashboard/report-builder" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand hover:underline">
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Build a report
+        </Link>
+      </div>
+    )
+  }
+  if (!plan) return null
 
   const { sel, inputs } = plan
   const business = runs.gbp?.data?.facts?.business?.name ?? inputs.name ?? (domainOf(inputs.web) || "Your business")
@@ -220,24 +291,43 @@ export default function ReportBuilderReport() {
     <div className="page space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/dashboard/report-builder" className="inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline">
-          <ArrowLeft className="h-4 w-4" aria-hidden /> New report
+          <ArrowLeft className="h-4 w-4" aria-hidden /> All reports
         </Link>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          disabled={!allDone}
-          className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-deep disabled:opacity-50"
-          title={allDone ? "Save the whole report as a PDF" : "Available once every section is ready"}
-        >
-          <Printer className="h-4 w-4" aria-hidden /> Print / PDF
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {!allDone && <span className="text-xs text-muted-foreground">Sections still running print as &ldquo;in progress&rdquo;.</span>}
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-deep"
+            title="Save the whole report as a PDF: choose “Save as PDF” in the print window"
+          >
+            <Printer className="h-4 w-4" aria-hidden /> Print / PDF
+          </button>
+        </div>
       </div>
 
+      {plan.cached && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand/5 px-4 py-3 text-[13px] print:hidden">
+          <span className="flex items-center gap-2">
+            <History className="h-4 w-4 shrink-0 text-brand" aria-hidden />
+            Opened from history: this report was built on {day(plan.createdAt)} with the same details, so nothing ran again.
+          </span>
+          <button type="button" onClick={rebuild} disabled={rebuilding} className="font-medium text-brand hover:underline disabled:opacity-50">
+            {rebuilding ? "Starting…" : "Build a fresh one"}
+          </button>
+        </div>
+      )}
+
       <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8">
-        <div className="text-xs font-semibold uppercase tracking-wider text-brand">FreeSERP · Local growth report</div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wider text-brand">FreeSERP · Local growth report</div>
+          <div className="text-xs text-muted-foreground">
+            Report ID <span className="font-mono font-semibold text-foreground">{plan.id.toUpperCase()}</span>
+          </div>
+        </div>
         <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight">{business}</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Prepared {new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
+          Prepared {day(plan.createdAt)}
           {inputs.web ? ` · ${domainOf(inputs.web)}` : ""}
         </p>
         <ol className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -259,7 +349,11 @@ export default function ReportBuilderReport() {
             )
           })}
         </ol>
-        {!allDone && <p className="mt-4 text-xs text-muted-foreground print:hidden">The sections fill in as each tool finishes, usually within 2 to 8 minutes. You can leave this page open.</p>}
+        {!allDone && (
+          <p className="mt-4 text-xs text-muted-foreground print:hidden">
+            The sections fill in as each tool finishes, usually within 2 to 8 minutes. You can leave this page: the report is saved, and reopening it from the history carries on.
+          </p>
+        )}
       </header>
 
       {sel.map((d, i) => (

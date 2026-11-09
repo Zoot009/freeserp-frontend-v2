@@ -78,36 +78,42 @@ export function runsFor(sel: Deliverable[]): RunKey[] {
   return [...runs]
 }
 
-// ── The report's address: what was chosen, the inputs, and the runs started ──
+// ── A built report, kept 10 days on the server ──────────────────────────────
+
+export type StoredReport = {
+  /** Ten hex characters, shown on the report as its ID. */
+  id: string
+  createdAt: string
+  /** When it leaves the history: 10 days after it was built. */
+  expiresAt: string
+  sel: Deliverable[]
+  inputs: Inputs
+  /** The tool runs behind it, by run. */
+  ids: Partial<Record<RunKey, string>>
+  status: Partial<Record<RunKey, "done" | "failed">>
+  errors: Partial<Record<RunKey, string>>
+  business: string | null
+}
 
 const RUN_KEYS: RunKey[] = ["gbp", "site", "page", "aeo", "serp", "rank", "maps", "llm", "ads", "comp", "links", "magic", "score", "yt"]
 
-export function reportHref(sel: Deliverable[], inputs: Inputs, ids: Partial<Record<RunKey, string>> = {}): string {
-  const q = new URLSearchParams({ sel: sel.join(",") })
-  const set = (k: string, v?: string) => v && q.set(k, v)
-  set("maps", inputs.maps)
-  set("web", inputs.web)
-  set("kw", inputs.kw)
-  set("loc", inputs.loc)
-  set("name", inputs.name)
-  set("yt", inputs.yt)
-  set("grid", inputs.grid)
-  if (inputs.svc.length) q.set("svc", inputs.svc.join("|"))
-  for (const k of RUN_KEYS) set(`r_${k}`, ids[k])
-  return `/dashboard/report-builder/report?${q.toString()}`
-}
-
+/** A report link from before reports were kept by ID: everything in the address. */
 export function readReport(search: string): { sel: Deliverable[]; inputs: Inputs; ids: Partial<Record<RunKey, string>> } {
   const q = new URLSearchParams(search)
-  const keys = new Set(DELIVERABLES.map((d) => d.key))
   const get = (k: string) => q.get(k) ?? undefined
   const ids: Partial<Record<RunKey, string>> = {}
   for (const k of RUN_KEYS) if (q.get(`r_${k}`)) ids[k] = q.get(`r_${k}`)!
   return {
-    sel: [...new Set((q.get("sel") ?? "").split(",").map((k) => (k === "citations" || k === "gbpPlan" ? "gbpAudit" : k)))].filter((k): k is Deliverable => keys.has(k as Deliverable)),
+    sel: knownSections((q.get("sel") ?? "").split(",")),
     inputs: { maps: get("maps"), web: get("web"), kw: get("kw"), loc: get("loc"), name: get("name"), yt: get("yt"), grid: get("grid"), svc: (q.get("svc") ?? "").split("|").filter(Boolean) },
     ids,
   }
+}
+
+/** Sections that still exist; the two that became "GMB audit" open as it. */
+export function knownSections(sel: string[]): Deliverable[] {
+  const keys = new Set<string>(DELIVERABLES.map((d) => d.key))
+  return [...new Set(sel.map((k) => (k === "citations" || k === "gbpPlan" ? "gbpAudit" : k)))].filter((k): k is Deliverable => keys.has(k))
 }
 
 export type GbpPost = { headline: string; body: string; cta: string; source: "ai" | "template" }

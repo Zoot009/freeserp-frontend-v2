@@ -243,13 +243,13 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin overflow-y-auto" data-lenis-prevent>
+        {user?.inhouse && <Group labelKey="teamTools" items={TEAM} />}
         <Group items={PRIMARY} />
         <Group labelKey="searchEngine" items={SEARCH_ENGINE} />
         <Group labelKey="maps" items={MAPS} />
         <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />
-        {user?.inhouse && <Group labelKey="teamTools" items={TEAM} />}
         {/*<Group labelKey="comingSoon" items={COMING_SOON} />*/}
       </SidebarContent>
 

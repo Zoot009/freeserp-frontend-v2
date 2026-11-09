@@ -1,10 +1,13 @@
 "use client"
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- each tool's payload is read loosely, a few fields each */
+import { useState } from "react"
 import { CheckCircle2, ExternalLink, XCircle } from "lucide-react"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
 import { rankColor } from "@/components/maps-tracker/grid"
+import { RankGridView } from "@/components/gbp-audit/rank-grid"
+import type { Grid } from "@/lib/gbp-audit"
 import { CompetitorComparisonTable } from "@/components/competitor-comparison-table"
 import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
 import { AdsHero, AdsReport } from "@/components/ads-analysis/report"
@@ -135,28 +138,64 @@ export function YoutubeSection({ data }: { data: { rows: any[] } }) {
 // ── Google Maps Tracker ──────────────────────────────────────────────────────
 
 export function MapsTrackerSection({ scan }: { scan: any }) {
+  const [selected, setSelected] = useState<string | null>(null)
   const k = scan.keywords?.[0] ?? {}
+  const size: number = scan.gridSize ?? 3
+  const points: any[] = k.points ?? []
+  const mid = (size - 1) / 2
+  // The scan in the shape the Maps audit draws on the Google map, the tracker's own way.
+  const grid: Grid | null =
+    scan.centerLat != null && points.length
+      ? {
+          keyword: k.keyword ?? "",
+          gridSize: size,
+          radiusMeters: scan.radiusMeters,
+          spacingMeters: scan.spacingMeters,
+          zoom: scan.zoom,
+          depth: 20,
+          centerLat: scan.centerLat,
+          centerLng: scan.centerLng,
+          points: points.map((p) => ({
+            row: p.row,
+            col: p.col,
+            lat: p.latitude ?? p.lat,
+            lng: p.longitude ?? p.lng,
+            isCenter: p.row === mid && p.col === mid,
+            status: p.status === "SUCCEEDED" ? "SUCCEEDED" : "FAILED",
+            rank: p.rank,
+            top: [],
+          })),
+          metrics: { arp: null, atrp: null, solv: null, visibility: null, foundPoints: 0, scoredPoints: 0, top3Points: 0 },
+        }
+      : null
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard compact label="Visibility" hint="How visible the business is across the grid, 0–100%." value={k.visibility != null ? `${Math.round(k.visibility)}%` : "—"} caption={k.keyword ? `for “${k.keyword}”` : "—"} tone="text-foreground" />
         <StatCard compact label="Average rank" hint="Average position where the business was found." value={k.arp != null ? Number(k.arp).toFixed(1) : "—"} caption="where found" tone="text-foreground" />
-        <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? (scan.gridSize ?? 3) ** 2} points`} tone="text-foreground" />
+        <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? size ** 2} points`} tone="text-foreground" />
         <StatCard compact label="Best / worst" hint="Its best and worst rank across the grid." value={k.bestRank != null ? `#${k.bestRank}` : "—"} caption={k.worstRank != null ? `worst #${k.worstRank}` : "—"} tone="text-foreground" />
       </div>
-      <RankGrid points={k.points ?? []} size={scan.gridSize ?? 3} />
+      {points.length > 0 && (
+        <div className={`${card} grid gap-5 p-4 ${grid ? "md:grid-cols-[minmax(0,1fr)_260px]" : ""}`}>
+          {grid && <RankGridView grid={grid} unit={scan.displayUnit === "IMPERIAL" ? "IMPERIAL" : "METRIC"} selected={selected} onSelect={setSelected} />}
+          <div>
+            <div className="mb-2 text-xs font-medium text-muted-foreground">Rank at each point</div>
+            <RankGrid points={points} size={size} />
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">North at the top; the outlined square is the business. Green is the top 3, red is outside the top 20.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 /** The scan's grid as coloured squares, north at the top, the business in the middle. */
 function RankGrid({ points, size }: { points: any[]; size: number }) {
-  if (!points.length) return null
   const at = (row: number, col: number) => points.find((p) => p.row === row && p.col === col)
   const mid = Math.floor(size / 2)
   return (
-    <div className={`${card} p-4`}>
-      <div className="mx-auto grid gap-1.5" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`, maxWidth: Math.min(420, size * 56) }}>
+    <div className="mx-auto grid gap-1.5" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`, maxWidth: Math.min(260, size * 56) }}>
         {Array.from({ length: size * size }, (_, i) => {
           const row = Math.floor(i / size)
           const col = i % size
@@ -173,8 +212,6 @@ function RankGrid({ points, size }: { points: any[]; size: number }) {
             </span>
           )
         })}
-      </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">Rank at each point, north at the top; the outlined square is the business. Green is the top 3, red is outside the top 20.</p>
     </div>
   )
 }
