@@ -1469,43 +1469,135 @@ export function ReportSections({
 }
 
 export function ActionPlan({ report }: { report: Report }) {
-  const area = (k: Check["category"]) => report.categories.find((c) => c.key === k)?.label ?? ""
+  const by = (p: Priority) => report.findings.filter((f) => f.priority === p).length
+  const weakest = report.categories
+    .filter((c) => c.score !== null && c.failed + c.warned > 0)
+    .sort((a, z) => a.score! - z.score!)
+    .slice(0, 3)
+  const first = report.findings.slice(0, 3)
+  const groups = report.categories
+    .map((cat) => ({ cat, items: report.findings.filter((f) => f.category === cat.key) }))
+    .filter((g) => g.items.length > 0)
+    .sort((a, z) => (a.cat.score ?? 101) - (z.cat.score ?? 101))
+  const manual = report.checks.filter((c) => c.manual && c.fix)
   return (
     <div className="space-y-5">
-      <Plan plan={report.plan} />
-      <Panel title="Every recommendation" hint="All findings, highest priority first." flush>
+      <Panel title="Overall recommendation" hint="What to fix, in what order, to grow this profile's visibility on Google Maps.">
         {report.findings.length === 0 ? (
-          <p className="p-4 text-[13px] text-muted-foreground">Nothing to fix — every check we could run passed.</p>
+          <p className="text-[13px] text-muted-foreground">Nothing to fix: every check we could run passed. Keep posting, replying to reviews and adding photos, and re-run the audit monthly.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-[13px]">
-              <thead>
-                <tr>
-                  <th className={TH}>Recommendation</th>
-                  <th className={`${TH} w-40`}>Found</th>
-                  <th className={`${TH} w-44`}>Area</th>
-                  <th className={`${TH} w-[90px] text-right`}>Priority</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {report.findings.map((f) => (
-                  <tr key={f.id} className="align-top">
-                    <td className={TD}>
-                      <div className="font-medium">{f.label}</div>
-                      <div className="mt-0.5 leading-relaxed text-muted-foreground">{f.fix}</div>
-                    </td>
-                    <td className={`${TD} text-muted-foreground`}>{f.value}</td>
-                    <td className={`${TD} text-muted-foreground`}>{area(f.category)}</td>
-                    <td className={`${TD} text-right`}>
-                      <PriorityBadge priority={f.priority} />
-                    </td>
-                  </tr>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="min-w-0 space-y-3 text-[13px] leading-relaxed">
+              <p>
+                {report.score !== null && (
+                  <>
+                    This profile scores <b className={scoreText(report.score)}>{report.score}/100</b>.{" "}
+                  </>
+                )}
+                We found <b>{report.findings.length}</b> {report.findings.length === 1 ? "issue" : "issues"}:{" "}
+                <span className="text-red-500">{by("high")} high</span>, {by("medium")} medium and {by("low")} low priority. Fix the high-priority ones first: they
+                hold the profile back the most.
+              </p>
+              {weakest.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">Weakest areas</div>
+                  <ul className="space-y-1.5">
+                    {weakest.map((c) => (
+                      <li key={c.key} className="flex items-center gap-3">
+                        <span className="w-44 shrink-0 truncate">{c.label}</span>
+                        <span className="flex-1">
+                          <Bar value={c.score!} fill={scoreFill(c.score!)} />
+                        </span>
+                        <span className={`w-14 shrink-0 text-right font-semibold tabular-nums ${scoreText(c.score!)}`}>{c.score}/100</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-muted-foreground">Work through the 30-day plan below in order, then run the audit again to measure the progress.</p>
+            </div>
+            <div className="min-w-0">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Start with these</div>
+              <ol className="space-y-3">
+                {first.map((f, i) => (
+                  <li key={f.id} className="flex gap-3 text-[13px]">
+                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand text-[11px] font-semibold text-white">{i + 1}</span>
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <b className="font-medium">{f.label}</b>
+                        <PriorityBadge priority={f.priority} />
+                      </span>
+                      <span className="mt-0.5 block leading-relaxed text-muted-foreground">{f.fix}</span>
+                    </span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ol>
+            </div>
           </div>
         )}
       </Panel>
+
+      <Plan plan={report.plan} />
+
+      {groups.length > 0 && (
+        <div className="space-y-5">
+          <h2 className="text-[15px] font-semibold tracking-tight">All issues and how to fix them</h2>
+          {groups.map(({ cat, items }) => (
+            <Panel
+              key={cat.key}
+              title={cat.label}
+              meta={
+                <>
+                  <span>
+                    {items.length} {items.length === 1 ? "issue" : "issues"}
+                  </span>
+                  {cat.score !== null && <span className={`text-[15px] font-semibold tabular-nums ${scoreText(cat.score)}`}>{cat.score}</span>}
+                </>
+              }
+              flush
+              className="print:break-inside-auto"
+            >
+              <div className="divide-y divide-border">
+                {items.map((f) => (
+                  <div key={f.id} className="grid gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusIcon status={f.status} />
+                        <b className="font-medium">{f.label}</b>
+                        <PriorityBadge priority={f.priority} />
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Found: <span className="text-foreground">{f.value}</span>
+                      </div>
+                      <p className="mt-1 leading-relaxed text-muted-foreground">{f.detail}</p>
+                    </div>
+                    <div className="min-w-0 rounded-lg bg-muted/50 px-3 py-2 leading-relaxed">
+                      <div className="mb-0.5 text-xs font-medium text-muted-foreground">How to fix it</div>
+                      {f.fix}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          ))}
+        </div>
+      )}
+
+      {manual.length > 0 && (
+        <Panel title="Check these yourself" hint="Google doesn't share these, so we can't check them automatically. They aren't part of the score." flush>
+          <div className="divide-y divide-border">
+            {manual.map((c) => (
+              <div key={c.id} className="grid gap-x-6 gap-y-1 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
+                <div className="min-w-0">
+                  <b className="font-medium">{c.label}</b>
+                  <p className="mt-0.5 leading-relaxed text-muted-foreground">{c.detail}</p>
+                </div>
+                <div className="min-w-0 leading-relaxed">{c.fix}</div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
     </div>
   )
 }
