@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Check, FileStack, Globe, MapPin, Search, Tags, Youtube, Zap } from "lucide-react"
+import { Building2, Check, FileStack, Globe, Grid3x3, MapPin, Search, Tags, Youtube, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { knownGeoCountry } from "@/hooks/use-geo-country"
 import { LocationPicker } from "@/components/location-picker"
+import { GRID_SIZES } from "@/components/maps-tracker/grid"
 import { DELIVERABLES, GROUPS, fieldsFor, reportHref, type Deliverable, type Field } from "@/lib/report-builder"
 
 const box =
@@ -34,6 +35,7 @@ export default function ReportBuilderPage() {
   const [svc, setSvc] = useState("")
   const [name, setName] = useState("")
   const [yt, setYt] = useState("")
+  const [grid, setGrid] = useState("3")
   const [error, setError] = useState("")
 
   if (loading) return null
@@ -68,6 +70,7 @@ export default function ReportBuilderPage() {
         loc: loc || undefined,
         name: name.trim() || undefined,
         yt: yt.trim() || undefined,
+        grid: sel.includes("mapsTracker") ? grid : undefined,
         svc: svc
           .split(",")
           .map((s) => s.trim())
@@ -163,6 +166,22 @@ export default function ReportBuilderPage() {
               {field(fields.has("name"), "Business name", Building2, name, setName, "As customers know it", "What the AI assistants are checked for.")}
               {field(fields.has("services"), "Services to advertise (optional)", Tags, svc, setSvc, "drain cleaning, water heater repair", "Comma separated. The main keyword if blank.")}
               {field(fields.has("youtube"), "YouTube channel", Youtube, yt, setYt, "https://youtube.com/@channel")}
+              {sel.includes("mapsTracker") && (
+                <label className="block">
+                  <span className={label}>Maps Tracker grid</span>
+                  <span className={box}>
+                    <Grid3x3 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <select className={`${inputCls} cursor-pointer`} value={grid} onChange={(e) => setGrid(e.target.value)}>
+                      {GRID_SIZES.map((n) => (
+                        <option key={n} value={n}>
+                          {n}×{n} ({n * n} points){n === 3 ? ", default" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">Points spread over 3 km around the business. A bigger grid costs more credits.</span>
+                </label>
+              )}
               {fields.has("location") && (
                 <div>
                   <span className={label}>Where the business wants customers</span>

@@ -141,10 +141,10 @@ export function MapsTrackerSection({ scan }: { scan: any }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard compact label="Visibility" hint="How visible the business is across the grid, 0–100%." value={k.visibility != null ? `${Math.round(k.visibility)}%` : "—"} caption={k.keyword ? `for “${k.keyword}”` : "—"} tone="text-foreground" />
         <StatCard compact label="Average rank" hint="Average position where the business was found." value={k.arp != null ? Number(k.arp).toFixed(1) : "—"} caption="where found" tone="text-foreground" />
-        <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? 49} points`} tone="text-foreground" />
+        <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? (scan.gridSize ?? 3) ** 2} points`} tone="text-foreground" />
         <StatCard compact label="Best / worst" hint="Its best and worst rank across the grid." value={k.bestRank != null ? `#${k.bestRank}` : "—"} caption={k.worstRank != null ? `worst #${k.worstRank}` : "—"} tone="text-foreground" />
       </div>
-      <RankGrid points={k.points ?? []} size={scan.gridSize ?? 7} />
+      <RankGrid points={k.points ?? []} size={scan.gridSize ?? 3} />
     </div>
   )
 }
@@ -156,7 +156,7 @@ function RankGrid({ points, size }: { points: any[]; size: number }) {
   const mid = Math.floor(size / 2)
   return (
     <div className={`${card} p-4`}>
-      <div className="mx-auto grid max-w-[420px] gap-1.5" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
+      <div className="mx-auto grid gap-1.5" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`, maxWidth: Math.min(420, size * 56) }}>
         {Array.from({ length: size * size }, (_, i) => {
           const row = Math.floor(i / size)
           const col = i % size

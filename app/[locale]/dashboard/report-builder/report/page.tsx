@@ -35,7 +35,7 @@ const PENDING_TEXT: Record<RunKey, string> = {
   aeo: "Asking the AI assistants about the site",
   serp: "Searching Google",
   rank: "Checking Google rankings",
-  maps: "Scanning 49 points on Google Maps",
+  maps: "Scanning the grid on Google Maps",
   llm: "Asking ChatGPT, Gemini, Claude and Perplexity",
   ads: "Analysing the site for Google Ads",
   comp: "Comparing with the pages ranking above",
@@ -164,6 +164,8 @@ export default function ReportBuilderReport() {
   const { sel, inputs } = plan
   const business = runs.gbp?.data?.facts?.business?.name ?? inputs.name ?? (domainOf(inputs.web) || "Your business")
   const runOf = (d: Deliverable) => runs[def(d).run]
+  const grid = Number(inputs.grid) || 3
+  const titleOf = (d: Deliverable) => (d === "mapsTracker" ? `${def(d).title} (${grid}×${grid} grid)` : def(d).title)
   const allDone = runsFor(sel).every((k) => runs[k]?.state === "done" || runs[k]?.state === "failed")
 
   const content = (d: Deliverable) => {
@@ -245,7 +247,7 @@ export default function ReportBuilderReport() {
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground print:hidden" aria-hidden />
                 )}
                 <span>
-                  {i + 1}. {def(d).title}
+                  {i + 1}. {titleOf(d)}
                 </span>
               </li>
             )
@@ -255,7 +257,7 @@ export default function ReportBuilderReport() {
       </header>
 
       {sel.map((d, i) => (
-        <Section key={d} n={i + 1} title={def(d).title} promise={def(d).promise}>
+        <Section key={d} n={i + 1} title={titleOf(d)} promise={def(d).promise}>
           {content(d)}
         </Section>
       ))}

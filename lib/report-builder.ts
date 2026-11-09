@@ -37,6 +37,8 @@ export type Inputs = {
   svc: string[]
   name?: string
   yt?: string
+  /** Maps Tracker grid size: 3 means 3×3. */
+  grid?: string
 }
 
 type Def = { key: Deliverable; group: string; title: string; text: string; run: RunKey; needs: Field[]; promise: string }
@@ -47,7 +49,7 @@ export const DELIVERABLES: Def[] = [
   { key: "quickSerp", group: "Search engine", title: "Quick SERP check", text: "The live Google results for the main keyword: the top 10, where the site is, and AI Overview citations.", run: "serp", needs: ["website", "keyword", "location"], promise: "Who shows up on Google for your main keyword right now, and where you are." },
   { key: "youtube", group: "Search engine", title: "YouTube Rank Tracker", text: "Where the business's YouTube channel ranks for the main keyword.", run: "yt", needs: ["youtube", "keyword"], promise: "Where your YouTube channel ranks for your main keyword." },
   // Maps
-  { key: "mapsTracker", group: "Maps", title: "Google Maps Tracker (7×7 grid)", text: "A 49-point rank scan around the business on Google Maps for the main keyword.", run: "maps", needs: ["maps"], promise: "How visible you are on Google Maps across your area, point by point." },
+  { key: "mapsTracker", group: "Maps", title: "Google Maps Tracker", text: "A rank scan on a grid of points around the business on Google Maps for the main keyword. 3×3 unless you pick a bigger grid.", run: "maps", needs: ["maps"], promise: "How visible you are on Google Maps across your area, point by point." },
   { key: "citations", group: "Maps", title: "Create 3 citations", text: "Three ready-to-submit local listings on directories the business is missing from, with its exact name, address and phone.", run: "gbp", needs: ["maps"], promise: "Three local listings we'll create first, ready to submit with your exact business details." },
   { key: "gbpPlan", group: "Maps", title: "Google Maps Audit action plan", text: "The Google Business Profile audit's overall recommendation, 30-day plan and every fix.", run: "gbp", needs: ["maps"], promise: "Your Google Business Profile audit: the overall recommendation, the 30-day plan and every fix." },
   { key: "aiPost", group: "Maps", title: "AI Google Post", text: "A Google Business Profile post written by AI for the business, a sample of the daily posts we'll publish.", run: "gbp", needs: ["maps"], promise: "A sample of the Google Posts we'll write and publish for you, every day." },
@@ -91,6 +93,7 @@ export function reportHref(sel: Deliverable[], inputs: Inputs, ids: Partial<Reco
   set("loc", inputs.loc)
   set("name", inputs.name)
   set("yt", inputs.yt)
+  set("grid", inputs.grid)
   if (inputs.svc.length) q.set("svc", inputs.svc.join("|"))
   for (const k of RUN_KEYS) set(`r_${k}`, ids[k])
   return `/dashboard/report-builder/report?${q.toString()}`
@@ -104,7 +107,7 @@ export function readReport(search: string): { sel: Deliverable[]; inputs: Inputs
   for (const k of RUN_KEYS) if (q.get(`r_${k}`)) ids[k] = q.get(`r_${k}`)!
   return {
     sel: (q.get("sel") ?? "").split(",").filter((k): k is Deliverable => keys.has(k as Deliverable)),
-    inputs: { maps: get("maps"), web: get("web"), kw: get("kw"), loc: get("loc"), name: get("name"), yt: get("yt"), svc: (q.get("svc") ?? "").split("|").filter(Boolean) },
+    inputs: { maps: get("maps"), web: get("web"), kw: get("kw"), loc: get("loc"), name: get("name"), yt: get("yt"), grid: get("grid"), svc: (q.get("svc") ?? "").split("|").filter(Boolean) },
     ids,
   }
 }

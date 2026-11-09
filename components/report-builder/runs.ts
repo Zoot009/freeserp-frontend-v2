@@ -144,7 +144,7 @@ export const RUNS: Record<RunKey, RunDef> = {
         location = r.location ?? r
       }
       const keyword = inp.kw || deps.gbp.facts.keyword || b.category?.toLowerCase()
-      const scan = await api.post<any>("/api/maps-tracker/scans", { locationId: location.id, keywords: [keyword], gridSize: 7, radius: 3, unit: "METRIC", generateAiAnalysis: false })
+      const scan = await api.post<any>("/api/maps-tracker/scans", { locationId: location.id, keywords: [keyword], gridSize: Number(inp.grid) || 3, radius: 3, unit: "METRIC", generateAiAnalysis: false })
       return scan.scanId ?? scan.id
     },
     async poll(id) {
