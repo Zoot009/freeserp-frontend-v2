@@ -21,15 +21,30 @@ const num = (n: unknown) => (typeof n === "number" ? n.toLocaleString() : "—")
 const pos = (p: unknown) => (typeof p === "number" && p > 0 ? `#${p}` : "Not in top 100")
 const posTone = (p: unknown) => (typeof p === "number" && p > 0 ? (p <= 3 ? "text-green-600 dark:text-green-400" : p <= 10 ? "text-amber-600 dark:text-amber-400" : "") : "text-red-500")
 
-function Promise_({ children }: { children: React.ReactNode }) {
-  return <div className={`${card} p-4 text-[13px] leading-relaxed`}>{children}</div>
+/** The team's word to the client under a section: what the numbers mean and what we'll do about them. */
+export function Pitch({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-2 rounded-[10px] border border-brand/25 bg-brand/5 p-4 text-[13px] leading-relaxed print:break-inside-avoid">{children}</div>
 }
+
+/** "a", "a and b", "a, b and c". */
+export const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`)
 
 // ── Google Rank Tracker & keywords ───────────────────────────────────────────
 
 export function RankSection({ data }: { data: { rows: any[] } }) {
   const rows = data.rows
   const top10 = rows.filter((r) => typeof r.position === "number" && r.position > 0 && r.position <= 10).length
+  const checked = rows.filter((r) => r.status !== "FAILED")
+  const n = checked.length
+  const ranking = checked.filter((r) => typeof r.position === "number" && r.position > 0).length
+  const standing =
+    ranking === 0
+      ? n === 1 ? "it isn't ranking on Google" : "none of them are ranking on Google"
+      : top10 === n
+        ? n === 1 ? "it's on Google's first page" : `all ${n} are on Google's first page`
+        : top10 > 0
+          ? `${top10} of them ${top10 === 1 ? "is" : "are"} on Google's first page and ${n - top10} ${n - top10 === 1 ? "isn't" : "aren't"} yet`
+          : n === 1 ? "it ranks on Google, but not on the first page yet" : `${ranking} of them rank on Google, but none is on the first page yet`
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -59,9 +74,22 @@ export function RankSection({ data }: { data: { rows: any[] } }) {
           </tbody>
         </table>
       </div>
-      <Promise_>
-        <b>We&apos;re now tracking these keywords every day</b> and will report every move up the rankings.
-      </Promise_>
+      <Pitch>
+        {n > 0 && (
+          <p>
+            We have checked your website&apos;s rankings for <b>{n} targeted {n === 1 ? "keyword" : "keywords"}</b>, and currently {standing}.{" "}
+            {top10 === n
+              ? "Our team can help you hold these positions and push them into the top 3."
+              : "Our team can help optimize your website, improve its SEO performance, and work towards getting it ranked for your targeted keywords."}
+          </p>
+        )}
+        <p>
+          <b>Important note:</b>{" "}if you want to improve your Google Business Profile (GMB) rankings, optimizing your website is also important. Google considers various relevance and prominence
+          signals, including information from your linked website, when determining local search rankings. Since there is no direct keyword field in Google Business Profile, your website&apos;s
+          content and SEO play an important role in supporting your local rankings.
+        </p>
+        <p className="text-muted-foreground">We&apos;re now tracking these keywords every day and will report every move up the rankings.</p>
+      </Pitch>
     </div>
   )
 }
@@ -180,6 +208,19 @@ export function MapsTrackerSection({ scan }: { scan: any }) {
           <RankGridView grid={grid} unit={scan.displayUnit === "IMPERIAL" ? "IMPERIAL" : "METRIC"} selected={selected} onSelect={setSelected} size="lg" />
         </div>
       )}
+      <Pitch>
+        <p>
+          This is your Google Business Profile&apos;s ranking position for one of your targeted keywords{k.keyword ? <>, <b>{k.keyword}</b></> : null}, checked from {scan.totalPoints ?? size ** 2}{" "}
+          points around your business.{" "}
+          {k.foundPoints > 0
+            ? `You appear in the top 20 at ${k.foundPoints} of them${k.bestRank != null ? `, at best #${k.bestRank}` : ""}.`
+            : "Your profile doesn't appear in the top 20 at any of them yet."}
+        </p>
+        <p>
+          Please note that local rankings depend on several factors. Our team can help you fully optimize your Google Business Profile and improve your overall local SEO performance to achieve
+          better rankings on Google Maps.
+        </p>
+      </Pitch>
     </div>
   )
 }
@@ -193,6 +234,8 @@ export function AiPromptsSection({ data, brand }: { data: { prompts: any[] }; br
     const vals = data.prompts.map((p) => latest(p, pl)?.mentionRate).filter((v): v is number => typeof v === "number")
     rates[pl] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
   }
+  const answers = data.prompts.flatMap((p) => PLATFORMS.map((pl) => latest(p, pl)).filter(Boolean))
+  const named = answers.filter((r: any) => (r.mentionRate ?? 0) > 0).length
   return (
     <div className="space-y-4">
       <BrandEngines rates={rates} />
@@ -226,9 +269,13 @@ export function AiPromptsSection({ data, brand }: { data: { prompts: any[] }; br
           </tbody>
         </table>
       </div>
-      <Promise_>
-        A tick means the assistant named <b>{brand}</b> in its answer. We&apos;ll work on what these assistants read about you (your site, profile, reviews and citations) so they recommend you more often.
-      </Promise_>
+      <Pitch>
+        <p>
+          We have asked AI tools {data.prompts.length} {data.prompts.length === 1 ? "question" : "questions"} your customers ask, and here is your business&apos;s presence:{" "}
+          <b>{brand}</b> was named in <b>{named}</b> of {answers.length} answers (a tick in the table). We can help improve this: our AEO and GEO service helps your business get found in AI
+          answers, by working on what these assistants read about you (your website, profile, reviews and citations).
+        </p>
+      </Pitch>
     </div>
   )
 }
@@ -250,9 +297,9 @@ export function CompetitorSection({ analysis }: { analysis: any }) {
   return (
     <div className="space-y-4">
       <CompetitorComparisonTable analysis={analysis} />
-      <Promise_>
+      <Pitch>
         <b>We&apos;ll close these gaps</b>: content, internal links and authority, so your page can move up past them.
-      </Promise_>
+      </Pitch>
     </div>
   )
 }
@@ -298,9 +345,9 @@ export function LinksSection({ analysis }: { analysis: any }) {
           </ul>
         </div>
       </div>
-      <Promise_>
+      <Pitch>
         <b>We&apos;ll link every orphan page</b> from the pages that carry the most weight, so Google finds and ranks them.
-      </Promise_>
+      </Pitch>
     </div>
   )
 }

@@ -1483,9 +1483,21 @@ const CATEGORY_ICON: Record<CategoryKey, LucideIcon> = {
 /**
  * The plan, the overall recommendation and every fix. `planAtEnd` (the client
  * report) leads with the recommendation and the fixes and closes on the plan in
- * brief: each step's fixes by name, each a link to its full fix.
+ * brief: each step's fixes by name, each a link to its full fix. The client
+ * report also passes `notes`, the team's word at the foot of a category, and
+ * `bodies`, a category shown its own way (always, even with nothing to fix).
  */
-export function ActionPlan({ report, planAtEnd = false }: { report: Report; planAtEnd?: boolean }) {
+export function ActionPlan({
+  report,
+  planAtEnd = false,
+  notes,
+  bodies,
+}: {
+  report: Report
+  planAtEnd?: boolean
+  notes?: Partial<Record<CategoryKey, ReactNode>>
+  bodies?: Partial<Record<CategoryKey, ReactNode>>
+}) {
   const by = (p: Priority) => report.findings.filter((f) => f.priority === p).length
   const weakest = report.categories
     .filter((c) => c.score !== null && c.failed + c.warned > 0)
@@ -1494,7 +1506,7 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
   const first = report.findings.slice(0, 3)
   const groups = report.categories
     .map((cat) => ({ cat, items: report.findings.filter((f) => f.category === cat.key) }))
-    .filter((g) => g.items.length > 0)
+    .filter((g) => g.items.length > 0 || bodies?.[g.cat.key])
     .sort((a, z) => (a.cat.score ?? 101) - (z.cat.score ?? 101))
   const manual = report.checks.filter((c) => c.manual && c.fix)
   return (
@@ -1565,14 +1577,17 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
               title={<CategoryTitle category={cat.key} label={cat.label} />}
               meta={
                 <>
-                  <span>
-                    {items.length} {items.length === 1 ? "issue" : "issues"}
-                  </span>
+                  {!bodies?.[cat.key] && (
+                    <span>
+                      {items.length} {items.length === 1 ? "issue" : "issues"}
+                    </span>
+                  )}
                   {cat.score !== null && <span className={`text-[15px] font-semibold tabular-nums ${scoreText(cat.score)}`}>{cat.score}</span>}
                 </>
               }
               flush
             >
+              {bodies?.[cat.key] ?? (
               <div className="divide-y divide-border">
                 {items.map((f) => (
                   <div key={f.id} id={`fix-${f.id}`} className="grid scroll-mt-24 gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
@@ -1596,6 +1611,8 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
                   </div>
                 ))}
               </div>
+              )}
+              {notes?.[cat.key] && <div className="space-y-2 border-t border-border bg-brand/5 px-4 py-3 text-[13px] leading-relaxed print:break-inside-avoid">{notes[cat.key]}</div>}
             </Panel>
           ))}
         </div>

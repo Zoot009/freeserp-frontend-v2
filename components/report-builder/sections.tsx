@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
-import { CalendarClock, ExternalLink, MapPin, Navigation, Phone, Send } from "lucide-react"
-import type { GbpAuditResponse } from "@/lib/gbp-audit"
+import { AlertTriangle, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
+import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
 import { ActionPlan, ReportHero } from "@/components/gbp-audit/report"
 import { WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
+import { Pitch, listOf } from "@/components/report-builder/tool-sections"
 
 // The client report's sections, one per deliverable. Each takes the finished
 // run it reads (a Maps audit, a site audit, an AEO audit) and says, in the
@@ -86,7 +87,7 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard compact label="Listed now" hint="Local directories where the business already has a listing." value={listed} caption={`of ${facts.citations?.sites.length ?? 25} checked`} tone="text-foreground" />
-        <StatCard compact label="Citations to create" hint="The three we'll publish first." value={picks.length} caption="ready to submit" tone="text-brand" />
+        <StatCard compact label="Free citations" hint="The citations we've created for the business, free." value={picks.length} caption="created for you" tone="text-brand" />
         <StatCard compact label="Competitors use" hint="How many of these three the top competitors are already listed on." value={picks.filter((p) => p.rivals > 0).length} caption="of the three" tone="text-foreground" />
       </div>
       <div className="grid gap-4 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
@@ -116,20 +117,109 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
           </div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Each listing uses exactly the same name, address and phone as the Google Business Profile, so Google can match them. We&apos;ll publish these and send you the live links.
-      </p>
+      <Pitch>
+        <p>
+          We have created <b>{picks.length} free {picks.length === 1 ? "citation" : "citations"}</b> for your business; you can check {picks.length === 1 ? "it" : "them"} from the{" "}
+          {picks.length === 1 ? "link" : "links"} above. Each listing uses exactly the same name, address and phone as your Google Business Profile, so Google can match them.
+        </p>
+      </Pitch>
     </div>
   )
 }
 
 // ── 2. Maps audit action plan ────────────────────────────────────────────────
 
+/** "Website loading speed" -> "website loading speed", leaving "FAQ page" and "LocalBusiness schema" alone: for a label inside a sentence. */
+const inSentence = (s: string) => (/^[A-Z][a-z]*(?![A-Za-z])/.test(s) ? s[0].toLowerCase() + s.slice(1) : s)
+
 export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
+  const report = data.report!
+  const found = (cat: CategoryKey) => report.findings.filter((f) => f.category === cat).map((f) => inSentence(f.label))
+  const site = found("website")
+  const words = found("keywords")
+  const keyword = data.facts?.keyword
+  const notes: Partial<Record<CategoryKey, ReactNode>> = {
+    citations: (
+      <>
+        <p>We have identified these high-quality, relevant local citation websites for your business. Our team can help you build local citations on all of these platforms.</p>
+        <p>We can also identify and create citations on many other relevant directories and platforms based on your business category and location.</p>
+      </>
+    ),
+    reviews: (
+      <>
+        <p>
+          Our team can help you analyze your existing Google Business Profile reviews, understand customer feedback, and create professional, personalized and reputation-building responses
+          to each review.
+        </p>
+        <p>We will also naturally incorporate relevant business keywords where appropriate, to help strengthen your local SEO presence.</p>
+      </>
+    ),
+    engagement: (
+      <p>
+        We can help you increase your profile&apos;s engagement and activity by adding relevant GMB posts on a daily basis, written around your keywords. Regular posts keep your profile
+        active and in front of the customers searching for you on Google.
+      </p>
+    ),
+    website: site.length > 0 && (
+      <>
+        <p>
+          We have found {site.length === 1 ? "this issue" : `these ${site.length} issues`} on your website: {listOf(site)}. Your website is one of the signals Google reads when it ranks your
+          profile on Maps, so {site.length === 1 ? "it holds" : "they hold"} back both your website and your Google Business Profile.
+        </p>
+        <p>We can help you completely optimize your website and rank it for your top keywords.</p>
+      </>
+    ),
+    keywords: words.length > 0 && (
+      <>
+        <p>
+          Google Business Profile has no keyword field: Google matches your business to searches from the words in your business name, categories, description and services, and on your
+          website. We found {words.length === 1 ? "a gap" : `${words.length} gaps`} there: {listOf(words)}.
+        </p>
+        <p>
+          Our team will work {keyword ? <b>{keyword}</b> : "your target keywords"}
+          {keyword ? " and your other target keywords" : ""} naturally into your profile and website, so Google connects your business to the searches your customers make.
+        </p>
+      </>
+    ),
+    profile: <p>Our team can complete and correct every part of your profile listed above, so Google and your customers see the full, accurate picture of your business.</p>,
+    content: <p>We can add fresh, relevant photos to your profile regularly, so it looks active and trustworthy to customers and to Google.</p>,
+    visibility: <p>We will work on your profile&apos;s relevance and prominence, so it shows in the Map Pack for more of the searches around your business.</p>,
+  }
   return (
     <div className="space-y-5">
       <ReportHero data={data} />
-      <ActionPlan report={data.report!} planAtEnd />
+      <Pitch>
+        <p>
+          This is the current health status of your Google Business Profile. Please review the issues listed below to understand what is affecting your profile&apos;s overall health and
+          performance.
+        </p>
+      </Pitch>
+      <ActionPlan report={report} planAtEnd notes={notes} bodies={{ engagement: <PostsActivity report={report} /> }} />
+    </div>
+  )
+}
+
+/** The profile's Google Posts, in a line: none lately, or how long ago the last one went up. */
+function PostsActivity({ report }: { report: Report }) {
+  const last = report.checks.find((c) => c.id === "recent_posts")
+  const pace = report.checks.find((c) => c.id === "posting_frequency")
+  const known = !!last && last.status !== "unknown"
+  const since = known && /^last post /i.test(last.value) ? last.value.replace(/^last post /i, "") : null
+  const Icon = !known ? CircleDashed : last.status === "pass" ? CheckCircle2 : last.status === "warn" ? AlertTriangle : XCircle
+  const tone = !known ? "text-muted-foreground" : last.status === "pass" ? "text-green-600 dark:text-green-400" : last.status === "warn" ? "text-amber-500" : "text-red-500"
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 text-[13px] print:break-inside-avoid">
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden />
+      <div className="min-w-0">
+        <b className="font-medium">
+          {!known
+            ? "We couldn't read the posts on your profile this time."
+            : since
+              ? `Your last Google Business Profile post was ${since}.`
+              : "There are no recent Google Business Profile posts on your profile."}
+        </b>
+        {known && pace && pace.status !== "unknown" && <div className="mt-1 text-xs text-muted-foreground">Posting frequency: {pace.value}</div>}
+      </div>
     </div>
   )
 }
@@ -167,7 +257,8 @@ export function AiPostSection({ data, post, onRegenerate, busy }: { data: GbpAud
         <div className={`${card} flex items-start gap-3 p-4`}>
           <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
           <p>
-            <b>We&apos;ll publish a fresh post like this on your Google Business Profile every day</b>: offers, recent jobs, news and tips, each with a photo and a button.
+            <b>We have created a sample post for your Google Business Profile.</b> We will create and publish posts like this on a daily basis: offers, recent jobs, news and tips,
+            each with a photo and a button.
           </p>
         </div>
         <div className={`${card} flex items-start gap-3 p-4`}>
@@ -272,10 +363,16 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
         ))}
         {rivals.length === 0 && <p className="px-4 py-3 text-[13px] text-muted-foreground">No competitors were found around the business.</p>}
       </div>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        We&apos;ll build driving-direction routes from your competitors&apos; locations (and nearby landmarks) to your business, and add them to your website and profiles, so people searching
-        around your competitors are shown the way to you.
-      </p>
+      <Pitch>
+        <p>
+          We will implement a safe competitor-outranking strategy for your business. This strategy focuses on strengthening your business&apos;s online presence by highlighting your unique
+          services, customer satisfaction and competitive advantages.
+        </p>
+        <p>
+          We will work on improving your business&apos;s relevance, prominence and visibility, so that Google recognizes your business as a strong alternative to your competitors, helping you
+          compete for better local search rankings.
+        </p>
+      </Pitch>
     </div>
   )
 }
@@ -303,6 +400,12 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
           <StatCard compact label="Issues to fix" hint="Distinct problems, each affecting one or more pages." value={groups.length} caption={`${critical} critical`} tone={critical ? "text-red-500" : "text-foreground"} />
         </div>
       </div>
+      <Pitch>
+        <p>
+          Here is your complete website audit report: <b>{groups.length} {groups.length === 1 ? "issue" : "issues"}</b>
+          {critical ? `, ${critical} of them critical` : ""}. We can solve each of the issues listed below, critical ones first, and re-run the audit to show the improvement.
+        </p>
+      </Pitch>
       <div className={`${card} overflow-x-auto print:overflow-visible`}>
         <table className="w-full min-w-[560px] border-collapse text-[13px]">
           <thead>
@@ -327,12 +430,6 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
         </table>
       </div>
       {groups.length > 15 && <p className="text-xs text-muted-foreground">And {groups.length - 15} more issues in the full audit.</p>}
-      <div className={`${card} flex items-start gap-3 p-4 text-[13px] print:break-before-avoid`}>
-        <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
-        <p>
-          <b>We&apos;ll fix all {groups.length} of these</b>, critical ones first, and re-run the audit to show the improvement.
-        </p>
-      </div>
     </div>
   )
 }
@@ -345,6 +442,12 @@ export function AeoSection({ report }: { report: AeoReport }) {
       {report.breakdown && <Overview report={report as AeoReport & { breakdown: NonNullable<AeoReport["breakdown"]> }} />}
       <FixList fixes={report.fixes} origin={report.origin} />
       {report.fixes.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing to fix first: the site is in good shape for AI assistants.</p>}
+      <Pitch>
+        <p>
+          This is your AEO and GEO report. We can solve all the issues it lists to improve your AEO and GEO scores, so AI assistants like ChatGPT, Gemini and Perplexity understand your
+          business and recommend it.
+        </p>
+      </Pitch>
     </div>
   )
 }

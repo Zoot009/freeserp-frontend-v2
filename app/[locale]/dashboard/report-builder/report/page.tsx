@@ -327,7 +327,7 @@ export default function ReportBuilderReport() {
           <div className="space-y-8">
             <GbpPlanSection data={data} />
             <div>
-              <h3 className="mb-3 text-[15px] font-semibold tracking-tight">3 citations we&apos;ll create first</h3>
+              <h3 className="mb-3 text-[15px] font-semibold tracking-tight">Free citations we&apos;ve created for you</h3>
               <CitationsSection data={data} />
             </div>
           </div>
