@@ -7,7 +7,7 @@ import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
 import { ActionPlan, ReportHero } from "@/components/gbp-audit/report"
-import { WebsiteScreenshot } from "@/components/page-audit/audit-ui"
+import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { Pitch, listOf } from "@/components/report-builder/tool-sections"
@@ -385,55 +385,103 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
 export type SiteReport = { id: string; url: string; overallScore: number; totals?: { pages: number; issues: number }; screenshots?: { desktop?: string | null; mobile?: string | null } | null }
 export type IssueGroup = { type: string; title: string; description: string; category: string; severity: string; affectedPages: number }
 
-const SEVERITY_TONE: Record<string, string> = { CRITICAL: "text-red-500", HIGH: "text-red-500", WARNING: "text-amber-600 dark:text-amber-400", MEDIUM: "text-amber-600 dark:text-amber-400" }
+const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const
+type Severity = (typeof SEVERITIES)[number]
+/** The audit's severity on the report's four levels: "WARNING" reads as medium, anything unknown as low. */
+const severityOf = (s: string): Severity => {
+  const u = s.toUpperCase()
+  return u === "WARNING" ? "MEDIUM" : ((SEVERITIES as readonly string[]).includes(u) ? (u as Severity) : "LOW")
+}
+/** The issues shown in full; the rest are listed by name. */
+const LISTED = 15
 
 /** `capture` false on a shared link: the screenshots are whatever the audit stored, never a new capture. */
 export function SiteAuditSection({ report, groups, capture = true }: { report: SiteReport; groups: IssueGroup[]; capture?: boolean }) {
   const score = Math.round(report.overallScore)
-  const critical = groups.filter((g) => /CRITICAL|HIGH/i.test(g.severity)).length
+  const count = (s: Severity) => groups.filter((g) => severityOf(g.severity) === s).length
+  const critical = count("CRITICAL")
+  const high = count("HIGH")
+  const urgent = [critical && `${critical} critical`, high && `${high} high priority`].filter(Boolean).join(" and ")
+  // Most severe first; the audit's own order within each level.
+  const sorted = [...groups].sort((a, z) => SEVERITY_META[severityOf(a.severity)].order - SEVERITY_META[severityOf(z.severity)].order)
+  const listed = sorted.slice(0, LISTED)
+  const more = sorted.slice(LISTED)
   return (
     <div className="space-y-4">
       {/* The site as a visitor sees it, on a desktop and on a phone, beside the headline numbers. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className={`${card} p-4`}>
+        <div className={`${card} flex flex-col justify-center p-4`}>
           <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} capture={capture} />
         </div>
         <div className="grid gap-3">
           <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
           <StatCard compact label="Pages crawled" hint="Pages the audit read." value={report.totals?.pages ?? "—"} caption="by FreeSERP's crawler" tone="text-foreground" />
-          <StatCard compact label="Issues to fix" hint="Distinct problems, each affecting one or more pages." value={groups.length} caption={`${critical} critical`} tone={critical ? "text-red-500" : "text-foreground"} />
+          <StatCard
+            compact
+            label="Issues to fix"
+            hint="Distinct problems, each affecting one or more pages."
+            value={groups.length}
+            caption={urgent || "none urgent"}
+            tone={urgent ? "text-red-500" : "text-foreground"}
+          />
         </div>
       </div>
       <Pitch>
         <p>
           Here is your complete website audit report: <b>{groups.length} {groups.length === 1 ? "issue" : "issues"}</b>
-          {critical ? `, ${critical} of them critical` : ""}. We can solve each of the issues listed below, critical ones first, and re-run the audit to show the improvement.
+          {urgent ? `, ${urgent}` : ""}. We can solve each of the issues listed below, the most urgent first, and re-run the audit to show the improvement.
         </p>
       </Pitch>
-      <div className={`${card} overflow-x-auto print:overflow-visible`}>
-        <table className="w-full min-w-[560px] border-collapse text-[13px]">
-          <thead>
-            <tr className="text-left text-xs text-muted-foreground">
-              <th className="border-b border-border px-4 py-2.5 font-medium">Issue</th>
-              <th className="w-28 border-b border-border px-3 py-2.5 font-medium">Severity</th>
-              <th className="w-24 border-b border-border px-4 py-2.5 text-right font-medium">Pages</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {groups.slice(0, 15).map((g) => (
-              <tr key={g.type} className="align-top">
-                <td className="px-4 py-2.5 print:py-1.5">
-                  <div className="font-medium">{g.title}</div>
-                  <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{g.description}</div>
-                </td>
-                <td className={`px-3 py-2.5 capitalize print:py-1.5 ${SEVERITY_TONE[g.severity.toUpperCase()] ?? "text-muted-foreground"}`}>{g.severity.toLowerCase()}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums print:py-1.5">{g.affectedPages || "Site-wide"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {groups.length > 15 && <p className="text-xs text-muted-foreground">And {groups.length - 15} more issues in the full audit.</p>}
+
+      {groups.length > 0 && (
+        <div className={`${card} overflow-hidden`}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 print:break-inside-avoid print:break-after-avoid">
+            <h3 className="text-[15px] font-semibold tracking-tight">Issues found on your website</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {SEVERITIES.filter((s) => count(s) > 0).map((s) => (
+                <span key={s} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${SEVERITY_META[s].color}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${SEVERITY_META[s].dot}`} aria-hidden />
+                  {count(s)} {SEVERITY_META[s].label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {listed.map((g) => {
+              const s = SEVERITY_META[severityOf(g.severity)]
+              return (
+                <div key={g.type} className="flex items-start gap-4 px-4 py-3 print:break-inside-avoid print:py-2">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${s.dot}`} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <b className="text-[13px] font-medium">{g.title}</b>
+                      <span className={`whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium ${s.color}`}>{s.label}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{g.description}</p>
+                  </div>
+                  <div className="w-20 shrink-0 text-right">
+                    <div className="text-[15px] font-semibold tabular-nums">{g.affectedPages || "All"}</div>
+                    <div className="text-[11px] text-muted-foreground">{!g.affectedPages ? "site-wide" : g.affectedPages === 1 ? "page" : "pages"}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {more.length > 0 && (
+            <div className="border-t border-border bg-muted/40 px-4 py-3 print:break-inside-avoid">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">Also found ({more.length})</div>
+              <div className="flex flex-wrap gap-1.5">
+                {more.map((g) => (
+                  <span key={g.type} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_META[severityOf(g.severity)].dot}`} aria-hidden />
+                    {g.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
