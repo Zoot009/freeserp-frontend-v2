@@ -341,11 +341,11 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
             <MiniStat label="Density" value={`${crawlData.keywordAnalysis.density}%`} />
           </TileGrid>
 
-          {crawlData.keywordAnalysis.bySection && Object.keys(crawlData.keywordAnalysis.bySection).length > 0 && (
+          {crawlData.keywordAnalysis.bySection && Object.values(crawlData.keywordAnalysis.bySection).some(Boolean) && (
             <div>
               <SubHeading>Density by Section</SubHeading>
               <TileGrid min={170}>
-                {Object.entries(crawlData.keywordAnalysis.bySection).map(([section, data]) => (
+                {Object.entries(crawlData.keywordAnalysis.bySection).filter(([, data]) => data).map(([section, data]) => (
                   <div key={section} className="mini-tile">
                     <div className="mini-tile-lbl">{section}</div>
                     <div className="tiny">{plural(data.occurrences, "hit")} · {data.density}%</div>
@@ -475,11 +475,11 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
             <MiniStat label="Self-references" value={crawlData.linkAnalysis.selfReferences} />
           </TileGrid>
 
-          {crawlData.linkAnalysis.bySection && Object.keys(crawlData.linkAnalysis.bySection).length > 0 && (
+          {crawlData.linkAnalysis.bySection && Object.values(crawlData.linkAnalysis.bySection).some(Boolean) && (
             <div>
               <SubHeading>Links by Section</SubHeading>
               <TileGrid min={170}>
-                {Object.entries(crawlData.linkAnalysis.bySection).map(([section, data]) => (
+                {Object.entries(crawlData.linkAnalysis.bySection).filter(([, data]) => data).map(([section, data]) => (
                   <div key={section} className="mini-tile">
                     <div className="mini-tile-lbl" style={{ textTransform: "capitalize" }}>{section}</div>
                     <div className="tiny">{data.internal} internal, {data.external} external</div>

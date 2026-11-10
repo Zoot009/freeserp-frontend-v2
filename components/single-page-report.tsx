@@ -177,11 +177,11 @@ export function SinglePageReport({ crawlData, keyword }: { crawlData: CrawlData;
               </div>
             </div>
 
-            {crawlData.keywordAnalysis.bySection && Object.keys(crawlData.keywordAnalysis.bySection).length > 0 && (
+            {crawlData.keywordAnalysis.bySection && Object.values(crawlData.keywordAnalysis.bySection).some(Boolean) && (
               <div>
                 <h4 className="font-mono text-[10px] uppercase tracking-widest text-accent mb-3">Density by Section</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {Object.entries(crawlData.keywordAnalysis.bySection).map(([section, data]) => (
+                  {Object.entries(crawlData.keywordAnalysis.bySection).filter(([, data]) => data).map(([section, data]) => (
                     <div key={section} className="border border-border/40 bg-background/50 p-3">
                       <div className="font-mono text-[9px] uppercase text-muted-foreground mb-1">{section}</div>
                       <div className="font-mono text-sm text-foreground">{data.occurrences} hits &middot; {data.density}%</div>
@@ -347,11 +347,11 @@ export function SinglePageReport({ crawlData, keyword }: { crawlData: CrawlData;
               ))}
             </div>
 
-            {crawlData.linkAnalysis.bySection && Object.keys(crawlData.linkAnalysis.bySection).length > 0 && (
+            {crawlData.linkAnalysis.bySection && Object.values(crawlData.linkAnalysis.bySection).some(Boolean) && (
               <div>
                 <h4 className="font-mono text-[10px] uppercase tracking-widest text-accent mb-3">Links by Section</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {Object.entries(crawlData.linkAnalysis.bySection).map(([section, data]) => (
+                  {Object.entries(crawlData.linkAnalysis.bySection).filter(([, data]) => data).map(([section, data]) => (
                     <div key={section} className="border border-border/40 bg-background/50 p-3">
                       <div className="font-mono text-[10px] uppercase text-muted-foreground mb-1">{section}</div>
                       <div className="font-mono text-sm text-foreground">{data.internal} internal, {data.external} external</div>

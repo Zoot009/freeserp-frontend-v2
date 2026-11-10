@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { Component, useEffect, type ReactNode } from "react"
 import Image from "next/image"
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
 import { def, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
@@ -39,6 +39,48 @@ const PENDING_TEXT: Record<RunKey, string> = {
   magic: "Researching keywords",
   score: "Scoring the homepage for the keyword",
   yt: "Checking YouTube",
+}
+
+/** A section that couldn't be built or shown: why, and a way to try again. */
+function FailedNote({ what, reason, onRetry }: { what: string; reason?: string; onRetry?: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-red-500/25 bg-red-500/5 px-4 py-3 text-[13px]">
+      <span className="flex min-w-0 items-start gap-2">
+        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
+        <span>
+          <b className="font-medium">{what}</b> {reason}
+        </span>
+      </span>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 font-medium transition-colors hover:bg-muted print:hidden"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Try again
+        </button>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One section that throws while drawing (a tool's data in a shape its view
+ * didn't expect) shows a note in its place. Uncaught, it took the whole report
+ * down to the dashboard's error page.
+ */
+class SectionBoundary extends Component<{ children: ReactNode; onRetry?: () => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    console.error("[report-builder] a section failed to draw:", error)
+  }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return <FailedNote what="This section couldn't be shown." reason="Its results came back in a form the report didn't expect. Running the check again usually fixes it." onRetry={this.props.onRetry} />
+  }
 }
 
 export const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
@@ -130,27 +172,7 @@ export function ReportDocument({
 
   const content = (d: Deliverable) => {
     const r = runOf(d)
-    if (r?.state === "failed") {
-      return (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-red-500/25 bg-red-500/5 px-4 py-3 text-[13px]">
-          <span className="flex min-w-0 items-start gap-2">
-            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
-            <span>
-              <b className="font-medium">This section couldn&apos;t be built.</b> {r.error}
-            </span>
-          </span>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={() => onRetry(d)}
-              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 font-medium transition-colors hover:bg-muted print:hidden"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Try again
-            </button>
-          )}
-        </div>
-      )
-    }
+    if (r?.state === "failed") return <FailedNote what="This section couldn't be built." reason={r.error} onRetry={onRetry ? () => onRetry(d) : undefined} />
     if (r?.state !== "done") return <Pending what={r?.state === "waiting" ? "Waiting for the check it builds on" : PENDING_TEXT[def(d).run]} detail="This section fills in by itself." />
     const data = r.data
     switch (d) {
@@ -267,7 +289,10 @@ export function ReportDocument({
           included={!off.includes(d)}
           onToggle={onToggle ? () => onToggle(d) : undefined}
         >
-          {content(d)}
+          {/* Keyed by the run's state, so trying again starts the section afresh. */}
+          <SectionBoundary key={`${d}:${runOf(d)?.state ?? "new"}`} onRetry={onRetry ? () => onRetry(d) : undefined}>
+            {content(d)}
+          </SectionBoundary>
         </Section>
       ))}
     </>
