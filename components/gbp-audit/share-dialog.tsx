@@ -19,11 +19,17 @@ export function ShareAuditDialog({
   onChange,
   apiPath = "/api/gbp-audit",
   sharePath = "/share/maps-audit",
+  body,
+  expiresAt,
 }: {
   auditId: string
   /** The report kind: its API (for /:id/share) and its public page. */
   apiPath?: string
   sharePath?: string
+  /** What creating the link sends, when the report kind needs more than its id. */
+  body?: () => unknown
+  /** When the link stops working by itself. */
+  expiresAt?: string
   shareToken: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -48,7 +54,7 @@ export function ShareAuditDialog({
   }
   const create = () =>
     run(async () => {
-      const { shareToken: token } = await api.post<{ shareToken: string }>(`${apiPath}/${auditId}/share`, {})
+      const { shareToken: token } = await api.post<{ shareToken: string }>(`${apiPath}/${auditId}/share`, body?.() ?? {})
       onChange(token)
     })
   const stop = () =>
@@ -74,6 +80,7 @@ export function ShareAuditDialog({
           <DialogTitle>Share this report</DialogTitle>
           <DialogDescription>
             Anyone with the link can view the full report without signing up. Your account and your other audits aren&apos;t shown.
+            {expiresAt && ` The link works until ${new Date(expiresAt).toLocaleDateString("en-US", { day: "numeric", month: "long" })}, when the report is cleared.`}
           </DialogDescription>
         </DialogHeader>
 

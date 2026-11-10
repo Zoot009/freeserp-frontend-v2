@@ -95,6 +95,8 @@ export type StoredReport = {
   business: string | null
   /** Sections built but left out of what the client is sent. */
   hidden?: Deliverable[]
+  /** Set while it's shared by link. */
+  shareToken?: string | null
 }
 
 const RUN_KEYS: RunKey[] = ["gbp", "site", "page", "aeo", "serp", "rank", "maps", "llm", "ads", "comp", "links", "magic", "score", "yt"]

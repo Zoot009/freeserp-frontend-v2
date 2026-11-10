@@ -2,52 +2,20 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- run payloads are read loosely by the sections */
 import { useCallback, useEffect, useRef, useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
-import { ArrowLeft, Check, CheckCircle2, History, Loader2, Printer, XCircle } from "lucide-react"
+import { ArrowLeft, Check, History, Loader2, Printer, Share2 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { def, knownSections, readReport, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey, type StoredReport } from "@/lib/report-builder"
 import { RUNS, domainOf, errorMessage } from "@/components/report-builder/runs"
-import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
-import {
-  AdsSection,
-  AiPromptsSection,
-  CompetitorSection,
-  KeywordMagicSection,
-  KeywordScoreSection,
-  LinksSection,
-  MapsTrackerSection,
-  RankSection,
-  SerpSection,
-  YoutubeSection,
-} from "@/components/report-builder/tool-sections"
+import { ReportDocument, day, type RunState } from "@/components/report-builder/report-document"
+import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 
 // Every run is checked at most once per tick, one after another: a dozen tools
 // polled every few seconds from one browser would trip the API's per-IP limit.
 const TICK_MS = 10_000
 
-type RunState = { id?: string; state: "waiting" | "running" | "done" | "failed"; data?: any; error?: string }
-type Plan = { id: string; createdAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[] }
-
-const PENDING_TEXT: Record<RunKey, string> = {
-  gbp: "Auditing the Google Business Profile",
-  site: "Crawling the website",
-  page: "Auditing the homepage",
-  aeo: "Asking the AI assistants about the site",
-  serp: "Searching Google",
-  rank: "Checking Google rankings",
-  maps: "Scanning the grid on Google Maps",
-  llm: "Asking ChatGPT, Gemini, Claude and Perplexity",
-  ads: "Analysing the site for Google Ads",
-  comp: "Comparing with the pages ranking above",
-  links: "Mapping the site's internal links",
-  magic: "Researching keywords",
-  score: "Scoring the homepage for the keyword",
-  yt: "Checking YouTube",
-}
-
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
+type Plan = { id: string; createdAt: string; expiresAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[]; shareToken: string | null }
 
 export default function ReportBuilderReport() {
   const { user, loading } = useAuth()
@@ -60,6 +28,7 @@ export default function ReportBuilderReport() {
   // Sections ticked off on screen; `plan.hidden` is what's saved.
   const [off, setOff] = useState<Deliverable[]>([])
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [shareOpen, setShareOpen] = useState(false)
   const runsRef = useRef(runs)
   runsRef.current = runs
   const started = useRef(new Set<RunKey>())
@@ -100,7 +69,7 @@ export default function ReportBuilderReport() {
       setRuns(initial)
       const hidden = knownSections(report.hidden ?? [])
       setOff(hidden)
-      setPlan({ id: report.id, createdAt: report.createdAt, sel: knownSections(report.sel), inputs: report.inputs, cached, hidden })
+      setPlan({ id: report.id, createdAt: report.createdAt, expiresAt: report.expiresAt, sel: knownSections(report.sel), inputs: report.inputs, cached, hidden, shareToken: report.shareToken ?? null })
     }
     open().catch((e) => {
       if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 10 days." : errorMessage(e, "The report couldn't be opened."))
@@ -113,38 +82,6 @@ export default function ReportBuilderReport() {
   const setRun = useCallback((k: RunKey, s: RunState) => {
     runsRef.current = { ...runsRef.current, [k]: s }
     setRuns(runsRef.current)
-  }, [])
-
-  // The PDF's file name: the business and the report, not the app's page title.
-  const titleName = runs.gbp?.data?.facts?.business?.name ?? plan?.inputs.name ?? domainOf(plan?.inputs.web)
-  useEffect(() => {
-    if (!plan) return
-    const before = document.title
-    document.title = `${titleName || "Your business"} · Local growth report`
-    return () => {
-      document.title = before
-    }
-  }, [plan, titleName])
-
-  // A PDF can't be clicked: rows that fold away (the AEO fixes) print open.
-  useEffect(() => {
-    let opened: HTMLDetailsElement[] = []
-    const open = () => {
-      // Added to, not replaced: Chrome can fire beforeprint twice for one print.
-      const shut = [...document.querySelectorAll<HTMLDetailsElement>("details:not([open])")].filter((d) => !d.parentElement?.closest("details"))
-      shut.forEach((d) => (d.open = true))
-      opened = [...opened, ...shut]
-    }
-    const close = () => {
-      opened.forEach((d) => (d.open = false))
-      opened = []
-    }
-    window.addEventListener("beforeprint", open)
-    window.addEventListener("afterprint", close)
-    return () => {
-      window.removeEventListener("beforeprint", open)
-      window.removeEventListener("afterprint", close)
-    }
   }, [])
 
   // Store the runs' ids and outcomes with the report, one save after another so
@@ -292,87 +229,36 @@ export default function ReportBuilderReport() {
   const { sel, inputs } = plan
   const business = runs.gbp?.data?.facts?.business?.name ?? inputs.name ?? (domainOf(inputs.web) || "Your business")
   const runOf = (d: Deliverable) => runs[def(d).run]
-  const grid = Number(inputs.grid) || 3
-  const titleOf = (d: Deliverable) => (d === "mapsTracker" ? `${def(d).title} (${grid}×${grid} grid)` : def(d).title)
   const allDone = runsFor(sel).every((k) => runs[k]?.state === "done" || runs[k]?.state === "failed")
   const shown = sel.filter((d) => !off.includes(d))
-  const numberOf = (d: Deliverable) => (shown.includes(d) ? shown.indexOf(d) + 1 : null)
   const dirty = off.length !== plan.hidden.length || off.some((d) => !plan.hidden.includes(d))
-  // Printed pages: A4, and a footer of our own with the business and the page
-  // number. The cover page has no top or bottom margin, which leaves no room for
-  // the browser's date-and-address header and footer, so Chrome drops them on
-  // every page. Its sides match the other pages: Chrome lays every page out at
-  // the first page's width.
-  const footer = `${business} · Local growth report`.replace(/["\\<>]/g, "")
-  const pageCss = `@media print {
-  @page { size: A4; margin: 14mm 12mm 16mm;
-    @bottom-left { content: "${footer}"; font: 8pt system-ui, sans-serif; color: #71717a; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt system-ui, sans-serif; color: #71717a; }
-  }
-  @page cover { margin: 0 12mm; @bottom-left { content: none; } @bottom-right { content: none; } }
-}`
   const toggle = (d: Deliverable) => {
     setSaveState("idle")
     setOff((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   }
-
-  const content = (d: Deliverable) => {
-    const r = runOf(d)
-    if (r?.state === "failed") return <p className="text-[13px] text-red-500">{r.error}</p>
-    if (r?.state !== "done") return <Pending what={r?.state === "waiting" ? "Waiting for the check it builds on" : PENDING_TEXT[def(d).run]} detail="This section fills in by itself." />
-    const data = r.data
-    switch (d) {
-      case "gbpAudit":
-        return (
-          <div className="space-y-8">
-            <GbpPlanSection data={data} />
-            <div>
-              <h3 className="mb-3 text-[15px] font-semibold tracking-tight">Free citations we&apos;ve created for you</h3>
-              <CitationsSection data={data} />
-            </div>
-          </div>
-        )
-      case "aiPost":
-        return <AiPostSection data={data} post={post} onRegenerate={() => writePost(true)} busy={writing} />
-      case "directions":
-        return <DirectionsSection data={data} />
-      case "mapsTracker":
-        return <MapsTrackerSection scan={data} />
-      case "rankTracker":
-        return <RankSection data={data} />
-      case "quickSerp":
-        return <SerpSection data={data} />
-      case "youtube":
-        return <YoutubeSection data={data} />
-      case "aiPrompts":
-        return <AiPromptsSection data={data} brand={inputs.name ?? business} />
-      case "siteAudit":
-      case "pageAudit":
-        return <SiteAuditSection report={data.report} groups={data.groups} />
-      case "ads":
-        return <AdsSection data={data} />
-      case "competitor":
-        return <CompetitorSection analysis={data} />
-      case "links":
-        return <LinksSection analysis={data} />
-      case "aeo":
-        return <AeoSection report={data} />
-      case "keywordMagic":
-        return <KeywordMagicSection data={data} />
-      case "keywordScore":
-        return <KeywordScoreSection analysis={data} keyword={inputs.kw ?? ""} />
-    }
-  }
+  // What a shared link shows: every finished run's data, by run, and the sample post.
+  const shareCopy = () => ({
+    data: Object.fromEntries(Object.entries(runs).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : []))),
+    post,
+  })
 
   return (
     <div className="page space-y-8 print:px-[3px]! print:py-0!">
-      <style>{pageCss}</style>
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/dashboard/report-builder" className="inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline">
           <ArrowLeft className="h-4 w-4" aria-hidden /> All reports
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-muted-foreground">{!allDone ? "Sections still running print as \u201cin progress\u201d." : "Untick a section to leave it out of the PDF."}</span>
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            disabled={!allDone}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            title={allDone ? "A link the client can open without an account" : "Sharing opens once every section has finished"}
+          >
+            <Share2 className="h-4 w-4" aria-hidden /> {plan.shareToken ? "Shared" : "Share"}
+          </button>
           <button
             type="button"
             onClick={() => window.print()}
@@ -396,63 +282,19 @@ export default function ReportBuilderReport() {
         </div>
       )}
 
-      <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8 print:mb-0 print:mt-[12mm] print:flex print:h-[272mm] print:flex-col print:bg-none print:bg-brand/5 print:p-[14mm] print:[page:cover]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 print:gap-3">
-            <Image src="/logo.png" alt="FreeSERP" width={44} height={44} className="size-9 rounded-lg object-contain print:size-11" priority />
-            <div className="leading-tight">
-              <div className="text-[15px] font-semibold tracking-tight print:text-[18px]">FreeSERP</div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-brand">Local growth report</div>
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Report ID <span className="font-mono font-semibold text-foreground">{plan.id.toUpperCase()}</span>
-          </div>
-        </div>
-        <div className="print:my-auto">
-          <h1 className="mt-4 text-[28px] font-semibold leading-tight tracking-tight print:text-[40px]">{business}</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground print:mt-3 print:text-[15px]">
-            Prepared {day(plan.createdAt)}
-            {inputs.web ? ` · ${domainOf(inputs.web)}` : ""}
-          </p>
-        </div>
-        <div className="mb-3 hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground print:block">What&apos;s inside</div>
-        <ol className="mt-5 grid gap-2 sm:grid-cols-2 print:mt-0 print:grid-cols-1 print:gap-4 print:border-t print:border-border print:pt-4">
-          {sel.map((d) => {
-            const s = runOf(d)?.state
-            const n = numberOf(d)
-            return (
-              <li key={d} className={`flex items-center gap-2 text-[13px] print:items-start print:gap-3 ${n ? "" : "text-muted-foreground line-through print:hidden"}`}>
-                {s === "done" ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400 print:mt-0.5" aria-hidden />
-                ) : s === "failed" ? (
-                  <XCircle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />
-                ) : (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground print:hidden" aria-hidden />
-                )}
-                <span className="min-w-0">
-                  <span className="print:text-[15px] print:font-semibold">
-                    {n ? `${n}. ` : ""}
-                    {titleOf(d)}
-                  </span>
-                  <span className="hidden text-[13px] leading-relaxed text-muted-foreground print:mt-0.5 print:block">{def(d).promise}</span>
-                </span>
-              </li>
-            )
-          })}
-        </ol>
-        {!allDone && (
-          <p className="mt-4 text-xs text-muted-foreground print:hidden">
-            The sections fill in as each tool finishes, usually within 2 to 8 minutes. You can leave this page: the report is saved, and reopening it from the history carries on.
-          </p>
-        )}
-      </header>
-
-      {sel.map((d) => (
-        <Section key={d} n={numberOf(d)} title={titleOf(d)} promise={def(d).promise} included={!off.includes(d)} onToggle={() => toggle(d)}>
-          {content(d)}
-        </Section>
-      ))}
+      <ReportDocument
+        id={plan.id}
+        createdAt={plan.createdAt}
+        sel={sel}
+        inputs={inputs}
+        business={business}
+        runOf={runOf}
+        post={post}
+        off={off}
+        onToggle={toggle}
+        onRegenerate={() => writePost(true)}
+        writing={writing}
+      />
 
       {/* Unsaved section choices: a bar floating at the foot of the screen until they're saved or reset. */}
       {(dirty || saveState !== "idle") && (
@@ -490,6 +332,18 @@ export default function ReportBuilderReport() {
           </div>
         </div>
       )}
+
+      <ShareAuditDialog
+        auditId={plan.id}
+        apiPath="/api/report-builder/reports"
+        sharePath="/share/report"
+        body={shareCopy}
+        expiresAt={plan.expiresAt}
+        shareToken={plan.shareToken}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        onChange={(token) => setPlan((p) => (p ? { ...p, shareToken: token } : p))}
+      />
     </div>
   )
 }

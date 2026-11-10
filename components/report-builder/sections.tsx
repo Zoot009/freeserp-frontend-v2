@@ -18,6 +18,7 @@ import { Pitch, listOf } from "@/components/report-builder/tool-sections"
 
 /** One deliverable. With `onToggle` it has a tick box: a section ticked off stays on screen, folded, and is left out of the print. */
 export function Section({
+  id,
   n,
   title,
   promise,
@@ -25,6 +26,8 @@ export function Section({
   included = true,
   onToggle,
 }: {
+  /** Where the cover's link for it lands. */
+  id?: string
   n: number | null
   title: string
   promise: string
@@ -33,7 +36,7 @@ export function Section({
   onToggle?: () => void
 }) {
   return (
-    <section className={`space-y-4 print:break-before-page ${included ? "" : "print:hidden"}`}>
+    <section id={id} className={`scroll-mt-6 space-y-4 print:break-before-page ${included ? "" : "print:hidden"}`}>
       <div className="flex items-start gap-3 border-b border-border pb-3">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold ${included ? "bg-brand text-white" : "bg-muted text-muted-foreground"}`}>{n ?? "–"}</span>
         <div className="min-w-0 flex-1">
@@ -384,7 +387,8 @@ export type IssueGroup = { type: string; title: string; description: string; cat
 
 const SEVERITY_TONE: Record<string, string> = { CRITICAL: "text-red-500", HIGH: "text-red-500", WARNING: "text-amber-600 dark:text-amber-400", MEDIUM: "text-amber-600 dark:text-amber-400" }
 
-export function SiteAuditSection({ report, groups }: { report: SiteReport; groups: IssueGroup[] }) {
+/** `capture` false on a shared link: the screenshots are whatever the audit stored, never a new capture. */
+export function SiteAuditSection({ report, groups, capture = true }: { report: SiteReport; groups: IssueGroup[]; capture?: boolean }) {
   const score = Math.round(report.overallScore)
   const critical = groups.filter((g) => /CRITICAL|HIGH/i.test(g.severity)).length
   return (
@@ -392,7 +396,7 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
       {/* The site as a visitor sees it, on a desktop and on a phone, beside the headline numbers. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className={`${card} p-4`}>
-          <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} />
+          <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} capture={capture} />
         </div>
         <div className="grid gap-3">
           <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
