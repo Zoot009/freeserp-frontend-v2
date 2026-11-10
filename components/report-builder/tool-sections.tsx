@@ -47,7 +47,7 @@ export const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.sli
 export function RankSection({ data }: { data: { rows: any[] } }) {
   const rows = data.rows
   const top10 = rows.filter((r) => typeof r.position === "number" && r.position > 0 && r.position <= 10).length
-  const checked = rows.filter((r) => r.status !== "FAILED")
+  const checked = rows.filter((r) => r.status != null && r.status !== "FAILED")
   const n = checked.length
   const ranking = checked.filter((r) => typeof r.position === "number" && r.position > 0).length
   const standing =
@@ -63,7 +63,7 @@ export function RankSection({ data }: { data: { rows: any[] } }) {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard compact label="Keywords tracked" hint="Tracked daily from now on." value={rows.length} caption="on Google" tone="text-foreground" />
         <StatCard compact label="On page 1" hint="Keywords ranking in the top 10." value={top10} caption={`of ${rows.length}`} tone="text-foreground" />
-        <StatCard compact label="Monthly searches" hint="Combined search volume." value={num(rows.reduce((n, r) => n + (r.searchVolume ?? 0), 0))} caption="for these keywords" tone="text-foreground" />
+        <StatCard compact label="Monthly searches" hint="Combined search volume." value={rows.some((r) => r.searchVolume != null) ? num(rows.reduce((n, r) => n + (r.searchVolume ?? 0), 0)) : "—"} caption="for these keywords" tone="text-foreground" />
       </div>
       <div className={`${card} overflow-x-auto`}>
         <table className="w-full min-w-[560px] border-collapse text-[13px]">
@@ -79,7 +79,9 @@ export function RankSection({ data }: { data: { rows: any[] } }) {
             {rows.map((r) => (
               <tr key={r.id ?? r.keyword}>
                 <td className={`${TD} font-medium`}>{r.keyword}</td>
-                <td className={`${TD} font-semibold tabular-nums ${posTone(r.position)}`}>{r.status === "FAILED" ? "Couldn't check" : pos(r.position)}</td>
+                <td className={`${TD} font-semibold tabular-nums ${r.status == null || r.status === "FAILED" ? "text-muted-foreground" : posTone(r.position)}`}>
+                  {r.status === "FAILED" ? "Couldn't check" : r.status == null ? "Not checked yet" : pos(r.position)}
+                </td>
                 <td className={`${TD} text-right tabular-nums`}>{num(r.searchVolume)}</td>
                 <td className={`${TD} max-w-[280px] truncate text-muted-foreground`}>{r.url ?? "—"}</td>
               </tr>
@@ -120,7 +122,7 @@ export function SerpSection({ data }: { data: any }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
-        <StatCard compact label={`Your position for “${data.keyword}”`} hint="Where the website ranks in Google's organic results." value={data.found ? pos(data.position) : "Not in top 100"} caption={data.url ?? "—"} tone={posTone(data.found ? data.position : null)} />
+        <StatCard compact label={`Your position for “${data.keyword}”`} hint="Where the website ranks in Google's organic results." value={data.found ? pos(data.position) : "Not in top 10"} caption={data.url ?? "—"} tone={posTone(data.found ? data.position : null)} />
         <StatCard compact label="Monthly searches" hint="How many people search this a month." value={num(data.searchVolume)} caption="search volume" tone="text-foreground" />
         <StatCard compact label="Difficulty" hint="How hard the keyword is to rank for, 0–100." value={data.keywordDifficulty ?? "—"} caption="out of 100" tone="text-foreground" />
         <StatCard compact label="AI Overview" hint="Whether Google shows an AI Overview, and whether it cites the site." value={ai?.present ? (ai.cited ? "Cited" : "Not cited") : "None"} caption={ai?.present ? "shown for this search" : "not shown"} tone={ai?.present && !ai.cited ? "text-red-500" : "text-foreground"} />
@@ -167,7 +169,7 @@ export function YoutubeSection({ data }: { data: { rows: any[] } }) {
           {data.rows.map((r) => (
             <tr key={r.id ?? r.keyword}>
               <td className={`${TD} font-medium`}>{r.keyword}</td>
-              <td className={`${TD} font-semibold ${posTone(r.bestVideoPosition)}`}>{r.notInTop ? "Not in results" : pos(r.bestVideoPosition)}</td>
+              <td className={`${TD} font-semibold ${posTone(r.bestVideoPosition)}`}>{r.status === "FAILED" || !r.status ? "Couldn't check" : r.notInTop ? "Not in results" : pos(r.bestVideoPosition)}</td>
               <td className={`${TD} text-muted-foreground`}>
                 {r.topVideoTitle ?? "—"}
                 {r.topChannelName && <span className="block text-xs">{r.topChannelName}</span>}
@@ -314,7 +316,9 @@ export function AdsSection({ data }: { data: any }) {
 export function CompetitorSection({ analysis }: { analysis: any }) {
   return (
     <div className="space-y-4">
-      <CompetitorComparisonTable analysis={analysis} />
+      <div className="print:[&_.cmp-compare]:overflow-visible print:[&_table]:min-w-0!">
+        <CompetitorComparisonTable analysis={analysis} />
+      </div>
       <Pitch>
         <b>We&apos;ll close these gaps</b>: content, internal links and authority, so your page can move up past them.
       </Pitch>
@@ -356,7 +360,7 @@ export function LinksSection({ analysis }: { analysis: any }) {
             {top.slice(0, 10).map((t, i) => (
               <li key={i} className="flex justify-between gap-3 px-4 py-2">
                 <span className="truncate text-muted-foreground">{label(t)}</span>
-                {typeof t === "object" && t?.inboundCount != null && <span className="shrink-0 tabular-nums">{t.inboundCount}</span>}
+                {typeof t === "object" && (t?.inboundLinks ?? t?.inboundCount) != null && <span className="shrink-0 tabular-nums">{t.inboundLinks ?? t.inboundCount}</span>}
               </li>
             ))}
             {top.length === 0 && <li className="px-4 py-2 text-muted-foreground">—</li>}

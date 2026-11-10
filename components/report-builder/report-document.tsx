@@ -22,7 +22,8 @@ import {
 // The client report itself: the cover and every section, as the team sees it
 // while it builds (with tick boxes) and as a client opens it from a shared link.
 
-export type RunState = { id?: string; state: "waiting" | "running" | "done" | "failed"; data?: any; error?: string }
+/** `since`: when this page started following the run, for the time limit on a run that never finishes. */
+export type RunState = { id?: string; state: "waiting" | "running" | "done" | "failed"; data?: any; error?: string; since?: number }
 
 const PENDING_TEXT: Record<RunKey, string> = {
   gbp: "Auditing the Google Business Profile",
@@ -221,7 +222,7 @@ export function ReportDocument({
   return (
     <>
       <style>{pageCss}</style>
-      <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8 print:mb-0 print:mt-[12mm] print:flex print:h-[272mm] print:flex-col print:bg-none print:bg-brand/5 print:p-[14mm] print:[page:cover]">
+      <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8 print:mb-0 print:mt-[12mm] print:flex print:min-h-[272mm] print:flex-col print:bg-none print:bg-brand/5 print:p-[14mm] print:[page:cover]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 print:gap-3">
             <Image src="/logo.png" alt="FreeSERP" width={44} height={44} className="size-9 rounded-lg object-contain print:size-11" priority />
@@ -265,7 +266,7 @@ export function ReportDocument({
                       {n ? `${n}. ` : ""}
                       {titleOf(d)}
                     </span>
-                    <span className="hidden text-[13px] leading-relaxed text-muted-foreground print:mt-0.5 print:block">{def(d).promise}</span>
+                    {sel.length <= 9 && <span className="hidden text-[13px] leading-relaxed text-muted-foreground print:mt-0.5 print:block">{def(d).promise}</span>}
                   </span>
                 </a>
               </li>

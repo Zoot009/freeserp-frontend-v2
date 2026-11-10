@@ -1485,18 +1485,21 @@ const CATEGORY_ICON: Record<CategoryKey, LucideIcon> = {
  * report) leads with the recommendation and the fixes and closes on the plan in
  * brief: each step's fixes by name, each a link to its full fix. The client
  * report also passes `notes`, the team's word at the foot of a category, and
- * `bodies`, a category shown its own way (always, even with nothing to fix).
+ * `bodies`, a category shown its own way first (always, even with nothing to
+ * fix), followed by its fixes save those listed in `covered`, which it shows.
  */
 export function ActionPlan({
   report,
   planAtEnd = false,
   notes,
   bodies,
+  covered = [],
 }: {
   report: Report
   planAtEnd?: boolean
   notes?: Partial<Record<CategoryKey, ReactNode>>
   bodies?: Partial<Record<CategoryKey, ReactNode>>
+  covered?: string[]
 }) {
   const by = (p: Priority) => report.findings.filter((f) => f.priority === p).length
   const weakest = report.categories
@@ -1587,9 +1590,10 @@ export function ActionPlan({
               }
               flush
             >
-              {bodies?.[cat.key] ?? (
-              <div className="divide-y divide-border">
-                {items.map((f) => (
+              {bodies?.[cat.key]}
+              {items.some((f) => !covered.includes(f.id)) && (
+              <div className={`divide-y divide-border ${bodies?.[cat.key] ? "border-t border-border" : ""}`}>
+                {items.filter((f) => !covered.includes(f.id)).map((f) => (
                   <div key={f.id} id={`fix-${f.id}`} className="grid scroll-mt-24 gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

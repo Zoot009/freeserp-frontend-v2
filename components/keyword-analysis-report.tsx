@@ -227,11 +227,10 @@ function Section({
           </span>
         </span>
       </button>
-      {open && (
-        <div style={{ padding: "16px 18px 20px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 14 }}>
-          {children}
-        </div>
-      )}
+      {/* Always drawn, and shown when printed: a PDF can't be clicked open. */}
+      <div className={open ? "flex flex-col" : "hidden print:flex print:flex-col"} style={{ padding: "16px 18px 20px", borderTop: "1px solid var(--border)", gap: 14 }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -268,7 +267,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           <div className="b" style={{ fontSize: 15 }}>Every check</div>
           <div className="tiny muted" style={{ marginTop: 2 }}>Section by section. The ones with issues are open.</div>
         </div>
-        <button type="button" className="btn sm" style={{ flexShrink: 0 }} onClick={() => setOpen(allOpen ? new Set() : new Set(SECTIONS))}>
+        <button type="button" className="btn sm print:hidden" style={{ flexShrink: 0 }} onClick={() => setOpen(allOpen ? new Set() : new Set(SECTIONS))}>
           {allOpen ? "Collapse all" : "Expand all"}
         </button>
       </div>
@@ -444,7 +443,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
         </TileGrid>
 
         {crawlData.headingStructure && crawlData.headingStructure.length > 0 && (
-          <div className="mini-tile" style={{ maxHeight: 260, overflowY: "auto" }}>
+          <div className="mini-tile print:max-h-none! print:overflow-visible!" style={{ maxHeight: 260, overflowY: "auto" }}>
             <SubHeading>Heading Hierarchy</SubHeading>
             <div className="col" style={{ gap: 6, marginTop: 8 }}>
               {crawlData.headingStructure.slice(0, 30).map((h, i) => (
@@ -501,7 +500,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           )}
 
           {crawlData.linkAnalysis.internalLinks?.length > 0 && (
-            <div className="mini-tile" style={{ maxHeight: 220, overflowY: "auto" }}>
+            <div className="mini-tile print:max-h-none! print:overflow-visible!" style={{ maxHeight: 220, overflowY: "auto" }}>
               <SubHeading>Internal Links (top {Math.min(20, crawlData.linkAnalysis.internalLinks.length)})</SubHeading>
               <div className="col" style={{ gap: 6, marginTop: 8 }}>
                 {crawlData.linkAnalysis.internalLinks.slice(0, 20).map((link, i) => (
@@ -537,7 +536,7 @@ export function KeywordAnalysisReport({ crawlData, keyword }: { crawlData: Crawl
           </TileGrid>
 
           {crawlData.imageAnalysis.images?.length > 0 && (
-            <div className="mini-tile" style={{ maxHeight: 280, overflowY: "auto" }}>
+            <div className="mini-tile print:max-h-none! print:overflow-visible!" style={{ maxHeight: 280, overflowY: "auto" }}>
               <SubHeading>Images (showing {Math.min(15, crawlData.imageAnalysis.images.length)})</SubHeading>
               <div className="col" style={{ gap: 10, marginTop: 8 }}>
                 {/* Missing alt text first — those are the ones to fix. Sorted before

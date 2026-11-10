@@ -39,6 +39,7 @@ export function ShareAuditDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [copied, setCopied] = useState(false)
+  const [updated, setUpdated] = useState(false)
   const shareUrl = (token: string) => `${window.location.origin}${sharePath}/${token}`
 
   const run = async (fn: () => Promise<void>) => {
@@ -56,6 +57,13 @@ export function ShareAuditDialog({
     run(async () => {
       const { shareToken: token } = await api.post<{ shareToken: string }>(`${apiPath}/${auditId}/share`, body?.() ?? {})
       onChange(token)
+    })
+  // Sending the report's latest results to the same link (a rewritten post, a section tried again).
+  const update = () =>
+    run(async () => {
+      await api.post(`${apiPath}/${auditId}/share`, body?.() ?? {})
+      setUpdated(true)
+      setTimeout(() => setUpdated(false), 2000)
     })
   const stop = () =>
     run(async () => {
@@ -93,9 +101,17 @@ export function ShareAuditDialog({
                 {copied ? "Copied" : "Copy"}
               </Button>
             </div>
-            <button type="button" onClick={stop} disabled={busy} className="text-[13px] font-medium text-red-600 hover:underline disabled:opacity-60 dark:text-red-400">
-              {busy ? "Stopping…" : "Stop sharing"}
-            </button>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {body && (
+                <button type="button" onClick={update} disabled={busy} className="text-[13px] font-medium text-brand hover:underline disabled:opacity-60">
+                  {updated ? "Updated" : busy ? "Working…" : "Update the shared copy"}
+                </button>
+              )}
+              <button type="button" onClick={stop} disabled={busy} className="text-[13px] font-medium text-red-600 hover:underline disabled:opacity-60 dark:text-red-400">
+                {busy ? "Working…" : "Stop sharing"}
+              </button>
+            </div>
+            {body && <p className="text-xs text-muted-foreground">The link shows the report as it was when shared. Changed something since? Update the shared copy.</p>}
             <p className="text-xs text-muted-foreground">Stopping makes this link, and any copies already sent, stop working.</p>
           </div>
         ) : (

@@ -166,7 +166,7 @@ export function CompetitorComparisonTable({ analysis, onRecrawl, recrawlingDomai
                                       >
                                         Recrawling…
                                       </span>
-                                    ) : err?.retryable ? (
+                                    ) : err?.retryable && onRecrawl ? (
                                       <button
                                         onClick={() => onRecrawl?.(comp.domain)}
                                         className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 border border-[color:var(--border)] text-[color:var(--text-soft)] bg-[color:var(--bg)] hover:bg-[color:var(--bg-inset)] hover:text-[color:var(--text)] transition-colors"

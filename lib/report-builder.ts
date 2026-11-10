@@ -33,6 +33,8 @@ export type Inputs = {
   web?: string
   kw?: string
   loc?: string
+  /** The location's country (ISO2): a city's own, for the tools that only take a country. */
+  country?: string
   svc: string[]
   name?: string
   yt?: string
@@ -57,7 +59,7 @@ export const DELIVERABLES: Def[] = [
   // Audit & analysis
   { key: "siteAudit", group: "Audit & Analysis", title: "Full website audit", text: "A FreeSERP crawl of up to 100 pages: the score and every issue, which we'll fix.", run: "site", needs: ["website"], promise: "Everything our crawler found on your website, which we'll fix for you." },
   { key: "pageAudit", group: "Audit & Analysis", title: "Page audit (homepage)", text: "A deep audit of the homepage: scores by area and every issue.", run: "page", needs: ["website"], promise: "A close look at your homepage, the page most visitors see first." },
-  { key: "ads", group: "Audit & Analysis", title: "Google Ads analysis", text: "Whether the site is ready for Google Ads: landing pages, tracking, speed, keyword costs and a budget forecast.", run: "ads", needs: ["website", "location", "services"], promise: "Whether your site is ready to spend money on Google Ads, and what a budget would buy." },
+  { key: "ads", group: "Audit & Analysis", title: "Google Ads analysis", text: "Whether the site is ready for Google Ads: landing pages, tracking, speed, keyword costs and a budget forecast.", run: "ads", needs: ["website", "keyword", "location", "services"], promise: "Whether your site is ready to spend money on Google Ads, and what a budget would buy." },
   { key: "competitor", group: "Audit & Analysis", title: "Competitor analysis", text: "The site against the pages ranking above it for the main keyword: content, links and authority.", run: "comp", needs: ["website", "keyword", "location"], promise: "How your page compares with the pages ranking above you, and what they do better." },
   { key: "links", group: "Audit & Analysis", title: "Internal links analysis", text: "How the site's pages link to each other: orphan pages and the pages that carry the most weight.", run: "links", needs: ["website"], promise: "How your pages link to each other, and the pages Google can hardly find." },
   { key: "aeo", group: "Audit & Analysis", title: "AEO & GEO audit", text: "How AI assistants see the business, with the 'Fix first' list.", run: "aeo", needs: ["website"], promise: "How AI assistants see your business, and what to fix first so they recommend you." },

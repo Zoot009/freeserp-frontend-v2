@@ -35,6 +35,8 @@ export default function ReportBuilderPage() {
   const [web, setWeb] = useState("")
   const [kw, setKw] = useState("")
   const [loc, setLoc] = useState(() => knownGeoCountry() ?? "us")
+  // A city's country, for the tools that only take a country (else they'd fall back to the US).
+  const [country, setCountry] = useState<string | undefined>(undefined)
   const [svc, setSvc] = useState("")
   const [name, setName] = useState("")
   const [yt, setYt] = useState("")
@@ -66,6 +68,9 @@ export default function ReportBuilderPage() {
     if (fields.has("name") && !name.trim()) missing.push("the business name")
     if (fields.has("youtube") && !yt.trim()) missing.push("the YouTube channel")
     if (missing.length) return setError(`Add ${missing.join(", ")}.`)
+    // The tools behind the report take no more than these.
+    if (fields.has("keyword") && kw.trim().length > 80) return setError("Keep the main keyword under 80 characters.")
+    if (fields.has("name") && name.trim().length > 100) return setError("Keep the business name under 100 characters.")
     setBusy(true)
     try {
       const { report, reused } = await api.post<{ report: StoredReport; reused: boolean }>("/api/report-builder/reports", {
@@ -75,12 +80,13 @@ export default function ReportBuilderPage() {
           web: web.trim() || undefined,
           kw: kw.trim() || undefined,
           loc: loc || undefined,
+          country: (country ?? (/^[a-z]{2}$/i.test(loc) ? loc : undefined))?.toLowerCase(),
           name: name.trim() || undefined,
           yt: yt.trim() || undefined,
           grid: sel.includes("mapsTracker") ? grid : undefined,
           svc: svc
             .split(",")
-            .map((s) => s.trim().slice(0, 100))
+            .map((s) => s.trim().slice(0, 60))
             .filter((s) => s.length >= 2)
             .slice(0, 10),
         },
@@ -199,7 +205,13 @@ export default function ReportBuilderPage() {
               {fields.has("location") && (
                 <div>
                   <span className={label}>Where the business wants customers</span>
-                  <LocationPicker value={loc} onChange={setLoc} variant="dashboard" showFlags placeholder="Search a country or city" />
+                  <LocationPicker
+                    value={loc}
+                    onChange={(code, l) => {
+                      setLoc(code)
+                      setCountry(l?.countryIso ?? undefined)
+                    }}
+                    variant="dashboard" showFlags placeholder="Search a country or city" />
                 </div>
               )}
             </div>

@@ -81,11 +81,12 @@ export default function SharedReportPage() {
 
   const { report, data, post } = shared
   // Only the sections whose results came with the link.
-  const sel = knownSections(report.sel).filter((d) => data[def(d).run] !== undefined)
+  // Only the sections whose results came with the link (the sample post, when it was written).
+  const sel = knownSections(report.sel).filter((d) => data[def(d).run] !== undefined && (d !== "aiPost" || !!post))
   const business = data.gbp?.facts?.business?.name ?? report.business ?? report.inputs.name ?? (domainOf(report.inputs.web) || "Your business")
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-[1200px] space-y-8 px-4 py-6 sm:px-6 print:max-w-none print:px-[3px] print:py-0">
+      <div className="fs-app mx-auto max-w-[1200px] space-y-8 px-4 py-6 sm:px-6 print:max-w-none print:px-[3px] print:py-0" style={{ background: "transparent" }}>
         <div className="flex justify-end print:hidden">
           <button
             type="button"

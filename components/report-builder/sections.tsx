@@ -91,7 +91,14 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard compact label="Listed now" hint="Local directories where the business already has a listing." value={listed} caption={`of ${facts.citations?.sites.length ?? 25} checked`} tone="text-foreground" />
         <StatCard compact label="Free citations" hint="The citations we've created for the business, free." value={picks.length} caption="created for you" tone="text-brand" />
-        <StatCard compact label="Competitors use" hint="How many of these three the top competitors are already listed on." value={picks.filter((p) => p.rivals > 0).length} caption="of the three" tone="text-foreground" />
+        <StatCard
+          compact
+          label="Competitors use"
+          hint="How many of these the top competitors are already listed on."
+          value={fromRows.length ? picks.filter((p) => p.rivals > 0).length : "—"}
+          caption={picks.length === 3 ? "of the three" : `of the ${picks.length}`}
+          tone="text-foreground"
+        />
       </div>
       <Pitch>
         <p>
@@ -198,7 +205,13 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
           performance.
         </p>
       </Pitch>
-      <ActionPlan report={report} planAtEnd notes={notes} bodies={{ engagement: <PostsActivity report={report} /> }} />
+      <ActionPlan
+        report={{ ...report, findings: report.findings.map((f) => (f.id === "booking_contact" ? { ...f, category: "profile" as CategoryKey } : f)) }}
+        planAtEnd
+        notes={notes}
+        bodies={{ engagement: <PostsActivity report={report} /> }}
+        covered={["recent_posts", "posting_frequency"]}
+      />
     </div>
   )
 }
@@ -212,7 +225,8 @@ function PostsActivity({ report }: { report: Report }) {
   const Icon = !known ? CircleDashed : last.status === "pass" ? CheckCircle2 : last.status === "warn" ? AlertTriangle : XCircle
   const tone = !known ? "text-muted-foreground" : last.status === "pass" ? "text-green-600 dark:text-green-400" : last.status === "warn" ? "text-amber-500" : "text-red-500"
   return (
-    <div className="flex items-start gap-3 px-4 py-3 text-[13px] print:break-inside-avoid">
+    <div id="fix-recent_posts" className="flex scroll-mt-24 items-start gap-3 px-4 py-3 text-[13px] print:break-inside-avoid">
+      <span id="fix-posting_frequency" className="sr-only" />
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden />
       <div className="min-w-0">
         <b className="font-medium">
@@ -254,7 +268,7 @@ export function AiPostSection({ data, post, onRegenerate, busy }: { data: GbpAud
             <span className="mt-1 inline-flex h-9 items-center rounded-full bg-brand px-4 text-[13px] font-semibold text-white">{post.cta}</span>
           </div>
         ) : (
-          <p className="p-4 text-[13px] text-muted-foreground">Writing the post…</p>
+          <p className="p-4 text-[13px] text-muted-foreground">{onRegenerate ? "Writing the post…" : "The sample post isn't ready yet."}</p>
         )}
       </div>
       <div className="space-y-3 text-[13px] leading-relaxed">

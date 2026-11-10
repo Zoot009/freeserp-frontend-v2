@@ -4,7 +4,7 @@
 // carries on rather than starting again) and a poll.
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- tool payloads are read loosely, a few fields each */
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, isTransient } from "@/lib/api"
 import { PLATFORMS } from "@/lib/ai-tracker"
 import type { Inputs, RunKey } from "@/lib/report-builder"
 
@@ -32,8 +32,11 @@ export const domainOf = (web?: string) => {
   }
 }
 const fullUrl = (web?: string) => (web && /^https?:\/\//i.test(web) ? web : `https://${domainOf(web)}`)
-/** A two-letter country for the tools that take one; a city code falls back to the US. */
-export const countryOf = (loc?: string) => (loc && /^[a-z]{2}$/i.test(loc) ? loc.toLowerCase() : "us")
+/** A two-letter country for the tools that take one: a city's own country, else the US. */
+export const countryOf = (inp: Pick<Inputs, "loc" | "country">) => {
+  const iso = [inp.country, inp.loc].find((c) => c && /^[a-z]{2}$/i.test(c))
+  return iso ? iso.toLowerCase() : "us"
+}
 /**
  * Sites that rank but are nobody's competitor: Google's own pages (Maps, the
  * Business Profile, any country domain) and the platforms a business has a page
@@ -42,8 +45,23 @@ export const countryOf = (loc?: string) => (loc && /^[a-z]{2}$/i.test(loc) ? loc
 const PLATFORM =
   /(^|\.)(google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})|business\.site|g\.page|youtube\.com|facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|wikipedia\.org|reddit\.com|quora\.com|pinterest\.com)$/
 const isPlatform = (host: string) => PLATFORM.test(host)
+/**
+ * The report's own rows of a rank-tracking project: its keywords, in its
+ * country, on desktop Google. The project can also track the same words
+ * elsewhere (an earlier report's location); if nothing matches that closely,
+ * the keywords alone decide, so the section can't wait forever.
+ */
+function ownRows(all: any[], inp: Inputs): any[] {
+  const wanted = new Set(trackedKeywords(inp.kw!))
+  const mine = all.filter((k) => wanted.has(String(k.keyword ?? "").toLowerCase().replace(/\s+/g, " ")))
+  const exact = mine.filter(
+    (k) => String(k.location ?? "").toLowerCase() === countryOf(inp) && (k.device ?? "desktop") === "desktop" && (k.engine ?? "google") === "google",
+  )
+  return exact.length ? exact : mine
+}
+
 /** The keywords a rank-tracking project starts with: the main one and how buyers phrase it. */
-export const trackedKeywords = (kw: string) => [...new Set([kw, `${kw} near me`, `best ${kw}`].map((k) => k.trim().toLowerCase()))]
+export const trackedKeywords = (kw: string) => [...new Set([kw, `${kw} near me`, `best ${kw}`].map((k) => k.trim().toLowerCase().replace(/\s+/g, " ")))]
 
 const pageAuditRun = (mode: "site" | "single"): RunDef => ({
   async start(inp, _deps, fresh) {
@@ -93,7 +111,7 @@ export const RUNS: Record<RunKey, RunDef> = {
   },
   serp: {
     async start(inp) {
-      const r = await api.post<any>("/api/serp-check", { keyword: inp.kw, domain: domainOf(inp.web) || undefined, country: countryOf(inp.loc), device: "desktop" })
+      const r = await api.post<any>("/api/serp-check", { keyword: inp.kw, domain: domainOf(inp.web) || undefined, country: countryOf(inp), device: "desktop" })
       return r.id
     },
     async poll(id, inp) {
@@ -116,7 +134,7 @@ export const RUNS: Record<RunKey, RunDef> = {
         if (!existing) throw e
         projectId = existing
       }
-      await api.post(`/api/projects/${projectId}/keywords`, { keywords: trackedKeywords(inp.kw!), location: countryOf(inp.loc), device: "desktop", engines: ["google"] }).catch((e) => {
+      await api.post(`/api/projects/${projectId}/keywords`, { keywords: trackedKeywords(inp.kw!), location: countryOf(inp), device: "desktop", engines: ["google"] }).catch((e) => {
         // Keywords already on the project are fine; anything else is a real failure.
         if (!(e instanceof ApiError && e.status === 409)) throw e
       })
@@ -124,16 +142,14 @@ export const RUNS: Record<RunKey, RunDef> = {
         // Keywords already tracked keep their last check: ask Google again.
         const r = await api.get<any>(`/api/projects/${projectId}`)
         const wanted = new Set(trackedKeywords(inp.kw!))
-        const keywordIds = ((r.keywords ?? r.project?.keywords ?? []) as any[]).filter((k) => wanted.has(String(k.keyword ?? "").toLowerCase())).map((k) => k.id)
+        const keywordIds = ownRows(r.keywords ?? r.project?.keywords ?? [], inp).map((k) => k.id)
         if (keywordIds.length) await api.post(`/api/projects/${projectId}/check`, { keywordIds })
       }
       return projectId
     },
     async poll(id, inp) {
       const r = await api.get<any>(`/api/projects/${id}`)
-      const all: any[] = r.keywords ?? r.project?.keywords ?? []
-      const wanted = new Set(trackedKeywords(inp.kw!))
-      const rows = all.filter((k) => wanted.has(String(k.keyword ?? "").toLowerCase()))
+      const rows = ownRows(r.keywords ?? r.project?.keywords ?? [], inp)
       if (!rows.length) return running
       if (rows.some((k) => k.status === "PENDING" || k.status === "PROCESSING")) return running
       return { state: "done", data: { rows } }
@@ -178,10 +194,10 @@ export const RUNS: Record<RunKey, RunDef> = {
     async start(inp) {
       const domain = domainOf(inp.web)
       const kw = inp.kw!
-      const p = await api.post<any>("/api/llm-tracker/projects", { name: `${inp.name} (client report)`, brandName: inp.name, brandDomain: domain || undefined })
+      const p = await api.post<any>("/api/llm-tracker/projects", { name: `${inp.name} (client report)`.slice(0, 120), brandName: inp.name?.slice(0, 120), brandDomain: domain || undefined })
       const projectId = p.project?.id ?? p.id
       const prompts = [`What is the best ${kw} near me?`, `Which ${kw} would you recommend, and why?`, `Who are the most trusted ${kw} businesses?`]
-      await api.post(`/api/llm-tracker/projects/${projectId}/prompts`, { prompts, platforms: [...PLATFORMS], samplesPerRun: 1, countryIso: countryOf(inp.loc), checkFrequency: null })
+      await api.post(`/api/llm-tracker/projects/${projectId}/prompts`, { prompts, platforms: [...PLATFORMS], samplesPerRun: 1, countryIso: countryOf(inp), checkFrequency: null })
       await api.post(`/api/llm-tracker/projects/${projectId}/run`, {})
       return projectId
     },
@@ -246,9 +262,10 @@ export const RUNS: Record<RunKey, RunDef> = {
     },
     async poll(_id, inp) {
       try {
-        const r = await api.post<any>("/api/keyword-magic", { seed: inp.kw, matchType: "broad", country: countryOf(inp.loc) })
+        const r = await api.post<any>("/api/keyword-magic", { seed: inp.kw, matchType: "broad", country: countryOf(inp) })
         return { state: "done", data: r }
       } catch (e) {
+        if (isTransient(e)) throw e
         return failed(msg(e, "Keyword research failed."))
       }
     },
@@ -269,9 +286,17 @@ export const RUNS: Record<RunKey, RunDef> = {
   yt: {
     async start(inp) {
       try {
-        const p = await api.post<any>("/api/youtube/projects", { name: `${inp.yt} (client report)`.slice(0, 120), targetType: "channel", target: inp.yt, defaultDepth: 20 })
-        const projectId = p.project?.id ?? p.id
-        await api.post(`/api/youtube/projects/${projectId}/keywords`, { keywords: [inp.kw], locationCode: 2840, languageCode: "en", device: "desktop" })
+        // The channel's project from an earlier report: a new one each time would reach the plan's project cap.
+        const list = await api.get<any>("/api/youtube/projects")
+        const projects: any[] = Array.isArray(list) ? list : (list.projects ?? [])
+        const same = (p: any) => String(p.targetRaw ?? "").trim().toLowerCase() === inp.yt!.trim().toLowerCase()
+        const projectId =
+          projects.find(same)?.id ??
+          (await api.post<any>("/api/youtube/projects", { name: `${inp.yt} (client report)`.slice(0, 120), targetType: "channel", target: inp.yt, defaultDepth: 20 }).then((p) => p.project?.id ?? p.id))
+        await api.post(`/api/youtube/projects/${projectId}/keywords`, { keywords: [inp.kw], locationCode: 2840, languageCode: "en", device: "desktop" }).catch((e) => {
+          // Already tracked on that project is fine.
+          if (!(e instanceof ApiError && e.status === 409)) throw e
+        })
         return projectId
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) throw new Error("YouTube rank tracking isn't switched on for this server.")

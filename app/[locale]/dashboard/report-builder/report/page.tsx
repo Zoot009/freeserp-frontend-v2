@@ -26,6 +26,10 @@ import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 const TICK_MS = 10_000
 /** Starting a check is tried this many times when it fails on a blip, then it shows as failed. */
 const START_TRIES = 3
+/** A check still running this long after the page started following it is stuck: it shows as failed, with Try again. */
+const RUN_LIMIT_MS = 45 * 60_000
+/** No answer in time: the server may have started the check anyway, so it isn't started again by itself. */
+const timedOut = (e: unknown) => ["ECONNABORTED", "ETIMEDOUT"].includes((e as { code?: string } | null)?.code ?? "")
 
 type Plan = { id: string; createdAt: string; expiresAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[]; shareToken: string | null; fresh: boolean }
 
@@ -73,7 +77,7 @@ export default function ReportBuilderReport() {
       if (!alive.current) return
       const initial: Partial<Record<RunKey, RunState>> = {}
       for (const [k, id] of Object.entries(report.ids) as [RunKey, string][]) {
-        initial[k] = { id, state: "running" }
+        initial[k] = { id, state: "running", since: Date.now() }
         started.current.add(k)
       }
       // A run that couldn't start stays failed, rather than starting again on every visit.
@@ -125,7 +129,11 @@ export default function ReportBuilderReport() {
     const tick = async () => {
       let changed = false
       for (const k of keys) {
-        if (!alive.current || stopped) return
+        if (!alive.current || stopped) {
+          // Leaving mid-tick: what started so far is still saved.
+          if (changed) persist()
+          return
+        }
         const r = runsRef.current[k]
         const runDef = RUNS[k]
         if (!r?.id) {
@@ -142,11 +150,18 @@ export default function ReportBuilderReport() {
           try {
             const deps = Object.fromEntries(Object.entries(runsRef.current).map(([key, s]) => [key, s?.data]))
             const id = await runDef.start(plan.inputs, deps, plan.fresh)
-            setRun(k, { id, state: "running" })
+            setRun(k, { id, state: "running", since: Date.now() })
+            // Saved at once: a reload before the tick ends must not start (and charge for) it again.
+            persist()
           } catch (e) {
+            if (e instanceof ApiError && e.code === "page_audit_busy") {
+              // Two audits already running on the account: this one starts when a slot frees up.
+              started.current.delete(k)
+              continue
+            }
             const tries = (startTries.current.get(k) ?? 0) + 1
             startTries.current.set(k, tries)
-            if (isTransient(e) && tries < START_TRIES) {
+            if (isTransient(e) && !timedOut(e) && tries < START_TRIES) {
               // No connection, a timeout, a rate limit: start it again on the next tick.
               started.current.delete(k)
               continue
@@ -157,15 +172,18 @@ export default function ReportBuilderReport() {
           continue
         }
         if (r.state !== "running") continue
+        const overdue = r.since != null && Date.now() - r.since > RUN_LIMIT_MS
+        const tooLong = "This check is taking far longer than it should. Try again to start it over."
         try {
           const res = await runDef.poll(r.id, plan.inputs)
           if (res.state === "done") setRun(k, { ...r, state: "done", data: res.data })
           else if (res.state === "failed") setRun(k, { ...r, state: "failed", error: res.error })
-          changed ||= res.state !== "running"
+          else if (overdue) setRun(k, { ...r, state: "failed", error: tooLong })
+          changed ||= res.state !== "running" || overdue
         } catch (e) {
-          // A refusal is final; a blip is retried on the next tick.
-          if (!isTransient(e)) {
-            setRun(k, { ...r, state: "failed", error: errorReason(e, "This check stopped answering.") })
+          // A refusal is final; a blip is retried on the next tick, until the time limit.
+          if (!isTransient(e) || overdue) {
+            setRun(k, { ...r, state: "failed", error: overdue ? tooLong : errorReason(e, "This check stopped answering.") })
             changed = true
           }
         }
@@ -181,14 +199,18 @@ export default function ReportBuilderReport() {
     }
   }, [plan, user?.inhouse, setRun, persist, kick])
 
-  // A failed section, tried again: its check (and any check that was waiting on
-  // it) starts over, as if it had never run.
+  // A failed section, tried again: its check starts over, as if it had never
+  // run, with any check that was waiting on it, and the check it builds on when
+  // that one failed (a hidden step, like the Maps audit behind Maps Tracker).
   const retry = useCallback(
     (d: Deliverable) => {
       const k = def(d).run
       const next = { ...runsRef.current }
+      const dep = RUNS[k].after
       for (const key of Object.keys(RUNS) as RunKey[]) {
-        if (key !== k && !(RUNS[key].after === k && next[key]?.state === "failed")) continue
+        const dependent = RUNS[key].after === k && next[key]?.state === "failed"
+        const failedDep = key === dep && next[key]?.state === "failed"
+        if (key !== k && !dependent && !failedDep) continue
         delete next[key]
         started.current.delete(key)
         startTries.current.delete(key)
@@ -285,6 +307,8 @@ export default function ReportBuilderReport() {
     setSaveState("idle")
     setOff((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   }
+  // Ready to share once every run has settled and the sample post (when there is one) is written.
+  const shareReady = allDone && (!sel.includes("aiPost") || runs.gbp?.state !== "done" || !!post)
   // What a shared link shows: every finished run's data, by run, and the sample post.
   const shareCopy = () => ({
     data: Object.fromEntries(Object.entries(runs).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : []))),
@@ -298,7 +322,7 @@ export default function ReportBuilderReport() {
           <ArrowLeft className="h-4 w-4" aria-hidden /> All reports
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground">{!allDone ? "Sections still running print as \u201cin progress\u201d." : "Untick a section to leave it out of the PDF."}</span>
+          <span className="text-xs text-muted-foreground">{!allDone ? "Sections still running are left blank in the PDF." : "Untick a section to leave it out of the PDF."}</span>
           <button
             type="button"
             onClick={() => setFreshOpen(true)}
@@ -311,9 +335,9 @@ export default function ReportBuilderReport() {
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            disabled={!allDone}
+            disabled={!shareReady}
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-            title={allDone ? "A link the client can open without an account" : "Sharing opens once every section has finished"}
+            title={shareReady ? "A link the client can open without an account" : "Sharing opens once every section has finished"}
           >
             <Share2 className="h-4 w-4" aria-hidden /> {plan.shareToken ? "Shared" : "Share"}
           </button>
