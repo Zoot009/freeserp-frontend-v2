@@ -408,22 +408,22 @@ export function SiteAuditSection({ report, groups, capture = true }: { report: S
   const more = sorted.slice(LISTED)
   return (
     <div className="space-y-4">
-      {/* The site as a visitor sees it, on a desktop and on a phone, beside the headline numbers. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className={`${card} flex flex-col justify-center p-4`}>
-          <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} capture={capture} />
-        </div>
-        <div className="grid gap-3">
-          <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
-          <StatCard compact label="Pages crawled" hint="Pages the audit read." value={report.totals?.pages ?? "—"} caption="by FreeSERP's crawler" tone="text-foreground" />
-          <StatCard
-            compact
-            label="Issues to fix"
-            hint="Distinct problems, each affecting one or more pages."
-            value={groups.length}
-            caption={urgent || "none urgent"}
-            tone={urgent ? "text-red-500" : "text-foreground"}
-          />
+      <div className="grid gap-3 sm:grid-cols-3 print:grid-cols-3">
+        <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
+        <StatCard compact label="Pages crawled" hint="Pages the audit read." value={report.totals?.pages ?? "—"} caption="by FreeSERP's crawler" tone="text-foreground" />
+        <StatCard
+          compact
+          label="Issues to fix"
+          hint="Distinct problems, each affecting one or more pages."
+          value={groups.length}
+          caption={urgent || "none urgent"}
+          tone={urgent ? "text-red-500" : "text-foreground"}
+        />
+      </div>
+      {/* The site as a visitor sees it, on a desktop and on a phone, in the screens' own proportions. */}
+      <div className={`${card} bg-gradient-to-b from-muted/50 to-card px-6 pb-9 pt-6 print:break-inside-avoid print:bg-none`}>
+        <div className="mx-auto w-full max-w-[860px]">
+          <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} capture={capture} frameClassName="aspect-[16/10]" />
         </div>
       </div>
       <Pitch>

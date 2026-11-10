@@ -654,9 +654,12 @@ export function WebsiteScreenshot({
   auditReportId,
   initial,
   capture = true,
+  frameClassName = "h-72",
 }: {
   url: string
   auditReportId: string
+  /** The frame's size: a fixed height by default; the client report gives it the screens' own proportions. */
+  frameClassName?: string
   /** Screenshots persisted on the AuditReport — skip fetching when present. */
   initial?: { desktop?: string | null; mobile?: string | null } | null
   /**
@@ -709,7 +712,7 @@ export function WebsiteScreenshot({
 
   if (loading) {
     return (
-      <div className="relative h-72 w-full">
+      <div className={`relative w-full ${frameClassName}`}>
         <div className="absolute left-0 top-0 h-[55%] w-[76%] rounded-xl border border-border/30 bg-muted animate-pulse" />
         <div className="absolute right-0 top-[12%] h-[88%] w-[35%] rounded-xl border border-border/30 bg-muted/60 animate-pulse" />
       </div>
@@ -728,7 +731,7 @@ export function WebsiteScreenshot({
   const mobileSrc = data.mobile ? `data:image/jpeg;base64,${data.mobile}` : null
 
   return (
-    <div className="relative h-72 w-full select-none">
+    <div className={`relative w-full select-none ${frameClassName}`}>
       {desktopSrc && (
         <div className="absolute left-0 top-0 h-[95%] w-[90%] overflow-hidden rounded-lg border border-border/40 bg-card shadow-md">
           <img src={desktopSrc} alt={t("desktopPreview")} className="h-full w-full object-fill object-top" />
