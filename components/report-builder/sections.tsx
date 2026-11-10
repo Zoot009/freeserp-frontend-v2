@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
-import { AlertTriangle, CalendarClock, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
 import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
@@ -90,6 +90,12 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
         <StatCard compact label="Free citations" hint="The citations we've created for the business, free." value={picks.length} caption="created for you" tone="text-brand" />
         <StatCard compact label="Competitors use" hint="How many of these three the top competitors are already listed on." value={picks.filter((p) => p.rivals > 0).length} caption="of the three" tone="text-foreground" />
       </div>
+      <Pitch>
+        <p>
+          We have created <b>{picks.length} free {picks.length === 1 ? "citation" : "citations"}</b> for your business; you can check {picks.length === 1 ? "it" : "them"} from the{" "}
+          {picks.length === 1 ? "link" : "links"} below. Each listing uses exactly the same name, address and phone as your Google Business Profile, so Google can match them.
+        </p>
+      </Pitch>
       <div className="grid gap-4 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
         {picks.map((p, i) => (
           <div key={p.name} className={`${card} flex flex-col p-4 print:break-inside-avoid`}>
@@ -117,12 +123,6 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
           </div>
         ))}
       </div>
-      <Pitch>
-        <p>
-          We have created <b>{picks.length} free {picks.length === 1 ? "citation" : "citations"}</b> for your business; you can check {picks.length === 1 ? "it" : "them"} from the{" "}
-          {picks.length === 1 ? "link" : "links"} above. Each listing uses exactly the same name, address and phone as your Google Business Profile, so Google can match them.
-        </p>
-      </Pitch>
     </div>
   )
 }
@@ -138,7 +138,7 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
   const site = found("website")
   const words = found("keywords")
   const keyword = data.facts?.keyword
-  const notes: Partial<Record<CategoryKey, ReactNode>> = {
+  const copy: Partial<Record<CategoryKey, ReactNode>> = {
     citations: (
       <>
         <p>We have identified these high-quality, relevant local citation websites for your business. Our team can help you build local citations on all of these platforms.</p>
@@ -185,6 +185,7 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
     content: <p>We can add fresh, relevant photos to your profile regularly, so it looks active and trustworthy to customers and to Google.</p>,
     visibility: <p>We will work on your profile&apos;s relevance and prominence, so it shows in the Map Pack for more of the searches around your business.</p>,
   }
+  const notes = Object.fromEntries(Object.entries(copy).flatMap(([k, v]) => (v ? [[k, <Pitch>{v}</Pitch>]] : [])))
   return (
     <div className="space-y-5">
       <ReportHero data={data} />
@@ -254,13 +255,12 @@ export function AiPostSection({ data, post, onRegenerate, busy }: { data: GbpAud
         )}
       </div>
       <div className="space-y-3 text-[13px] leading-relaxed">
-        <div className={`${card} flex items-start gap-3 p-4`}>
-          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
+        <Pitch>
           <p>
-            <b>We have created a sample post for your Google Business Profile.</b> We will create and publish posts like this on a daily basis: offers, recent jobs, news and tips,
-            each with a photo and a button.
+            We have created a sample post for your Google Business Profile. We will create and publish posts like this on a <b>daily basis</b>: offers, recent jobs, news and tips, each
+            with a photo and a button.
           </p>
-        </div>
+        </Pitch>
         <div className={`${card} flex items-start gap-3 p-4`}>
           <Send className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
           <p>Regular posts show Google and searchers the business is active, and give people a reason to call today.</p>

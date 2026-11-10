@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- each tool's payload is read loosely, a few fields each */
 import { useState } from "react"
-import { CheckCircle2, ExternalLink, XCircle } from "lucide-react"
+import { CheckCircle2, ExternalLink, Quote, XCircle } from "lucide-react"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
 import { RankGridView } from "@/components/gbp-audit/rank-grid"
@@ -21,9 +21,22 @@ const num = (n: unknown) => (typeof n === "number" ? n.toLocaleString() : "—")
 const pos = (p: unknown) => (typeof p === "number" && p > 0 ? `#${p}` : "Not in top 100")
 const posTone = (p: unknown) => (typeof p === "number" && p > 0 ? (p <= 3 ? "text-green-600 dark:text-green-400" : p <= 10 ? "text-amber-600 dark:text-amber-400" : "") : "text-red-500")
 
-/** The team's word to the client under a section: what the numbers mean and what we'll do about them. */
-export function Pitch({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-2 rounded-[10px] border border-brand/25 bg-brand/5 p-4 text-[13px] leading-relaxed print:break-inside-avoid">{children}</div>
+/**
+ * The team's word to the client under a section, set as a quote: what the
+ * numbers mean and what we'll do about them. `note` follows it in plain text.
+ */
+export function Pitch({ children, note }: { children?: React.ReactNode; note?: React.ReactNode }) {
+  return (
+    <figure className="relative rounded-[10px] border border-brand/25 bg-brand/5 py-4 pl-14 pr-5 print:break-inside-avoid">
+      <Quote className="absolute left-4 top-4 h-6 w-6 rotate-180 fill-brand/15 text-brand" aria-hidden />
+      {children && (
+        <blockquote className="space-y-2 text-[14px] font-semibold leading-relaxed text-foreground [&_b]:font-bold [&_b]:text-brand [&>p:first-child]:before:content-['“'] [&>p:last-child]:after:content-['”']">
+          {children}
+        </blockquote>
+      )}
+      {note && <div className={`space-y-2 text-[13px] leading-relaxed text-muted-foreground [&_b]:text-foreground ${children ? "mt-3 border-t border-brand/15 pt-3" : ""}`}>{note}</div>}
+    </figure>
+  )
 }
 
 /** "a", "a and b", "a, b and c". */
@@ -74,7 +87,18 @@ export function RankSection({ data }: { data: { rows: any[] } }) {
           </tbody>
         </table>
       </div>
-      <Pitch>
+      <Pitch
+        note={
+          <>
+            <p>
+              <b>Important note:</b>{" "}if you want to improve your Google Business Profile (GMB) rankings, optimizing your website is also important. Google considers various relevance and
+              prominence signals, including information from your linked website, when determining local search rankings. Since there is no direct keyword field in Google Business Profile, your
+              website&apos;s content and SEO play an important role in supporting your local rankings.
+            </p>
+            <p>We&apos;re now tracking these keywords every day and will report every move up the rankings.</p>
+          </>
+        }
+      >
         {n > 0 && (
           <p>
             We have checked your website&apos;s rankings for <b>{n} targeted {n === 1 ? "keyword" : "keywords"}</b>, and currently {standing}.{" "}
@@ -83,12 +107,6 @@ export function RankSection({ data }: { data: { rows: any[] } }) {
               : "Our team can help optimize your website, improve its SEO performance, and work towards getting it ranked for your targeted keywords."}
           </p>
         )}
-        <p>
-          <b>Important note:</b>{" "}if you want to improve your Google Business Profile (GMB) rankings, optimizing your website is also important. Google considers various relevance and prominence
-          signals, including information from your linked website, when determining local search rankings. Since there is no direct keyword field in Google Business Profile, your website&apos;s
-          content and SEO play an important role in supporting your local rankings.
-        </p>
-        <p className="text-muted-foreground">We&apos;re now tracking these keywords every day and will report every move up the rankings.</p>
       </Pitch>
     </div>
   )

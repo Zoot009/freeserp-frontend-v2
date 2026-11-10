@@ -1612,7 +1612,7 @@ export function ActionPlan({
                 ))}
               </div>
               )}
-              {notes?.[cat.key] && <div className="space-y-2 border-t border-border bg-brand/5 px-4 py-3 text-[13px] leading-relaxed print:break-inside-avoid">{notes[cat.key]}</div>}
+              {notes?.[cat.key] && <div className="border-t border-border p-3 print:break-before-avoid">{notes[cat.key]}</div>}
             </Panel>
           ))}
         </div>
