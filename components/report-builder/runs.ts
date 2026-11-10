@@ -14,7 +14,8 @@ type Deps = Partial<Record<RunKey, any>>
 interface RunDef {
   /** A run whose result this one needs before it can start. */
   after?: RunKey
-  start(inp: Inputs, deps: Deps): Promise<string>
+  /** `fresh`: the report was built with "run fresh", so the tool skips its own cache. */
+  start(inp: Inputs, deps: Deps, fresh: boolean): Promise<string>
   poll(id: string, inp: Inputs): Promise<Poll>
 }
 
@@ -37,8 +38,9 @@ export const countryOf = (loc?: string) => (loc && /^[a-z]{2}$/i.test(loc) ? loc
 export const trackedKeywords = (kw: string) => [...new Set([kw, `${kw} near me`, `best ${kw}`].map((k) => k.trim().toLowerCase()))]
 
 const pageAuditRun = (mode: "site" | "single"): RunDef => ({
-  async start(inp) {
-    const r = await api.post<{ jobId: string }>("/api/page-audit", mode === "site" ? { url: inp.web, mode, maxPages: 100 } : { url: fullUrl(inp.web), mode })
+  async start(inp, _deps, fresh) {
+    const forceRecrawl = fresh || undefined
+    const r = await api.post<{ jobId: string }>("/api/page-audit", mode === "site" ? { url: inp.web, mode, maxPages: 100, forceRecrawl } : { url: fullUrl(inp.web), mode, forceRecrawl })
     return r.jobId
   },
   async poll(id) {
@@ -52,8 +54,8 @@ const pageAuditRun = (mode: "site" | "single"): RunDef => ({
 
 export const RUNS: Record<RunKey, RunDef> = {
   gbp: {
-    async start(inp) {
-      const r = await api.post<any>("/api/gbp-audit", { url: inp.maps, keyword: inp.kw || null })
+    async start(inp, _deps, fresh) {
+      const r = await api.post<any>("/api/gbp-audit", { url: inp.maps, keyword: inp.kw || null, fresh: fresh || undefined })
       return r.audit.id
     },
     async poll(id) {
@@ -91,7 +93,7 @@ export const RUNS: Record<RunKey, RunDef> = {
     },
   },
   rank: {
-    async start(inp) {
+    async start(inp, _deps, fresh) {
       const domain = domainOf(inp.web)
       let projectId: string
       try {
@@ -107,6 +109,13 @@ export const RUNS: Record<RunKey, RunDef> = {
         // Keywords already on the project are fine; anything else is a real failure.
         if (!(e instanceof ApiError && e.status === 409)) throw e
       })
+      if (fresh) {
+        // Keywords already tracked keep their last check: ask Google again.
+        const r = await api.get<any>(`/api/projects/${projectId}`)
+        const wanted = new Set(trackedKeywords(inp.kw!))
+        const keywordIds = ((r.keywords ?? r.project?.keywords ?? []) as any[]).filter((k) => wanted.has(String(k.keyword ?? "").toLowerCase())).map((k) => k.id)
+        if (keywordIds.length) await api.post(`/api/projects/${projectId}/check`, { keywordIds })
+      }
       return projectId
     },
     async poll(id, inp) {
@@ -231,8 +240,9 @@ export const RUNS: Record<RunKey, RunDef> = {
     },
   },
   score: {
-    async start(inp) {
-      const r = await api.post<any>("/api/keyword-analysis/open", { keyword: inp.kw, url: fullUrl(inp.web) })
+    async start(inp, _deps, fresh) {
+      // /open reuses a recent analysis of the same page and keyword; a fresh report scores it again.
+      const r = await api.post<any>(fresh ? "/api/keyword-analysis" : "/api/keyword-analysis/open", { keyword: inp.kw, url: fullUrl(inp.web) })
       return r.analysis?.id ?? r.id
     },
     async poll(id) {

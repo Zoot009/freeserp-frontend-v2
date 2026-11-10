@@ -3,7 +3,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- run payloads are read loosely by the sections */
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Check, History, Loader2, Printer, Share2 } from "lucide-react"
+import { ArrowLeft, Check, History, Loader2, Printer, RefreshCw, Share2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError } from "@/lib/api"
 import { def, knownSections, readReport, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey, type StoredReport } from "@/lib/report-builder"
@@ -15,7 +25,7 @@ import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 // polled every few seconds from one browser would trip the API's per-IP limit.
 const TICK_MS = 10_000
 
-type Plan = { id: string; createdAt: string; expiresAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[]; shareToken: string | null }
+type Plan = { id: string; createdAt: string; expiresAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[]; shareToken: string | null; fresh: boolean }
 
 export default function ReportBuilderReport() {
   const { user, loading } = useAuth()
@@ -29,6 +39,7 @@ export default function ReportBuilderReport() {
   const [off, setOff] = useState<Deliverable[]>([])
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [shareOpen, setShareOpen] = useState(false)
+  const [freshOpen, setFreshOpen] = useState(false)
   const runsRef = useRef(runs)
   runsRef.current = runs
   const started = useRef(new Set<RunKey>())
@@ -69,10 +80,10 @@ export default function ReportBuilderReport() {
       setRuns(initial)
       const hidden = knownSections(report.hidden ?? [])
       setOff(hidden)
-      setPlan({ id: report.id, createdAt: report.createdAt, expiresAt: report.expiresAt, sel: knownSections(report.sel), inputs: report.inputs, cached, hidden, shareToken: report.shareToken ?? null })
+      setPlan({ id: report.id, createdAt: report.createdAt, expiresAt: report.expiresAt, sel: knownSections(report.sel), inputs: report.inputs, cached, hidden, shareToken: report.shareToken ?? null, fresh: report.fresh === true })
     }
     open().catch((e) => {
-      if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 10 days." : errorMessage(e, "The report couldn't be opened."))
+      if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 30 days." : errorMessage(e, "The report couldn't be opened."))
     })
     return () => {
       alive.current = false
@@ -123,7 +134,7 @@ export default function ReportBuilderReport() {
           started.current.add(k)
           try {
             const deps = Object.fromEntries(Object.entries(runsRef.current).map(([key, s]) => [key, s?.data]))
-            const id = await runDef.start(plan.inputs, deps)
+            const id = await runDef.start(plan.inputs, deps, plan.fresh)
             setRun(k, { id, state: "running" })
           } catch (e) {
             setRun(k, { state: "failed", error: errorMessage(e, "Couldn't start this check.") })
@@ -194,7 +205,8 @@ export default function ReportBuilderReport() {
     )
   }
 
-  // The same choices and details, run again from scratch as a new report.
+  // The same choices and details, run again from scratch as a new report: every
+  // tool starts over, past its own cache (the crawl, the profile, the rankings).
   const rebuild = async () => {
     if (!plan) return
     setRebuilding(true)
@@ -252,6 +264,15 @@ export default function ReportBuilderReport() {
           <span className="text-xs text-muted-foreground">{!allDone ? "Sections still running print as \u201cin progress\u201d." : "Untick a section to leave it out of the PDF."}</span>
           <button
             type="button"
+            onClick={() => setFreshOpen(true)}
+            disabled={rebuilding}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+            title="Crawl the website and run every check again, without saved results"
+          >
+            <RefreshCw className={`h-4 w-4 ${rebuilding ? "animate-spin" : ""}`} aria-hidden /> {rebuilding ? "Starting…" : "Run fresh"}
+          </button>
+          <button
+            type="button"
             onClick={() => setShareOpen(true)}
             disabled={!allDone}
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
@@ -276,8 +297,8 @@ export default function ReportBuilderReport() {
             <History className="h-4 w-4 shrink-0 text-brand" aria-hidden />
             Opened from history: this report was built on {day(plan.createdAt)} with the same details, so nothing ran again.
           </span>
-          <button type="button" onClick={rebuild} disabled={rebuilding} className="font-medium text-brand hover:underline disabled:opacity-50">
-            {rebuilding ? "Starting…" : "Build a fresh one"}
+          <button type="button" onClick={() => setFreshOpen(true)} disabled={rebuilding} className="font-medium text-brand hover:underline disabled:opacity-50">
+            {rebuilding ? "Starting…" : "Run everything fresh"}
           </button>
         </div>
       )}
@@ -332,6 +353,27 @@ export default function ReportBuilderReport() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={freshOpen} onOpenChange={setFreshOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Run every check again from scratch?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  This crawls {inputs.web ? domainOf(inputs.web) : "the website"} once again and re-runs every section of this report, the Google Business Profile, the
+                  rankings and the rest, instead of using saved results.
+                </p>
+                <p>It builds a new report with a new ID and takes about 2 to 8 minutes. This report stays in the history.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={rebuild}>Yes, run everything again</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ShareAuditDialog
         auditId={plan.id}

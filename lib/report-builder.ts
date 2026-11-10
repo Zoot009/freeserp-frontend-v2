@@ -78,13 +78,13 @@ export function runsFor(sel: Deliverable[]): RunKey[] {
   return [...runs]
 }
 
-// ── A built report, kept 10 days on the server ──────────────────────────────
+// ── A built report, kept 30 days on the server ──────────────────────────────
 
 export type StoredReport = {
   /** Ten hex characters, shown on the report as its ID. */
   id: string
   createdAt: string
-  /** When it leaves the history: 10 days after it was built. */
+  /** When it leaves the history: 30 days after it was built. */
   expiresAt: string
   sel: Deliverable[]
   inputs: Inputs
@@ -97,6 +97,8 @@ export type StoredReport = {
   hidden?: Deliverable[]
   /** Set while it's shared by link. */
   shareToken?: string | null
+  /** Built with "run fresh": its tools skip their caches. */
+  fresh?: boolean
 }
 
 const RUN_KEYS: RunKey[] = ["gbp", "site", "page", "aeo", "serp", "rank", "maps", "llm", "ads", "comp", "links", "magic", "score", "yt"]

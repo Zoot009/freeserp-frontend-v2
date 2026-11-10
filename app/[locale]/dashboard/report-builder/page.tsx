@@ -228,7 +228,7 @@ const TH = "border-b border-border px-3 py-2 text-left text-xs font-medium text-
 const TD = "px-3 py-2.5 align-top"
 const short = (iso: string) => new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 
-/** The reports built in the last 10 days, newest first; each opens without running anything again. */
+/** The reports built in the last 30 days, newest first; each opens without running anything again. */
 function ReportHistory() {
   const [reports, setReports] = useState<StoredReport[] | null>(null)
   const [all, setAll] = useState(false)
@@ -246,7 +246,7 @@ function ReportHistory() {
         <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
           <History className="h-4 w-4 text-brand" aria-hidden /> Report history
         </h2>
-        <span className="text-xs text-muted-foreground">Kept for 10 days. Opening one shows the saved results without running the tools again.</span>
+        <span className="text-xs text-muted-foreground">Kept for 30 days. Opening one shows the saved results without running the tools again.</span>
       </div>
       {reports.length === 0 ? (
         <p className="px-4 py-4 text-[13px] text-muted-foreground">No reports yet. Every report you build is listed here with its ID.</p>
