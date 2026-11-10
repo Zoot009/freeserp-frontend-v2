@@ -5,7 +5,6 @@ import { useState } from "react"
 import { CheckCircle2, ExternalLink, XCircle } from "lucide-react"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
-import { rankColor } from "@/components/maps-tracker/grid"
 import { RankGridView } from "@/components/gbp-audit/rank-grid"
 import type { Grid } from "@/lib/gbp-audit"
 import { CompetitorComparisonTable } from "@/components/competitor-comparison-table"
@@ -176,42 +175,11 @@ export function MapsTrackerSection({ scan }: { scan: any }) {
         <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? size ** 2} points`} tone="text-foreground" />
         <StatCard compact label="Best / worst" hint="Its best and worst rank across the grid." value={k.bestRank != null ? `#${k.bestRank}` : "—"} caption={k.worstRank != null ? `worst #${k.worstRank}` : "—"} tone="text-foreground" />
       </div>
-      {points.length > 0 && (
-        <div className={`${card} grid gap-5 p-4 ${grid ? "md:grid-cols-[minmax(0,1fr)_260px]" : ""}`}>
-          {grid && <RankGridView grid={grid} unit={scan.displayUnit === "IMPERIAL" ? "IMPERIAL" : "METRIC"} selected={selected} onSelect={setSelected} />}
-          <div>
-            <div className="mb-2 text-xs font-medium text-muted-foreground">Rank at each point</div>
-            <RankGrid points={points} size={size} />
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">North at the top; the outlined square is the business. Green is the top 3, red is outside the top 20.</p>
-          </div>
+      {grid && (
+        <div className={`${card} p-4`}>
+          <RankGridView grid={grid} unit={scan.displayUnit === "IMPERIAL" ? "IMPERIAL" : "METRIC"} selected={selected} onSelect={setSelected} size="lg" />
         </div>
       )}
-    </div>
-  )
-}
-
-/** The scan's grid as coloured squares, north at the top, the business in the middle. */
-function RankGrid({ points, size }: { points: any[]; size: number }) {
-  const at = (row: number, col: number) => points.find((p) => p.row === row && p.col === col)
-  const mid = Math.floor(size / 2)
-  return (
-    <div className="mx-auto grid gap-1.5" style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))`, maxWidth: Math.min(260, size * 56) }}>
-        {Array.from({ length: size * size }, (_, i) => {
-          const row = Math.floor(i / size)
-          const col = i % size
-          const p = at(row, col)
-          const c = rankColor(p?.rank ?? null, p?.status ?? "FAILED")
-          return (
-            <span
-              key={i}
-              className={`grid aspect-square place-items-center rounded-md text-[11px] font-semibold ${row === mid && col === mid ? "ring-2 ring-foreground ring-offset-1" : ""}`}
-              style={{ background: c.bg, color: c.fg }}
-              title={row === mid && col === mid ? "The business" : undefined}
-            >
-              {c.label}
-            </span>
-          )
-        })}
     </div>
   )
 }

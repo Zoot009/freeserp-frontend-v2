@@ -269,7 +269,8 @@ function ReportHistory() {
                 const total = runsFor(r.sel).length
                 const done = runsFor(r.sel).filter((k) => r.status[k]).length
                 const failed = runsFor(r.sel).filter((k) => r.status[k] === "failed").length
-                const titles = r.sel.map((d) => def(d)?.title).filter(Boolean)
+                // The sections going to the client: the ones ticked off on the report are left out.
+                const titles = r.sel.filter((d) => !(r.hidden ?? []).includes(d)).map((d) => def(d)?.title).filter(Boolean)
                 const href = `/dashboard/report-builder/report?id=${r.id}`
                 return (
                   <tr key={r.id}>

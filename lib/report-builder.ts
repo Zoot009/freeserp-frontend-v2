@@ -93,6 +93,8 @@ export type StoredReport = {
   status: Partial<Record<RunKey, "done" | "failed">>
   errors: Partial<Record<RunKey, string>>
   business: string | null
+  /** Sections built but left out of what the client is sent. */
+  hidden?: Deliverable[]
 }
 
 const RUN_KEYS: RunKey[] = ["gbp", "site", "page", "aeo", "serp", "rank", "maps", "llm", "ads", "comp", "links", "magic", "score", "yt"]

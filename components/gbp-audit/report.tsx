@@ -9,7 +9,7 @@
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { flushSync } from "react-dom"
 import Link from "next/link"
-import { AlertCircle, AlertTriangle, BadgeCheck, CheckCircle2, CircleDashed, Globe, MapPin, Phone, Star, XCircle } from "lucide-react"
+import { AlertCircle, AlertTriangle, BadgeCheck, Camera, CheckCircle2, CircleDashed, Globe, Link2, MapPin, MessageSquare, Phone, Search, Star, Store, XCircle, type LucideIcon } from "lucide-react"
 import { gradeStroke, sectionScoreToGrade } from "@/components/page-audit/audit-ui"
 import { formatDistance, rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
 import { useCompetitors } from "@/components/maps-tracker/use-competitors"
@@ -38,6 +38,7 @@ import {
   mapsResults,
   type Contender,
   type AuditStep,
+  type CategoryKey,
   type Business,
   type Check,
   type CheckStatus,
@@ -1468,7 +1469,23 @@ export function ReportSections({
   )
 }
 
-export function ActionPlan({ report }: { report: Report }) {
+const CATEGORY_ICON: Record<CategoryKey, LucideIcon> = {
+  profile: Store,
+  reviews: Star,
+  keywords: Search,
+  content: Camera,
+  website: Globe,
+  engagement: MessageSquare,
+  visibility: MapPin,
+  citations: Link2,
+}
+
+/**
+ * The plan, the overall recommendation and every fix. `planAtEnd` (the client
+ * report) leads with the recommendation and the fixes and closes on the plan in
+ * brief: each step's fixes by name, each a link to its full fix.
+ */
+export function ActionPlan({ report, planAtEnd = false }: { report: Report; planAtEnd?: boolean }) {
   const by = (p: Priority) => report.findings.filter((f) => f.priority === p).length
   const weakest = report.categories
     .filter((c) => c.score !== null && c.failed + c.warned > 0)
@@ -1537,7 +1554,7 @@ export function ActionPlan({ report }: { report: Report }) {
         )}
       </Panel>
 
-      <Plan plan={report.plan} />
+      {!planAtEnd && <Plan plan={report.plan} />}
 
       {groups.length > 0 && (
         <div className="space-y-5">
@@ -1545,7 +1562,7 @@ export function ActionPlan({ report }: { report: Report }) {
           {groups.map(({ cat, items }) => (
             <Panel
               key={cat.key}
-              title={cat.label}
+              title={<CategoryTitle category={cat.key} label={cat.label} />}
               meta={
                 <>
                   <span>
@@ -1559,7 +1576,7 @@ export function ActionPlan({ report }: { report: Report }) {
             >
               <div className="divide-y divide-border">
                 {items.map((f) => (
-                  <div key={f.id} className="grid gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
+                  <div key={f.id} id={`fix-${f.id}`} className="grid scroll-mt-24 gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusIcon status={f.status} />
@@ -1600,7 +1617,81 @@ export function ActionPlan({ report }: { report: Report }) {
           </div>
         </Panel>
       )}
+
+      {planAtEnd && <PlanSummary report={report} />}
     </div>
+  )
+}
+
+function CategoryTitle({ category, label }: { category: CategoryKey; label: string }) {
+  const Icon = CATEGORY_ICON[category] ?? CircleDashed
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="grid h-6 w-6 place-items-center rounded-md bg-brand/10 text-brand">
+        <Icon className="h-3.5 w-3.5" aria-hidden />
+      </span>
+      {label}
+    </span>
+  )
+}
+
+const PRIORITY_DOT: Record<Priority, string> = { high: "bg-red-500", medium: "bg-amber-500", low: "bg-muted-foreground/50" }
+
+/** The 30-day plan in brief. Each step lists its fixes by name; the full fix is in the list above, one click away. */
+function PlanSummary({ report }: { report: Report }) {
+  const byFix = new Map(report.findings.filter((f) => f.fix).map((f) => [f.fix!, f]))
+  const jump = (id: string) => {
+    const el = document.getElementById(`fix-${id}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    el.animate([{ backgroundColor: "rgba(37, 99, 235, 0.14)" }, { backgroundColor: "transparent" }], { duration: 1800, easing: "ease-out" })
+  }
+  return (
+    <Panel title="30-day plan" hint="The fixes above in the order to do them. Click one to see how to fix it.">
+      <ol className="space-y-4">
+        {report.plan.map((p, i) => {
+          const named = p.items.flatMap((t) => (byFix.has(t) ? [byFix.get(t)!] : []))
+          const notes = p.items.filter((t) => !byFix.has(t))
+          return (
+            <li key={p.window} className="grid gap-x-5 gap-y-2 border-b border-border pb-4 last:border-0 last:pb-0 sm:grid-cols-[210px_minmax(0,1fr)] print:break-inside-avoid">
+              <div className="flex items-start gap-2.5">
+                <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-[12px] font-semibold text-white">{i + 1}</span>
+                <div>
+                  <div className="text-[13px] font-semibold">{p.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {p.window}
+                    {named.length > 0 && ` · ${named.length} ${named.length === 1 ? "fix" : "fixes"}`}
+                  </div>
+                </div>
+              </div>
+              <div className="min-w-0">
+                {named.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {named.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => jump(f.id)}
+                        title={f.fix ?? undefined}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium transition-colors hover:border-brand hover:text-brand"
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOT[f.priority]}`} aria-hidden />
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {notes.map((n) => (
+                  <p key={n} className={`text-xs leading-relaxed text-muted-foreground ${named.length ? "mt-2" : ""}`}>
+                    {n}
+                  </p>
+                ))}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </Panel>
   )
 }
 

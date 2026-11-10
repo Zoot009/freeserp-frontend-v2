@@ -6,7 +6,8 @@ import { CalendarClock, ExternalLink, MapPin, Navigation, Phone, Send } from "lu
 import type { GbpAuditResponse } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
-import { ActionPlan } from "@/components/gbp-audit/report"
+import { ActionPlan, ReportHero } from "@/components/gbp-audit/report"
+import { WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
 
@@ -14,17 +15,40 @@ import { StatCard } from "@/components/dashboard/stat-card"
 // run it reads (a Maps audit, a site audit, an AEO audit) and says, in the
 // client's terms, what was found and what the team will do about it.
 
-export function Section({ n, title, promise, children }: { n: number; title: string; promise: string; children: ReactNode }) {
+/** One deliverable. With `onToggle` it has a tick box: a section ticked off stays on screen, folded, and is left out of the print. */
+export function Section({
+  n,
+  title,
+  promise,
+  children,
+  included = true,
+  onToggle,
+}: {
+  n: number | null
+  title: string
+  promise: string
+  children: ReactNode
+  included?: boolean
+  onToggle?: () => void
+}) {
   return (
-    <section className="space-y-4 print:break-before-page">
+    <section className={`space-y-4 print:break-before-page ${included ? "" : "print:hidden"}`}>
       <div className="flex items-start gap-3 border-b border-border pb-3">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-semibold text-white">{n}</span>
-        <div className="min-w-0">
-          <h2 className="text-[18px] font-semibold tracking-tight">{title}</h2>
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold ${included ? "bg-brand text-white" : "bg-muted text-muted-foreground"}`}>{n ?? "–"}</span>
+        <div className="min-w-0 flex-1">
+          <h2 className={`text-[18px] font-semibold tracking-tight ${included ? "" : "text-muted-foreground"}`}>{title}</h2>
           <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{promise}</p>
         </div>
+        {onToggle && (
+          <label
+            className={`flex shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors print:hidden ${included ? "border-brand/40 bg-brand/5 text-brand" : "border-border text-muted-foreground hover:bg-muted"}`}
+          >
+            <input type="checkbox" checked={included} onChange={onToggle} className="h-4 w-4 cursor-pointer accent-brand" />
+            {included ? "In the report" : "Left out"}
+          </label>
+        )}
       </div>
-      {children}
+      {included ? children : <p className="text-[13px] text-muted-foreground">Left out of the report and its PDF. Tick it to put it back.</p>}
     </section>
   )
 }
@@ -102,17 +126,10 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
 // ── 2. Maps audit action plan ────────────────────────────────────────────────
 
 export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
-  const r = data.report!
   return (
-    <div className="space-y-4">
-      {r.score !== null && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <StatCard compact label="Profile health" hint="FreeSERP's weighted checklist, out of 100." value={`${r.score}/100`} caption={data.facts!.business.name} tone="text-foreground" />
-          <StatCard compact label="Issues found" hint="Checks that failed or need attention." value={r.findings.length} caption={`${r.findings.filter((f) => f.priority === "high").length} high priority`} tone="text-foreground" />
-          <StatCard compact label="Checks run" hint="Every check in the audit." value={r.checks.filter((c) => !c.manual).length} caption="across 8 areas" tone="text-foreground" />
-        </div>
-      )}
-      <ActionPlan report={r} />
+    <div className="space-y-5">
+      <ReportHero data={data} />
+      <ActionPlan report={data.report!} planAtEnd />
     </div>
   )
 }
@@ -265,7 +282,7 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
 
 // ── 5. Website audit ─────────────────────────────────────────────────────────
 
-export type SiteReport = { url: string; overallScore: number; totals?: { pages: number; issues: number } }
+export type SiteReport = { id: string; url: string; overallScore: number; totals?: { pages: number; issues: number }; screenshots?: { desktop?: string | null; mobile?: string | null } | null }
 export type IssueGroup = { type: string; title: string; description: string; category: string; severity: string; affectedPages: number }
 
 const SEVERITY_TONE: Record<string, string> = { CRITICAL: "text-red-500", HIGH: "text-red-500", WARNING: "text-amber-600 dark:text-amber-400", MEDIUM: "text-amber-600 dark:text-amber-400" }
@@ -275,10 +292,16 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
   const critical = groups.filter((g) => /CRITICAL|HIGH/i.test(g.severity)).length
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
-        <StatCard compact label="Pages crawled" hint="Pages the audit read." value={report.totals?.pages ?? "—"} caption="by FreeSERP's crawler" tone="text-foreground" />
-        <StatCard compact label="Issues to fix" hint="Distinct problems, each affecting one or more pages." value={groups.length} caption={`${critical} critical`} tone={critical ? "text-red-500" : "text-foreground"} />
+      {/* The site as a visitor sees it, on a desktop and on a phone, beside the headline numbers. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className={`${card} p-4`}>
+          <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} />
+        </div>
+        <div className="grid gap-3">
+          <StatCard compact label="Website score" hint="FreeSERP's site audit score, out of 100." value={`${score}/100`} caption={report.url} tone="text-foreground" />
+          <StatCard compact label="Pages crawled" hint="Pages the audit read." value={report.totals?.pages ?? "—"} caption="by FreeSERP's crawler" tone="text-foreground" />
+          <StatCard compact label="Issues to fix" hint="Distinct problems, each affecting one or more pages." value={groups.length} caption={`${critical} critical`} tone={critical ? "text-red-500" : "text-foreground"} />
+        </div>
       </div>
       <div className={`${card} overflow-x-auto`}>
         <table className="w-full min-w-[560px] border-collapse text-[13px]">
