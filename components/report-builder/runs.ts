@@ -34,6 +34,14 @@ export const domainOf = (web?: string) => {
 const fullUrl = (web?: string) => (web && /^https?:\/\//i.test(web) ? web : `https://${domainOf(web)}`)
 /** A two-letter country for the tools that take one; a city code falls back to the US. */
 export const countryOf = (loc?: string) => (loc && /^[a-z]{2}$/i.test(loc) ? loc.toLowerCase() : "us")
+/**
+ * Sites that rank but are nobody's competitor: Google's own pages (Maps, the
+ * Business Profile, any country domain) and the platforms a business has a page
+ * on. The backend leaves the same ones out of its competitor lists.
+ */
+const PLATFORM =
+  /(^|\.)(google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})|business\.site|g\.page|youtube\.com|facebook\.com|instagram\.com|linkedin\.com|twitter\.com|x\.com|wikipedia\.org|reddit\.com|quora\.com|pinterest\.com)$/
+const isPlatform = (host: string) => PLATFORM.test(host)
 /** The keywords a rank-tracking project starts with: the main one and how buyers phrase it. */
 export const trackedKeywords = (kw: string) => [...new Set([kw, `${kw} near me`, `best ${kw}`].map((k) => k.trim().toLowerCase()))]
 
@@ -203,9 +211,10 @@ export const RUNS: Record<RunKey, RunDef> = {
     after: "serp",
     async start(inp, deps) {
       const own = domainOf(inp.web)
+      const isOwn = (host: string) => !!own && (host === own || host.endsWith(`.${own}`))
       const urls = ((deps.serp.results ?? []) as any[])
         .map((r) => r.url as string)
-        .filter((u) => u && !domainOf(u).endsWith(own))
+        .filter((u) => u && !isOwn(domainOf(u)) && !isPlatform(domainOf(u)))
         .slice(0, 5)
       if (!urls.length) throw new Error("No competing pages were found on Google for this keyword.")
       const r = await api.post<any>("/api/competitor-analysis", { keyword: inp.kw, yourDomain: own, competitorUrls: urls })
