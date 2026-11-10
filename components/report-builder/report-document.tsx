@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import Image from "next/image"
-import { CheckCircle2, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
 import { def, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
 import { domainOf } from "@/components/report-builder/runs"
 import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
@@ -58,6 +58,7 @@ export function ReportDocument({
   onToggle,
   onRegenerate,
   writing,
+  onRetry,
   shared = false,
 }: {
   id: string
@@ -73,6 +74,8 @@ export function ReportDocument({
   onToggle?: (d: Deliverable) => void
   onRegenerate?: () => void
   writing?: boolean
+  /** Start a failed section's check again. */
+  onRetry?: (d: Deliverable) => void
   /** Opened from a shared link, by someone with no account. */
   shared?: boolean
 }) {
@@ -127,7 +130,27 @@ export function ReportDocument({
 
   const content = (d: Deliverable) => {
     const r = runOf(d)
-    if (r?.state === "failed") return <p className="text-[13px] text-red-500">{r.error}</p>
+    if (r?.state === "failed") {
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-red-500/25 bg-red-500/5 px-4 py-3 text-[13px]">
+          <span className="flex min-w-0 items-start gap-2">
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden />
+            <span>
+              <b className="font-medium">This section couldn&apos;t be built.</b> {r.error}
+            </span>
+          </span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(d)}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 font-medium transition-colors hover:bg-muted print:hidden"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Try again
+            </button>
+          )}
+        </div>
+      )
+    }
     if (r?.state !== "done") return <Pending what={r?.state === "waiting" ? "Waiting for the check it builds on" : PENDING_TEXT[def(d).run]} detail="This section fills in by itself." />
     const data = r.data
     switch (d) {

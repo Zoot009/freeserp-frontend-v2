@@ -15,15 +15,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useAuth } from "@/lib/auth"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, errorReason, isTransient } from "@/lib/api"
 import { def, knownSections, readReport, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey, type StoredReport } from "@/lib/report-builder"
-import { RUNS, domainOf, errorMessage } from "@/components/report-builder/runs"
+import { RUNS, domainOf } from "@/components/report-builder/runs"
 import { ReportDocument, day, type RunState } from "@/components/report-builder/report-document"
 import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 
 // Every run is checked at most once per tick, one after another: a dozen tools
 // polled every few seconds from one browser would trip the API's per-IP limit.
 const TICK_MS = 10_000
+/** Starting a check is tried this many times when it fails on a blip, then it shows as failed. */
+const START_TRIES = 3
 
 type Plan = { id: string; createdAt: string; expiresAt: string; sel: Deliverable[]; inputs: Inputs; cached: boolean; hidden: Deliverable[]; shareToken: string | null; fresh: boolean }
 
@@ -43,6 +45,10 @@ export default function ReportBuilderReport() {
   const runsRef = useRef(runs)
   runsRef.current = runs
   const started = useRef(new Set<RunKey>())
+  // Tries at starting each check: a blip is retried, up to START_TRIES.
+  const startTries = useRef(new Map<RunKey, number>())
+  // Bumped to restart the checks' loop after it has settled (a section tried again).
+  const [kick, setKick] = useState(0)
   const alive = useRef(true)
   const saving = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -83,7 +89,7 @@ export default function ReportBuilderReport() {
       setPlan({ id: report.id, createdAt: report.createdAt, expiresAt: report.expiresAt, sel: knownSections(report.sel), inputs: report.inputs, cached, hidden, shareToken: report.shareToken ?? null, fresh: report.fresh === true })
     }
     open().catch((e) => {
-      if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 30 days." : errorMessage(e, "The report couldn't be opened."))
+      if (alive.current) setMissing(e instanceof ApiError && e.status === 404 ? "This report has expired or doesn't exist. Reports are kept for 30 days." : errorReason(e, "The report couldn't be opened."))
     })
     return () => {
       alive.current = false
@@ -115,10 +121,11 @@ export default function ReportBuilderReport() {
     if (!plan || !user?.inhouse) return
     const keys = runsFor(plan.sel)
     let timer: ReturnType<typeof setTimeout> | undefined
+    let stopped = false
     const tick = async () => {
       let changed = false
       for (const k of keys) {
-        if (!alive.current) return
+        if (!alive.current || stopped) return
         const r = runsRef.current[k]
         const runDef = RUNS[k]
         if (!r?.id) {
@@ -137,7 +144,14 @@ export default function ReportBuilderReport() {
             const id = await runDef.start(plan.inputs, deps, plan.fresh)
             setRun(k, { id, state: "running" })
           } catch (e) {
-            setRun(k, { state: "failed", error: errorMessage(e, "Couldn't start this check.") })
+            const tries = (startTries.current.get(k) ?? 0) + 1
+            startTries.current.set(k, tries)
+            if (isTransient(e) && tries < START_TRIES) {
+              // No connection, a timeout, a rate limit: start it again on the next tick.
+              started.current.delete(k)
+              continue
+            }
+            setRun(k, { state: "failed", error: errorReason(e, "This check couldn't start.") })
           }
           changed = true
           continue
@@ -149,9 +163,9 @@ export default function ReportBuilderReport() {
           else if (res.state === "failed") setRun(k, { ...r, state: "failed", error: res.error })
           changed ||= res.state !== "running"
         } catch (e) {
-          // A refusal is final; a network blip is retried on the next tick.
-          if (e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 429) {
-            setRun(k, { ...r, state: "failed", error: e.message })
+          // A refusal is final; a blip is retried on the next tick.
+          if (!isTransient(e)) {
+            setRun(k, { ...r, state: "failed", error: errorReason(e, "This check stopped answering.") })
             changed = true
           }
         }
@@ -161,8 +175,31 @@ export default function ReportBuilderReport() {
       if (open && alive.current) timer = setTimeout(tick, TICK_MS)
     }
     void tick()
-    return () => clearTimeout(timer)
-  }, [plan, user?.inhouse, setRun, persist])
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [plan, user?.inhouse, setRun, persist, kick])
+
+  // A failed section, tried again: its check (and any check that was waiting on
+  // it) starts over, as if it had never run.
+  const retry = useCallback(
+    (d: Deliverable) => {
+      const k = def(d).run
+      const next = { ...runsRef.current }
+      for (const key of Object.keys(RUNS) as RunKey[]) {
+        if (key !== k && !(RUNS[key].after === k && next[key]?.state === "failed")) continue
+        delete next[key]
+        started.current.delete(key)
+        startTries.current.delete(key)
+      }
+      runsRef.current = next
+      setRuns(next)
+      persist()
+      setKick((n) => n + 1)
+    },
+    [persist],
+  )
 
   // The AI post, once the Maps audit it's written from is in.
   const gbpRun = runs.gbp
@@ -315,6 +352,7 @@ export default function ReportBuilderReport() {
         onToggle={toggle}
         onRegenerate={() => writePost(true)}
         writing={writing}
+        onRetry={retry}
       />
 
       {/* Unsaved section choices: a bar floating at the foot of the screen until they're saved or reset. */}

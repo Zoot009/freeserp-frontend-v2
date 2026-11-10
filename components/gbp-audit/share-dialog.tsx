@@ -8,7 +8,7 @@ import { Check, Copy, Link2, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { api, ApiError } from "@/lib/api"
+import { api, errorReason } from "@/lib/api"
 
 
 export function ShareAuditDialog({
@@ -47,7 +47,7 @@ export function ShareAuditDialog({
     try {
       await fn()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.")
+      setError(errorReason(err, "The link couldn't be changed. Please try again."))
     } finally {
       setBusy(false)
     }

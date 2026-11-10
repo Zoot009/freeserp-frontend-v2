@@ -48,7 +48,10 @@ const pageAuditRun = (mode: "site" | "single"): RunDef => ({
     if (job.state === "failed" || job.status === "FAILED") return failed(job.error ?? "The audit failed.")
     if (!(job.state === "completed" || job.status === "COMPLETED") || !job.reportId) return running
     const [report, issues] = await Promise.all([api.get<any>(`/api/page-audit/reports/${job.reportId}`), api.get<any>(`/api/page-audit/reports/${job.reportId}/issue-groups`)])
-    return { state: "done", data: { report, groups: issues.groups ?? [] } }
+    // Only what the section shows: the report also carries every crawled page and
+    // raw issue, megabytes on a 100-page site, which made sharing the report fail.
+    const { url, overallScore, totals, screenshots } = report
+    return { state: "done", data: { report: { id: report.id, url, overallScore, totals, screenshots }, groups: issues.groups ?? [] } }
   },
 })
 
@@ -125,7 +128,7 @@ export const RUNS: Record<RunKey, RunDef> = {
       const rows = all.filter((k) => wanted.has(String(k.keyword ?? "").toLowerCase()))
       if (!rows.length) return running
       if (rows.some((k) => k.status === "PENDING" || k.status === "PROCESSING")) return running
-      return { state: "done", data: { project: r.project ?? r, rows } }
+      return { state: "done", data: { rows } }
     },
   },
   maps: {
@@ -179,7 +182,9 @@ export const RUNS: Record<RunKey, RunDef> = {
       const prompts: any[] = r.prompts ?? r.project?.prompts ?? []
       const runs = prompts.flatMap((p) => p.runs ?? [])
       if (!runs.length || runs.some((x) => x.status === "PENDING" || x.status === "PROCESSING")) return running
-      return { state: "done", data: { prompts } }
+      // Who was named, per assistant: not the assistants' full answers.
+      const slim = prompts.map((p) => ({ id: p.id, prompt: p.prompt, runs: (p.runs ?? []).map((x: any) => ({ platform: x.platform, status: x.status, mentionRate: x.mentionRate })) }))
+      return { state: "done", data: { prompts: slim } }
     },
   },
   ads: {
@@ -268,7 +273,7 @@ export const RUNS: Record<RunKey, RunDef> = {
       const r = await api.get<any>(`/api/youtube/projects/${id}`)
       const rows: any[] = r.keywords ?? r.project?.keywords ?? []
       if (!rows.length || rows.some((k) => k.status === "PENDING" || k.status === "PROCESSING")) return running
-      return { state: "done", data: { project: r.project ?? r, rows } }
+      return { state: "done", data: { rows } }
     },
   },
 }

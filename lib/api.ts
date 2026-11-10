@@ -75,6 +75,32 @@ export function apiErrorMessage(body: unknown, fallback: string): string {
   return typeof msg === "string" && msg ? msg : fallback
 }
 
+/**
+ * A failure in plain words, never a bare "Something went wrong": the server's
+ * own message when it gave one, else what actually happened on the way (no
+ * connection, no answer in time, the server falling over).
+ */
+export function errorReason(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) {
+    if (e.status === 402) return "There aren't enough credits for this."
+    if (e.status === 429) return "Too many requests at once. Please wait a minute and try again."
+    if (e.status === 413) return "This is too large to send in one go."
+    if (e.status >= 500) return "Our server ran into a problem with this. Please try again."
+    return e.message || fallback
+  }
+  if (axios.isAxiosError(e)) {
+    if (e.code === "ECONNABORTED" || e.code === "ETIMEDOUT") return "The server took too long to answer. Please try again."
+    return "Couldn't reach FreeSERP. Check the internet connection and try again."
+  }
+  return e instanceof Error && e.message ? e.message : fallback
+}
+
+/** A failure that passes by itself (no connection, a timeout, a rate limit, a server hiccup): worth trying again. */
+export function isTransient(e: unknown): boolean {
+  if (e instanceof ApiError) return e.status === 429 || e.status >= 500
+  return axios.isAxiosError(e)
+}
+
 interface RequestInitWithJson extends Omit<RequestInit, "body"> {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
