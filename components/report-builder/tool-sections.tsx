@@ -73,7 +73,7 @@ export function SerpSection({ data }: { data: any }) {
   const ai = data.aiOverview
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         <StatCard compact label={`Your position for “${data.keyword}”`} hint="Where the website ranks in Google's organic results." value={data.found ? pos(data.position) : "Not in top 100"} caption={data.url ?? "—"} tone={posTone(data.found ? data.position : null)} />
         <StatCard compact label="Monthly searches" hint="How many people search this a month." value={num(data.searchVolume)} caption="search volume" tone="text-foreground" />
         <StatCard compact label="Difficulty" hint="How hard the keyword is to rank for, 0–100." value={data.keywordDifficulty ?? "—"} caption="out of 100" tone="text-foreground" />
@@ -169,7 +169,7 @@ export function MapsTrackerSection({ scan }: { scan: any }) {
       : null
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         <StatCard compact label="Visibility" hint="How visible the business is across the grid, 0–100%." value={k.visibility != null ? `${Math.round(k.visibility)}%` : "—"} caption={k.keyword ? `for “${k.keyword}”` : "—"} tone="text-foreground" />
         <StatCard compact label="Average rank" hint="Average position where the business was found." value={k.arp != null ? Number(k.arp).toFixed(1) : "—"} caption="where found" tone="text-foreground" />
         <StatCard compact label="Found at" hint="Grid points where the business appears in the top 20." value={k.foundPoints ?? "—"} caption={`of ${scan.totalPoints ?? size ** 2} points`} tone="text-foreground" />
@@ -267,7 +267,7 @@ export function LinksSection({ analysis }: { analysis: any }) {
   const label = (x: any) => (typeof x === "string" ? x : (x?.url ?? ""))
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         <StatCard compact label="Pages" hint="Pages found by following the site's links." value={num(m.totalPages)} caption="crawled" tone="text-foreground" />
         <StatCard compact label="Internal links" hint="Links between the site's own pages." value={num(m.totalLinks)} caption={m.averageLinksPerPage != null ? `${Number(m.averageLinksPerPage).toFixed(1)} per page` : "—"} tone="text-foreground" />
         <StatCard compact label="Orphan pages" hint="Pages no other page links to: Google can hardly find them." value={num(m.orphanPages ?? orphans.length)} caption="no links in" tone={(m.orphanPages ?? orphans.length) > 0 ? "text-red-500" : "text-foreground"} />
@@ -347,7 +347,7 @@ export function KeywordMagicSection({ data }: { data: any }) {
 export function KeywordScoreSection({ analysis, keyword }: { analysis: any; keyword: string }) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 print:grid-cols-4">
         <StatCard compact label="Keyword score" hint="How well the page is optimised for the keyword, 0–100." value={analysis.overallScore != null ? `${Math.round(analysis.overallScore)}/100` : "—"} caption={`for “${keyword}”`} tone="text-foreground" />
         <StatCard compact label="Domain authority" hint="The whole site's link strength, 0–100." value={analysis.domainAuthority ?? "—"} caption="out of 100" tone="text-foreground" />
         <StatCard compact label="Page authority" hint="This page's link strength, 0–100." value={analysis.pageAuthority ?? "—"} caption="out of 100" tone="text-foreground" />

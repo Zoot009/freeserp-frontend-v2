@@ -89,9 +89,9 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
         <StatCard compact label="Citations to create" hint="The three we'll publish first." value={picks.length} caption="ready to submit" tone="text-brand" />
         <StatCard compact label="Competitors use" hint="How many of these three the top competitors are already listed on." value={picks.filter((p) => p.rivals > 0).length} caption="of the three" tone="text-foreground" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
         {picks.map((p, i) => (
-          <div key={p.name} className={`${card} flex flex-col p-4`}>
+          <div key={p.name} className={`${card} flex flex-col p-4 print:break-inside-avoid`}>
             <div className="text-xs text-muted-foreground">Citation {i + 1}</div>
             <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold hover:underline">
               {p.name}
@@ -99,8 +99,8 @@ export function CitationsSection({ data }: { data: GbpAuditResponse }) {
             {p.rivals > 0 && <div className="mt-0.5 text-xs text-muted-foreground">{p.rivals} of your top competitors are listed here</div>}
             <dl className="mt-3 space-y-1.5 text-[13px]">
               {nap.map(([k, v]) => (
-                <div key={k} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2">
-                  <dt className="text-muted-foreground">{k}</dt>
+                <div key={k} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2 print:block!">
+                  <dt className="text-muted-foreground print:text-xs">{k}</dt>
                   <dd className="break-words">{v}</dd>
                 </div>
               ))}
@@ -139,7 +139,7 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
 export function AiPostSection({ data, post, onRegenerate, busy }: { data: GbpAuditResponse; post: GbpPost | null; onRegenerate?: () => void; busy?: boolean }) {
   const b = data.facts!.business
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
       <div className={`${card} overflow-hidden`}>
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
           {b.logo || b.mainImage ? (
@@ -293,7 +293,7 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
   return (
     <div className="space-y-4">
       {/* The site as a visitor sees it, on a desktop and on a phone, beside the headline numbers. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className={`${card} p-4`}>
           <WebsiteScreenshot url={report.url} auditReportId={report.id} initial={report.screenshots} />
         </div>
@@ -303,7 +303,7 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
           <StatCard compact label="Issues to fix" hint="Distinct problems, each affecting one or more pages." value={groups.length} caption={`${critical} critical`} tone={critical ? "text-red-500" : "text-foreground"} />
         </div>
       </div>
-      <div className={`${card} overflow-x-auto`}>
+      <div className={`${card} overflow-x-auto print:overflow-visible`}>
         <table className="w-full min-w-[560px] border-collapse text-[13px]">
           <thead>
             <tr className="text-left text-xs text-muted-foreground">
@@ -315,19 +315,19 @@ export function SiteAuditSection({ report, groups }: { report: SiteReport; group
           <tbody className="divide-y divide-border">
             {groups.slice(0, 15).map((g) => (
               <tr key={g.type} className="align-top">
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-2.5 print:py-1.5">
                   <div className="font-medium">{g.title}</div>
                   <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{g.description}</div>
                 </td>
-                <td className={`px-3 py-2.5 capitalize ${SEVERITY_TONE[g.severity.toUpperCase()] ?? "text-muted-foreground"}`}>{g.severity.toLowerCase()}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums">{g.affectedPages || "Site-wide"}</td>
+                <td className={`px-3 py-2.5 capitalize print:py-1.5 ${SEVERITY_TONE[g.severity.toUpperCase()] ?? "text-muted-foreground"}`}>{g.severity.toLowerCase()}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums print:py-1.5">{g.affectedPages || "Site-wide"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {groups.length > 15 && <p className="text-xs text-muted-foreground">And {groups.length - 15} more issues in the full audit.</p>}
-      <div className={`${card} flex items-start gap-3 p-4 text-[13px]`}>
+      <div className={`${card} flex items-start gap-3 p-4 text-[13px] print:break-before-avoid`}>
         <Phone className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
         <p>
           <b>We&apos;ll fix all {groups.length} of these</b>, critical ones first, and re-run the audit to show the improvement.

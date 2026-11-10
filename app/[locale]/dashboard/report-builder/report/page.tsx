@@ -114,6 +114,38 @@ export default function ReportBuilderReport() {
     setRuns(runsRef.current)
   }, [])
 
+  // The PDF's file name: the business and the report, not the app's page title.
+  const titleName = runs.gbp?.data?.facts?.business?.name ?? plan?.inputs.name ?? domainOf(plan?.inputs.web)
+  useEffect(() => {
+    if (!plan) return
+    const before = document.title
+    document.title = `${titleName || "Your business"} · Local growth report`
+    return () => {
+      document.title = before
+    }
+  }, [plan, titleName])
+
+  // A PDF can't be clicked: rows that fold away (the AEO fixes) print open.
+  useEffect(() => {
+    let opened: HTMLDetailsElement[] = []
+    const open = () => {
+      // Added to, not replaced: Chrome can fire beforeprint twice for one print.
+      const shut = [...document.querySelectorAll<HTMLDetailsElement>("details:not([open])")].filter((d) => !d.parentElement?.closest("details"))
+      shut.forEach((d) => (d.open = true))
+      opened = [...opened, ...shut]
+    }
+    const close = () => {
+      opened.forEach((d) => (d.open = false))
+      opened = []
+    }
+    window.addEventListener("beforeprint", open)
+    window.addEventListener("afterprint", close)
+    return () => {
+      window.removeEventListener("beforeprint", open)
+      window.removeEventListener("afterprint", close)
+    }
+  }, [])
+
   // Store the runs' ids and outcomes with the report, one save after another so
   // an older view never lands last.
   const persist = useCallback(() => {
@@ -265,6 +297,19 @@ export default function ReportBuilderReport() {
   const shown = sel.filter((d) => !off.includes(d))
   const numberOf = (d: Deliverable) => (shown.includes(d) ? shown.indexOf(d) + 1 : null)
   const dirty = off.length !== plan.hidden.length || off.some((d) => !plan.hidden.includes(d))
+  // Printed pages: A4, and a footer of our own with the business and the page
+  // number. The cover page has no top or bottom margin, which leaves no room for
+  // the browser's date-and-address header and footer, so Chrome drops them on
+  // every page. Its sides match the other pages: Chrome lays every page out at
+  // the first page's width.
+  const footer = `${business} · Local growth report`.replace(/["\\<>]/g, "")
+  const pageCss = `@media print {
+  @page { size: A4; margin: 14mm 12mm 16mm;
+    @bottom-left { content: "${footer}"; font: 8pt system-ui, sans-serif; color: #71717a; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt system-ui, sans-serif; color: #71717a; }
+  }
+  @page cover { margin: 0 12mm; @bottom-left { content: none; } @bottom-right { content: none; } }
+}`
   const toggle = (d: Deliverable) => {
     setSaveState("idle")
     setOff((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
@@ -319,7 +364,8 @@ export default function ReportBuilderReport() {
   }
 
   return (
-    <div className="page space-y-8">
+    <div className="page space-y-8 print:px-[3px]! print:py-0!">
+      <style>{pageCss}</style>
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/dashboard/report-builder" className="inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline">
           <ArrowLeft className="h-4 w-4" aria-hidden /> All reports
@@ -349,34 +395,40 @@ export default function ReportBuilderReport() {
         </div>
       )}
 
-      <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8">
+      <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8 print:mb-0 print:mt-[12mm] print:flex print:h-[272mm] print:flex-col print:bg-none print:bg-brand/5 print:p-[14mm] print:[page:cover]">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-brand">FreeSERP · Local growth report</div>
           <div className="text-xs text-muted-foreground">
             Report ID <span className="font-mono font-semibold text-foreground">{plan.id.toUpperCase()}</span>
           </div>
         </div>
-        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight">{business}</h1>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Prepared {day(plan.createdAt)}
-          {inputs.web ? ` · ${domainOf(inputs.web)}` : ""}
-        </p>
-        <ol className="mt-5 grid gap-2 sm:grid-cols-2">
+        <div className="print:my-auto">
+          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight print:text-[40px]">{business}</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground print:mt-3 print:text-[15px]">
+            Prepared {day(plan.createdAt)}
+            {inputs.web ? ` · ${domainOf(inputs.web)}` : ""}
+          </p>
+        </div>
+        <div className="mb-3 hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground print:block">What&apos;s inside</div>
+        <ol className="mt-5 grid gap-2 sm:grid-cols-2 print:mt-0 print:grid-cols-1 print:gap-4 print:border-t print:border-border print:pt-4">
           {sel.map((d) => {
             const s = runOf(d)?.state
             const n = numberOf(d)
             return (
-              <li key={d} className={`flex items-center gap-2 text-[13px] ${n ? "" : "text-muted-foreground line-through print:hidden"}`}>
+              <li key={d} className={`flex items-center gap-2 text-[13px] print:items-start print:gap-3 ${n ? "" : "text-muted-foreground line-through print:hidden"}`}>
                 {s === "done" ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" aria-hidden />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400 print:mt-0.5" aria-hidden />
                 ) : s === "failed" ? (
                   <XCircle className="h-4 w-4 shrink-0 text-red-500" aria-hidden />
                 ) : (
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground print:hidden" aria-hidden />
                 )}
-                <span>
-                  {n ? `${n}. ` : ""}
-                  {titleOf(d)}
+                <span className="min-w-0">
+                  <span className="print:text-[15px] print:font-semibold">
+                    {n ? `${n}. ` : ""}
+                    {titleOf(d)}
+                  </span>
+                  <span className="hidden text-[13px] leading-relaxed text-muted-foreground print:mt-0.5 print:block">{def(d).promise}</span>
                 </span>
               </li>
             )

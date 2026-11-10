@@ -84,8 +84,8 @@ export function Panel({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-6 overflow-hidden rounded-xl border border-border bg-card">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 px-4 py-3.5">
+    <section id={id} className="scroll-mt-6 overflow-hidden rounded-xl border border-border bg-card print:overflow-visible">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 px-4 py-3.5 print:break-inside-avoid print:break-after-avoid">
         <div className="flex min-w-0 items-start gap-2.5">
           <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
@@ -209,7 +209,7 @@ function SeverityBadge({ severity }: { severity: Severity }) {
 
 // The rows that open in place (<details>): the summary is the row, its marker hidden; the chevron turns when open.
 const ROW = "flex w-full cursor-pointer list-none items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 [&::-webkit-details-marker]:hidden"
-const Chevron = () => <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+const Chevron = () => <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 print:hidden" />
 const Label = ({ children }: { children: ReactNode }) => <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
 
 // ── Header and overview ────────────────────────────────────────────────────────────────────────────────────────────
@@ -645,7 +645,7 @@ function FixRow({ fix, rank, origin, open }: { fix: Fix; rank: number; origin: s
           <Chevron />
         </summary>
         {/* The problem on the left, what to do about it on the right. No code: the fix says what to change, in words. */}
-        <div className={`grid gap-5 border-t border-border/40 bg-muted/20 px-4 py-4 text-sm sm:pl-12 ${worst.fix ? "lg:grid-cols-2 lg:gap-8" : ""}`}>
+        <div className={`grid gap-5 border-t border-border/40 bg-muted/20 px-4 py-4 text-sm sm:pl-12 ${worst.fix ? "lg:grid-cols-2 lg:gap-8 print:grid-cols-2 print:gap-6" : ""}`}>
           <div className="space-y-4">
             <div>
               <Label>{fix.total > 1 ? `What we found · ${fix.failing.length} of ${fix.total} pages` : "What we found"}</Label>

@@ -480,6 +480,12 @@ input[type="checkbox"].brutalist-checkbox:focus {
   tr {
     break-inside: avoid;
   }
+  /* A heading stays with what it introduces. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
   body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

@@ -115,8 +115,8 @@ export function Panel({
   children: ReactNode
 }) {
   return (
-    <section className={`flex min-w-0 flex-col rounded-[10px] border border-border bg-card shadow-sm print:break-inside-avoid print:shadow-none ${className}`}>
-      <header className="flex min-h-[47px] flex-wrap items-center gap-1.5 border-b border-border px-4 py-3">
+    <section className={`flex min-w-0 flex-col rounded-[10px] border border-border bg-card shadow-sm print:block print:shadow-none ${className}`}>
+      <header className="flex min-h-[47px] flex-wrap items-center gap-1.5 border-b border-border px-4 py-3 print:break-inside-avoid print:break-after-avoid">
         <h2 className="text-[15px] font-semibold leading-tight">{title}</h2>
         {hint && <InfoHint>{hint}</InfoHint>}
         {meta && <div className="ml-auto flex items-center gap-4 text-[13px] text-muted-foreground">{meta}</div>}
@@ -1503,7 +1503,7 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
         {report.findings.length === 0 ? (
           <p className="text-[13px] text-muted-foreground">Nothing to fix: every check we could run passed. Keep posting, replying to reviews and adding photos, and re-run the audit monthly.</p>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2 print:grid-cols-2">
             <div className="min-w-0 space-y-3 text-[13px] leading-relaxed">
               <p>
                 {report.score !== null && (
@@ -1572,11 +1572,10 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
                 </>
               }
               flush
-              className="print:break-inside-auto"
             >
               <div className="divide-y divide-border">
                 {items.map((f) => (
-                  <div key={f.id} id={`fix-${f.id}`} className="grid scroll-mt-24 gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
+                  <div key={f.id} id={`fix-${f.id}`} className="grid scroll-mt-24 gap-x-6 gap-y-1.5 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusIcon status={f.status} />
@@ -1606,7 +1605,7 @@ export function ActionPlan({ report, planAtEnd = false }: { report: Report; plan
         <Panel title="Check these yourself" hint="Google doesn't share these, so we can't check them automatically. They aren't part of the score." flush>
           <div className="divide-y divide-border">
             {manual.map((c) => (
-              <div key={c.id} className="grid gap-x-6 gap-y-1 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
+              <div key={c.id} className="grid gap-x-6 gap-y-1 px-4 py-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid">
                 <div className="min-w-0">
                   <b className="font-medium">{c.label}</b>
                   <p className="mt-0.5 leading-relaxed text-muted-foreground">{c.detail}</p>
@@ -1869,7 +1868,7 @@ const CITATION_STYLE = {
 function DirectoryLinks({ rows }: { rows: NonNullable<Report["directories"]> }) {
   if (rows.length === 0) return null
   return (
-    <div className="min-w-0 md:col-span-2">
+    <div className="min-w-0 md:col-span-2 print:col-span-2">
       <div className="mb-1.5 text-xs font-medium text-muted-foreground">
         The {rows.length} {rows.length === 1 ? "directory" : "directories"}: click one to {rows.some((d) => d.you === "missing") ? "add the business" : "open it"}
       </div>
