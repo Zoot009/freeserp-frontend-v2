@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- run payloads are read loosely by the sections */
 import { useCallback, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Check, CheckCircle2, History, Loader2, Printer, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth"
@@ -396,14 +397,20 @@ export default function ReportBuilderReport() {
       )}
 
       <header className="rounded-2xl border border-border bg-gradient-to-br from-brand/10 via-card to-card p-6 sm:p-8 print:mb-0 print:mt-[12mm] print:flex print:h-[272mm] print:flex-col print:bg-none print:bg-brand/5 print:p-[14mm] print:[page:cover]">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-brand">FreeSERP · Local growth report</div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 print:gap-3">
+            <Image src="/logo.png" alt="FreeSERP" width={44} height={44} className="size-9 rounded-lg object-contain print:size-11" priority />
+            <div className="leading-tight">
+              <div className="text-[15px] font-semibold tracking-tight print:text-[18px]">FreeSERP</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-brand">Local growth report</div>
+            </div>
+          </div>
           <div className="text-xs text-muted-foreground">
             Report ID <span className="font-mono font-semibold text-foreground">{plan.id.toUpperCase()}</span>
           </div>
         </div>
         <div className="print:my-auto">
-          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight print:text-[40px]">{business}</h1>
+          <h1 className="mt-4 text-[28px] font-semibold leading-tight tracking-tight print:text-[40px]">{business}</h1>
           <p className="mt-1 text-[13px] text-muted-foreground print:mt-3 print:text-[15px]">
             Prepared {day(plan.createdAt)}
             {inputs.web ? ` · ${domainOf(inputs.web)}` : ""}
