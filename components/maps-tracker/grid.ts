@@ -15,6 +15,14 @@ const EARTH_METERS_PER_DEG_LAT = 111_320
 
 export type DistanceUnit = "IMPERIAL" | "METRIC"
 
+/**
+ * A new scan's default reach: half a mile from the business to the grid's
+ * edge. Shared by the tracker's scan builder and the client report, so a
+ * report scans the same area the tracker does (it used 3 km, where a local
+ * business rarely ranks, and came back "not found" almost everywhere).
+ */
+export const DEFAULT_SCAN_RADIUS: { radius: number; unit: DistanceUnit } = { radius: 0.5, unit: "IMPERIAL" }
+
 export function toMeters(value: number, unit: DistanceUnit): number {
   return Math.round(value * (unit === "IMPERIAL" ? MILES_TO_METERS : KM_TO_METERS))
 }

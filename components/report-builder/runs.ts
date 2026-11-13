@@ -7,6 +7,7 @@
 import { api, ApiError, isTransient } from "@/lib/api"
 import { PLATFORMS } from "@/lib/ai-tracker"
 import type { Inputs, RunKey } from "@/lib/report-builder"
+import { DEFAULT_SCAN_RADIUS } from "@/components/maps-tracker/grid"
 
 export type Poll = { state: "running" } | { state: "done"; data: any } | { state: "failed"; error: string }
 type Deps = Partial<Record<RunKey, any>>
@@ -180,7 +181,7 @@ export const RUNS: Record<RunKey, RunDef> = {
         location = r.location ?? r
       }
       const keyword = inp.kw || deps.gbp.facts.keyword || b.category?.toLowerCase()
-      const scan = await api.post<any>("/api/maps-tracker/scans", { locationId: location.id, keywords: [keyword], gridSize: Number(inp.grid) || 3, radius: 3, unit: "METRIC", generateAiAnalysis: false })
+      const scan = await api.post<any>("/api/maps-tracker/scans", { locationId: location.id, keywords: [keyword], gridSize: Number(inp.grid) || 3, ...DEFAULT_SCAN_RADIUS, generateAiAnalysis: false })
       return scan.scanId ?? scan.id
     },
     async poll(id) {

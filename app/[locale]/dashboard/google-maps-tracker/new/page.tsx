@@ -17,6 +17,7 @@ import { MapCard, MapEmptyState } from "@/components/maps-tracker/map-card"
 import { ScanMap } from "@/components/maps-tracker/scan-map"
 import { spacingCaption } from "@/components/maps-tracker/grid-controls"
 import {
+  DEFAULT_SCAN_RADIUS,
   KM_TO_METERS,
   MILES_TO_METERS,
   nearestRadiusStep,
@@ -48,7 +49,6 @@ const LIST = "/dashboard/google-maps-tracker"
 // so this costs exactly what 1.5 did. Anyone covering a wider service area
 // raises it, having seen what a scan produces first.
 const DEFAULT_GRID_SIZE = 3
-const DEFAULT_RADIUS = 0.5
 // Geographic center of the continental US — just a reasonable starting view
 // before any location is picked; the map re-centers via fitBounds once one is.
 const DEFAULT_MAP_CENTER = { lat: 39.8283, lng: -98.5795 }
@@ -66,8 +66,8 @@ function NewScanBuilder() {
   const [centerOverride, setCenterOverride] = useState<{ lat: number; lng: number } | null>(null)
   const [keywords, setKeywords] = useState<string[]>([])
   const [gridSize, setGridSize] = useState(DEFAULT_GRID_SIZE)
-  const [radius, setRadius] = useState(DEFAULT_RADIUS)
-  const [unit, setUnit] = useState<DistanceUnit>("IMPERIAL")
+  const [radius, setRadius] = useState(DEFAULT_SCAN_RADIUS.radius)
+  const [unit, setUnit] = useState<DistanceUnit>(DEFAULT_SCAN_RADIUS.unit)
   const [aiRequested, setAiRequested] = useState(true)
 
   const [submitting, setSubmitting] = useState(false)
