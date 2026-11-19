@@ -12,6 +12,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { CONFIRM_THRESHOLD, CreditCost, CreditCostConfirm } from "@/components/dashboard/credit-cost"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ReportHistory } from "@/components/dashboard/report-history"
+import { aeoAuditDemoRow } from "@/lib/demo/aeo-audit"
 
 // The ReportHistory panel knows four states; an audit has more phases than that.
 const HISTORY_STATUS: Record<AuditStatus, "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"> = {
@@ -191,6 +192,7 @@ export default function AeoAuditPage() {
 
       <ReportHistory<AuditListItem>
         path="/api/aeo-audit"
+        demo={aeoAuditDemoRow()}
         emptyText="No AEO audits yet. Run your first one above."
         toRow={(a) => {
           const host = new URL(a.origin).hostname.replace(/^www\./, "")
