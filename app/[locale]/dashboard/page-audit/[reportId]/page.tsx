@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { AlertCircle, ArrowLeft, RefreshCw, XCircle } from "lucide-react"
 import { Link, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
@@ -27,7 +27,7 @@ import {
 import { SiteIssues } from "@/components/page-audit/site-issues"
 import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
 import { DEMO_ID } from "@/lib/demo/shared"
-import { PAGE_AUDIT_CREATE_HREF } from "@/lib/demo/page-audit"
+import { PAGE_AUDIT_CREATE_HREF, PAGE_AUDIT_SINGLE_CREATE_HREF } from "@/lib/demo/page-audit"
 
 /** How often to re-read a report that is still changing. */
 const POLL_MS = 5000
@@ -89,7 +89,10 @@ export default function AuditReportPage() {
   const router = useRouter()
   const reportId = String(params.reportId ?? "")
   const isDemo = reportId === DEMO_ID
-  const guard = useDemoGuard(isDemo, PAGE_AUDIT_CREATE_HREF)
+  // The demo has two reports on one id: whole-site, and ?view=single (the homepage alone).
+  const demoView = useSearchParams().get("view") === "single" ? "?view=single" : ""
+  const demoCreateHref = demoView ? PAGE_AUDIT_SINGLE_CREATE_HREF : PAGE_AUDIT_CREATE_HREF
+  const guard = useDemoGuard(isDemo, demoCreateHref)
   const [report, setReport] = useState<AuditReport | null>(null)
   const [isSite, setIsSite] = useState(false)
   // Kept so "Run fresh" can re-crawl the same target. The transformed report is
@@ -104,7 +107,7 @@ export default function AuditReportPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get<Record<string, unknown>>(`/api/page-audit/reports/${reportId}`)
+      const data = await api.get<Record<string, unknown>>(`/api/page-audit/reports/${reportId}${isDemo ? demoView : ""}`)
       const next = transformReport(data)
       setReport((prev) => keepLinkGraph(prev, next))
       setIsSite((data.mode as string) === "SITE")
@@ -131,7 +134,7 @@ export default function AuditReportPage() {
     } finally {
       setLoading(false)
     }
-  }, [reportId])
+  }, [reportId, isDemo, demoView])
 
   // Until the report loads we don't know which of the two audits it came from;
   // the single-page form is the safe default for the error state.
@@ -224,7 +227,7 @@ export default function AuditReportPage() {
 
   return (
     <div className="px-6 pb-10 pt-5">
-      {isDemo && <DemoBanner createHref={PAGE_AUDIT_CREATE_HREF} />}
+      {isDemo && <DemoBanner createHref={demoCreateHref} />}
       {/*
         The balance rides on the back-link row.
 

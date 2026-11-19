@@ -66,3 +66,30 @@ describe("demo page audit", () => {
     expect(demoResponse(`${BASE}/issues/NOPE/pages`, "GET")).toMatchObject({ error: { status: 404 } })
   })
 })
+
+describe("demo page audit, single page (?view=single)", () => {
+  const site = get<Report>(BASE)
+  const single = get<Report & { url: string; crawlNote: string | null }>(`${BASE}?view=single`)
+
+  it("audits the homepage alone, finished", () => {
+    expect(single).toMatchObject({ id: "demo", mode: "SINGLE", status: "COMPLETED", pageSpeedStatus: "completed", pagesAnalyzed: 1, crawlNote: null })
+    expect(single.totals).toEqual({ pages: 1, issues: single.issues.length })
+    for (const i of single.issues) expect([single.url, null]).toContain(i.pageUrl)
+  })
+
+  it("flags exactly the checks that have issues, including its short title", () => {
+    const failed = single.checks.filter((c) => c.passed === false && !c.informational).map((c) => c.id).sort()
+    expect([...new Set(single.issues.map((i) => i.type))].sort()).toEqual(failed)
+    expect(single.issues.find((i) => i.type === "TITLE_TAG")).toMatchObject({ title: "Title Tag Too Short" })
+  })
+
+  it("scores the cleaner homepage above the whole site", () => {
+    expect(single.overallScore).toBeGreaterThan(site.overallScore)
+    expect(single.issues.length).toBeLessThan(site.issues.length)
+  })
+
+  it("is what the Page Audit history pins; the site report is the Website Audit's", () => {
+    expect(pageAuditDemoListItem("single")).toMatchObject({ mode: "SINGLE", href: "/dashboard/page-audit/demo?view=single", overallScore: single.overallScore })
+    expect(pageAuditDemoListItem("site")).toMatchObject({ mode: "SITE", href: "/dashboard/page-audit/demo", overallScore: site.overallScore })
+  })
+})
