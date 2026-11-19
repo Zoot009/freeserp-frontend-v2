@@ -10,6 +10,7 @@ import { DEMO_ID, type DemoResult, type DemoTool } from "./shared"
 // only line of this file a tool's PR touches.
 export const DEMO_TOOLS: Record<string, () => Promise<DemoTool>> = {
   "/api/projects": () => import("./rank-tracker").then((m) => m.rankTrackerDemo),
+  "/api/internal-link-analysis": () => import("./internal-links").then((m) => m.internalLinksDemo),
 }
 
 const READ_ONLY: DemoResult = {
