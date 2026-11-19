@@ -642,7 +642,6 @@ export function demoYoutubeProjectSummary() {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const youtubeTrackerDemo: DemoTool = {
-  base: BASE,
   get([a, b, c, ...rest]) {
     if (rest.length) return undefined
     const d = demoData()

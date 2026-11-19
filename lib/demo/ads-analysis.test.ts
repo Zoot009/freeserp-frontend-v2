@@ -2,9 +2,12 @@
 // SCORECARD and FORECAST are embedded backend output (see ads-analysis.ts): these
 // checks fail if the scan or assumptions change without regenerating them.
 import { describe, expect, it } from "vitest"
-import { demoResponse } from "./index"
-import { adsAnalysisDemoRow } from "./ads-analysis"
+import { routeDemo } from "./index"
+import { adsAnalysisDemo, adsAnalysisDemoRow } from "./ads-analysis"
 import type { AdsAnalysisResponse } from "@/lib/ads-analysis"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/ads-analysis", adsAnalysisDemo, url, method)
 
 const r = demoResponse("/api/ads-analysis/demo", "GET")
 if (!r || r.error) throw new Error("expected demo data")

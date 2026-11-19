@@ -111,7 +111,6 @@ export function demoSerpHistoryItem() {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const serpCheckerDemo: DemoTool = {
-  base: "/api/serp-check",
   get(rest) {
     return rest.length === 0 ? { check: check() } : undefined
   },

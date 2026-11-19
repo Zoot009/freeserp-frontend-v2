@@ -258,7 +258,6 @@ export function adsAnalysisDemoRow() {
 }
 
 export const adsAnalysisDemo: DemoTool = {
-  base: "/api/ads-analysis",
   get(rest) {
     return rest.length === 0 ? demoData() : undefined
   },

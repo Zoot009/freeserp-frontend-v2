@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 // YouTube-tracker specifics only; read-only/404/matching is the contract test (index.test.ts).
-import { demoResponse } from "./index"
-import { demoYoutubeProjectSummary, youtubeSnapshotPath } from "./youtube-tracker"
+import { routeDemo } from "./index"
+import { youtubeTrackerDemo, demoYoutubeProjectSummary, youtubeSnapshotPath } from "./youtube-tracker"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/youtube/projects", youtubeTrackerDemo, url, method)
 
 type Row = {
   id: string

@@ -14,6 +14,9 @@ import type { AnalysisData, CompetitorResult } from "@/types/competitor-analysis
 import { buildMarkdownExport } from "@/lib/competitor-analysis-export"
 import axios from "@/lib/axios"
 import { toast } from "sonner"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { COMPETITOR_ANALYSIS_CREATE_HREF } from "@/lib/demo/competitor-analysis"
 
 function CompetitorAnalysisResultsContent() {
   const router = useRouter()
@@ -24,6 +27,9 @@ function CompetitorAnalysisResultsContent() {
   // query string because they vary per analysis run.
   const analysisId = searchParams.get("analysisId") || ""
   const keyword = searchParams.get("keyword") || ""
+  // The demo report is read-only: sharing and recrawling show the demo prompt.
+  const isDemo = analysisId === DEMO_ID
+  const guard = useDemoGuard(isDemo, COMPETITOR_ANALYSIS_CREATE_HREF)
 
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -336,6 +342,7 @@ function CompetitorAnalysisResultsContent() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={COMPETITOR_ANALYSIS_CREATE_HREF} />}
       {/* Header */}
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
@@ -354,7 +361,7 @@ function CompetitorAnalysisResultsContent() {
           </div>
         </div>
         <div className="row" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {analysis && analysisId && (
+          {analysis && analysisId && !isDemo && (
             <FavoriteButton
               key={`cafav-${caFavReady}`}
               entityType="competitor_analysis"
@@ -415,7 +422,7 @@ function CompetitorAnalysisResultsContent() {
                   </div>
                 )}
               </div>
-              <button className="btn" onClick={() => setShareDialogOpen(true)}>
+              <button className="btn" onClick={guard(() => setShareDialogOpen(true))}>
                 Share report
               </button>
             </>
@@ -615,7 +622,7 @@ function CompetitorAnalysisResultsContent() {
             </div>
           )}
 
-          <CompetitorComparisonTable analysis={analysis} onRecrawl={handleRecrawl} recrawlingDomains={recrawlingDomains} />
+          <CompetitorComparisonTable analysis={analysis} onRecrawl={guard(handleRecrawl)} recrawlingDomains={recrawlingDomains} />
         </>
       )}
 

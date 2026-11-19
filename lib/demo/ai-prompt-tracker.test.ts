@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest"
 // AI-tracker specifics only; read-only/404/matching is the contract test (index.test.ts).
 import { PLATFORMS, type PromptRow } from "@/lib/ai-tracker"
-import { demoResponse } from "./index"
-import { demoAiTrackerProject } from "./ai-prompt-tracker"
+import { routeDemo } from "./index"
+import { aiPromptTrackerDemo, demoAiTrackerProject } from "./ai-prompt-tracker"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/llm-tracker/projects", aiPromptTrackerDemo, url, method)
 
 type Sample = { status: string; responseText: string | null; mentioned: boolean; mentionOffset: number | null; cited: boolean }
 type Detail = { runs: { id: string; platform: string; mentionRate: number | null; citationRate: number | null; status: string }[]; latestRunId: string | null; samples: Sample[] }

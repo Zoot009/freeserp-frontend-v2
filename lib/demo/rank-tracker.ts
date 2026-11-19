@@ -55,7 +55,7 @@ const SEEDS: Seed[] = [
   { keyword: "basketball shoes", from: 2, to: 2, volume: 165_000, path: "/w/basketball-shoes", intent: "shop", features: ["image", "video"], score: 81 },
   { keyword: "jordan 1 retro high", from: 3, to: 3, volume: 201_000, path: "/w/jordan-1-retro-high-shoes", intent: "shop", features: ["image"], score: 79 },
   { keyword: "sneakers", from: 6, to: 4, volume: 550_000, path: "/w/sneakers", intent: "shop", features: ["image", "local"], score: 70 },
-  { keyword: "best running shoes", from: 18, to: 9, volume: 90_500, path: "/a/best-running-shoes", intent: "info", features: ["aiCited", "paa", "video"], score: 83 },
+  { keyword: "best running shoes", from: 18, to: 9, volume: 90_500, path: "/a/best-running-shoes", intent: "info", features: ["aiCited", "paa", "video"], score: 84 },
   { keyword: "workout clothes for women", from: 6, to: 12, volume: 22_200, path: "/w/womens-training-clothing", intent: "shop", features: ["image", "paa"], score: 58 },
   { keyword: "trail running shoes", from: 8, to: 7, volume: 74_000, path: "/w/trail-running-shoes", intent: "shop", features: ["video", "paa"], score: 77 },
   { keyword: "running shoes for flat feet", from: 27, to: 24, volume: 33_100, path: "/a/running-shoes-for-flat-feet", intent: "info", features: ["ai", "paa", "fs"], score: 61 },
@@ -577,7 +577,6 @@ function competitorSuggestions(d: DemoData) {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const rankTrackerDemo: DemoTool = {
-  base: "/api/projects",
   get([a, b, c]) {
     const d = demoData()
     const kw = d.keywords.find((k) => k.id === b)

@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest"
 // Maps-tracker specifics only; read-only/404/matching is the contract test (index.test.ts).
 import { computeMetrics } from "@/components/maps-tracker/grid"
 import type { CompetitorLeaderboard, PointDetail, Scan } from "@/components/maps-tracker/types"
-import { demoResponse } from "./index"
-import { demoMapsScanSummary } from "./maps-tracker"
+import { routeDemo } from "./index"
+import { mapsTrackerDemo, demoMapsScanSummary } from "./maps-tracker"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/maps-tracker/scans", mapsTrackerDemo, url, method)
 
 const get = <T,>(path: string) => {
   const r = demoResponse(path, "GET")

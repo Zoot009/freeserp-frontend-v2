@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 // Maps-audit specifics only; read-only/404/matching is the contract test (index.test.ts).
 import type { GbpAuditResponse } from "@/lib/gbp-audit"
-import { demoResponse } from "./index"
-import { demoMapsAuditRow } from "./maps-audit"
+import { routeDemo } from "./index"
+import { mapsAuditDemo, demoMapsAuditRow } from "./maps-audit"
 import fixture from "./maps-audit.fixture.json"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/gbp-audit", mapsAuditDemo, url, method)
 
 const get = () => {
   const r = demoResponse("/api/gbp-audit/demo", "GET")

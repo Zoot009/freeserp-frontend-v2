@@ -618,7 +618,6 @@ export function pageAuditDemoListItem() {
 }
 
 export const pageAuditDemo: DemoTool = {
-  base: "/api/page-audit/reports",
   get([a, b, c], query) {
     const { report, issues, pages } = demoData()
     if (a === undefined) return report

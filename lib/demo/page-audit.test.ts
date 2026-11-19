@@ -1,8 +1,11 @@
 // Page-audit specifics only; read-only/404/matching is the contract test (index.test.ts).
 import { describe, expect, it } from "vitest"
-import { demoResponse } from "./index"
-import { pageAuditDemoListItem } from "./page-audit"
+import { routeDemo } from "./index"
+import { pageAuditDemo, pageAuditDemoListItem } from "./page-audit"
 import { CHECK_DEFS } from "./page-audit-checks"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/page-audit/reports", pageAuditDemo, url, method)
 
 const BASE = "/api/page-audit/reports/demo"
 const get = <T,>(path: string) => {

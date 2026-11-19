@@ -442,7 +442,6 @@ export function demoMapsScanSummary(): ScanHistoryItem {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const mapsTrackerDemo: DemoTool = {
-  base: "/api/maps-tracker/scans",
   get([a, b, c, ...rest]) {
     if (rest.length) return undefined
     const d = demoData()

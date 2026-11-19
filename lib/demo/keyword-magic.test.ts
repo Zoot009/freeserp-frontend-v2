@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 // Keyword-Magic specifics only; read-only/404/matching is the contract test (index.test.ts).
 import { keywordWords, rowStats } from "@/lib/keyword-magic"
-import { demoResponse } from "./index"
+import { routeDemo } from "./index"
+import { keywordMagicDemo } from "./keyword-magic"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/keyword-magic", keywordMagicDemo, url, method)
 
 type Row = { keyword: string; volume: number; difficulty: number; cpc: number; intent: string; serpFeatures: string[]; trend: unknown[] }
 type Search = {

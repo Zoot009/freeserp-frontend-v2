@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 // Quick-SERP specifics only; read-only/404/matching is the contract test (index.test.ts).
-import { demoResponse } from "./index"
-import { demoSerpHistoryItem } from "./serp-checker"
+import { routeDemo } from "./index"
+import { rankTrackerDemo } from "./rank-tracker"
+import { serpCheckerDemo, demoSerpHistoryItem } from "./serp-checker"
+
+// The registry loads tools lazily (async); routed synchronously against the module here.
+const demoResponse = (url: string, method: string) => routeDemo("/api/serp-check", serpCheckerDemo, url, method)
 
 type Result = {
   position: number | null; found: boolean; url: string | null; domain: string; totalResults: number
@@ -34,7 +38,7 @@ describe("demo serp checker", () => {
   })
 
   it("matches the rank tracker demo's SERP for the same query", () => {
-    const project = get<{ keywords: { id: string; keyword: string; position: number | null }[] }>("/api/projects/demo")
+    const project = rankTrackerDemo.get([], new URLSearchParams()) as { keywords: { id: string; keyword: string; position: number | null }[] }
     const kw = project.keywords.find((k) => k.keyword === "running shoes")!
     expect(check.position).toBe(kw.position)
     expect(get("/api/serp-check/demo")).toEqual({ check })

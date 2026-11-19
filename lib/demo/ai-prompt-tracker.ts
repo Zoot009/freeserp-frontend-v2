@@ -430,7 +430,6 @@ function promptDetail(d: DemoData, p: DemoPrompt, focus: string | null) {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const aiPromptTrackerDemo: DemoTool = {
-  base: "/api/llm-tracker/projects",
   get([a, b, ...rest], query) {
     if (rest.length) return undefined
     const d = demoData()

@@ -20,14 +20,12 @@ export const DEMO_BRAND = {
 } as const
 
 /**
- * One tool's demo. lib/demo/index.ts routes `<base>/demo…` here: GETs call
- * `get`, every other method is refused there (403 demo_read_only), so a tool
- * never handles writes or routing itself.
+ * One tool's demo. lib/demo/index.ts maps an API prefix to it and routes
+ * `<prefix>/demo…` here: GETs call `get`, every other method is refused there
+ * (403 demo_read_only), so a tool never handles writes or routing itself.
  */
 export interface DemoTool {
-  /** API prefix the demo id follows: "/api/projects" serves "/api/projects/demo/…". */
-  base: string
-  /** `rest` = path segments after "<base>/demo". Return undefined for a 404. */
+  /** `rest` = path segments after "<prefix>/demo". Return undefined for a 404. */
   get(rest: string[], query: URLSearchParams): unknown
 }
 
@@ -67,4 +65,19 @@ export function perAnchor<T>(build: (anchor: number) => T): () => T {
     if (cache?.anchor !== anchor) cache = { anchor, value: build(anchor) }
     return cache.value
   }
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+
+/**
+ * Every ISO timestamp in `value`, moved by `ms`. Generated demo data is stamped
+ * at a fixed time; this moves all of it to "now" in one pass.
+ */
+export function shiftDates<T>(value: T, ms: number): T {
+  const walk = (v: unknown): unknown =>
+    typeof v === "string" ? (ISO.test(v) ? new Date(Date.parse(v) + ms).toISOString() : v)
+    : Array.isArray(v) ? v.map(walk)
+    : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]))
+    : v
+  return walk(value) as T
 }

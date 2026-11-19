@@ -157,7 +157,6 @@ export const KEYWORD_MAGIC_DEMO_SEED = SEED
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const keywordMagicDemo: DemoTool = {
-  base: "/api/keyword-magic",
   get(rest) {
     return rest.length === 0 ? demoSearch() : undefined
   },

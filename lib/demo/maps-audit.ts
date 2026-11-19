@@ -77,7 +77,6 @@ export function demoMapsAuditRow() {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const mapsAuditDemo: DemoTool = {
-  base: "/api/gbp-audit",
   get(rest) {
     return rest.length === 0 ? demoData() : undefined
   },
