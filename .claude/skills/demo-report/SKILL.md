@@ -105,6 +105,10 @@ site.
     fills in a form only to be refused.
 - **Nothing fires on mount** that would write or spend: auto-started runs, "new item" onboarding
   flows (`?new=1`), auto-refresh POSTs.
+- **Calls outside your `base`** reach the real backend too: the registry only answers
+  `<base>/demo…`. Page Audit's report POSTs `/api/page-audit/ask` (Ask AI, spends credits) and
+  `/api/page-audit/screenshots`. List every endpoint the demo page can call, and hide or skip
+  each one outside the prefix.
 - **Calls that bypass both HTTP clients** (raw `fetch`, `sendBeacon`, e.g.
   `components/page-audit/ask-ai-panel.tsx`, the PDF download in `report-modal.tsx`) are skipped
   or hidden on the demo, since the registry can't answer them.
@@ -206,7 +210,7 @@ Edit only your own rows. Line-level merges stay trivial.
 | `ai-prompt-tracker` | `/dashboard/ai-prompt-tracker/demo` | `/api/llm-tracker/projects` | own list | `?platform=` tabs; prompt page `[promptId]` polls; the `ai-platforms/*` pages are out of scope | A | todo |
 | `serp-checker` | `/dashboard/serp-checker?check=demo` | `/api/serp-check` | own history on the page | 2s poll → must be terminal | A | todo |
 | `keyword-magic` | `/dashboard/keyword-magic?view=demo` | `/api/keyword-magic` | "See an example" link | Stateless: the search is a POST, so demo view reads `GET /api/keyword-magic/demo`; guard "Add to tracker" | A | todo |
-| `page-audit` | `/dashboard/page-audit/demo` | `/api/page-audit/reports` | own history (`components/page-audit/audit-history.tsx`) | One demo covers Website Audit and Page Audit (shared runner + report); sub-endpoints `/issue-groups`, `/pages`, `/issues/:type/pages`; `ask-ai-panel` uses raw `fetch`, so hide it; share sections PUT guarded | B | in progress |
+| `page-audit` | `/dashboard/page-audit/demo` | `/api/page-audit/reports` | own history (`components/page-audit/audit-history.tsx`) | One demo covers Website Audit and Page Audit (shared runner + report); sub-endpoints `/issue-groups`, `/pages`, `/issues/:type/pages`; `ask-ai-panel` uses raw `fetch`, so hide it; share sections PUT guarded | B | built — browser check pending |
 | `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | todo |
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | todo |
 | `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | todo |

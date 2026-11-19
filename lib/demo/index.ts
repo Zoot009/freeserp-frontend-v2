@@ -2,6 +2,7 @@
 // both HTTP clients (lib/api.ts and lib/axios.ts), so a demo never reaches the
 // network. Spec: .claude/skills/demo-report/SKILL.md.
 
+import { pageAuditDemo } from "./page-audit"
 import { rankTrackerDemo } from "./rank-tracker"
 import { DEMO_ID, type DemoResult, type DemoTool } from "./shared"
 
@@ -9,6 +10,7 @@ import { DEMO_ID, type DemoResult, type DemoTool } from "./shared"
 // the only line of this file a tool's PR touches.
 export const DEMO_TOOLS: DemoTool[] = [
   rankTrackerDemo,
+  pageAuditDemo,
 ]
 
 const READ_ONLY: DemoResult = {

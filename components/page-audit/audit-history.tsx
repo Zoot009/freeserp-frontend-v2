@@ -31,6 +31,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LoadFailed } from "@/components/page-audit/site-issues"
 import { Hint } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { pageAuditDemoListItem } from "@/lib/demo/page-audit"
 
 export type AuditListItem = {
   id: string
@@ -256,6 +259,50 @@ function ScoreCell({ r }: { r: AuditListItem }) {
         {r.status === "FAILED" ? failureLabel(r.errorMessage) : "Running"}
       </span>
     </Hint>
+  )
+}
+
+/** The pinned demo report: a run row, with the Demo chip and no index. */
+function DemoRow({ onOpen }: { onOpen: () => void }) {
+  const r = pageAuditDemoListItem()
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+      className={cn(
+        "grid cursor-pointer items-center gap-2 border-b px-4 py-2.5 text-[13px] transition-colors hover:bg-muted sm:gap-3",
+        COLS,
+      )}
+    >
+      <span className={WIDE_ONLY} />
+      <div className="flex min-w-0 items-center gap-2.5">
+        <SiteFavicon host={hostOf(r.url)} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-semibold">{hostOf(r.url)}</span>
+            <DemoChip />
+          </div>
+          <div className={cn("truncate text-xs text-muted-foreground", WIDE_ONLY)}>{r.url}</div>
+          <PhoneFacts r={r} />
+        </div>
+      </div>
+      <IssuesCell r={r} />
+      <span className="flex justify-end">
+        <ScoreCell r={r} />
+      </span>
+      <span className={cn("text-right font-semibold", gradeTone(r.overallScore))}>{r.overallGrade}</span>
+      <span className={cn("text-right text-xs text-muted-foreground", WIDE_ONLY)}>{shortDate(r.createdAt)}</span>
+      <span className="flex justify-end">
+        <ExternalLink className="size-3.5 text-muted-foreground" />
+      </span>
+    </div>
   )
 }
 
@@ -497,6 +544,11 @@ export function AuditHistory({
         <span className={cn("text-right", WIDE_ONLY)}>{view === "sites" ? "Last run" : "When"}</span>
         <span />
       </div>
+
+      {/* The demo report, pinned first for everyone (.claude/skills/demo-report)
+          and outside the count and pager. Hidden while searching — it isn't
+          one of the results. */}
+      {!q && <DemoRow onOpen={() => router.push(`/dashboard/page-audit/${DEMO_ID}`)} />}
 
       {loading ? (
         <div className="space-y-px p-4">
