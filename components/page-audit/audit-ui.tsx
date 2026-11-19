@@ -49,6 +49,8 @@ import {
   Copy,
 } from "lucide-react"
 import { downloadAuditPdf } from "@/lib/audit-pdf"
+import { useDemoGuard } from "@/components/dashboard/demo-banner"
+import { PAGE_AUDIT_CREATE_HREF } from "@/lib/demo/page-audit"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4092,6 +4094,7 @@ export function AuditReportResults({
   shared = false,
   hiddenSections,
   recommendationsSlot,
+  demo = false,
 }: {
   report: AuditReport
   onNewAudit: () => void
@@ -4118,8 +4121,15 @@ export function AuditReportResults({
    * generator wasn't part of the port.
    */
   recommendationsSlot?: React.ReactNode
+  /**
+   * The demo report (lib/demo/page-audit.ts). Its actions show the demo prompt,
+   * and nothing outside the demo's own API answers is asked for: no screenshot
+   * capture, no Ask AI (both POST past the demo, and Ask AI spends credits).
+   */
+  demo?: boolean
 }) {
   const t = useTranslations("pageAudit")
+  const guard = useDemoGuard(demo, PAGE_AUDIT_CREATE_HREF)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(null)
@@ -4363,7 +4373,7 @@ export function AuditReportResults({
                   variant="outline"
                   size="sm"
                   className="gap-1.5 text-xs"
-                  onClick={handleShare}
+                  onClick={guard(handleShare)}
                 >
                   <Share2 className="h-3 w-3" />
                   {t("share")}
@@ -4448,7 +4458,7 @@ export function AuditReportResults({
               url={report.url}
               auditReportId={report.id}
               initial={report.screenshots}
-              capture={!shared}
+              capture={!shared && !demo}
             />
           </div>
 
@@ -4643,7 +4653,7 @@ export function AuditReportResults({
           <div className="min-w-0 space-y-6">
         {/* Finished reports only. A failed or unfinished one has nothing to
             ask about, and each question costs a credit. */}
-        {!shared && report.status === "COMPLETED" && <AskAiPanel report={report} />}
+        {!shared && !demo && report.status === "COMPLETED" && <AskAiPanel report={report} />}
         {/* A caller can put its own panel in the Recommendations slot. Site
             audits do: the rollup by problem belongs exactly where the
             per-recommendation list would have been, and that list is empty here

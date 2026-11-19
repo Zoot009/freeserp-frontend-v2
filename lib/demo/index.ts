@@ -2,6 +2,7 @@
 // both HTTP clients (lib/api.ts and lib/axios.ts), so a demo never reaches the
 // network. Spec: .claude/skills/demo-report/SKILL.md.
 
+import { pageAuditDemo } from "./page-audit"
 import { rankTrackerDemo } from "./rank-tracker"
 import { youtubeTrackerDemo } from "./youtube-tracker"
 import { mapsTrackerDemo } from "./maps-tracker"
@@ -21,6 +22,7 @@ export const DEMO_TOOLS: DemoTool[] = [
   aiPromptTrackerDemo,
   serpCheckerDemo,
   keywordMagicDemo,
+  pageAuditDemo,
 ]
 
 const READ_ONLY: DemoResult = {

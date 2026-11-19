@@ -1,0 +1,65 @@
+// Page-audit specifics only; read-only/404/matching is the contract test (index.test.ts).
+import { describe, expect, it } from "vitest"
+import { demoResponse } from "./index"
+import { pageAuditDemoListItem } from "./page-audit"
+import { CHECK_DEFS } from "./page-audit-checks"
+
+const BASE = "/api/page-audit/reports/demo"
+const get = <T,>(path: string) => {
+  const r = demoResponse(path, "GET")
+  if (!r || r.error) throw new Error(`expected data for ${path}`)
+  return r.data as T
+}
+
+type Report = {
+  id: string; mode: string; status: string; pageSpeedStatus: string; pagesAnalyzed: number
+  overallScore: number; overallGrade: string
+  totals: { pages: number; issues: number }
+  issues: { type: string; pageUrl: string | null }[]
+  checks: { id: string; passed: boolean | null; informational: boolean }[]
+}
+type Paged<T> = { items: T[]; total: number }
+
+describe("demo page audit", () => {
+  const report = get<Report>(BASE)
+
+  it("is a finished whole-site report, so nothing polls", () => {
+    expect(report).toMatchObject({ id: "demo", mode: "SITE", status: "COMPLETED", pageSpeedStatus: "completed" })
+  })
+
+  it("carries every check in the backend catalogue exactly once", () => {
+    expect(report.checks.map((c) => c.id).sort()).toEqual(CHECK_DEFS.map((d) => d.id).sort())
+  })
+
+  it("flags exactly the checks that have issues", () => {
+    const failed = report.checks.filter((c) => c.passed === false && !c.informational).map((c) => c.id).sort()
+    expect([...new Set(report.issues.map((i) => i.type))].sort()).toEqual(failed)
+  })
+
+  it("agrees across the report, issue groups, issue pages and pages list", () => {
+    expect(report.totals.issues).toBe(report.issues.length)
+    const { groups } = get<{ groups: { type: string; occurrences: number }[] }>(`${BASE}/issue-groups`)
+    expect(groups.reduce((a, g) => a + g.occurrences, 0)).toBe(report.issues.length)
+    for (const g of groups) {
+      expect(get<Paged<unknown>>(`${BASE}/issues/${g.type}/pages?limit=200`).total).toBe(g.occurrences)
+    }
+
+    const pages = get<Paged<{ url: string; issueCount: number }>>(`${BASE}/pages?limit=100`)
+    expect(pages.total).toBe(report.pagesAnalyzed)
+    const onPages = report.issues.filter((i) => i.pageUrl).length
+    expect(pages.items.reduce((a, p) => a + p.issueCount, 0)).toBe(onPages)
+    expect(get<Paged<unknown>>(`${BASE}/pages?limit=5&offset=5`).items).toHaveLength(5)
+    expect(get<Paged<{ url: string }>>(`${BASE}/pages?q=/a/`).items.every((p) => p.url.includes("/a/"))).toBe(true)
+  })
+
+  it("pins a history row that matches the report, and is stable", () => {
+    expect(pageAuditDemoListItem()).toMatchObject({
+      id: "demo", overallScore: report.overallScore, overallGrade: report.overallGrade, issueCount: report.issues.length,
+    })
+    expect(get(BASE)).toEqual(report)
+  })
+
+  it("404s an issue type the report doesn't have", () => {
+    expect(demoResponse(`${BASE}/issues/NOPE/pages`, "GET")).toMatchObject({ error: { status: 404 } })
+  })
+})

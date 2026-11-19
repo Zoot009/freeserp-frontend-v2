@@ -25,6 +25,9 @@ import {
   type AuditReport,
 } from "@/components/page-audit/audit-ui"
 import { SiteIssues } from "@/components/page-audit/site-issues"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { PAGE_AUDIT_CREATE_HREF } from "@/lib/demo/page-audit"
 
 /** How often to re-read a report that is still changing. */
 const POLL_MS = 5000
@@ -85,6 +88,8 @@ export default function AuditReportPage() {
   const params = useParams()
   const router = useRouter()
   const reportId = String(params.reportId ?? "")
+  const isDemo = reportId === DEMO_ID
+  const guard = useDemoGuard(isDemo, PAGE_AUDIT_CREATE_HREF)
   const [report, setReport] = useState<AuditReport | null>(null)
   const [isSite, setIsSite] = useState(false)
   // Kept so "Run fresh" can re-crawl the same target. The transformed report is
@@ -219,6 +224,7 @@ export default function AuditReportPage() {
 
   return (
     <div className="px-6 pb-10 pt-5">
+      {isDemo && <DemoBanner createHref={PAGE_AUDIT_CREATE_HREF} />}
       {/*
         The balance rides on the back-link row.
 
@@ -265,10 +271,11 @@ export default function AuditReportPage() {
          */
         onRunFresh={
           sourceUrl
-            ? () => router.push(`${backHref}?url=${encodeURIComponent(sourceUrl)}&fresh=1`)
+            ? guard(() => router.push(`${backHref}?url=${encodeURIComponent(sourceUrl)}&fresh=1`))
             : undefined
         }
         isAuthenticated
+        demo={isDemo}
         /* Site audits replace the Recommendations section with the rollup. Same
            slot — first thing after the scores — and the list it displaces is
            empty here regardless. A single-page report keeps the original. */
