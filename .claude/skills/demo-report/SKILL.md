@@ -67,7 +67,7 @@ site.
   - `get` receives the path segments after `<base>/demo` and returns the response body, or
     `undefined` for a 404.
   - Register it in `lib/demo/index.ts`: one import, one array entry. That is the only edit to
-    that file.
+    that file. Two demo branches merged together conflict on those lines. Keep both sides.
 - **Copy the response shapes from the backend serializer, never from guesswork.** Find the
   route or service in `freeserp-backend-v2/src/modules/` that produces each response, match its
   fields (including nullable and optional ones), and name those files in the module's header
@@ -204,7 +204,7 @@ the other developer and land it as its own small PR first. Then both of you buil
 
 ## Tracker
 
-Edit only your own rows. Line-level merges stay trivial.
+Edit only your own rows. If two branches touched neighbouring rows, merging conflicts on them. Keep both edits.
 
 | Slug | Demo URL | API base | Entry | Gotchas | Owner | Status |
 |---|---|---|---|---|---|---|
