@@ -95,6 +95,13 @@ site.
   not from separately invented numbers. The rank tracker builds its competitor counts from the
   same SERPs the keyword pages show.
 
+- **Generated data.** When the demo's data comes from running backend code on synthetic input
+  (AEO, Competitor Analysis), the generator is `scripts/demo/<slug>.gen.ts` and writes
+  `lib/demo/<slug>-data.ts`. Run it with `node scripts/demo/run.mjs scripts/demo/<slug>.gen.ts`
+  from this repo (it needs `freeserp-backend-v2` checked out next to it). The runner stubs the
+  backend's logger and env and refuses any import of the database or Redis clients. Commit the
+  generator with its output.
+
 ### 3. Read-only
 - `lib/demo/index.ts` refuses every non-GET with `403 demo_read_only`, for both HTTP clients.
   That is the safety net, not the UX.
@@ -210,7 +217,7 @@ Edit only your own rows. Line-level merges stay trivial.
 | `page-audit` | `/dashboard/page-audit/demo` | `/api/page-audit/reports` | own history (`components/page-audit/audit-history.tsx`) | One demo covers Website Audit and Page Audit (shared runner + report); sub-endpoints `/issue-groups`, `/pages`, `/issues/:type/pages`; `ask-ai-panel` uses raw `fetch`, so hide it; share sections PUT guarded | B | todo |
 | `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | todo |
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | todo |
-| `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | todo |
+| `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | built — browser check pending |
 | `internal-links` | `/dashboard/ai-internal-linking/results?analysisId=demo` | `/api/internal-link-analysis` | `ReportHistory` | The create page uses axios (covered); results use `api` | B | todo |
 | `keyword-score` | `/dashboard/keyword-analysis/results?id=demo` | `/api/keyword-analysis` | own cursor history | Guard re-run; when done, point the rank-tracker demo's score badge at it | B | todo |
 
