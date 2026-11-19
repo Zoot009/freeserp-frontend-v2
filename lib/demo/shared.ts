@@ -20,14 +20,12 @@ export const DEMO_BRAND = {
 } as const
 
 /**
- * One tool's demo. lib/demo/index.ts routes `<base>/demo…` here: GETs call
- * `get`, every other method is refused there (403 demo_read_only), so a tool
- * never handles writes or routing itself.
+ * One tool's demo. lib/demo/index.ts maps an API prefix to it and routes
+ * `<prefix>/demo…` here: GETs call `get`, every other method is refused there
+ * (403 demo_read_only), so a tool never handles writes or routing itself.
  */
 export interface DemoTool {
-  /** API prefix the demo id follows: "/api/projects" serves "/api/projects/demo/…". */
-  base: string
-  /** `rest` = path segments after "<base>/demo". Return undefined for a 404. */
+  /** `rest` = path segments after "<prefix>/demo". Return undefined for a 404. */
   get(rest: string[], query: URLSearchParams): unknown
 }
 

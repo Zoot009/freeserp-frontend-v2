@@ -62,12 +62,13 @@ site.
   (`useIsDemoView`), so the convention isn't optional.
 
 ### 2. The data module: `lib/demo/<slug>.ts`
-- Export one `DemoTool`: `{ base, get(rest, query) }`.
-  - `base` is the API prefix the id follows.
-  - `get` receives the path segments after `<base>/demo` and returns the response body, or
-    `undefined` for a 404.
-  - Register it in `lib/demo/index.ts`: one import, one array entry. That is the only edit to
-    that file.
+- Export one `DemoTool`: `{ get(rest, query) }`. `get` receives the path segments after
+  `<prefix>/demo` and returns the response body, or `undefined` for a 404.
+  - Register it in `lib/demo/index.ts` as one line, mapping the API prefix the id follows to a
+    lazy import: `"/api/<prefix>": () => import("./<slug>").then((m) => m.<slug>Demo),`. That
+    is the only edit to that file.
+  - The module loads on the first request to its demo, so its data never weighs on other
+    pages. Never import a demo data module from a shared component that every page uses.
 - **Copy the response shapes from the backend serializer, never from guesswork.** Find the
   route or service in `freeserp-backend-v2/src/modules/` that produces each response, match its
   fields (including nullable and optional ones), and name those files in the module's header

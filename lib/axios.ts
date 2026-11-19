@@ -17,8 +17,8 @@ const instance = axios.create({
  * a plain 403, which the response interceptor below leaves alone — no credit
  * refresh, no quota prompt.
  */
-instance.interceptors.request.use((config) => {
-  const demo = demoResponse(config.url ?? "", config.method ?? "get")
+instance.interceptors.request.use(async (config) => {
+  const demo = await demoResponse(config.url ?? "", config.method ?? "get")
   if (!demo) return config
   config.adapter = async (cfg) => ({
     data: demo.error ? { error: { code: demo.error.code, message: demo.error.message } } : demo.data,

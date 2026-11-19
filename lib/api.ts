@@ -198,7 +198,7 @@ async function refreshAccessToken(): Promise<string | null> {
 export async function apiRequest<T = unknown>(path: string, init: RequestInitWithJson = {}): Promise<T> {
   // Demo reports never reach the network: their data is generated in-process
   // and every write is refused (lib/demo/index.ts).
-  const demo = demoResponse(path, (init.method as string | undefined) ?? "GET")
+  const demo = await demoResponse(path, (init.method as string | undefined) ?? "GET")
   if (demo) {
     if (demo.error) throw new ApiError(demo.error.message, demo.error.status, demo.error.code)
     return demo.data as T

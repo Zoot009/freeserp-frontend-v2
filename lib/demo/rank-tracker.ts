@@ -577,7 +577,6 @@ function competitorSuggestions(d: DemoData) {
 // ── Routes (GET only; lib/demo/index.ts refuses writes) ─────────────────────
 
 export const rankTrackerDemo: DemoTool = {
-  base: "/api/projects",
   get([a, b, c]) {
     const d = demoData()
     const kw = d.keywords.find((k) => k.id === b)
