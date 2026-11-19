@@ -11,6 +11,7 @@ import { DEMO_ID, type DemoResult, type DemoTool } from "./shared"
 export const DEMO_TOOLS: Record<string, () => Promise<DemoTool>> = {
   "/api/projects": () => import("./rank-tracker").then((m) => m.rankTrackerDemo),
   "/api/competitor-analysis": () => import("./competitor-analysis").then((m) => m.competitorAnalysisDemo),
+  "/api/keyword-analysis": () => import("./keyword-score").then((m) => m.keywordScoreDemo),
 }
 
 const READ_ONLY: DemoResult = {

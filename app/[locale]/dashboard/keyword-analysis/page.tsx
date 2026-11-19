@@ -11,6 +11,9 @@ import { Favicon } from "@/components/favicon"
 import { displayDomain } from "@/lib/utils"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { Hint } from "@/components/dashboard/widget"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { keywordScoreDemoListItem } from "@/lib/demo/keyword-score"
 
 // A saved single-site analysis as returned by GET /api/keyword-analysis (list
 // shape — no crawlData blob).
@@ -317,16 +320,8 @@ function KeywordAnalysisContent() {
           <div style={{ padding: 48, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
             <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span> Loading…
           </div>
-        ) : history.length === 0 ? (
-          <div style={{ padding: 48, textAlign: "center" }}>
-            <div style={{ color: "var(--text-mute)", marginBottom: 8, display: "flex", justifyContent: "center" }}>
-              <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--bg-inset)", display: "grid", placeItems: "center" }}>
-                <Icon.search />
-              </span>
-            </div>
-            <div className="tiny muted">No analyses yet. Run your first one above.</div>
-          </div>
         ) : (
+          <>
           <table className="tbl flush ka-hist">
             <thead>
               <tr>
@@ -337,7 +332,9 @@ function KeywordAnalysisContent() {
               </tr>
             </thead>
             <tbody>
-              {history.map((a) => {
+              {/* The demo report, pinned first for everyone (.claude/skills/demo-report). */}
+              {[keywordScoreDemoListItem(), ...history].map((a) => {
+                const isDemo = a.id === DEMO_ID
                 const href = `/dashboard/keyword-analysis/results?id=${a.id}`
                 return (
                   // The whole row opens the report; the keyword is the link a
@@ -347,9 +344,12 @@ function KeywordAnalysisContent() {
                       <div className="row" style={{ gap: 12, minWidth: 0 }}>
                         <Favicon domain={displayDomain(a.domain || a.url)} size={24} />
                         <div style={{ minWidth: 0 }}>
-                          <Link href={href} className="kw ka-open" title={a.keyword} onClick={(e) => e.stopPropagation()}>
-                            {a.keyword}
-                          </Link>
+                          <div className="row" style={{ gap: 8, minWidth: 0 }}>
+                            <Link href={href} className="kw ka-open" title={a.keyword} onClick={(e) => e.stopPropagation()}>
+                              {a.keyword}
+                            </Link>
+                            {isDemo && <DemoChip />}
+                          </div>
                           <div className="tiny muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.url}>
                             {pageLabel(a)}
                           </div>
@@ -364,6 +364,17 @@ function KeywordAnalysisContent() {
               })}
             </tbody>
           </table>
+          {history.length === 0 && (
+          <div style={{ padding: 48, textAlign: "center" }}>
+            <div style={{ color: "var(--text-mute)", marginBottom: 8, display: "flex", justifyContent: "center" }}>
+              <span style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--bg-inset)", display: "grid", placeItems: "center" }}>
+                <Icon.search />
+              </span>
+            </div>
+            <div className="tiny muted">No analyses yet. Run your first one above.</div>
+          </div>
+          )}
+          </>
         )}
 
         {!loadingHistory && nextCursor && (

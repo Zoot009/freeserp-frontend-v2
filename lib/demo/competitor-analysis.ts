@@ -8,23 +8,13 @@
 // This file only moves its timestamps to now.
 
 import { ANALYSIS, GENERATED_AT } from "./competitor-analysis-data"
-import { DEMO_ID, perAnchor, type DemoTool } from "./shared"
+import { DEMO_ID, perAnchor, shiftDates, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the analysis form. */
 export const COMPETITOR_ANALYSIS_CREATE_HREF = "/dashboard/competitor-analysis"
 export const COMPETITOR_ANALYSIS_DEMO_KEYWORD = ANALYSIS.keyword
 
-const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-
-/** Every ISO timestamp in `v`, moved by `ms`. */
-function shift(v: unknown, ms: number): unknown {
-  if (typeof v === "string") return ISO.test(v) ? new Date(Date.parse(v) + ms).toISOString() : v
-  if (Array.isArray(v)) return v.map((x) => shift(x, ms))
-  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, shift(x, ms)]))
-  return v
-}
-
-const demoData = perAnchor((anchor) => ({ analysis: shift(ANALYSIS, anchor - Date.parse(GENERATED_AT)) }))
+const demoData = perAnchor((anchor) => ({ analysis: shiftDates(ANALYSIS, anchor - Date.parse(GENERATED_AT)) }))
 
 /** The ReportHistory pin for this demo, as the history's own rows read. */
 export function competitorAnalysisDemoRow() {

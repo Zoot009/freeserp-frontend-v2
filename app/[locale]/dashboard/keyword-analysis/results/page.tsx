@@ -13,6 +13,9 @@ import { KeywordAnalysisReport } from "@/components/keyword-analysis-report"
 import { computeSeoScore, onPageFactors, type OnPageFactorKey, type SeoScoreBreakdown } from "@/lib/seoScorer"
 import { crawlErrorCopy } from "@/lib/crawl-error"
 import type { CrawlData, CrawlError } from "@/types/competitor-analysis"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { KEYWORD_SCORE_CREATE_HREF } from "@/lib/demo/keyword-score"
 
 type Analysis = {
   id: string
@@ -363,6 +366,8 @@ function Results({ id }: { id: string }) {
   const [slow, setSlow] = useState(false)
   const [rerunning, setRerunning] = useState(false)
   const [rerunError, setRerunError] = useState<string | null>(null)
+  // The demo report is read-only: "Rerun" shows the demo prompt instead.
+  const guard = useDemoGuard(id === DEMO_ID, KEYWORD_SCORE_CREATE_HREF)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -456,6 +461,7 @@ function Results({ id }: { id: string }) {
 
   return (
     <div className="page">
+      {id === DEMO_ID && <DemoBanner createHref={KEYWORD_SCORE_CREATE_HREF} />}
       <style>{LAYOUT_CSS}</style>
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
@@ -495,7 +501,7 @@ function Results({ id }: { id: string }) {
         </div>
         {!error && !inProgress && (
           <div className="ka-rerun">
-            <button className="btn sm" onClick={rerun} disabled={rerunning}>
+            <button className="btn sm" onClick={guard(rerun)} disabled={rerunning}>
               <span className={rerunning ? "spin" : undefined} style={{ display: "inline-flex" }}><Icon.refresh /></span>
               {rerunning ? "Starting…" : "Run again"}
             </button>

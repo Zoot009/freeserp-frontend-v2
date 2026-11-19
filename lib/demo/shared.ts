@@ -66,3 +66,18 @@ export function perAnchor<T>(build: (anchor: number) => T): () => T {
     return cache.value
   }
 }
+
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+
+/**
+ * Every ISO timestamp in `value`, moved by `ms`. Generated demo data is stamped
+ * at a fixed time; this moves all of it to "now" in one pass.
+ */
+export function shiftDates<T>(value: T, ms: number): T {
+  const walk = (v: unknown): unknown =>
+    typeof v === "string" ? (ISO.test(v) ? new Date(Date.parse(v) + ms).toISOString() : v)
+    : Array.isArray(v) ? v.map(walk)
+    : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]))
+    : v
+  return walk(value) as T
+}
