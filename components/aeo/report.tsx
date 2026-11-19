@@ -556,7 +556,16 @@ export function EngineReadiness({ engines, measured }: { engines?: EngineScore[]
 // ── Changes, fixes, categories ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Since the site's previous completed audit: how the scores moved, and which checks were fixed or started failing. */
-export function Comparison({ breakdown, previous }: { breakdown: Breakdown; previous: NonNullable<AeoReport["previous"]> }) {
+export function Comparison({
+  breakdown,
+  previous,
+  openable = true,
+}: {
+  breakdown: Breakdown
+  previous: NonNullable<AeoReport["previous"]>
+  /** False when the previous report can't be opened — the demo has none to show. */
+  openable?: boolean
+}) {
   const { fixed, regressed } = previous
   return (
     <Panel
@@ -564,9 +573,11 @@ export function Comparison({ breakdown, previous }: { breakdown: Breakdown; prev
       title="Since the last audit"
       hint={`Compared with the audit of this site on ${fmtDay(previous.createdAt)}.`}
       right={
-        <Link href={`/dashboard/aeo-audit/${previous.id}`} className="text-xs font-medium text-primary hover:underline">
-          Open that report
-        </Link>
+        openable && (
+          <Link href={`/dashboard/aeo-audit/${previous.id}`} className="text-xs font-medium text-primary hover:underline">
+            Open that report
+          </Link>
+        )
       }
     >
       <div className="space-y-3 p-4 text-sm">

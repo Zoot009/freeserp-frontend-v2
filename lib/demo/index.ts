@@ -20,6 +20,7 @@ export const DEMO_TOOLS: Record<string, () => Promise<DemoTool>> = {
   "/api/ads-analysis": () => import("./ads-analysis").then((m) => m.adsAnalysisDemo),
   "/api/competitor-analysis": () => import("./competitor-analysis").then((m) => m.competitorAnalysisDemo),
   "/api/keyword-analysis": () => import("./keyword-score").then((m) => m.keywordScoreDemo),
+  "/api/aeo-audit": () => import("./aeo-audit").then((m) => m.aeoAuditDemo),
 }
 
 const READ_ONLY: DemoResult = {

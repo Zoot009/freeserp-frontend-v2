@@ -9,6 +9,9 @@ import { api, ApiError } from "@/lib/api"
 import { fmtDay, isRunning, type AeoReport, type AuditStatus, type Breakdown } from "@/lib/aeo"
 import { Button } from "@/components/ui/button"
 import { QuestionChoice } from "@/components/aeo/question-choice"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { AEO_AUDIT_CREATE_HREF } from "@/lib/demo/aeo-audit"
 import {
   AiVisibility,
   Alarm,
@@ -52,6 +55,9 @@ export default function AeoAuditReportPage() {
   const pollGenRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const failuresRef = useRef(0)
+  // The demo report is read-only: "Run again" shows the demo prompt instead.
+  const isDemo = id === DEMO_ID
+  const guard = useDemoGuard(isDemo, AEO_AUDIT_CREATE_HREF)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -162,6 +168,7 @@ export default function AeoAuditReportPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={AEO_AUDIT_CREATE_HREF} />}
       {back}
       <ReportHeader
         origin={audit.origin}
@@ -175,7 +182,7 @@ export default function AeoAuditReportPage() {
                   {pdfState === "building" ? "Preparing…" : "Download PDF"}
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={rerun} disabled={rerunning}>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={guard(rerun)} disabled={rerunning}>
                 <RefreshCw className={`h-3 w-3 ${rerunning ? "animate-spin" : ""}`} />
                 {rerunning ? "Starting…" : "Run again"}
               </Button>
@@ -196,7 +203,7 @@ export default function AeoAuditReportPage() {
             <FixList fixes={fixes} origin={origin} />
             <AiVisibility measured={measured} host={host.replace(/^www\./, "")} />
             <EngineReadiness engines={breakdown.engines} measured={measured} />
-            {previous && <Comparison breakdown={breakdown} previous={previous} />}
+            {previous && <Comparison breakdown={breakdown} previous={previous} openable={!isDemo} />}
             <Categories breakdown={breakdown} fixes={fixes} strengths={strengths} />
           </>
         )}
