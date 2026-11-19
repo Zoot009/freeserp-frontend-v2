@@ -14,6 +14,8 @@ import { DEMO_BRAND, DEMO_ID, perAnchor, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the analysis setup form. */
 export const ADS_ANALYSIS_CREATE_HREF = "/dashboard/ads-analysis"
+/** The demo report, for PaidToolGate's "Explore the live demo". */
+export const ADS_ANALYSIS_DEMO_HREF = `/dashboard/ads-analysis/${DEMO_ID}`
 
 const url = (path: string) => `${DEMO_BRAND.url}${path}`
 
@@ -253,7 +255,7 @@ export function adsAnalysisDemoRow() {
   return {
     title: DEMO_BRAND.domain,
     subtitle: [`Score ${analysis.score}/100`, analysis.locationLabel, SERVICES.slice(0, 3).join(", ")].join(" · "),
-    href: `/dashboard/ads-analysis/${DEMO_ID}`,
+    href: ADS_ANALYSIS_DEMO_HREF,
   }
 }
 

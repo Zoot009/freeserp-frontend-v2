@@ -13,6 +13,8 @@ import { DEMO_ID, perAnchor, shiftDates, type DemoTool } from "./shared"
 /** Where the demo's CTAs lead: the analysis form. */
 export const COMPETITOR_ANALYSIS_CREATE_HREF = "/dashboard/competitor-analysis"
 export const COMPETITOR_ANALYSIS_DEMO_KEYWORD = ANALYSIS.keyword
+/** The demo report, for PaidToolGate's "Explore the live demo". */
+export const COMPETITOR_ANALYSIS_DEMO_HREF = `/dashboard/competitor-analysis/results?analysisId=${DEMO_ID}&keyword=${encodeURIComponent(ANALYSIS.keyword)}`
 
 const demoData = perAnchor((anchor) => ({ analysis: shiftDates(ANALYSIS, anchor - Date.parse(GENERATED_AT)) }))
 
@@ -22,7 +24,7 @@ export function competitorAnalysisDemoRow() {
     title: ANALYSIS.keyword,
     subtitle: ANALYSIS.yourDomain,
     domain: ANALYSIS.yourDomain,
-    href: `/dashboard/competitor-analysis/results?analysisId=${DEMO_ID}&keyword=${encodeURIComponent(ANALYSIS.keyword)}`,
+    href: COMPETITOR_ANALYSIS_DEMO_HREF,
   }
 }
 

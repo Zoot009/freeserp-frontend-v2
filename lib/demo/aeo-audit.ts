@@ -13,6 +13,8 @@ import { DAY_MS, DEMO_BRAND, DEMO_ID, perAnchor, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the audit form. */
 export const AEO_AUDIT_CREATE_HREF = "/dashboard/aeo-audit"
+/** The demo report, for PaidToolGate's "Explore the live demo". */
+export const AEO_AUDIT_DEMO_HREF = `/dashboard/aeo-audit/${DEMO_ID}`
 
 const { breakdown, site, pages, findings, fixes, strengths, previous } = AEO_DEMO
 
@@ -56,7 +58,7 @@ export function aeoAuditDemoRow() {
   return {
     title: new URL(DEMO_BRAND.url).hostname.replace(/^www\./, ""),
     subtitle: `AEO ${breakdown.aeo} · GEO ${breakdown.geo}`,
-    href: `/dashboard/aeo-audit/${DEMO_ID}`,
+    href: AEO_AUDIT_DEMO_HREF,
   }
 }
 

@@ -13,6 +13,8 @@ import { DEMO_ID, perAnchor, shiftDates, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the checker's form. */
 export const KEYWORD_SCORE_CREATE_HREF = "/dashboard/keyword-analysis"
+/** The demo report, for PaidToolGate's "Explore the live demo". */
+export const KEYWORD_SCORE_DEMO_HREF = `/dashboard/keyword-analysis/results?id=${DEMO_ID}`
 
 const demoData = perAnchor((anchor) => ({ analysis: shiftDates(ANALYSIS, anchor - Date.parse(GENERATED_AT)) }))
 

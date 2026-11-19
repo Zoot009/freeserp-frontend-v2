@@ -12,6 +12,8 @@ import { DEMO_BRAND, DEMO_ID, perAnchor, prng, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the analysis form. */
 export const INTERNAL_LINKS_CREATE_HREF = "/dashboard/ai-internal-linking"
+/** The demo report, for PaidToolGate's "Explore the live demo". */
+export const INTERNAL_LINKS_DEMO_HREF = `/dashboard/ai-internal-linking/results?analysisId=${DEMO_ID}`
 
 const url = (path: string) => `${DEMO_BRAND.url}${path}`
 
@@ -172,7 +174,7 @@ export function internalLinksDemoRow() {
   return {
     title: DEMO_BRAND.domain,
     subtitle: `${GRAPH.metadata.totalPages} pages · ${GRAPH.metadata.orphanPages} orphans`,
-    href: `/dashboard/ai-internal-linking/results?analysisId=${DEMO_ID}`,
+    href: INTERNAL_LINKS_DEMO_HREF,
   }
 }
 

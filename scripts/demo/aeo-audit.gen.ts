@@ -6,7 +6,7 @@
 //
 // Needs freeserp-backend-v2 checked out next to this repo (with node_modules).
 // From freeserp-frontend-v2/:
-//   node_modules/.bin/esbuild scripts/demo/aeo-audit.gen.ts --bundle --platform=node --outfile=/tmp/aeo-gen.js && node /tmp/aeo-gen.js
+//   node scripts/demo/run.mjs scripts/demo/aeo-audit.gen.ts
 // Excluded from tsconfig: its imports resolve against the backend, not this app.
 import { runChecks } from "../../../freeserp-backend-v2/src/modules/aeo-audit/engine/checks"
 import { score } from "../../../freeserp-backend-v2/src/modules/aeo-audit/engine/scoring/score"
