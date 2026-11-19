@@ -17,6 +17,12 @@ import {
 } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { setDetailCrumb } from "@/components/dashboard/crumb-store"
+import { DemoBanner, DemoChip, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { demoSerpHistoryItem } from "@/lib/demo/serp-checker"
+
+/** Where the demo's CTAs lead: this page's own search form. */
+const SERP_CHECKER_CREATE_HREF = "/dashboard/serp-checker"
 
 type SerpResultRow = {
   position: number
@@ -156,10 +162,12 @@ export default function SerpCheckerPage() {
    * `history` arrives newest-first and Map keeps insertion order, so the first
    * run seen for a key is the latest and the groups stay in recency order.
    */
+  // The demo check is pinned first for everyone and never grouped with a real
+  // run of the same query; the counts in the header read the account's own.
   const groups = useMemo<HistoryGroup[]>(() => {
     const by = new Map<string, HistoryGroup>()
-    for (const h of history) {
-      const key = `${h.keyword.trim().toLowerCase()}|${h.country}|${h.device}|${(h.domain ?? "").toLowerCase()}`
+    for (const h of [demoSerpHistoryItem(), ...history]) {
+      const key = h.id === DEMO_ID ? DEMO_ID : `${h.keyword.trim().toLowerCase()}|${h.country}|${h.device}|${(h.domain ?? "").toLowerCase()}`
       const g = by.get(key)
       if (g) g.items.push(h)
       else by.set(key, { key, latest: h, items: [h] })
@@ -172,6 +180,11 @@ export default function SerpCheckerPage() {
   // Which check is on screen. The URL sync below compares against this so it is
   // idempotent — it can run again without re-fetching what is already shown.
   const shownIdRef = useRef<string | null>(null)
+  // The same id as state, so the demo check (?check=demo) can show its banner
+  // and guard its re-run without reading a ref during render.
+  const [shownId, setShownId] = useState<string | null>(null)
+  const isDemo = result != null && shownId === DEMO_ID
+  const guard = useDemoGuard(isDemo, SERP_CHECKER_CREATE_HREF)
 
   // A check is "in progress" while the POST is in flight or a row is PROCESSING.
   const processing = submitting || processingId != null
@@ -211,6 +224,7 @@ export default function SerpCheckerPage() {
     setResult(r)
     setError(null)
     shownIdRef.current = id
+    setShownId(id)
     if (typeof window === "undefined") return
     const url = new URL(window.location.href)
     if (url.searchParams.get("check") !== id) {
@@ -225,6 +239,7 @@ export default function SerpCheckerPage() {
     setResult(null)
     setError(null)
     shownIdRef.current = null
+    setShownId(null)
     if (typeof window === "undefined") return
     const url = new URL(window.location.href)
     url.searchParams.delete("check")
@@ -347,6 +362,7 @@ export default function SerpCheckerPage() {
           setResult(check.result)
           setError(null)
           shownIdRef.current = id
+          setShownId(id)
         } else if (check.status === "PROCESSING") {
           pollCheck(id)
         } else {
@@ -380,6 +396,7 @@ export default function SerpCheckerPage() {
       if (!id) {
         setResult(null)
         shownIdRef.current = null
+        setShownId(null)
         return
       }
       void loadCheckById(id)
@@ -426,6 +443,7 @@ export default function SerpCheckerPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={SERP_CHECKER_CREATE_HREF} />}
       {/* Two modes, and the header says which one you are in. A result used to
           appear BELOW the form with the page still titled "Quick SERP Checker",
           so there was nothing to say you had opened something, and nothing to
@@ -458,7 +476,7 @@ export default function SerpCheckerPage() {
             <button className="btn" onClick={clearResult}>
               <Icon.search /> {t("newCheck")}
             </button>
-            <button className="btn" onClick={rerun} disabled={processing}>
+            <button className="btn" onClick={guard(rerun)} disabled={processing}>
               <Icon.refresh /> {t("hero.rerun")}
             </button>
             <button className="btn" onClick={exportReport}>
@@ -802,12 +820,12 @@ export default function SerpCheckerPage() {
       {/* Previous searches — one row per QUERY, not per run. See `groups`.
           Hidden while a result is open: it is the list you came FROM, and the
           breadcrumb is how you get back to it. */}
-      {!result && history.length > 0 && (
+      {!result && (
         <div className="card" style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
           <div className="card-h" style={{ padding: "13px 16px", marginBottom: 0, borderBottom: "1px solid var(--border)" }}>
             <div className="b">{t("history.title")}</div>
             <span className="tiny muted">
-              {t("history.summary", { queries: groups.length, checks: history.length })}
+              {t("history.summary", { queries: groups.length - 1, checks: history.length })}
             </span>
           </div>
 
@@ -848,7 +866,7 @@ export default function SerpCheckerPage() {
                       </button>
                     )}
 
-                    <HistoryStatus item={h} t={t} />
+                    {h.id === DEMO_ID ? <DemoChip /> : <HistoryStatus item={h} t={t} />}
                     <span className="tiny muted tabular sc-hist-when">{relativeTime(h.createdAt, t, locale)}</span>
                   </div>
 

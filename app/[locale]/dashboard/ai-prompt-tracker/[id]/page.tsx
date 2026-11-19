@@ -57,6 +57,9 @@ import {
 import { ENGINES, ENGINE_NOTE, ENGINE_ORDER } from "@/lib/ai-engines"
 import { BrandSettingsModal } from "@/components/dashboard/ai-tracker/brand-settings"
 import { ConfirmDialog } from "@/components/dashboard/confirm-dialog"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { AI_TRACKER_CREATE_HREF } from "@/lib/demo/ai-prompt-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id) ─────────────────────────
 // Platform, RunSummary, PromptRow and the status vocabulary live in
@@ -103,6 +106,9 @@ export default function LlmPromptListPage() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
   const projectId = params.id
+  const isDemo = projectId === DEMO_ID
+  // The demo brand is read-only: every edit, run or schedule change shows the demo prompt.
+  const guard = useDemoGuard(isDemo, AI_TRACKER_CREATE_HREF)
   const { user, loading: authLoading } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
@@ -261,11 +267,11 @@ export default function LlmPromptListPage() {
    */
   const openedNew = useRef(false)
   useEffect(() => {
-    if (searchParams.get("new") === "1" && !openedNew.current && project) {
+    if (searchParams.get("new") === "1" && !openedNew.current && project && !isDemo) {
       openedNew.current = true
       setShowAdd(true)
     }
-  }, [searchParams, project])
+  }, [searchParams, project, isDemo])
 
   /**
    * Close, and drop the ?new= / ?platform= that opened it.
@@ -487,6 +493,7 @@ export default function LlmPromptListPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={AI_TRACKER_CREATE_HREF} />}
       <div className="page-h">
         <div>
           <div className="tiny muted">
@@ -495,21 +502,21 @@ export default function LlmPromptListPage() {
           <h1>{project.name}</h1>
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn" onClick={() => setShowSettings(true)}>
+          <button className="btn" onClick={guard(() => setShowSettings(true))}>
             <Icon.settings /> Brand settings
           </button>
-          <button className="btn" onClick={() => setShowAdd(true)}>
+          <button className="btn" onClick={guard(() => setShowAdd(true))}>
             <Icon.plus /> Add prompts
           </button>
           <button
             className="btn primary"
             disabled={busy || prompts.length === 0}
-            onClick={() => {
+            onClick={guard(() => {
               // A whole project across the dear assistants runs to dozens of
               // credits, so a big run is confirmed rather than just labelled.
               if (runQuote.applies && (runQuote.cost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
               else void runNow(selected.size > 0 ? [...selected] : undefined)
-            }}
+            })}
           >
             <Icon.refresh /> {selected.size > 0 ? `Run ${selected.size}` : "Run all"}
           </button>
@@ -713,7 +720,7 @@ export default function LlmPromptListPage() {
                             <button
                               type="button"
                               className="llm-plat-add"
-                              onClick={() => setEditPlatforms(p.id)}
+                              onClick={guard(() => setEditPlatforms(p.id))}
                               title={`Choose which AI assistants answer "${p.prompt}"`}
                             >
                               {p.platforms.length >= PLATFORMS.length ? (
@@ -729,7 +736,7 @@ export default function LlmPromptListPage() {
                         <td className="llm-c-status">
                           <RunStateCell
                             state={state}
-                            onRetry={state.kind === "failed" ? () => void runNow([p.id]) : undefined}
+                            onRetry={state.kind === "failed" ? guard(() => void runNow([p.id])) : undefined}
                             retryTitle={rowCost ? priced("Retry") : undefined}
                           />
                         </td>
@@ -755,7 +762,7 @@ export default function LlmPromptListPage() {
                               ariaLabel={`Run frequency for "${p.prompt}"`}
                               value={frequencyValue(p)}
                               options={FREQUENCY_OPTIONS}
-                              onChange={(v) => void updateSchedule(p.id, v === "off" ? null : Number(v))}
+                              onChange={guard((v: string) => void updateSchedule(p.id, v === "off" ? null : Number(v)))}
                               /* The table lives in .tbl-scroll, which clips an
                                  absolutely positioned menu. */
                               portal
@@ -794,7 +801,7 @@ export default function LlmPromptListPage() {
                                         )
                                 }
                                 disabled={busy || runNowIn.length === 0}
-                                onClick={() => void runNow([p.id])}
+                                onClick={guard(() => void runNow([p.id]))}
                               >
                                 <Icon.refresh />
                               </button>
@@ -806,7 +813,7 @@ export default function LlmPromptListPage() {
                               <button
                                 className="icon-btn"
                                 title="Remove"
-                                onClick={() => setConfirmDelete(p.id)}
+                                onClick={guard(() => setConfirmDelete(p.id))}
                               >
                                 <Icon.trash size={13} />
                               </button>

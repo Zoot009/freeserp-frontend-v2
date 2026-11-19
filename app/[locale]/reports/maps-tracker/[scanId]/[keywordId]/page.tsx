@@ -14,10 +14,14 @@ import { KeywordChips } from "@/components/maps-tracker/keyword-chips"
 import { useCompetitors } from "@/components/maps-tracker/use-competitors"
 import { downloadScanCsv } from "@/components/maps-tracker/export-csv"
 import type { Scan } from "@/components/maps-tracker/types"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_BRAND, DEMO_ID } from "@/lib/demo/shared"
+import { MAPS_TRACKER_CREATE_HREF } from "@/lib/demo/maps-tracker"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 const LIST = "/dashboard/google-maps-tracker"
 const POLL_MS = 2000
+const DEMO_STORE = DEMO_BRAND.store.name
 /** How long a finished scan keeps polling for its AI report before leaving it to a reload. */
 const AI_WAIT_MS = 5 * 60_000
 
@@ -43,6 +47,9 @@ function isTerminal(status: string): boolean {
 export default function ScanReportPage() {
   const router = useRouter()
   const params = useParams<{ scanId: string; keywordId: string }>()
+  const isDemo = params.scanId === DEMO_ID
+  // The demo scan is read-only: re-running it shows the demo prompt instead.
+  const guard = useDemoGuard(isDemo, MAPS_TRACKER_CREATE_HREF)
   const [scan, setScan] = useState<Scan | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Apart from `error`, which every good poll clears: a failed Cancel must stay
@@ -208,6 +215,7 @@ export default function ScanReportPage() {
   return (
     <div className="mt-page mt-report">
       <div className="mt-sheet">
+        {isDemo && <DemoBanner createHref={MAPS_TRACKER_CREATE_HREF} subject={DEMO_STORE} />}
         {/* The owner's controls. Never printed: a printed report is the
             document, not the tool that made it. */}
         <div className="mt-rbar">
@@ -225,9 +233,12 @@ export default function ScanReportPage() {
                 <Download size={13} /> Export CSV
               </button>
             )}
-            {isTerminal(scan.status) && (
-              <Link href={`${LIST}/new?from=${scan.id}`} className="btn primary sm">Scan again</Link>
-            )}
+            {isTerminal(scan.status) &&
+              (isDemo ? (
+                <button type="button" className="btn primary sm" onClick={guard(() => undefined)}>Scan again</button>
+              ) : (
+                <Link href={`${LIST}/new?from=${scan.id}`} className="btn primary sm">Scan again</Link>
+              ))}
           </div>
         </div>
 

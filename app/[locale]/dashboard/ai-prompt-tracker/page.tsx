@@ -17,6 +17,9 @@ import { ToolContext } from "@/components/dashboard/tool-context"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
 import { OnboardingWizard } from "@/components/dashboard/ai-tracker/onboarding-wizard"
 import type { Platform } from "@/lib/ai-tracker"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { demoAiTrackerProject } from "@/lib/demo/ai-prompt-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects) ─────────────────────────────
 type ProjectSummary = {
@@ -140,25 +143,30 @@ export default function LlmPromptsPage() {
         </div>
       )}
 
-      {setupOpen ? (
+      {setupOpen && (
         // No Cancel on a first run -- there is nothing behind it to go back to.
         <OnboardingWizard onCancel={firstRun ? undefined : () => setShowAdd(false)} />
-      ) : (
+      )}
+      {/* The demo brand is pinned first for everyone. On a first run the wizard
+          stays the page, with the demo under it as an example to open. */}
+      {(!setupOpen || firstRun) && (
         // Rows, not a three-column card grid. Most accounts track one or two
         // brands, and a fixed three-track grid gave a single brand a card a
         // third of the page wide with two empty thirds beside it -- the card
         // looked stranded because it WAS stranded. A row fills the width at
         // any count, and the assistant strip lines up down the list so four
         // brands compare on ChatGPT by reading straight down.
-        <div className="llm-brands">
-          {projects.map((p) => (
+        <div className="llm-brands" style={firstRun ? { marginTop: 20 } : undefined}>
+          {[demoAiTrackerProject(), ...projects].map((p) => (
             <Link
               key={p.id}
               href={`/dashboard/ai-prompt-tracker/${p.id}`}
               className="llm-brand-row"
             >
               <span className="llm-brand-id">
-                <span className="llm-brand-name">{p.name}</span>
+                <span className="llm-brand-name">
+                  {p.name} {p.id === DEMO_ID && <DemoChip />}
+                </span>
                 <span className="tiny muted llm-brand-sub">
                   {p.brandName}
                   {p.brandDomain ? ` · ${p.brandDomain}` : ""}

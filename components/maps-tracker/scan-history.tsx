@@ -2,6 +2,8 @@
 
 import { FileText } from "lucide-react"
 import { Link } from "@/i18n/navigation"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
 import { rankColor, MILES_TO_METERS, KM_TO_METERS } from "./grid"
 import type { ScanHistoryItem, ScanHistoryKeyword, ScanStatus } from "./types"
 
@@ -158,7 +160,11 @@ function ReportCard({
               <span className="mt-card-kw">{keyword.keyword}</span>
               <span className="mt-card-biz">{scan.location.name}</span>
             </span>
-            {verdict && <span className={`mt-card-verdict ${verdict.tone}`}>{verdict.label}</span>}
+            {scan.id === DEMO_ID ? (
+              <DemoChip />
+            ) : (
+              verdict && <span className={`mt-card-verdict ${verdict.tone}`}>{verdict.label}</span>
+            )}
           </span>
 
           {/* Labelled, with the definition on hover: three numbers nobody has

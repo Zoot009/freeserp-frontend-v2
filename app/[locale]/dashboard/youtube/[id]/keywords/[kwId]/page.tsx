@@ -17,6 +17,9 @@ import {
   YtPosCell,
   type YtSnapshotItem,
 } from "@/components/dashboard/youtube"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { YOUTUBE_TRACKER_CREATE_HREF, youtubeSnapshotPath } from "@/lib/demo/youtube-tracker"
 
 interface HistoryPoint {
   id: string
@@ -94,6 +97,8 @@ const shortDate = (iso: string) =>
 export default function YoutubeKeywordDetailPage() {
   const params = useParams<{ id: string; kwId: string }>()
   const { id: projectId, kwId } = params
+  const isDemo = projectId === DEMO_ID
+  const guard = useDemoGuard(isDemo, YOUTUBE_TRACKER_CREATE_HREF)
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -177,11 +182,11 @@ export default function YoutubeKeywordDetailPage() {
     if (!latestCheckId || snapshot?.checkId === latestCheckId) return
     setSnapshotLoading(true)
     api
-      .get<SnapshotResponse>(`/api/youtube/checks/${latestCheckId}/snapshot`)
+      .get<SnapshotResponse>(youtubeSnapshotPath(projectId, latestCheckId))
       .then(setSnapshot)
       .catch(() => setSnapshot(null))
       .finally(() => setSnapshotLoading(false))
-  }, [latestCheckId, snapshot?.checkId])
+  }, [projectId, latestCheckId, snapshot?.checkId])
 
   const chartData = useMemo(() => {
     if (!data) return []
@@ -224,6 +229,7 @@ export default function YoutubeKeywordDetailPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={YOUTUBE_TRACKER_CREATE_HREF} />}
       <div className="page-h">
         <div>
           <div className="tiny muted">
@@ -245,7 +251,7 @@ export default function YoutubeKeywordDetailPage() {
               Open on YouTube <Icon.external size={13} />
             </a>
           )}
-          <button className="btn primary" onClick={() => void runCheck()} disabled={inFlight}>
+          <button className="btn primary" onClick={guard(() => void runCheck())} disabled={inFlight}>
             {inFlight ? "Checking…" : "Check now"}
           </button>
         </div>

@@ -139,6 +139,12 @@ limit, count, quota or "X of Y used" text.
 don't add plan checks around the demo. For a free user, the CTA leading to the tool's real start
 page is the upsell: the gate shows them the paywall there.
 
+Free users never see a paid tool's own list (the gate's sample screen replaces it), so the demo
+pinned there is invisible to exactly the people it is for. **Pass the demo's URL from your tool's
+layout:** `<PaidToolGate tool="…" demoHref={<TOOL>_DEMO_HREF}>`, with `<TOOL>_DEMO_HREF` exported
+from your module. The sample screen then leads with "Explore the live demo". That prop is the
+gate's only per-tool input; the gate itself stays untouched.
+
 ### 7. Text and i18n
 - Use the `demo` namespace: `DemoBanner`, `DemoChip` and the prompt already render it. Don't add
   demo copy to a tool's namespace.
@@ -200,12 +206,12 @@ Edit only your own rows. Line-level merges stay trivial.
 | Slug | Demo URL | API base | Entry | Gotchas | Owner | Status |
 |---|---|---|---|---|---|---|
 | `rank-tracker` | `/dashboard/project/demo/keywords` | `/api/projects` | own list | Reference implementation | — | done |
-| `youtube-tracker` | `/dashboard/youtube/demo/keywords` | `/api/youtube/projects` | own list (`dashboard/youtube/page.tsx`) | Mirrors the rank tracker; polls while checks are active; PATCH frequency | A | todo |
-| `maps-tracker` | `/reports/maps-tracker/demo/<kwId>` | `/api/maps-tracker/scans` | own list (`google-maps-tracker/page.tsx`) | Report lives **outside** the dashboard (`app/[locale]/reports/maps-tracker/…`); `/new?from=demo` re-run must be guarded; the map needs `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`; use `DEMO_BRAND.store` | A | todo |
-| `maps-audit` | `/dashboard/google-maps-audit/demo` | `/api/gbp-audit` | `ReportHistory` | `useScanKeywordId` in `components/gbp-audit/report.tsx` fetches a maps-tracker scan: point it at the maps-tracker demo or return no scan id | A | todo |
-| `ai-prompt-tracker` | `/dashboard/ai-prompt-tracker/demo` | `/api/llm-tracker/projects` | own list | `?platform=` tabs; prompt page `[promptId]` polls; the `ai-platforms/*` pages are out of scope | A | todo |
-| `serp-checker` | `/dashboard/serp-checker?check=demo` | `/api/serp-check` | own history on the page | 2s poll → must be terminal | A | todo |
-| `keyword-magic` | `/dashboard/keyword-magic?view=demo` | `/api/keyword-magic` | "See an example" link | Stateless: the search is a POST, so demo view reads `GET /api/keyword-magic/demo`; guard "Add to tracker" | A | todo |
+| `youtube-tracker` | `/dashboard/youtube/demo/keywords` | `/api/youtube/projects` | own list (`dashboard/youtube/page.tsx`) | Mirrors the rank tracker; polls while checks are active; PATCH frequency; the snapshot route (`/api/youtube/checks/:id/snapshot`) is outside the base, so demo pages read it via `youtubeSnapshotPath` | A | in progress |
+| `maps-tracker` | `/reports/maps-tracker/demo/<kwId>` | `/api/maps-tracker/scans` | own list (`google-maps-tracker/page.tsx`) | Report lives **outside** the dashboard (`app/[locale]/reports/maps-tracker/…`); `/new?from=demo` re-run must be guarded; the map needs `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`; use `DEMO_BRAND.store`; the list no longer redirects an empty account to the builder (empty state + demo instead) | A | in progress |
+| `maps-audit` | `/dashboard/google-maps-audit/demo` | `/api/gbp-audit` | `ReportHistory` | `useScanKeywordId` in `components/gbp-audit/report.tsx` fetches a maps-tracker scan: point it at the maps-tracker demo or return no scan id; data is a fixture from the backend's own buildReport (`scripts/demo-maps-audit.ts`, re-run when report.ts changes); grid has no scanId (tracker demo is 7×7), so the rival-grid panel is hidden; free users never see the list (PaidToolGate sample), so the gate's sample should link to the demo — shared-file PR | A | in progress |
+| `ai-prompt-tracker` | `/dashboard/ai-prompt-tracker/demo` | `/api/llm-tracker/projects` | own list | `?platform=` tabs; prompt page `[promptId]` polls; the `ai-platforms/*` pages are out of scope; first-run users still get the setup wizard as the page, with the demo row under it | A | in progress |
+| `serp-checker` | `/dashboard/serp-checker?check=demo` | `/api/serp-check` | own history on the page | 2s poll → must be terminal; reuses the rank-tracker demo's "running shoes" SERP (depth 10) | A | in progress |
+| `keyword-magic` | `/dashboard/keyword-magic?view=demo` | `/api/keyword-magic` | "See an example" link | Stateless: the search is a POST, so demo view reads `GET /api/keyword-magic/demo`; guard "Add to tracker"; seed "running shoes" like the other demos; "See an example" is inline English like the rest of this page (no shared `demo` key added) | A | in progress |
 | `page-audit` | `/dashboard/page-audit/demo` | `/api/page-audit/reports` | own history (`components/page-audit/audit-history.tsx`) | One demo covers Website Audit and Page Audit (shared runner + report); sub-endpoints `/issue-groups`, `/pages`, `/issues/:type/pages`; `ask-ai-panel` uses raw `fetch`, so hide it; share sections PUT guarded | B | todo |
 | `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | todo |
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | todo |

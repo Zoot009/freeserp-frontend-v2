@@ -11,6 +11,11 @@
 
 import { cloneElement, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCreditQuote, useCredits } from "@/lib/credits"
+import { useSearchParams } from "next/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { KEYWORD_MAGIC_CREATE_HREF, KEYWORD_MAGIC_DEMO_HREF, KEYWORD_MAGIC_DEMO_SEED } from "@/lib/demo/keyword-magic"
 import { useTranslations } from "next-intl"
 import { Check, Coins, FileSpreadsheet, FileText, TextSearch, Waypoints, type LucideIcon } from "lucide-react"
 import { api, ApiError } from "@/lib/api"
@@ -268,6 +273,44 @@ export default function KeywordMagicPage() {
   useEffect(() => {
     void api.get<Usage>("/api/keyword-magic/usage").then(setUsage).catch(() => {})
   }, [])
+  // Demo view (?view=demo): the page reads the demo search instead of running
+  // one. Leaving it — the banner, or a real search — clears the demo's rows.
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const isDemo = searchParams.get("view") === DEMO_ID
+  const guard = useDemoGuard(isDemo, KEYWORD_MAGIC_CREATE_HREF)
+  const fromDemo = useRef(false)
+  useEffect(() => {
+    if (!isDemo) {
+      if (fromDemo.current) {
+        fromDemo.current = false
+        setResult(null)
+      }
+      return
+    }
+    let cancelled = false
+    void api
+      .get<MagicResponse>(`/api/keyword-magic/${DEMO_ID}`)
+      .then((res) => {
+        if (cancelled) return
+        fromDemo.current = true
+        // Not res.usage: the viewer's own allowance stays on screen.
+        setResult(res)
+        setSeed(res.seed)
+        setCountry(res.location)
+        setMatchType(res.matchType)
+        setSelected(new Set())
+        setActiveGroup(null)
+        setFilter("")
+        setError(null)
+        setPaywalled(false)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isDemo])
+
   // A credits account pays per search; the daily counters only mean something
   // on the worker model, and a credits account blocked by "0 left today" was
   // being refused searches it could pay for. `metered` says which directly;
@@ -289,6 +332,12 @@ export default function KeywordMagicPage() {
     async (match: MatchType) => {
       const q = seed.trim()
       if (!q) return
+      // A real search from demo view leaves the demo; its rows stay dimmed
+      // under the progress strip until the answer replaces them.
+      if (isDemo) {
+        fromDemo.current = false
+        router.replace(KEYWORD_MAGIC_CREATE_HREF)
+      }
       inflight.current?.ctrl.abort()
       const ctrl = new AbortController()
       inflight.current = { ctrl, match }
@@ -333,7 +382,7 @@ export default function KeywordMagicPage() {
         }
       }
     },
-    [seed, country],
+    [seed, country, isDemo, router],
   )
 
   const [confirmSearch, setConfirmSearch] = useState(false)
@@ -360,6 +409,8 @@ export default function KeywordMagicPage() {
     }
     if (seed.trim() && (result || loading)) void run(key)
   }
+  // In demo view the other tab would be a real, charged search: prompt instead.
+  const switchTabOrPrompt = guard(switchTab)
 
   const rows = useMemo(
     () =>
@@ -474,6 +525,7 @@ export default function KeywordMagicPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={KEYWORD_MAGIC_CREATE_HREF} subject={`“${KEYWORD_MAGIC_DEMO_SEED}”`} />}
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <h1>{t("kmTitle")}</h1>
@@ -606,7 +658,7 @@ export default function KeywordMagicPage() {
                         }))
                         return
                       }
-                      switchTab(tab.key)
+                      switchTabOrPrompt(tab.key)
                     }}
                     style={locked ? { display: "inline-flex", alignItems: "center", gap: 5, position: "relative" } : undefined}
                   >
@@ -645,9 +697,15 @@ export default function KeywordMagicPage() {
             on the rate card. It waits for the usage answer that says which.
             Guessing "paid" when that request failed once quoted free users
             the paid price for a free search. */}
-        {usage && (
-          <div style={{ marginTop: 12 }}>
-            <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />
+        {(usage || !isDemo) && (
+          <div className="row" style={{ marginTop: 12, gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            {usage && <CreditCost action={CREDIT_ACTION_KEYS.keywordMagicSearch} variant={usage.plan} />}
+            {/* The demo search, for anyone who wants to see a result before spending on one. */}
+            {!isDemo && (
+              <Link href={KEYWORD_MAGIC_DEMO_HREF} className="btn sm" style={{ marginLeft: "auto" }}>
+                See an example
+              </Link>
+            )}
           </div>
         )}
         {usage && (
@@ -892,7 +950,7 @@ export default function KeywordMagicPage() {
                       className="btn primary"
                       style={{ fontSize: 12, whiteSpace: "nowrap" }}
                       disabled={selected.size === 0}
-                      onClick={() => setShowAddModal(true)}
+                      onClick={guard(() => setShowAddModal(true))}
                     >
                       {selected.size > 0 ? `Add ${selected.size} to rank tracker` : "Add to rank tracker"}
                     </button>

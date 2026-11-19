@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { Lock, Sparkles } from "lucide-react"
+import { Lock, PlayCircle, Sparkles } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { usePaidAccess } from "@/hooks/use-paid-access"
 import { BUY_CREDITS_HREF } from "@/lib/credits"
@@ -13,6 +13,10 @@ import { useIsDemoView } from "@/components/dashboard/demo-banner"
 // produces and a way to upgrade, never the tool itself; the server refuses
 // free accounts on the same tools (requirePaidPlan), so this is the friendly
 // face of a real lock, not the lock.
+//
+// A tool with a demo passes its URL as `demoHref` (from its own layout), and
+// the sample screen leads with it: the real tool, read-only, on example data,
+// is a better reason to upgrade than a static mock-up.
 
 export type PaidTool =
   | "mapsAudit"
@@ -210,7 +214,7 @@ const SAMPLES: Record<PaidTool, Sample> = {
 
 const PLANS_HREF = "/dashboard/billing"
 
-export function PaidToolGate({ tool, children }: { tool: PaidTool; children: ReactNode }) {
+export function PaidToolGate({ tool, demoHref, children }: { tool: PaidTool; demoHref?: string; children: ReactNode }) {
   const { user, loading } = useAuth()
   const { paid, checking } = usePaidAccess(user?.id)
   const demo = useIsDemoView()
@@ -228,14 +232,27 @@ export function PaidToolGate({ tool, children }: { tool: PaidTool; children: Rea
   }
   // Unknown (the usage check failed) opens the tool: the server still enforces the plan.
   if (paid !== false) return <>{children}</>
-  return <ToolSample sample={SAMPLES[tool]} />
+  return <ToolSample sample={SAMPLES[tool]} demoHref={demoHref} />
 }
 
 const TH = "whitespace-nowrap border-b border-border px-3 py-2.5 text-left text-xs font-medium text-muted-foreground first:pl-4 last:pr-4"
 const TD = "px-3 py-2.5 align-top first:pl-4 last:pr-4"
 const PRIORITY_TONE: Record<string, string> = { Critical: RED, High: RED, Medium: AMBER, Low: "text-muted-foreground" }
 
-function ToolSample({ sample: s }: { sample: Sample }) {
+/**
+ * A plain <a>, not <Link>: the demo can live on this same path behind a query
+ * (Keyword Magic's ?view=demo), and useIsDemoView only re-reads the query when
+ * the path changes — a client-side hop would land back on this screen.
+ */
+function DemoLink({ href, className, children }: { href: string; className: string; children: ReactNode }) {
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
+  )
+}
+
+function ToolSample({ sample: s, demoHref }: { sample: Sample; demoHref?: string }) {
   return (
     <div className="page">
       <div className="page-h">
@@ -255,7 +272,8 @@ function ToolSample({ sample: s }: { sample: Sample }) {
           <div className="min-w-0">
             <h2 className="text-[17px] font-semibold tracking-tight">Upgrade to use {s.name}</h2>
             <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-              {s.name} is available on paid plans. Choose a plan or buy a credit pack to run it on your own website or business. Below is a sample of what you get.
+              {s.name} is available on paid plans. Choose a plan or buy a credit pack to run it on your own website or business.{" "}
+              {demoHref ? "Or open the live demo to try the real tool on example data first." : "Below is a sample of what you get."}
             </p>
             <ul className="mt-3 grid gap-1.5 text-[13px] sm:grid-cols-2">
               {s.gets.map((g) => (
@@ -267,6 +285,14 @@ function ToolSample({ sample: s }: { sample: Sample }) {
             </ul>
           </div>
           <div className="flex flex-wrap gap-2 lg:flex-col">
+            {demoHref && (
+              <DemoLink
+                href={demoHref}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-brand bg-card px-6 text-sm font-semibold text-brand transition-colors hover:bg-brand/10"
+              >
+                <PlayCircle className="h-4 w-4" aria-hidden /> Explore the live demo
+              </DemoLink>
+            )}
             <Link
               href={PLANS_HREF}
               className="inline-flex h-11 items-center justify-center rounded-xl bg-brand px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-deep"
@@ -287,6 +313,11 @@ function ToolSample({ sample: s }: { sample: Sample }) {
         <div className="mb-3 flex items-center gap-2">
           <h2 className="text-[15px] font-semibold tracking-tight">Sample report</h2>
           <span className="rounded-[5px] bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">Example data</span>
+          {demoHref && (
+            <DemoLink href={demoHref} className="ml-auto text-[13px] font-medium text-brand hover:underline">
+              Open the full interactive demo →
+            </DemoLink>
+          )}
         </div>
         <div className="pointer-events-none select-none space-y-4" aria-label="Sample report with example data">
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">

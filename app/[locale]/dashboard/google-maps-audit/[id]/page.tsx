@@ -24,6 +24,9 @@ import {
   type TabKey,
 } from "@/components/gbp-audit/report"
 import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_BRAND, DEMO_ID } from "@/lib/demo/shared"
+import { MAPS_AUDIT_CREATE_HREF } from "@/lib/demo/maps-audit"
 
 // Consecutive failed polls (5xx / network) tolerated before giving up.
 const MAX_POLL_FAILURES = 5
@@ -32,6 +35,9 @@ const POLL_MS = 3000
 export default function GoogleMapsAuditReportPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
+  const isDemo = id === DEMO_ID
+  // The demo audit is read-only: re-running, re-checking and sharing show the demo prompt.
+  const guard = useDemoGuard(isDemo, MAPS_AUDIT_CREATE_HREF)
   const { user, loading: authLoading } = useAuth()
 
   const [data, setData] = useState<GbpAuditResponse | null>(null)
@@ -155,6 +161,7 @@ export default function GoogleMapsAuditReportPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={MAPS_AUDIT_CREATE_HREF} subject={DEMO_BRAND.store.name} />}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Button asChild variant="ghost" size="sm" className="-ml-2 gap-1.5 text-[13px]">
           <Link href="/dashboard/google-maps-audit">
@@ -169,7 +176,7 @@ export default function GoogleMapsAuditReportPage() {
               </a>
             )}
             {report && audit.status === "COMPLETED" && (
-              <button type="button" className={heroButton} onClick={() => setShareOpen(true)}>
+              <button type="button" className={heroButton} onClick={guard(() => setShareOpen(true))}>
                 <Share2 className="h-3.5 w-3.5" /> {audit.shareToken ? "Shared" : "Share"}
               </button>
             )}
@@ -181,7 +188,7 @@ export default function GoogleMapsAuditReportPage() {
             <button
               type="button"
               className={heroButtonPrimary}
-              onClick={() => start("rerun")}
+              onClick={guard(() => start("rerun"))}
               disabled={starting !== null}
               title={`Google data is kept for ${CACHE_DAYS} days: running again inside that window reuses it for free`}
             >
@@ -207,7 +214,7 @@ export default function GoogleMapsAuditReportPage() {
               tab={tab}
               printAll={printAll}
               onOpen={openTab}
-              onCheckKeyword={(k) => start("keyword", k)}
+              onCheckKeyword={guard((k: string) => start("keyword", k))}
               checking={starting === "keyword"}
             />
             <p className="text-[11px] leading-relaxed text-muted-foreground">

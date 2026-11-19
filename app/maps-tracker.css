@@ -419,8 +419,10 @@
    Controls, not content — left out of print (see @media print). */
 .fs-app .mt-rbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  margin: -16px 0 36px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  margin: 0 0 36px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
 }
+/* Pull up into the sheet's top padding only when nothing (e.g. the demo banner) sits above. */
+.fs-app .mt-rbar:first-child { margin-top: -16px; }
 .fs-app .mt-rbar-back {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 8px;
   border-radius: var(--r-sm); font-size: 13px; font-weight: 500; color: var(--text-soft);

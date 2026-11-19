@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { demoYoutubeProjectSummary } from "@/lib/demo/youtube-tracker"
 
 // ───── Types (mirror /api/youtube/projects) ────────────────────────────────
 
@@ -276,6 +279,17 @@ export default function YoutubeProjectsPage() {
     void load()
   }, [load])
 
+  // ?create=1 — the demo's "try it on your own channel" CTA — opens the create modal.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("create") !== "1") return
+    router.replace("/dashboard/youtube")
+    setShowAdd(true)
+  }, [router])
+
+  // The demo project is pinned first for everyone. Display-only: the count in
+  // the subtitle and the empty state keep reading `projects`.
+  const shown = [demoYoutubeProjectSummary(), ...projects]
+
   if (authLoading || loading) {
     return (
       <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
@@ -304,7 +318,7 @@ export default function YoutubeProjectsPage() {
           {/* The Rank Tracker's Grid/List switch, same segmented control. Only
               shown with something to switch between — offering a list view of an
               empty page is a control that does nothing. */}
-          {projects.length > 0 && (
+          {!error && (
             <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
               {(["grid", "list"] as const).map((v) => (
                 <button
@@ -340,7 +354,7 @@ export default function YoutubeProjectsPage() {
       )}
 
       {!error && projects.length === 0 && (
-        <div className="rounded-xl border border-dashed px-6 py-14 text-center">
+        <div className="mb-3.5 rounded-xl border border-dashed px-6 py-14 text-center">
           <p className="text-[15px] font-semibold">{t("ytNothingTracked")}</p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
             Track a channel or a single video, add the keywords you want to rank for, and
@@ -355,11 +369,11 @@ export default function YoutubeProjectsPage() {
         </div>
       )}
 
-      {projects.length > 0 && view === "grid" && (
+      {!error && view === "grid" && (
         /* A real responsive grid, so one project doesn't sit alone in a narrow
            column with the rest of the page empty beside it. */
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => (
+          {shown.map((p) => (
             /* Laid out like a Rank Tracker project card — same identity row,
                same two-stat block, same status chip — so the two trackers read
                as one product rather than two people's work. */
@@ -393,18 +407,22 @@ export default function YoutubeProjectsPage() {
                     )}
                   </div>
                 </div>
-                <span
-                  className={
-                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium " +
-                    (p.isPaused
-                      ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
-                      : p.autoCheckEnabled
-                        ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground")
-                  }
-                >
-                  {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
-                </span>
+                {p.id === DEMO_ID ? (
+                  <DemoChip />
+                ) : (
+                  <span
+                    className={
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                      (p.isPaused
+                        ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                        : p.autoCheckEnabled
+                          ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground")
+                    }
+                  >
+                    {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -435,7 +453,9 @@ export default function YoutubeProjectsPage() {
           ))}
 
           {/* The dashed add-tile that closes the Rank Tracker grid, so the row
-              never ends on a ragged gap. */}
+              never ends on a ragged gap. With no projects of their own, the
+              empty state above already offers it. */}
+          {projects.length > 0 && (
           <button
             onClick={() => setShowAdd(true)}
             className="grid min-h-[168px] place-items-center rounded-xl border border-dashed p-4 text-center transition-colors hover:border-primary/50 hover:bg-muted/40"
@@ -446,10 +466,11 @@ export default function YoutubeProjectsPage() {
               <div className="mt-0.5 text-xs text-muted-foreground">{t("ytTrackChannelOrVideo")}</div>
             </div>
           </button>
+          )}
         </div>
       )}
 
-      {projects.length > 0 && view === "list" && (
+      {!error && view === "list" && (
         /* The Rank Tracker's list view: one row per project, the same columns
            it shows — identity, keywords, status, created — minus the trend,
            which this endpoint carries no history for. */
@@ -462,7 +483,7 @@ export default function YoutubeProjectsPage() {
             <span />
           </div>
 
-          {projects.map((p) => (
+          {shown.map((p) => (
             <Link
               key={p.id}
               href={`/dashboard/youtube/${p.id}/keywords`}
@@ -485,18 +506,22 @@ export default function YoutubeProjectsPage() {
               <span className="text-right tabular-nums">{p.keywordCount}</span>
 
               <span className="flex justify-end">
-                <span
-                  className={
-                    "rounded-full px-2 py-0.5 text-[11px] font-medium " +
-                    (p.isPaused
-                      ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
-                      : p.autoCheckEnabled
-                        ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground")
-                  }
-                >
-                  {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
-                </span>
+                {p.id === DEMO_ID ? (
+                  <DemoChip />
+                ) : (
+                  <span
+                    className={
+                      "rounded-full px-2 py-0.5 text-[11px] font-medium " +
+                      (p.isPaused
+                        ? "bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                        : p.autoCheckEnabled
+                          ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground")
+                    }
+                  >
+                    {p.isPaused ? "Paused" : p.autoCheckEnabled ? `Every ${p.checkFrequency}h` : "Manual"}
+                  </span>
+                )}
               </span>
 
               <span className="text-right text-xs tabular-nums text-muted-foreground">

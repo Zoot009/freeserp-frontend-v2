@@ -26,6 +26,9 @@ import {
 } from "@/components/dashboard/youtube"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ScheduleToggle } from "@/components/dashboard/schedule-toggle"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { YOUTUBE_TRACKER_CREATE_HREF } from "@/lib/demo/youtube-tracker"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
@@ -674,6 +677,10 @@ function AddKeywordsModal({
 export default function YoutubeKeywordsPage() {
   const params = useParams<{ id: string }>()
   const projectId = params.id
+  const isDemo = projectId === DEMO_ID
+  // The demo project is read-only: every action that would change it, run a
+  // check or spend credits shows the demo prompt instead.
+  const guard = useDemoGuard(isDemo, YOUTUBE_TRACKER_CREATE_HREF)
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
@@ -935,6 +942,7 @@ export default function YoutubeKeywordsPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={YOUTUBE_TRACKER_CREATE_HREF} />}
       {/* Headed like the Google project page: a way back out, a mark beside the
           name, the target on one muted line beneath it, and the schedule stated
           on the right above the actions. */}
@@ -1023,7 +1031,7 @@ export default function YoutubeKeywordsPage() {
                   labelFor={freqLabel}
                   offLabel="Off (no schedule)"
                   title="Set how often automated rank checks run for this channel"
-                  onPick={updateFrequency}
+                  onPick={guard(updateFrequency)}
                   noteFor={scheduleNote}
                 />
               </div>
@@ -1033,19 +1041,19 @@ export default function YoutubeKeywordsPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => setShowAddKw(true)}
+              onClick={guard(() => setShowAddKw(true))}
               className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
             >
               <Icon.plus /> Add keywords
             </Button>
             <Button
               disabled={busy || project.keywords.length === 0}
-              onClick={() => {
+              onClick={guard(() => {
                 // A whole channel's keywords add up, so a big check is
                 // confirmed with the balance in view; a small one just runs.
                 if (isCreditsMode && (runCost ?? 0) >= CONFIRM_THRESHOLD) setConfirmRun(true)
                 else void runCheck(selected.size > 0 ? [...selected] : undefined)
-              }}
+              })}
               className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
               title={runCost ? tc("costUses", { count: runCost, n: formatCredits(runCost) }) : undefined}
             >
@@ -1064,7 +1072,7 @@ export default function YoutubeKeywordsPage() {
             {selected.size > 0 && (
               <Button
                 variant="outline"
-                onClick={() => setConfirmDeleteKwIds([...selected])}
+                onClick={guard(() => setConfirmDeleteKwIds([...selected]))}
                 className="h-[38px] gap-1.5 rounded-[9px] text-sm font-semibold"
                 style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
               >
@@ -1442,7 +1450,7 @@ export default function YoutubeKeywordsPage() {
                               className="icon-btn"
                               style={{ width: 28, height: 28 }}
                               disabled={busy || isActive}
-                              onClick={() => runCheck([k.id])}
+                              onClick={guard(() => runCheck([k.id]))}
                               aria-label={`Check ${k.keyword} now`}
                             >
                               <Icon.refresh />
@@ -1464,7 +1472,7 @@ export default function YoutubeKeywordsPage() {
                             <button
                               className="icon-btn danger"
                               style={{ width: 28, height: 28 }}
-                              onClick={() => setConfirmDeleteKwIds([k.id])}
+                              onClick={guard(() => setConfirmDeleteKwIds([k.id]))}
                               aria-label={`Remove ${k.keyword}`}
                             >
                               <Icon.trash size={13} />

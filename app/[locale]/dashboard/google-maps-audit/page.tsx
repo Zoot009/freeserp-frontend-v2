@@ -11,6 +11,7 @@ import { BUY_CREDITS_HREF, CREDIT_ACTION_KEYS } from "@/lib/credits"
 import { CACHE_DAYS, type AuditListItem, type AuditStatus } from "@/lib/gbp-audit"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { ReportHistory } from "@/components/dashboard/report-history"
+import { demoMapsAuditRow } from "@/lib/demo/maps-audit"
 
 // The ReportHistory panel's four states.
 const HISTORY_STATUS: Record<AuditStatus, "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"> = {
@@ -203,6 +204,7 @@ export default function GoogleMapsAuditPage() {
 
       <ReportHistory<AuditListItem>
         path="/api/gbp-audit"
+        demo={demoMapsAuditRow()}
         emptyText="No Google Maps audits yet. Paste a link above to run your first one."
         toRow={(a) => ({
           id: a.id,

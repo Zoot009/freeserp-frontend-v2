@@ -29,6 +29,9 @@ import {
   type Platform,
   type RunSummary,
 } from "@/lib/ai-tracker"
+import { DemoBanner } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { AI_TRACKER_CREATE_HREF } from "@/lib/demo/ai-prompt-tracker"
 
 // ───── Types (mirror /api/llm-tracker/projects/:id/prompts/:promptId) ───────
 // Platform, the status vocabulary, PLATFORM_LABEL and pct were each declared
@@ -220,6 +223,7 @@ export default function LlmPromptDetailPage() {
     // showing, so arriving from a teal Perplexity row lands somewhere teal. Off
     // it (no run yet) .llm-eng falls back to the brand accent.
     <div className="page llm-eng" data-engine={shown ?? undefined}>
+      {params.id === DEMO_ID && <DemoBanner createHref={AI_TRACKER_CREATE_HREF} />}
       <PromptHero
         projectId={data.project.id}
         projectName={data.project.name}

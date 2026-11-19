@@ -3,12 +3,24 @@
 // network. Spec: .claude/skills/demo-report/SKILL.md.
 
 import { rankTrackerDemo } from "./rank-tracker"
+import { youtubeTrackerDemo } from "./youtube-tracker"
+import { mapsTrackerDemo } from "./maps-tracker"
+import { mapsAuditDemo } from "./maps-audit"
+import { aiPromptTrackerDemo } from "./ai-prompt-tracker"
+import { serpCheckerDemo } from "./serp-checker"
+import { keywordMagicDemo } from "./keyword-magic"
 import { DEMO_ID, type DemoResult, type DemoTool } from "./shared"
 
 // Every tool with a demo. Adding one: import its DemoTool and append it here —
 // the only line of this file a tool's PR touches.
 export const DEMO_TOOLS: DemoTool[] = [
   rankTrackerDemo,
+  youtubeTrackerDemo,
+  mapsTrackerDemo,
+  mapsAuditDemo,
+  aiPromptTrackerDemo,
+  serpCheckerDemo,
+  keywordMagicDemo,
 ]
 
 const READ_ONLY: DemoResult = {

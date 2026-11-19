@@ -8,6 +8,7 @@ import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { ScanHistory } from "@/components/maps-tracker/scan-history"
 import type { ScanHistoryItem } from "@/components/maps-tracker/types"
+import { demoMapsScanSummary } from "@/lib/demo/maps-tracker"
 
 const NEW_SCAN = "/dashboard/google-maps-tracker/new"
 // Only while something is still running — a settled list doesn't change on its
@@ -26,16 +27,16 @@ function isTerminal(status: string): boolean {
  * they're read one at a time. That also lines up with the report URL, which is
  * already per keyword.
  *
- * An account that has never scanned is sent straight to the builder — a list
- * with nothing in it teaches nobody anything, and the thing they came to do is
- * one screen further on.
+ * The demo scan is pinned first for everyone, so an account that has never
+ * scanned sees the empty state with an example report under it rather than
+ * being sent straight to the builder. The demo is display-only: the counts
+ * and polling read the account's own scans.
  */
 export default function GoogleMapsTrackerPage() {
   const router = useRouter()
   const [history, setHistory] = useState<ScanHistoryItem[] | null>(null)
   const [failed, setFailed] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const redirected = useRef(false)
 
   const load = useCallback(async () => {
     try {
@@ -72,15 +73,6 @@ export default function GoogleMapsTrackerPage() {
     if (pollRef.current) return
     pollRef.current = setInterval(() => void load(), POLL_MS)
   }, [hasRunning, load])
-
-  // First visit: nothing to list, so go where the work happens. `replace`, not
-  // `push`, so Back doesn't bounce them straight into the empty list again.
-  useEffect(() => {
-    if (history != null && history.length === 0 && !redirected.current) {
-      redirected.current = true
-      router.replace(NEW_SCAN)
-    }
-  }, [history, router])
 
   const scans = history ?? []
   // Reports, not scans: a run of three keywords is three readings, and that is
@@ -145,14 +137,14 @@ export default function GoogleMapsTrackerPage() {
           <div className="card" style={{ padding: 32, textAlign: "center" }}>
             <div className="tiny muted">Your scans couldn&apos;t be loaded just now.</div>
           </div>
-        ) : scans.length === 0 && !failed ? (
-          // Normally unreachable — an empty account is redirected to the
-          // builder above. This is what's left if that redirect is blocked.
+        ) : (
+          <>
+          {scans.length === 0 && !failed && (
           <div
             className="card"
             style={{
               border: "1px dashed var(--border-strong)", background: "transparent",
-              textAlign: "center", padding: 40,
+              textAlign: "center", padding: 40, marginBottom: 16,
             }}
           >
             <div className="eyebrow"><span className="spark"><Icon.spark /></span> Nothing scanned yet</div>
@@ -163,13 +155,14 @@ export default function GoogleMapsTrackerPage() {
               <Plus size={14} /> New scan
             </button>
           </div>
-        ) : (
+          )}
           <ScanHistory
-            scans={scans}
+            scans={[demoMapsScanSummary(), ...scans]}
             // Straight to the report — the page a scan is read on — rather than
             // through the old scan url, which only forwards there now.
             onOpen={(scanId, keywordId) => router.push(`/reports/maps-tracker/${scanId}/${keywordId}`)}
           />
+          </>
         )}
       </div>
     </div>
