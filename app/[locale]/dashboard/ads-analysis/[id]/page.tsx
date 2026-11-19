@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Alarm, heroButton, heroButtonPrimary } from "@/components/gbp-audit/report"
 import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 import { AdsHero, AdsProgress, AdsReport } from "@/components/ads-analysis/report"
+import { DemoBanner, useDemoGuard, useDemoPrompt } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { ADS_ANALYSIS_CREATE_HREF } from "@/lib/demo/ads-analysis"
 
 const MAX_POLL_FAILURES = 5
 const POLL_MS = 4000
@@ -26,6 +29,10 @@ export default function AdsAnalysisReportPage() {
   const pollGenRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const failuresRef = useRef(0)
+  // The demo report is read-only: its actions show the demo prompt instead.
+  const isDemo = id === DEMO_ID
+  const guard = useDemoGuard(isDemo, ADS_ANALYSIS_CREATE_HREF)
+  const demoPrompt = useDemoPrompt(ADS_ANALYSIS_CREATE_HREF)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -103,12 +110,13 @@ export default function AdsAnalysisReportPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={ADS_ANALYSIS_CREATE_HREF} />}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 print:hidden">
         {back}
         {!running && (
           <div className="flex flex-wrap gap-2">
             {done && (
-              <button type="button" className={heroButton} onClick={() => setShareOpen(true)}>
+              <button type="button" className={heroButton} onClick={guard(() => setShareOpen(true))}>
                 <Share2 className="h-3.5 w-3.5" /> {analysis.shareToken ? "Shared" : "Share"}
               </button>
             )}
@@ -118,7 +126,15 @@ export default function AdsAnalysisReportPage() {
               </button>
             )}
             {/* Opens the setup form with this scan's details filled in, to review or change before starting. */}
-            <Link href={`/dashboard/ads-analysis?from=${analysis.id}`} className={heroButtonPrimary}>
+            <Link
+              href={`/dashboard/ads-analysis?from=${analysis.id}`}
+              className={heroButtonPrimary}
+              onClick={(e) => {
+                if (!isDemo) return
+                e.preventDefault()
+                demoPrompt()
+              }}
+            >
               <RefreshCw className="h-3.5 w-3.5" /> Scan again
             </Link>
           </div>
@@ -130,7 +146,7 @@ export default function AdsAnalysisReportPage() {
         {error && <Alarm>{error}</Alarm>}
         {running && <AdsProgress progress={analysis.progress} />}
         {analysis.status === "FAILED" && analysis.error && <Alarm>{analysis.error}</Alarm>}
-        {done && <AdsReport data={data} onSaveAssumptions={saveAssumptions} />}
+        {done && <AdsReport data={data} onSaveAssumptions={isDemo ? async () => void demoPrompt() : saveAssumptions} />}
       </div>
 
       <ShareAuditDialog

@@ -67,7 +67,7 @@ site.
   - `get` receives the path segments after `<base>/demo` and returns the response body, or
     `undefined` for a 404.
   - Register it in `lib/demo/index.ts`: one import, one array entry. That is the only edit to
-    that file.
+    that file. Two demo branches merged together conflict on those lines. Keep both sides.
 - **Copy the response shapes from the backend serializer, never from guesswork.** Find the
   route or service in `freeserp-backend-v2/src/modules/` that produces each response, match its
   fields (including nullable and optional ones), and name those files in the module's header
@@ -88,6 +88,11 @@ site.
   - Real third-party domains (adidas.com, reddit.com) are fine where a real report would show
     them.
   - No real people, emails, phone numbers or reviews attributed to real individuals.
+- **Values the server computes from the data** (scores, forecasts, grades) come from the backend's
+  own code, not a re-implementation. If it's pure, run it on your data in a scratch script
+  (esbuild-bundle the backend file) and embed the output. Name the source in a comment, and add a
+  test that fails when the inputs change without regenerating. See `ads-analysis.ts`. If it isn't
+  pure, mirror the formula and say so (`page-audit.ts` scoring).
 - **Finished state.** Every run, check or scan the demo returns is in its terminal success state
   (`COMPLETED` and the like), so no spinner and no polling loop stays on.
 - **Internally consistent.** Lists, details, counts and totals derive from one generated dataset,
@@ -117,6 +122,10 @@ site.
   client-side exports (CSV built in the browser) may stay enabled.
 - **Links to another tool** from inside a demo are guarded unless that tool's demo exists and the
   link points at it.
+- **`guard(fn)` drops `fn`'s return value.** For a handler whose promise the component awaits (Ads'
+  `onSaveAssumptions` drives a spinner and an error line), pass
+  `isDemo ? async () => void prompt() : handler` with `useDemoPrompt`. A `<Link>` control needs
+  `e.preventDefault()` before the prompt, or it still navigates.
 
 ### 4. Entry point
 The demo is pinned **first** in the tool's own list, for everyone, and never counts toward any
@@ -205,7 +214,7 @@ the other developer and land it as its own small PR first. Then both of you buil
 
 ## Tracker
 
-Edit only your own rows. Line-level merges stay trivial.
+Edit only your own rows. If two branches touched neighbouring rows, merging conflicts on them. Keep both edits.
 
 | Slug | Demo URL | API base | Entry | Gotchas | Owner | Status |
 |---|---|---|---|---|---|---|
@@ -217,7 +226,7 @@ Edit only your own rows. Line-level merges stay trivial.
 | `serp-checker` | `/dashboard/serp-checker?check=demo` | `/api/serp-check` | own history on the page | 2s poll → must be terminal; reuses the rank-tracker demo's "running shoes" SERP (depth 10) | A | in progress |
 | `keyword-magic` | `/dashboard/keyword-magic?view=demo` | `/api/keyword-magic` | "See an example" link | Stateless: the search is a POST, so demo view reads `GET /api/keyword-magic/demo`; guard "Add to tracker"; seed "running shoes" like the other demos; "See an example" is inline English like the rest of this page (no shared `demo` key added) | A | in progress |
 | `page-audit` | `/dashboard/page-audit/demo` | `/api/page-audit/reports` | own history (`components/page-audit/audit-history.tsx`) | One demo covers Website Audit and Page Audit (shared runner + report); sub-endpoints `/issue-groups`, `/pages`, `/issues/:type/pages`; `ask-ai-panel` uses raw `fetch`, so hide it; share sections PUT guarded | B | built — browser check pending |
-| `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | todo |
+| `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | built — browser check pending |
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | todo |
 | `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | todo |
 | `internal-links` | `/dashboard/ai-internal-linking/results?analysisId=demo` | `/api/internal-link-analysis` | `ReportHistory` | The create page uses axios (covered); results use `api` | B | todo |

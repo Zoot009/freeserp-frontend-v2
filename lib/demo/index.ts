@@ -3,6 +3,7 @@
 // network. Spec: .claude/skills/demo-report/SKILL.md.
 
 import { pageAuditDemo } from "./page-audit"
+import { adsAnalysisDemo } from "./ads-analysis"
 import { rankTrackerDemo } from "./rank-tracker"
 import { youtubeTrackerDemo } from "./youtube-tracker"
 import { mapsTrackerDemo } from "./maps-tracker"
@@ -23,6 +24,7 @@ export const DEMO_TOOLS: DemoTool[] = [
   serpCheckerDemo,
   keywordMagicDemo,
   pageAuditDemo,
+  adsAnalysisDemo,
 ]
 
 const READ_ONLY: DemoResult = {

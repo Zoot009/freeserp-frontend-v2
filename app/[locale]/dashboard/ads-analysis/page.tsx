@@ -13,6 +13,7 @@ import { knownGeoCountry, prefetchGeoCountry } from "@/hooks/use-geo-country"
 import { LocationPicker } from "@/components/location-picker"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { ReportHistory } from "@/components/dashboard/report-history"
+import { adsAnalysisDemoRow } from "@/lib/demo/ads-analysis"
 
 const HISTORY_STATUS: Record<AnalysisStatus, "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"> = {
   QUEUED: "PENDING",
@@ -324,6 +325,7 @@ export default function AdsAnalysisPage() {
 
       <ReportHistory<AnalysisListItem>
         path="/api/ads-analysis"
+        demo={adsAnalysisDemoRow()}
         emptyText="No Google Ads analyses yet. Enter your site above to run your first one."
         toRow={(a) => ({
           id: a.id,
