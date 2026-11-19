@@ -238,7 +238,7 @@ Edit only your own rows. If two branches touched neighbouring rows, merging conf
 | `ads-analysis` | `/dashboard/ads-analysis/demo` | `/api/ads-analysis` | `ReportHistory` | Guard `onSaveAssumptions` (PATCH); `components/ads-analysis/report.tsx` takes plain props | B | built — browser check pending |
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | built — browser check pending |
 | `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | built — browser check pending |
-| `internal-links` | `/dashboard/ai-internal-linking/results?analysisId=demo` | `/api/internal-link-analysis` | `ReportHistory` | The create page uses axios (covered); results use `api` | B | todo |
+| `internal-links` | `/dashboard/ai-internal-linking/results?analysisId=demo` | `/api/internal-link-analysis` | `ReportHistory` | The create page uses axios (covered); results use `api` | B | built — browser check pending |
 | `keyword-score` | `/dashboard/keyword-analysis/results?id=demo` | `/api/keyword-analysis` | own cursor history | Guard re-run; when done, point the rank-tracker demo's score badge at it | B | built — browser check pending |
 
 **Out of scope** (aggregate or account pages, not tools): Keywords (all-keywords view), Overview,

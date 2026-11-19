@@ -7,6 +7,9 @@ import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { InternalLinkGraph, type LinkGraphDomain } from "@/components/internal-link-graph"
 import { api, ApiError } from "@/lib/api"
+import { DemoBanner } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { INTERNAL_LINKS_CREATE_HREF } from "@/lib/demo/internal-links"
 
 // Consecutive failed polls (5xx / network) tolerated before giving up.
 const MAX_POLL_FAILURES = 5
@@ -120,6 +123,7 @@ function AiInternalLinkingResultsContent() {
 
   return (
     <div className="page">
+      {analysisId === DEMO_ID && <DemoBanner createHref={INTERNAL_LINKS_CREATE_HREF} />}
       <div className="page-h" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
           <Link href="/dashboard/ai-internal-linking" className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 6 }}>

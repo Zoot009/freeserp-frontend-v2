@@ -11,6 +11,7 @@ import { Icon } from "@/components/dashboard/icons"
 import axios from "@/lib/axios"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { ReportHistory } from "@/components/dashboard/report-history"
+import { internalLinksDemoRow } from "@/lib/demo/internal-links"
 
 // Turns a 429's rate-limit headers into a human wait time. A copy of the helper
 // on the two competitor-analysis start pages — change all three together.
@@ -199,6 +200,7 @@ export default function AiInternalLinkingPage() {
 
       <ReportHistory<IlaListItem>
         path="/api/internal-link-analysis"
+        demo={internalLinksDemoRow()}
         emptyText="No internal-link analyses yet. Run your first one above."
         toRow={(a) => ({
           id: a.id,

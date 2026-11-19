@@ -21,6 +21,7 @@ export const DEMO_TOOLS: Record<string, () => Promise<DemoTool>> = {
   "/api/competitor-analysis": () => import("./competitor-analysis").then((m) => m.competitorAnalysisDemo),
   "/api/keyword-analysis": () => import("./keyword-score").then((m) => m.keywordScoreDemo),
   "/api/aeo-audit": () => import("./aeo-audit").then((m) => m.aeoAuditDemo),
+  "/api/internal-link-analysis": () => import("./internal-links").then((m) => m.internalLinksDemo),
 }
 
 const READ_ONLY: DemoResult = {
