@@ -18,6 +18,9 @@ import { track } from "@/lib/analytics"
 import { clearPendingDomain, projectNameFor, readPendingDomain } from "@/lib/pendingDomain"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { demoProjectSummary } from "@/lib/demo/rank-tracker"
+import { DemoChip } from "@/components/dashboard/demo-banner"
 import { ProjectLimitModal } from "@/components/dashboard/project-limit-modal"
 // Fallback only — the real cap comes from /api/usage (`projectsLimit`), so a
 // per-user override or a plan whose limit isn't 1 no longer reads wrong here.
@@ -84,6 +87,9 @@ function ProjectsList({
 }) {
   const t = useTranslations("dashProjects")
   const [view, setView] = useState<"grid" | "list">("grid")
+  // The demo project is pinned first for everyone. It is display-only here: the
+  // limit, the counts and the empty state all keep reading `projects`.
+  const shown = [demoProjectSummary(), ...projects]
   // `plan` arrives asynchronously from /api/usage. Until it does we don't
   // know the tier — don't assume "free" in that window, otherwise paid users
   // see the project-cap notice flash before usage resolves.
@@ -165,11 +171,14 @@ function ProjectsList({
         <div className="card" style={{ padding: 60, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
           {t("loadingProjects")}
         </div>
-      ) : projects.length === 0 ? (
+      ) : (
+        <>
+        {projects.length === 0 && (
         <div
           data-tutorial="projects-area"
           className="card"
           style={{
+            marginBottom: 16,
             padding: "60px 32px",
             textAlign: "center",
             border: "1px dashed var(--border-strong)",
@@ -187,10 +196,12 @@ function ProjectsList({
             <Icon.plus /> {t("createFirstProject")}
           </button>
         </div>
-      ) : view === "grid" ? (
-        <div data-tutorial="projects-area" className="grid g-3">
-          {projects.map((p) => {
+        )}
+        {view === "grid" ? (
+        <div data-tutorial={projects.length ? "projects-area" : undefined} className="grid g-3">
+          {shown.map((p) => {
             const color = projectColor(p.id)
+            const isDemo = p.id === DEMO_ID
             return (
               <div
                 key={p.id}
@@ -227,10 +238,14 @@ function ProjectsList({
                       {displayDomain(p.domain)}
                     </div>
                   </div>
-                  <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
-                  <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
-                    <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
-                  </div>
+                  {isDemo ? <DemoChip /> : (
+                    <>
+                      <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
+                      <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                        <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="grid g-2" style={{ marginBottom: 14, gap: 10 }}>
                   <div>
@@ -248,6 +263,7 @@ function ProjectsList({
               </div>
             )
           })}
+          {projects.length > 0 && (
           <button
             onClick={handleAdd}
             className="card"
@@ -267,9 +283,10 @@ function ProjectsList({
               {isAtProjectLimit ? t("upgradeToTrackMore") : t("trackNewDomain")}
             </span>
           </button>
+          )}
         </div>
-      ) : (
-        <div data-tutorial="projects-area" className="card" style={{ padding: 0, overflow: "hidden" }}>
+        ) : (
+        <div data-tutorial={projects.length ? "projects-area" : undefined} className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div className="tbl-scroll">
           <table className="tbl">
             <thead>
@@ -284,8 +301,9 @@ function ProjectsList({
               </tr>
             </thead>
             <tbody>
-              {projects.map((p) => {
+              {shown.map((p) => {
                 const color = projectColor(p.id)
+                const isDemo = p.id === DEMO_ID
                 return (
                   <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => onOpen(p.id)}>
                     <td>
@@ -299,14 +317,14 @@ function ProjectsList({
                     </td>
                     <td className="tabular">{p._count?.keywords ?? 0}</td>
                     <td>
-                      <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>
+                      {isDemo ? <DemoChip /> : <span className={"chip " + (!p.autoCheckEnabled ? "" : p.isPaused ? "warn" : "pos")}>{!p.autoCheckEnabled ? t("statusManual") : p.isPaused ? t("statusPaused") : t("statusActive")}</span>}
                     </td>
                     <td className="tabular tiny muted">
                       {new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                     </td>
                     <td>{renderSpark(p.trend, color)}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }}>
-                      <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />
+                      {!isDemo && <FavoriteButton key={`pf-${p.id}-${favReady}`} entityType="project" entityId={p.id} initial={favoriteIds.has(p.id)} />}
                     </td>
                     <td className="right"><Icon.chevR /></td>
                   </tr>
@@ -316,6 +334,8 @@ function ProjectsList({
           </table>
           </div>
         </div>
+        )}
+        </>
       )}
     </div>
   )
@@ -443,6 +463,18 @@ export default function ProjectsPage() {
     }, 10000)
     return () => clearInterval(interval)
   }, [verified, loadProjects, loadUsage])
+
+  // ?create=1 — the demo project's "create your own" CTA — opens the create
+  // modal once projects and usage are known, or the limit modal at the cap.
+  const createParamRef = useRef(false)
+  useEffect(() => {
+    if (createParamRef.current || projectsLoading || !usage) return
+    createParamRef.current = true
+    if (new URLSearchParams(window.location.search).get("create") !== "1") return
+    router.replace("/dashboard/projects")
+    if (usage.plan === "free" && projects.length >= projectLimit) setShowUpgrade(true)
+    else setShowAddProject(true)
+  }, [projectsLoading, usage, projects.length, projectLimit, router])
 
   // A visitor who previewed a domain on the marketing landing page arrives here
   // with it in a cookie — create that project for them rather than dropping them

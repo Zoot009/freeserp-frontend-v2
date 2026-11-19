@@ -27,6 +27,9 @@ import { Hint, InfoHint } from "@/components/dashboard/widget"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertSettingsModal } from "@/components/dashboard/alert-settings-modal"
 import { ReportModal } from "@/components/dashboard/report-modal"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { RANK_TRACKER_CREATE_HREF } from "@/lib/demo/rank-tracker"
 import { Flag } from "@/components/flag"
 import { trackOnce, trackMilestone } from "@/lib/track"
 import { track } from "@/lib/analytics"
@@ -1165,6 +1168,7 @@ export default function ProjectKeywordsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = params.id as string
+  const isDemo = projectId === DEMO_ID
   const { user, loading: authLoading, token, refreshUser } = useAuth()
   const { advanceFromStep, isActive: tutorialActive, step: tutorialStep } = useTutorial()
 
@@ -1273,6 +1277,9 @@ export default function ProjectKeywordsPage() {
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
+  // The demo project is read-only: every action that would change it shows the
+  // demo prompt instead, closing the row menu it may have come from.
+  const guard = useDemoGuard(isDemo, RANK_TRACKER_CREATE_HREF, () => { setOpenMenuId(null); setMenuPosition(null) })
 
   // Dismiss the row-action menu on any outside interaction WITHOUT eating the
   // click (no blocking overlay — that forced users to click twice). The menu
@@ -2373,6 +2380,7 @@ export default function ProjectKeywordsPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={RANK_TRACKER_CREATE_HREF} />}
       {/* Header */}
       <div className="page-h kd-proj-h">
         <div style={{ minWidth: 0 }}>
@@ -2424,7 +2432,7 @@ export default function ProjectKeywordsPage() {
                   <button
                     type="button"
                     className="icon-btn"
-                    onClick={startEditingName}
+                    onClick={guard(startEditingName)}
                     title="Rename project"
                     style={{ width: 26, height: 26, opacity: 0.6, border: "none" }}
                   >
@@ -2449,7 +2457,7 @@ export default function ProjectKeywordsPage() {
                     </span>
                     {project.autoCheckEnabled && project.nextScheduledCheck && (
                       <button
-                        onClick={handleTogglePause}
+                        onClick={guard(handleTogglePause)}
                         disabled={pausing}
                         type="button"
                         style={{
@@ -2504,7 +2512,7 @@ export default function ProjectKeywordsPage() {
                     labelFor={(h) => freqLabel(h, t)}
                     offLabel={t("freqOff")}
                     title={t("freqTitle")}
-                    onPick={handleUpdateFrequency}
+                    onPick={guard(handleUpdateFrequency)}
                     noteFor={scheduleNote}
                   />
                 </div>
@@ -2518,7 +2526,7 @@ export default function ProjectKeywordsPage() {
               data-tutorial="add-keywords-btn"
               type="button"
               className={selectedKeywords.size > 0 ? "btn" : "btn primary"}
-              onClick={() => setShowAddKw(true)}
+              onClick={guard(() => setShowAddKw(true))}
             >
               <Icon.plus /> {t("keywordsBtn")}
             </button>
@@ -2570,7 +2578,7 @@ export default function ProjectKeywordsPage() {
               <button
                 data-tutorial="run-check-btn"
                 type="button"
-                onClick={() => setConfirmCheck(true)}
+                onClick={guard(() => setConfirmCheck(true))}
                 // Block while a check is already running for this project — each
                 // check costs us money, so don't let the button be spammed.
                 disabled={checking || project.keywords.length === 0 || pendingCount > 0}
@@ -2597,7 +2605,7 @@ export default function ProjectKeywordsPage() {
               // the tooltip did, and repeating it on hover is noise.
               <button
                 type="button"
-                onClick={() => setConfirmDeleteKwIds(Array.from(selectedKeywords))}
+                onClick={guard(() => setConfirmDeleteKwIds(Array.from(selectedKeywords)))}
                 className="btn"
                 style={{ borderColor: "var(--neg)", color: "var(--neg)" }}
               >
@@ -2614,7 +2622,7 @@ export default function ProjectKeywordsPage() {
                 <button
                   type="button"
                   className="icon-btn"
-                  onClick={() => setShowAlerts(true)}
+                  onClick={guard(() => setShowAlerts(true))}
                   aria-label={t("alerts")}
                 >
                   <Icon.bell />
@@ -2625,7 +2633,7 @@ export default function ProjectKeywordsPage() {
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => { setShareError(""); setShowShare(true) }}
+                onClick={guard(() => { setShareError(""); setShowShare(true) })}
                 aria-label={t("share")}
               >
                 <Icon.globe />
@@ -2635,7 +2643,7 @@ export default function ProjectKeywordsPage() {
               <button
                 type="button"
                 className="icon-btn danger"
-                onClick={() => setConfirmDelete(true)}
+                onClick={guard(() => setConfirmDelete(true))}
                 aria-label={t("deleteProject")}
               >
                 <Icon.trash />
@@ -2975,7 +2983,7 @@ export default function ProjectKeywordsPage() {
                 <KeywordDiscoveryProgress
                   discovery={discovery}
                   domain={project.domain}
-                  onAddKeywords={() => setShowAddKw(true)}
+                  onAddKeywords={guard(() => setShowAddKw(true))}
                   addLabel={t("addKeywords")}
                 />
               ) : (
@@ -2987,7 +2995,7 @@ export default function ProjectKeywordsPage() {
                   <div className="tiny muted" style={{ marginTop: 6, maxWidth: 320 }}>
                     {t("startTrackingDesc")}
                   </div>
-                  <button className="btn primary" style={{ marginTop: 16 }} onClick={() => setShowAddKw(true)}>
+                  <button className="btn primary" style={{ marginTop: 16 }} onClick={guard(() => setShowAddKw(true))}>
                     <Icon.plus /> {t("addKeywords")}
                   </button>
                 </>
@@ -3288,14 +3296,14 @@ export default function ProjectKeywordsPage() {
                           grade={kw.pageScoreGrade}
                           label={kw.pageScoreLabel}
                           loading={openingReportKwId === kw.id || (isActive && kw.pageScore == null)}
-                          onClick={() => openKeywordReport(kw)}
+                          onClick={guard(() => openKeywordReport(kw))}
                           costNote={scoreCostNote(kw)}
                           emptyTitle="Not ranking yet — click to score a page for this keyword"
-                          onEmptyClick={() =>
+                          onEmptyClick={guard(() =>
                             router.push(
                               `/dashboard/keyword-analysis?keyword=${encodeURIComponent(kw.keyword)}&projectId=${project.id}&keywordId=${kw.id}&domain=${encodeURIComponent(project.domain)}`
                             )
-                          }
+                          )}
                         />
                       </td>
                       <td>
@@ -3326,6 +3334,7 @@ export default function ProjectKeywordsPage() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="row" style={{ gap: 6, justifyContent: "flex-start" }}>
+                          {!isDemo && (
                           <FavoriteButton
                             key={`kf-${kw.id}-${favReady}`}
                             entityType="keyword"
@@ -3334,6 +3343,7 @@ export default function ProjectKeywordsPage() {
                             size={15}
                             style={{ width: 28, height: 28 }}
                           />
+                          )}
                           <Hint
                             text={
                               refreshCost
@@ -3342,7 +3352,7 @@ export default function ProjectKeywordsPage() {
                             }
                           >
                             <button
-                              onClick={() => handleRefreshKeyword(kw.id)}
+                              onClick={guard(() => handleRefreshKeyword(kw.id))}
                               disabled={refreshingKw.has(kw.id) || kw.status === "PENDING" || kw.status === "PROCESSING"}
                               className="icon-btn"
                               style={{ width: 28, height: 28 }}
@@ -3391,7 +3401,7 @@ export default function ProjectKeywordsPage() {
                             >
                             <button
                               {...(i === 0 ? { "data-tutorial": "improve-ranking-btn" } : {})}
-                              onClick={() => {
+                              onClick={guard(() => {
                                 advanceFromStep(4)
                                 // Open the most recent analysis result rather than
                                 // kicking off a fresh (paid) analysis. Only when no
@@ -3403,7 +3413,7 @@ export default function ProjectKeywordsPage() {
                                     ? `/dashboard/project/${project.id}/competitor-analysis/results?analysisId=${kw.latestAnalysisId}`
                                     : `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
                                 )
-                              }}
+                              })}
                               className="btn primary sm rank-cta"
                               style={{ whiteSpace: "nowrap", gap: 4 }}
                             >
@@ -3497,7 +3507,7 @@ export default function ProjectKeywordsPage() {
               {t("viewDetails")}
             </button>
             <button
-              onClick={() => {
+              onClick={guard(() => {
                 const kw = project.keywords.find((k) => k.id === openMenuId)
                 setOpenMenuId(null)
                 setMenuPosition(null)
@@ -3507,7 +3517,7 @@ export default function ProjectKeywordsPage() {
                     `/dashboard/project/${project.id}/competitor-analysis?keyword=${encodeURIComponent(kw.keyword)}&keywordId=${kw.id}`
                   )
                 }
-              }}
+              })}
               disabled={menuLocked}
               title={menuLocked ? LOCKED_REASON : undefined}
               style={{
@@ -3528,7 +3538,7 @@ export default function ProjectKeywordsPage() {
               {t("newAnalysis")}
             </button>
             <button
-              onClick={async () => {
+              onClick={guard(async () => {
                 const kwId = openMenuId!
                 setOpenMenuId(null)
                 setMenuPosition(null)
@@ -3549,7 +3559,7 @@ export default function ProjectKeywordsPage() {
                 } finally {
                   setHistoryLoading(false)
                 }
-              }}
+              })}
               disabled={menuLocked}
               title={menuLocked ? LOCKED_REASON : undefined}
               style={{
@@ -3571,12 +3581,12 @@ export default function ProjectKeywordsPage() {
             </button>
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
             <button
-              onClick={() => {
+              onClick={guard(() => {
                 const id = openMenuId
                 setOpenMenuId(null)
                 setMenuPosition(null)
                 if (id) setConfirmDeleteKwIds([id])
-              }}
+              })}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -4157,6 +4167,7 @@ function CompetitorsCard({
   recheckAction: string
 }) {
   const t = useTranslations("projKeywords")
+  const guard = useDemoGuard(projectId === DEMO_ID, RANK_TRACKER_CREATE_HREF)
   const [tracked, setTracked] = useState<CompetitorRow[]>([])
   const [suggestions, setSuggestions] = useState<CompetitorSuggestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -4179,22 +4190,22 @@ function CompetitorsCard({
 
   useEffect(() => { void load() }, [load])
 
-  const add = async (domain: string) => {
+  const add = guard(async (domain: string) => {
     if (!domain || busy) return
     setBusy(true)
     try {
       await api.post(`/api/projects/${projectId}/competitors`, { domain })
       await load()
     } catch { /* ignore */ } finally { setBusy(false) }
-  }
-  const remove = async (id: string) => {
+  })
+  const remove = guard(async (id: string) => {
     if (busy) return
     setBusy(true)
     try {
       await api.delete(`/api/projects/${projectId}/competitors/${id}`)
       await load()
     } catch { /* ignore */ } finally { setBusy(false) }
-  }
+  })
 
   // Only offer suggestions not already tracked.
   const trackedDomains = new Set(tracked.map((c) => c.domain))

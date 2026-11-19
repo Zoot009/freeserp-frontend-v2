@@ -5,9 +5,29 @@
 // `res.status` themselves (e.g. the 429 rate-limit and 404 branches). Per-call
 // options (`withCredentials`, auth headers, etc.) are passed at each call site.
 import axios from "axios"
+import { demoResponse } from "@/lib/demo"
 
 const instance = axios.create({
   validateStatus: () => true,
+})
+
+/**
+ * Demo reports never reach the network (lib/demo/index.ts): a demo URL is
+ * answered in-process by swapping in an adapter. A refused write comes back as
+ * a plain 403, which the response interceptor below leaves alone — no credit
+ * refresh, no quota prompt.
+ */
+instance.interceptors.request.use((config) => {
+  const demo = demoResponse(config.url ?? "", config.method ?? "get")
+  if (!demo) return config
+  config.adapter = async (cfg) => ({
+    data: demo.error ? { error: { code: demo.error.code, message: demo.error.message } } : demo.data,
+    status: demo.error ? demo.error.status : 200,
+    statusText: demo.error ? demo.error.code : "OK",
+    headers: { "content-type": "application/json" },
+    config: cfg,
+  })
+  return config
 })
 
 /**

@@ -2202,5 +2202,14 @@
     "resubscribed": "{email} has been resubscribed to marketing emails.",
     "transactionalNote": "You will still receive account emails such as sign-in codes, password resets and billing notices.",
     "backHome": "Back to FreeSerp"
+  },
+  "demo": {
+    "chip": "Demo",
+    "bannerTitle": "You’re viewing a demo",
+    "bannerText": "Sample data for {subject}. Explore everything — changes are turned off here.",
+    "bannerCta": "Try it on your own site",
+    "promptTitle": "This is a demo",
+    "promptText": "Try it on your own site to use this.",
+    "promptCta": "Get started"
   }
 }

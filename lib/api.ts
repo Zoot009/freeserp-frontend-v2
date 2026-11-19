@@ -4,6 +4,7 @@
 // directly from server components.
 
 import axios, { type AxiosResponse } from "axios"
+import { demoResponse } from "@/lib/demo"
 
 export const API_BASE =
   typeof window === "undefined"
@@ -195,6 +196,14 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInitWithJson = {}): Promise<T> {
+  // Demo reports never reach the network: their data is generated in-process
+  // and every write is refused (lib/demo/index.ts).
+  const demo = demoResponse(path, (init.method as string | undefined) ?? "GET")
+  if (demo) {
+    if (demo.error) throw new ApiError(demo.error.message, demo.error.status, demo.error.code)
+    return demo.data as T
+  }
+
   const { body, query, skipAuth, skipRefresh, skipAuthRedirect, headers, ...rest } = init
   const buildHeaders = (token: string | null): Record<string, string> => {
     const h: Record<string, string> = {

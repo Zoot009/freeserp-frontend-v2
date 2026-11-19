@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Link } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
+import { DemoChip } from "@/components/dashboard/demo-banner"
+import { DEMO_BRAND } from "@/lib/demo/shared"
 
 type Status = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
 
@@ -42,10 +44,13 @@ export function ReportHistory<T>({
   path,
   toRow,
   emptyText,
+  demo,
 }: {
   path: string
   toRow: (item: T) => ReportRow
   emptyText: string
+  /** The tool's demo report, pinned first for everyone (.claude/skills/demo-report). */
+  demo?: { title: string; subtitle?: string; domain?: string; href: string }
 }) {
   const [rows, setRows] = useState<ReportRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,6 +72,18 @@ export function ReportHistory<T>({
         <div className="b">Recent reports</div>
       </div>
 
+      {demo && (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          <RowLink
+            href={demo.href}
+            domain={demo.domain ?? DEMO_BRAND.domain}
+            title={demo.title}
+            subtitle={demo.subtitle}
+            aside={<DemoChip />}
+          />
+        </ul>
+      )}
+
       {loading ? (
         <div style={{ padding: 36, textAlign: "center", color: "var(--text-mute)", fontSize: 13 }}>
           <span className="spin" style={{ display: "inline-flex", marginRight: 8 }}><Icon.refresh /></span> Loading…
@@ -80,28 +97,51 @@ export function ReportHistory<T>({
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {rows.map((r) => (
-            <li key={r.id}>
-              <Link
-                href={r.href}
-                className="list-row"
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "inherit", textDecoration: "none" }}
-              >
-                <Favicon domain={r.domain} size={28} />
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span className="b" style={{ fontSize: 13, ...ellipsis }}>{r.title}</span>
-                  {r.subtitle && <span className="tiny muted mono" style={ellipsis}>{r.subtitle}</span>}
-                </span>
-                {/* Status over date, stacked, so the title keeps its width on a phone. */}
-                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+            <RowLink
+              key={r.id}
+              href={r.href}
+              domain={r.domain}
+              title={r.title}
+              subtitle={r.subtitle}
+              aside={
+                // Status over date, stacked, so the title keeps its width on a phone.
+                <>
                   <span className={STATUS[r.status].cls}>{STATUS[r.status].label}</span>
                   <span className="tiny muted tabular">{fmtDate(r.createdAt)}</span>
-                </span>
-                <span style={{ flexShrink: 0, color: "var(--text-mute)" }}><Icon.chevR /></span>
-              </Link>
-            </li>
+                </>
+              }
+            />
           ))}
         </ul>
       )}
     </div>
+  )
+}
+
+function RowLink({ href, domain, title, subtitle, aside }: {
+  href: string
+  domain: string
+  title: string
+  subtitle?: string
+  aside: ReactNode
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="list-row"
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "inherit", textDecoration: "none" }}
+      >
+        <Favicon domain={domain} size={28} />
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span className="b" style={{ fontSize: 13, ...ellipsis }}>{title}</span>
+          {subtitle && <span className="tiny muted mono" style={ellipsis}>{subtitle}</span>}
+        </span>
+        <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          {aside}
+        </span>
+        <span style={{ flexShrink: 0, color: "var(--text-mute)" }}><Icon.chevR /></span>
+      </Link>
+    </li>
   )
 }

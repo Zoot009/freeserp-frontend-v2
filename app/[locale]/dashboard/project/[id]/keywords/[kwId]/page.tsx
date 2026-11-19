@@ -21,6 +21,9 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { AiOverviewPanel } from "@/components/dashboard/ai-overview-panel"
+import { DemoBanner } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { RANK_TRACKER_CREATE_HREF } from "@/lib/demo/rank-tracker"
 import { SerpDebugPanel } from "@/components/dashboard/serp-debug-panel"
 import { Favicon } from "@/components/favicon"
 import { useEngines, engineOf, DEFAULT_ENGINE } from "@/hooks/use-engines"
@@ -501,6 +504,7 @@ export default function KeywordDetailPage() {
 
   return (
     <div className="page">
+      {projectId === DEMO_ID && <DemoBanner createHref={RANK_TRACKER_CREATE_HREF} />}
       <button onClick={() => router.back()} className="kd-back" type="button">
         ← Back
       </button>

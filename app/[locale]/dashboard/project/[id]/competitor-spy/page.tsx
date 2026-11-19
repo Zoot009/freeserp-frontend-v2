@@ -10,6 +10,9 @@ import { CreditCost } from "@/components/dashboard/credit-cost"
 import { rankCheckAction } from "@/lib/credits"
 import { Favicon } from "@/components/favicon"
 import { Icon } from "@/components/dashboard/icons"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { RANK_TRACKER_CREATE_HREF } from "@/lib/demo/rank-tracker"
 import {
   StatTile,
   PosBadge,
@@ -516,6 +519,8 @@ export default function CompetitorSpyPage() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
+  const isDemo = projectId === DEMO_ID
+  const guard = useDemoGuard(isDemo, RANK_TRACKER_CREATE_HREF)
   const { user, loading: authLoading } = useAuth()
 
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
@@ -602,6 +607,9 @@ export default function CompetitorSpyPage() {
     }
   }, [loadOverview])
 
+  // The demo project is read-only: adding or removing shows the demo prompt.
+  const openAdd = guard(() => setShowAdd(true))
+
   const removeCompetitor = async (id: string) => {
     setRemoving(true)
     try {
@@ -632,6 +640,7 @@ export default function CompetitorSpyPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={RANK_TRACKER_CREATE_HREF} />}
       {/* Header */}
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
@@ -643,7 +652,7 @@ export default function CompetitorSpyPage() {
             {`${competitors.length} ${competitors.length === 1 ? "domain" : "domains"} you're competing with on shared keywords`}
           </div>
         </div>
-        <button type="button" className="btn primary" onClick={() => setShowAdd(true)}>
+        <button type="button" className="btn primary" onClick={openAdd}>
           <Icon.plus /> Add competitor
         </button>
       </div>
@@ -701,7 +710,7 @@ export default function CompetitorSpyPage() {
           <div className="muted" style={{ margin: "8px auto 18px", fontSize: 13, maxWidth: 380 }}>
             Add a competitor domain to compare ranks across the keywords you track.
           </div>
-          <button type="button" className="btn primary" onClick={() => setShowAdd(true)}>
+          <button type="button" className="btn primary" onClick={openAdd}>
             <Icon.plus /> Add competitor
           </button>
         </div>
@@ -711,7 +720,7 @@ export default function CompetitorSpyPage() {
           <div className="card" style={{ padding: 0, overflow: "hidden", alignSelf: "start", minWidth: 0 }}>
             <div className="card-h" style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
               <span className="t">All competitors</span>
-              <button type="button" className="icon-btn" onClick={() => setShowAdd(true)} aria-label="Add competitor">
+              <button type="button" className="icon-btn" onClick={openAdd} aria-label="Add competitor">
                 <Icon.plus />
               </button>
             </div>
@@ -759,7 +768,7 @@ export default function CompetitorSpyPage() {
                 tab={tab}
                 setTab={setTab}
                 removing={removing}
-                onRemove={() => removeCompetitor(detail.competitor.id)}
+                onRemove={guard(() => removeCompetitor(detail.competitor.id))}
               />
             ) : detailLoading ? (
               <div className="col" style={{ gap: 10 }}>

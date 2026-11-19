@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth"
 import { usePaidAccess } from "@/hooks/use-paid-access"
 import { BUY_CREDITS_HREF } from "@/lib/credits"
 import { StatCard } from "@/components/dashboard/stat-card"
+import { useIsDemoView } from "@/components/dashboard/demo-banner"
 
 // The paid tools. A free account opening one gets a sample of what the tool
 // produces and a way to upgrade, never the tool itself; the server refuses
@@ -212,9 +213,13 @@ const PLANS_HREF = "/dashboard/billing"
 export function PaidToolGate({ tool, children }: { tool: PaidTool; children: ReactNode }) {
   const { user, loading } = useAuth()
   const { paid, checking } = usePaidAccess(user?.id)
+  const demo = useIsDemoView()
   // Signed out: the page itself sends the visitor to log in.
   if (!loading && !user) return <>{children}</>
-  if (loading || checking) {
+  // Demos are open to every plan: they show what the tool produces, every
+  // action in them prompts, and their data never touches the server.
+  if (demo) return <>{children}</>
+  if (loading || checking || demo === null) {
     return (
       <div className="page" style={{ color: "var(--text-mute)", fontSize: 13, padding: 60, textAlign: "center" }}>
         Loading…

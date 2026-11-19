@@ -2202,5 +2202,14 @@
     "resubscribed": "{email} wurde wieder für Marketing-E-Mails angemeldet.",
     "transactionalNote": "Konto-E-Mails wie Anmeldecodes, Passwort-Zurücksetzungen und Rechnungshinweise erhältst du weiterhin.",
     "backHome": "Zurück zu FreeSerp"
+  },
+  "demo": {
+    "chip": "Demo",
+    "bannerTitle": "Sie sehen eine Demo",
+    "bannerText": "Beispieldaten für {subject}. Entdecken Sie alles – Änderungen sind hier deaktiviert.",
+    "bannerCta": "Mit Ihrer eigenen Website testen",
+    "promptTitle": "Dies ist eine Demo",
+    "promptText": "Testen Sie es mit Ihrer eigenen Website, um diese Funktion zu nutzen.",
+    "promptCta": "Loslegen"
   }
 }

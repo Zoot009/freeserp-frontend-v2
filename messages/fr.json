@@ -2202,5 +2202,14 @@
     "resubscribed": "{email} a été réabonné aux e-mails marketing.",
     "transactionalNote": "Vous continuerez à recevoir les e-mails liés au compte : codes de connexion, réinitialisations de mot de passe et avis de facturation.",
     "backHome": "Retour à FreeSerp"
+  },
+  "demo": {
+    "chip": "Démo",
+    "bannerTitle": "Vous consultez une démo",
+    "bannerText": "Données d’exemple pour {subject}. Explorez tout ; les modifications sont désactivées ici.",
+    "bannerCta": "Essayez-le sur votre site",
+    "promptTitle": "Ceci est une démo",
+    "promptText": "Essayez-le sur votre propre site pour utiliser cette fonction.",
+    "promptCta": "Commencer"
   }
 }

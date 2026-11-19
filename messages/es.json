@@ -2202,5 +2202,14 @@
     "resubscribed": "{email} se ha vuelto a suscribir a los correos de marketing.",
     "transactionalNote": "Seguirás recibiendo correos de la cuenta, como códigos de acceso, restablecimientos de contraseña y avisos de facturación.",
     "backHome": "Volver a FreeSerp"
+  },
+  "demo": {
+    "chip": "Demo",
+    "bannerTitle": "Estás viendo una demostración",
+    "bannerText": "Datos de ejemplo para {subject}. Explora todo; aquí los cambios están desactivados.",
+    "bannerCta": "Pruébalo con tu propio sitio",
+    "promptTitle": "Esto es una demostración",
+    "promptText": "Pruébalo con tu propio sitio para usar esta función.",
+    "promptCta": "Empezar"
   }
 }
