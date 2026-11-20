@@ -264,11 +264,8 @@
     "dashboardArrow": "Dashboard →",
     "backToDashboard": "Back to dashboard →",
     "footerCopyright": "© FreeSERP — Pricing",
-    "eyebrow": "Pricing",
     "title": "Simple plans. <hl>No surprises.</hl>",
-    "subtitle": "Start free with monthly credits, no card required. One balance pays for every tool, so you never buy a plan around the one feature you need.",
-    "trialBannerLead": "Start free — {credits} credits every month, no card required.",
-    "trialBannerRest": "Top up or upgrade whenever you need more.",
+    "subtitle": "Google rank tracking is free. Every other tool comes with a paid plan or a credit pack.",
     "freeTitle": "Free",
     "perMonth": "/month",
     "freeForever": "10 rank checks a day to try it out — no card required.",
@@ -292,11 +289,12 @@
     "freeFeatures": [
       "10 rank checks a day — no card",
       "1 project · unlimited keywords",
-      "Manual checks & Quick SERP",
-      "1 full AI analysis / day",
+      "Google rank tracking, checked by hand",
+      "Rank history for every keyword",
       "All 69 countries, both devices"
     ],
     "paidFeatures": [
+      "Every tool: audits, keyword research, competitors, Maps, YouTube & AI tracking",
       "Automated recurring checks",
       "Rank & SERP-feature alerts by email",
       "PDF reports & scheduled digests",
@@ -304,13 +302,6 @@
       "50 projects · unlimited keywords",
       "Priority support"
     ],
-    "statMarketsLabel": "69 countries · 30 languages",
-    "statMarketsValue": "Worldwide",
-    "statResultTimeLabel": "Avg result time",
-    "statResultTimeValue": "< 1 min",
-    "statCommitmentLabel": "Money-back guarantee",
-    "statCommitmentValue": "7-day",
-    "faqEyebrow": "FAQ",
     "faqTitle": "Questions, answered",
     "faq": [
       {
@@ -342,8 +333,7 @@
     "tierChecks": "{checks, number} checks/day",
     "fewerChecks": "Fewer checks",
     "moreChecks": "More checks",
-    "compareEyebrow": "Compare",
-    "compareTitle": "Everything in Free, and more",
+    "compareTitle": "What's free and what's paid",
     "compareFree": "Free",
     "comparePaid": "Paid",
     "compareRows": [
@@ -449,9 +439,6 @@
     "saved": "Saved",
     "savedToast": "Updated to {checks, number} checks/day. Prorated.",
     "errorSaveFailed": "Could not update your plan",
-    "ctaTitle": "Ready to rank higher?",
-    "ctaSubtitle": "Start free — no card required. Scale up the moment you need more.",
-    "ctaButton": "Get started",
     "intervalMonthly": "Monthly",
     "intervalAnnual": "Annual",
     "perYear": "/year",
@@ -463,92 +450,58 @@
     "annualSaveNote": "Save ${save}/yr vs monthly ({pct}% off)",
     "compareRowsCredits": [
       {
-        "group": "Credits"
-      },
-      {
         "feature": "Credits every month",
         "free": "{free}",
         "paid": "{paid}"
       },
       {
-        "feature": "Top-up credit packs",
+        "feature": "Google rank tracker",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "feature": "69 countries & both devices",
+        "feature": "Rank history & AI Overview citations",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "group": "Automation & reporting"
-      },
-      {
-        "feature": "Automated recurring checks",
+        "feature": "Automatic rank checks & alerts",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Rank & SERP-feature alerts",
+        "feature": "PDF reports & email digests",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Email alerts & digests",
+        "feature": "Keyword research",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "PDF reports",
+        "feature": "Site & page audits",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Priority support",
+        "feature": "Competitor analysis",
         "free": "—",
         "paid": "✓"
       },
       {
-        "group": "Analysis tools"
-      },
-      {
-        "feature": "AI competitor analysis",
-        "free": "✓",
+        "feature": "Google Maps & YouTube tracking",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "AI Audit Co-Pilot chat",
-        "free": "✓",
+        "feature": "AI prompt tracking",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Competitor Spy",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Quick SERP checker",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "On-page & keyword analysis",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Google Search Console",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "12-month rank history",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "CSV export & share links",
-        "free": "✓",
+        "feature": "Search Console & Quick SERP",
+        "free": "—",
         "paid": "✓"
       }
     ],
@@ -559,7 +512,7 @@
       },
       {
         "q": "Is there a free plan?",
-        "a": "Yes. Every account gets {free} credits a month with no card, and every tool is unlocked — spend them on whatever you need."
+        "a": "Yes. Every account gets {free} credits a month with no card, for the Google rank tracker. Every other tool needs a paid plan or a credit pack."
       },
       {
         "q": "Do unused credits roll over?",
@@ -763,8 +716,9 @@
     "yourPlan": "Your plan",
     "planCardHintPaid": "Every $1/mo adds 15 checks/day",
     "planCardHintFree": "Upgrade to scale your daily checks",
-    "freePlanLine": "You're on the Free plan — {count} rank checks a day, manual only.",
+    "freePlanLine": "You're on the Free plan — Google rank tracking, {count} checks a day, manual only.",
     "upgradePerks": [
+      "Every tool: audits, keyword research, competitors, Maps, YouTube & AI tracking",
       "Automated recurring rank checks",
       "Rank & SERP-feature alerts by email",
       "PDF reports & scheduled digests",
@@ -1431,6 +1385,7 @@
     "autoTitle": "Find them for me",
     "autoDesc": "We'll scan your homepage with AI and start tracking the 10 strongest keywords it should rank for.",
     "manualTitle": "I'll add my own",
+    "paidPlansTag": "Paid plans",
     "manualDesc": "Skip the analysis. Start with an empty list and type in the exact keywords you want to track — nothing spent."
   },
   "dashSerpChecker": {
@@ -1662,6 +1617,8 @@
   "quotaUpsell": {
     "eyebrow": "Upgrade",
     "titleFree": "You're out of free checks",
+    "titlePaidFeature": "This is a paid feature",
+    "bodyPaidFeature": "Free accounts include the Google rank tracker. Choose a plan or buy a credit pack to use everything else.",
     "titlePaid": "You've hit today's check limit",
     "bodyDailyQuota": "You've used {used} of {limit} checks today. Your limit resets at midnight UTC — or add more checks now and keep going immediately.",
     "bodyProjectLimit": "You've reached your plan's project limit. Upgrade to track more websites.",
@@ -1723,41 +1680,27 @@
     "entryRefund": "Refunded",
     "entryExpire": "Expired",
     "entryAdjust": "Adjustment",
-    "pricingTitle": "Pay for what you run",
-    "pricingIntro": "A rank check costs {check} credits. Everything else is priced from the same pool — a local grid scan, a site audit, a keyword search — so you are never paying for a tool you do not use. Free accounts get {credits} credits a month, no card.",
     "loadingPlans": "Loading plans…",
     "perMonth": "/month",
     "mostPopular": "Most popular",
     "freeRefilled": "Refilled automatically. No card.",
-    "freeCreditsEvery": "{credits} credits every month",
-    "freeEveryTool": "Every tool unlocked",
-    "freeCountries": "190+ countries, all devices",
-    "freeNoCard": "No credit card required",
     "freeCurrent": "Your current plan",
     "freeIncluded": "Included with every account",
     "whoStarter": "One site, checked every day",
     "whoPro": "Several sites, or one you work hard",
     "whoAgency": "Client work and bigger keyword sets",
-    "buysChecks": "{credits} rank checks",
     "buysDaily": "{credits} keywords tracked daily",
-    "buysScans": "{credits} local map scans on a {grid} grid",
-    "buysAudits": "{credits} site audits of {pages} pages",
     "currentPlan": "Current plan",
     "openingCheckout": "Opening checkout…",
     "choosePlan": "Choose {plan}",
     "switchPlan": "Switch to {plan}",
     "openingPortal": "Opening billing…",
     "portalFailed": "We couldn't open your billing portal. Try again, or contact us if it keeps happening.",
-    "packsTitle": "Need more this month?",
-    "packsNote": "Top-ups never expire on the monthly cycle — they last a year from purchase.",
+    "packsTitle": "Prefer to pay once?",
+    "packsNote": "Credit packs last 12 months and unlock every tool, just like a plan.",
     "packCredits": "{credits} credits",
-    "pack1000": "A busy week",
-    "pack5000": "A month of extra headroom",
-    "pack15000": "A large one-off audit or migration",
-    "everyToolTitle": "Every tool, on every plan",
-    "everyToolIntro": "Nothing is locked behind a higher tier — your credits work across all of it.",
+    "everyToolTitle": "How many credits does each tool use?",
     "checkoutFailed": "We couldn't open checkout. That usually means the plan isn't connected to a payment provider yet — try again, or contact us if it keeps happening.",
-    "expiryNote": "Monthly credits refill on your billing date and do not roll over. Purchased top-ups last 12 months. Whatever expires soonest is always spent first.",
     "toolRankWhat": "Daily positions in any country, with history",
     "toolYoutubeWhat": "Video positions, with views and age",
     "toolMapsWhat": "A geo-grid of local rankings, block by block",
@@ -1819,7 +1762,10 @@
     "auditFreshBody": "This crawls the site again instead of reopening the saved report.",
     "auditStartTitle": "Start the site audit?",
     "auditStartBody": "Charged per page we actually crawl, so a smaller site costs less than this.",
-    "checksBackEach": "{count, plural, one {Each check uses {n} credit.} other {Each check uses {n} credits.}}"
+    "checksBackEach": "{count, plural, one {Each check uses {n} credit.} other {Each check uses {n} credits.}}",
+    "freeRankTracker": "Google rank tracker",
+    "freeHistory": "Rank history for every keyword",
+    "paidEveryTool": "Every tool unlocked"
   },
   "widgets": {
     "hiddenNotice": "<b>{label}</b> widget is hidden now. You can always restore it from Hidden Widgets at the bottom of Dashboard.",

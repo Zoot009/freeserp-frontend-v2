@@ -256,12 +256,6 @@ export function formatPrice(cents: number | null, currency = "USD"): string {
   }
 }
 
-/** "$0.019 / credit" — what a pack really costs, for comparing them honestly. */
-export function perCreditLabel(priceCents: number | null, credits: number): string | null {
-  if (priceCents == null || credits <= 0) return null
-  return `$${(priceCents / 100 / credits).toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} / credit`
-}
-
 // ── Quoting an action before it runs ──────────────────────────────────────
 //
 // Mirrors creditsFor() in the backend's credits/catalog.ts EXACTLY: round the

@@ -264,11 +264,8 @@
     "dashboardArrow": "Panel →",
     "backToDashboard": "Volver al panel →",
     "footerCopyright": "© FreeSERP — Precios",
-    "eyebrow": "Precios",
     "title": "Planes simples. <hl>Sin sorpresas.</hl>",
-    "subtitle": "Empieza gratis con créditos mensuales, sin tarjeta. Un solo saldo paga todas las herramientas, así que nunca contratas un plan por una única función.",
-    "trialBannerLead": "Empieza gratis: {credits} créditos al mes, sin tarjeta.",
-    "trialBannerRest": "Recarga o mejora tu plan cuando necesites más.",
+    "subtitle": "El seguimiento de rankings en Google es gratis. Las demás herramientas vienen con un plan de pago o un paquete de créditos.",
     "freeTitle": "Gratis",
     "perMonth": "/mes",
     "freeForever": "10 comprobaciones de ranking al día para probar — sin tarjeta.",
@@ -292,11 +289,12 @@
     "freeFeatures": [
       "10 comprobaciones de ranking al día — sin tarjeta",
       "1 proyecto · keywords ilimitadas",
-      "Comprobaciones manuales y Quick SERP",
-      "1 análisis de IA completo / día",
+      "Seguimiento de posiciones en Google, comprobado a mano",
+      "Historial de posiciones de cada keyword",
       "Los 69 países, ambos dispositivos"
     ],
     "paidFeatures": [
+      "Todas las herramientas: auditorías, keywords, competidores, seguimiento en Maps, YouTube e IA",
       "Comprobaciones recurrentes automatizadas",
       "Alertas de ranking y funciones SERP por email",
       "Informes PDF y resúmenes programados",
@@ -304,13 +302,6 @@
       "50 proyectos · keywords ilimitadas",
       "Soporte prioritario"
     ],
-    "statMarketsLabel": "69 países · 30 idiomas",
-    "statMarketsValue": "Global",
-    "statResultTimeLabel": "Tiempo medio de resultado",
-    "statResultTimeValue": "< 1 min",
-    "statCommitmentLabel": "Garantía de devolución",
-    "statCommitmentValue": "7 días",
-    "faqEyebrow": "FAQ",
     "faqTitle": "Preguntas, respondidas",
     "faq": [
       {
@@ -342,8 +333,7 @@
     "tierChecks": "{checks, number} comprobaciones/día",
     "fewerChecks": "Menos comprobaciones",
     "moreChecks": "Más comprobaciones",
-    "compareEyebrow": "Comparar",
-    "compareTitle": "Todo lo de Free, y más",
+    "compareTitle": "Qué es gratis y qué es de pago",
     "compareFree": "Free",
     "comparePaid": "De pago",
     "compareRows": [
@@ -449,9 +439,6 @@
     "saved": "Guardado",
     "savedToast": "Actualizado a {checks, number} comprobaciones/día. Prorrateado.",
     "errorSaveFailed": "No se pudo actualizar tu plan",
-    "ctaTitle": "¿Listo para posicionar mejor?",
-    "ctaSubtitle": "Empieza gratis — sin tarjeta. Escala en cuanto necesites más.",
-    "ctaButton": "Empezar",
     "intervalMonthly": "Mensual",
     "intervalAnnual": "Anual",
     "perYear": "/año",
@@ -463,92 +450,58 @@
     "annualSaveNote": "Ahorra {save} $/año frente a mensual ({pct}% de descuento)",
     "compareRowsCredits": [
       {
-        "group": "Créditos"
-      },
-      {
         "feature": "Créditos al mes",
         "free": "{free}",
         "paid": "{paid}"
       },
       {
-        "feature": "Paquetes de recarga de créditos",
+        "feature": "Seguimiento de rankings en Google",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "feature": "69 países y ambos dispositivos",
+        "feature": "Historial de posiciones y citas en AI Overviews",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "group": "Automatización e informes"
-      },
-      {
-        "feature": "Comprobaciones automáticas recurrentes",
+        "feature": "Comprobaciones automáticas y alertas",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Alertas de ranking y funciones SERP",
+        "feature": "Informes PDF y resúmenes por email",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Alertas y resúmenes por email",
+        "feature": "Investigación de palabras clave",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Informes PDF",
+        "feature": "Auditorías de sitio y de página",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Soporte prioritario",
+        "feature": "Análisis de competencia",
         "free": "—",
         "paid": "✓"
       },
       {
-        "group": "Herramientas de análisis"
-      },
-      {
-        "feature": "Análisis de competencia con IA",
-        "free": "✓",
+        "feature": "Seguimiento en Google Maps y YouTube",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Chat con el Copiloto de Auditoría IA",
-        "free": "✓",
+        "feature": "Seguimiento de prompts de IA",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Competitor Spy",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Quick SERP",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Análisis on-page y de keywords",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Google Search Console",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Histórico de 12 meses",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Exportación CSV y enlaces para compartir",
-        "free": "✓",
+        "feature": "Search Console y Quick SERP",
+        "free": "—",
         "paid": "✓"
       }
     ],
@@ -559,7 +512,7 @@
       },
       {
         "q": "¿Hay un plan gratuito?",
-        "a": "Sí. Cada cuenta recibe {free} créditos al mes sin tarjeta y todas las herramientas están desbloqueadas: úsalos en lo que necesites."
+        "a": "Sí. Cada cuenta recibe {free} créditos al mes sin tarjeta para el seguimiento de rankings en Google. Las demás herramientas requieren un plan de pago o un paquete de créditos."
       },
       {
         "q": "¿Los créditos sin usar se acumulan?",
@@ -763,7 +716,7 @@
     "yourPlan": "Tu plan",
     "planCardHintPaid": "Cada 1 $/mes añade 15 comprobaciones/día",
     "planCardHintFree": "Mejora tu plan para escalar tus comprobaciones diarias",
-    "freePlanLine": "Estás en el plan Gratis — {count} comprobaciones de ranking/día, solo manuales.",
+    "freePlanLine": "Estás en el plan Gratis — seguimiento en Google, {count} comprobaciones/día, solo manuales.",
     "aiUsage": "Análisis con IA",
     "usageAnalyses": "{used} / {limit} análisis",
     "aiUnlimited": "Ilimitado",
@@ -773,6 +726,7 @@
     "aiLineFree": "Queda {remaining} análisis completo hoy · después, los nuevos análisis se ejecutan como vista previa. <link>Suscríbete</link> para tener análisis completos siempre.",
     "aiLineFreeUsed": "Has usado el análisis completo de hoy · los nuevos análisis se ejecutan como vista previa hasta medianoche (UTC). <link>Suscríbete</link> para tener análisis completos siempre.",
     "upgradePerks": [
+      "Todas las herramientas: auditorías, keywords, competidores, seguimiento en Maps, YouTube e IA",
       "Comprobaciones de ranking recurrentes automatizadas",
       "Alertas de ranking y funciones SERP por email",
       "Informes PDF y resúmenes programados",
@@ -1431,6 +1385,7 @@
     "autoTitle": "Búscalas por mí",
     "autoDesc": "Analizaremos tu página de inicio con IA y empezaremos a seguir las 10 palabras clave más fuertes para las que debería posicionarse.",
     "manualTitle": "Las añado yo",
+    "paidPlansTag": "Planes de pago",
     "manualDesc": "Sin análisis. Empieza con una lista vacía y escribe tú mismo las palabras clave que quieras rastrear — no consume créditos."
   },
   "dashSerpChecker": {
@@ -1662,6 +1617,8 @@
   "quotaUpsell": {
     "eyebrow": "Mejorar plan",
     "titleFree": "Se acabaron tus comprobaciones gratis",
+    "titlePaidFeature": "Esta función es de pago",
+    "bodyPaidFeature": "Las cuentas gratuitas incluyen el rastreador de posiciones de Google. Elige un plan o compra un paquete de créditos para usar todo lo demás.",
     "titlePaid": "Has alcanzado el límite de comprobaciones de hoy",
     "bodyDailyQuota": "Has usado {used} de {limit} comprobaciones hoy. Tu límite se restablece a medianoche (UTC) — o amplía tu plan ahora y sigue sin esperar.",
     "bodyProjectLimit": "Has alcanzado el límite de proyectos de tu plan. Mejora tu plan para rastrear más sitios.",
@@ -1723,41 +1680,27 @@
     "entryRefund": "Reembolsados",
     "entryExpire": "Caducados",
     "entryAdjust": "Ajuste",
-    "pricingTitle": "Paga por lo que uses",
-    "pricingIntro": "Una comprobación de posición cuesta {check} créditos. Todo lo demás se cobra del mismo saldo —un escaneo de cuadrícula local, una auditoría del sitio, una búsqueda de palabras clave— así que nunca pagas por una herramienta que no usas. Las cuentas gratuitas reciben {credits} créditos al mes, sin tarjeta.",
     "loadingPlans": "Cargando planes…",
     "perMonth": "/mes",
     "mostPopular": "Más popular",
     "freeRefilled": "Se recarga automáticamente. Sin tarjeta.",
-    "freeCreditsEvery": "{credits} créditos cada mes",
-    "freeEveryTool": "Todas las herramientas desbloqueadas",
-    "freeCountries": "Más de 190 países, todos los dispositivos",
-    "freeNoCard": "No se requiere tarjeta de crédito",
     "freeCurrent": "Tu plan actual",
     "freeIncluded": "Incluido en todas las cuentas",
     "whoStarter": "Un sitio, revisado cada día",
     "whoPro": "Varios sitios, o uno en el que trabajas a fondo",
     "whoAgency": "Trabajo para clientes y conjuntos de palabras clave más grandes",
-    "buysChecks": "{credits} comprobaciones de posición",
     "buysDaily": "{credits} palabras clave seguidas a diario",
-    "buysScans": "{credits} escaneos de mapa local en una cuadrícula de {grid}",
-    "buysAudits": "{credits} auditorías de sitios de {pages} páginas",
     "currentPlan": "Plan actual",
     "openingCheckout": "Abriendo el pago…",
     "choosePlan": "Elegir {plan}",
     "switchPlan": "Cambiar a {plan}",
     "openingPortal": "Abriendo la facturación…",
     "portalFailed": "No pudimos abrir tu portal de facturación. Inténtalo de nuevo o contáctanos si sigue pasando.",
-    "packsTitle": "¿Necesitas más este mes?",
-    "packsNote": "Las recargas no caducan con el ciclo mensual: duran un año desde la compra.",
+    "packsTitle": "¿Prefieres pagar una sola vez?",
+    "packsNote": "Los paquetes de créditos duran 12 meses y desbloquean todas las herramientas, igual que un plan.",
     "packCredits": "{credits} créditos",
-    "pack1000": "Una semana intensa",
-    "pack5000": "Un mes de margen extra",
-    "pack15000": "Una auditoría o migración puntual grande",
-    "everyToolTitle": "Todas las herramientas, en todos los planes",
-    "everyToolIntro": "Nada queda bloqueado tras un plan superior: tus créditos funcionan en todo.",
+    "everyToolTitle": "¿Cuántos créditos usa cada herramienta?",
     "checkoutFailed": "No hemos podido abrir el pago. Normalmente significa que el plan aún no está conectado a un proveedor de pagos: inténtalo de nuevo o escríbenos si sigue ocurriendo.",
-    "expiryNote": "Los créditos mensuales se recargan en tu fecha de facturación y no se acumulan. Las recargas compradas duran 12 meses. Siempre se gasta primero lo que caduca antes.",
     "toolRankWhat": "Posiciones diarias en cualquier país, con historial",
     "toolYoutubeWhat": "Posiciones de vídeos, con visitas y antigüedad",
     "toolMapsWhat": "Una cuadrícula geográfica de posiciones locales, manzana a manzana",
@@ -1819,7 +1762,10 @@
     "auditFreshBody": "Esto vuelve a rastrear el sitio en lugar de abrir el informe guardado.",
     "auditStartTitle": "¿Empezar la auditoría del sitio?",
     "auditStartBody": "Se cobra por página rastreada, así que un sitio más pequeño cuesta menos.",
-    "checksBackEach": "{count, plural, one {Cada comprobación usa {n} crédito.} other {Cada comprobación usa {n} créditos.}}"
+    "checksBackEach": "{count, plural, one {Cada comprobación usa {n} crédito.} other {Cada comprobación usa {n} créditos.}}",
+    "freeRankTracker": "Seguimiento de rankings en Google",
+    "freeHistory": "Historial de posiciones de cada palabra clave",
+    "paidEveryTool": "Todas las herramientas desbloqueadas"
   },
   "widgets": {
     "hiddenNotice": "El widget <b>{label}</b> está oculto ahora. Siempre puedes restaurarlo desde Widgets ocultos, al final del Panel.",

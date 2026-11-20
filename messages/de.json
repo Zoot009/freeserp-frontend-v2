@@ -264,11 +264,8 @@
     "dashboardArrow": "Dashboard →",
     "backToDashboard": "Zurück zum Dashboard →",
     "footerCopyright": "© FreeSERP — Preise",
-    "eyebrow": "Preise",
     "title": "Einfache Pläne. <hl>Keine Überraschungen.</hl>",
-    "subtitle": "Starte kostenlos mit monatlichen Credits, ohne Karte. Ein Guthaben bezahlt jedes Tool — du buchst also nie einen Tarif wegen einer einzigen Funktion.",
-    "trialBannerLead": "Kostenlos starten — {credits} Credits pro Monat, keine Karte nötig.",
-    "trialBannerRest": "Aufladen oder upgraden, wann immer du mehr brauchst.",
+    "subtitle": "Das Google-Rank-Tracking ist kostenlos. Alle anderen Tools gibt es mit einem bezahlten Tarif oder einem Credit-Paket.",
     "freeTitle": "Kostenlos",
     "perMonth": "/Monat",
     "freeForever": "10 Rank-Checks pro Tag zum Ausprobieren — keine Karte nötig.",
@@ -292,11 +289,12 @@
     "freeFeatures": [
       "10 Rank-Checks pro Tag — keine Karte",
       "1 Projekt · unbegrenzt Keywords",
-      "Manuelle Checks & Quick SERP",
-      "1 vollständige KI-Analyse / Tag",
+      "Google-Rank-Tracking, manuell geprüft",
+      "Ranking-Verlauf für jedes Keyword",
       "Alle 69 Länder, beide Geräte"
     ],
     "paidFeatures": [
+      "Alle Tools: Audits, Keyword-Recherche, Wettbewerber, Maps-, YouTube- & KI-Tracking",
       "Automatische, wiederkehrende Checks",
       "Ranking- und SERP-Feature-Alerts per E-Mail",
       "PDF-Berichte & geplante Zusammenfassungen",
@@ -304,13 +302,6 @@
       "50 Projekte · unbegrenzte Keywords",
       "Priorisierter Support"
     ],
-    "statMarketsLabel": "69 Länder · 30 Sprachen",
-    "statMarketsValue": "Weltweit",
-    "statResultTimeLabel": "Durchschn. Ergebniszeit",
-    "statResultTimeValue": "< 1 Min.",
-    "statCommitmentLabel": "Geld-zurück-Garantie",
-    "statCommitmentValue": "7 Tage",
-    "faqEyebrow": "FAQ",
     "faqTitle": "Fragen, beantwortet",
     "faq": [
       {
@@ -342,8 +333,7 @@
     "tierChecks": "{checks, number} Checks/Tag",
     "fewerChecks": "Weniger Checks",
     "moreChecks": "Mehr Checks",
-    "compareEyebrow": "Vergleich",
-    "compareTitle": "Alles aus Free – und mehr",
+    "compareTitle": "Was kostenlos ist und was nicht",
     "compareFree": "Free",
     "comparePaid": "Bezahlt",
     "compareRows": [
@@ -449,9 +439,6 @@
     "saved": "Gespeichert",
     "savedToast": "Auf {checks, number} Checks/Tag aktualisiert. Anteilig berechnet.",
     "errorSaveFailed": "Dein Tarif konnte nicht aktualisiert werden",
-    "ctaTitle": "Bereit für bessere Rankings?",
-    "ctaSubtitle": "Starte kostenlos — keine Karte nötig. Skaliere, sobald du mehr brauchst.",
-    "ctaButton": "Loslegen",
     "intervalMonthly": "Monatlich",
     "intervalAnnual": "Jährlich",
     "perYear": "/Jahr",
@@ -463,92 +450,58 @@
     "annualSaveNote": "Spare {save} $/Jahr ggü. monatlich ({pct}% Rabatt)",
     "compareRowsCredits": [
       {
-        "group": "Credits"
-      },
-      {
         "feature": "Credits pro Monat",
         "free": "{free}",
         "paid": "{paid}"
       },
       {
-        "feature": "Credit-Pakete zum Aufladen",
+        "feature": "Google-Rank-Tracker",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "feature": "69 Länder & beide Geräte",
+        "feature": "Ranking-Verlauf & Zitate in AI Overviews",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "group": "Automatisierung & Berichte"
-      },
-      {
-        "feature": "Automatische, wiederkehrende Checks",
+        "feature": "Automatische Ranking-Checks & Alerts",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Ranking- und SERP-Feature-Alerts",
+        "feature": "PDF-Berichte & E-Mail-Zusammenfassungen",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "E-Mail-Alerts & Zusammenfassungen",
+        "feature": "Keyword-Recherche",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "PDF-Berichte",
+        "feature": "Website- & Seiten-Audits",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Priorisierter Support",
+        "feature": "Wettbewerbsanalyse",
         "free": "—",
         "paid": "✓"
       },
       {
-        "group": "Analyse-Tools"
-      },
-      {
-        "feature": "KI-Wettbewerbsanalyse",
-        "free": "✓",
+        "feature": "Google-Maps- & YouTube-Tracking",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "KI-Audit-Copilot-Chat",
-        "free": "✓",
+        "feature": "KI-Prompt-Tracking",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Competitor Spy",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Quick SERP",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "On-Page- & Keyword-Analyse",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Google Search Console",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "12 Monate Ranking-Historie",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "CSV-Export & Share-Links",
-        "free": "✓",
+        "feature": "Search Console & Quick SERP",
+        "free": "—",
         "paid": "✓"
       }
     ],
@@ -559,7 +512,7 @@
       },
       {
         "q": "Gibt es einen kostenlosen Tarif?",
-        "a": "Ja. Jedes Konto erhält {free} Credits pro Monat ohne Karte, und jedes Tool ist freigeschaltet — setze sie ein, wofür du möchtest."
+        "a": "Ja. Jedes Konto erhält {free} Credits pro Monat ohne Karte für den Google-Rank-Tracker. Alle anderen Tools brauchen einen bezahlten Tarif oder ein Credit-Paket."
       },
       {
         "q": "Werden ungenutzte Credits übertragen?",
@@ -763,7 +716,7 @@
     "yourPlan": "Dein Tarif",
     "planCardHintPaid": "Jede 1 $/Monat bringt 15 Checks/Tag",
     "planCardHintFree": "Führe ein Upgrade durch, um deine täglichen Prüfungen zu skalieren",
-    "freePlanLine": "Du nutzt den kostenlosen Tarif — {count} Ranking-Prüfungen/Tag, nur manuell.",
+    "freePlanLine": "Du nutzt den kostenlosen Tarif — Google-Rank-Tracking, {count} Prüfungen/Tag, nur manuell.",
     "aiUsage": "KI-Analysen",
     "usageAnalyses": "{used} / {limit} Analysen",
     "aiUnlimited": "Unbegrenzt",
@@ -773,6 +726,7 @@
     "aiLineFree": "Noch {remaining} vollständige Analyse heute · danach laufen neue Analysen als Vorschau. <link>Abonnieren</link> für jedes Mal vollständige Analysen.",
     "aiLineFreeUsed": "Du hast die heutige vollständige Analyse verbraucht · neue Analysen laufen bis Mitternacht (UTC) als Vorschau. <link>Abonnieren</link> für jedes Mal vollständige Analysen.",
     "upgradePerks": [
+      "Alle Tools: Audits, Keyword-Recherche, Wettbewerber, Maps-, YouTube- & KI-Tracking",
       "Automatische, wiederkehrende Rank-Checks",
       "Ranking- und SERP-Feature-Alerts per E-Mail",
       "PDF-Berichte & geplante Zusammenfassungen",
@@ -1431,6 +1385,7 @@
     "autoTitle": "Für mich finden",
     "autoDesc": "Wir analysieren Ihre Startseite mit KI und verfolgen die 10 stärksten Keywords, für die sie ranken sollte.",
     "manualTitle": "Ich trage eigene ein",
+    "paidPlansTag": "Kostenpflichtige Pläne",
     "manualDesc": "Ohne Analyse. Starte mit einer leeren Liste und tippe die gewünschten Keywords selbst ein — kein Guthaben wird verbraucht."
   },
   "dashSerpChecker": {
@@ -1662,6 +1617,8 @@
   "quotaUpsell": {
     "eyebrow": "Upgrade",
     "titleFree": "Deine kostenlosen Checks sind aufgebraucht",
+    "titlePaidFeature": "Das ist eine kostenpflichtige Funktion",
+    "bodyPaidFeature": "Kostenlose Konten enthalten den Google-Ranktracker. Wähle einen Plan oder kaufe ein Credit-Paket, um alles andere zu nutzen.",
     "titlePaid": "Tageslimit für Checks erreicht",
     "bodyDailyQuota": "Du hast heute {used} von {limit} Checks genutzt. Dein Limit wird um Mitternacht (UTC) zurückgesetzt — oder erweitere jetzt deinen Tarif und mach sofort weiter.",
     "bodyProjectLimit": "Du hast das Projektlimit deines Plans erreicht. Führe ein Upgrade durch, um mehr Websites zu tracken.",
@@ -1723,41 +1680,27 @@
     "entryRefund": "Erstattet",
     "entryExpire": "Verfallen",
     "entryAdjust": "Korrektur",
-    "pricingTitle": "Zahlen Sie für das, was Sie nutzen",
-    "pricingIntro": "Eine Ranking-Prüfung kostet {check} Credits. Alles andere wird aus demselben Guthaben bezahlt — ein lokaler Raster-Scan, ein Website-Audit, eine Keyword-Recherche — Sie zahlen also nie für ein Werkzeug, das Sie nicht nutzen. Kostenlose Konten erhalten {credits} Credits pro Monat, ohne Karte.",
     "loadingPlans": "Tarife werden geladen…",
     "perMonth": "/Monat",
     "mostPopular": "Am beliebtesten",
     "freeRefilled": "Wird automatisch aufgefüllt. Ohne Karte.",
-    "freeCreditsEvery": "{credits} Credits jeden Monat",
-    "freeEveryTool": "Alle Werkzeuge freigeschaltet",
-    "freeCountries": "Über 190 Länder, alle Geräte",
-    "freeNoCard": "Keine Kreditkarte erforderlich",
     "freeCurrent": "Ihr aktueller Tarif",
     "freeIncluded": "In jedem Konto enthalten",
     "whoStarter": "Eine Website, täglich geprüft",
     "whoPro": "Mehrere Websites, oder eine intensiv betreute",
     "whoAgency": "Kundenprojekte und größere Keyword-Sets",
-    "buysChecks": "{credits} Ranking-Prüfungen",
     "buysDaily": "{credits} Keywords täglich verfolgt",
-    "buysScans": "{credits} lokale Karten-Scans mit {grid}-Raster",
-    "buysAudits": "{credits} Website-Audits mit je {pages} Seiten",
     "currentPlan": "Aktueller Tarif",
     "openingCheckout": "Bezahlvorgang wird geöffnet…",
     "choosePlan": "{plan} wählen",
     "switchPlan": "Zu {plan} wechseln",
     "openingPortal": "Abrechnung wird geöffnet…",
     "portalFailed": "Ihr Abrechnungsportal konnte nicht geöffnet werden. Versuchen Sie es erneut oder kontaktieren Sie uns, falls es weiterhin passiert.",
-    "packsTitle": "Diesen Monat mehr nötig?",
-    "packsNote": "Aufladungen verfallen nicht mit dem Monatszyklus — sie gelten ein Jahr ab Kauf.",
+    "packsTitle": "Lieber einmal zahlen?",
+    "packsNote": "Credit-Pakete gelten 12 Monate und schalten wie ein Tarif alle Tools frei.",
     "packCredits": "{credits} Credits",
-    "pack1000": "Eine arbeitsreiche Woche",
-    "pack5000": "Ein Monat zusätzlicher Spielraum",
-    "pack15000": "Ein großes einmaliges Audit oder eine Migration",
-    "everyToolTitle": "Jedes Werkzeug, in jedem Tarif",
-    "everyToolIntro": "Nichts ist hinter einem höheren Tarif gesperrt — Ihre Credits gelten überall.",
+    "everyToolTitle": "Wie viele Credits verbraucht jedes Tool?",
     "checkoutFailed": "Der Bezahlvorgang konnte nicht geöffnet werden. Meist ist der Tarif noch nicht mit einem Zahlungsanbieter verbunden — versuchen Sie es erneut oder schreiben Sie uns, falls es weiterhin auftritt.",
-    "expiryNote": "Monats-Credits werden zu Ihrem Abrechnungsdatum aufgefüllt und werden nicht übertragen. Gekaufte Aufladungen gelten 12 Monate. Was zuerst verfällt, wird immer zuerst ausgegeben.",
     "toolRankWhat": "Tägliche Positionen in jedem Land, mit Verlauf",
     "toolYoutubeWhat": "Video-Positionen, mit Aufrufen und Alter",
     "toolMapsWhat": "Ein Geo-Raster lokaler Rankings, Block für Block",
@@ -1819,7 +1762,10 @@
     "auditFreshBody": "Dabei wird die Website erneut gecrawlt, statt den gespeicherten Bericht zu öffnen.",
     "auditStartTitle": "Website-Audit starten?",
     "auditStartBody": "Berechnet pro tatsächlich gecrawlter Seite — eine kleinere Website kostet also weniger.",
-    "checksBackEach": "{count, plural, one {Jede Prüfung verbraucht {n} Credit.} other {Jede Prüfung verbraucht {n} Credits.}}"
+    "checksBackEach": "{count, plural, one {Jede Prüfung verbraucht {n} Credit.} other {Jede Prüfung verbraucht {n} Credits.}}",
+    "freeRankTracker": "Google-Rank-Tracker",
+    "freeHistory": "Ranking-Verlauf für jedes Keyword",
+    "paidEveryTool": "Alle Tools freigeschaltet"
   },
   "widgets": {
     "hiddenNotice": "Das Widget <b>{label}</b> ist jetzt ausgeblendet. Sie können es jederzeit unter Ausgeblendete Widgets am Ende des Dashboards wiederherstellen.",

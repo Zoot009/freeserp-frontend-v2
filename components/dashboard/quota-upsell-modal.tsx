@@ -186,6 +186,9 @@ export function QuotaUpsellModal() {
   // Out of credits. Nothing resets at midnight and no tier upgrade helps —
   // the way forward is buying credits, or the monthly refill.
   const isCreditsShort = code === "insufficient_credits"
+  // A paid tool or feature refused to a free account: nothing to wait for, only
+  // a plan or a credit pack opens it.
+  const isPaidFeature = code === "plan_upgrade_required"
   // A free account's daily runs of a paid tool. Comes back tomorrow, so the
   // dismiss button leads, like the free-daily FYI below.
   const isFreeDailyLimit = code === "free_daily_limit"
@@ -217,7 +220,9 @@ export function QuotaUpsellModal() {
               <div className="b" style={{ fontSize: 18, marginTop: 4 }}>
                 {isCreditsShort
                   ? t("titleCredits")
-                  : isFreeDailyLimit
+                  : isPaidFeature
+                    ? t("titlePaidFeature")
+                    : isFreeDailyLimit
                     ? t("titleFreeDailyLimit")
                     : isPaid
                       ? t("titlePaid")
@@ -251,6 +256,8 @@ export function QuotaUpsellModal() {
                     ? ` ${t("bodyCreditsRefill", { credits: formatCredits(credits!.monthlyAllowance), date: refillDate })}`
                     : ""}
                 </>
+              ) : isPaidFeature ? (
+                t("bodyPaidFeature")
               ) : isFreeDailyLimit ? (
                 t("bodyFreeDailyLimit", { limit: eventDetails?.limit ?? 0 })
               ) : !isWorker && bodyKey === "bodyDailyQuota" ? (

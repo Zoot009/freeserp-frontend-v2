@@ -14,6 +14,8 @@ import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates } from "@/lib/credits"
  */
 const AUTO_TRACK_MAX = 10
 import { useTranslations } from "next-intl"
+import { useAuth } from "@/lib/auth"
+import { usePaidAccess } from "@/hooks/use-paid-access"
 import { api, ApiError } from "@/lib/api"
 import { Icon } from "./icons"
 import { normalizeDomain, projectNameFor } from "@/lib/pendingDomain"
@@ -71,6 +73,11 @@ export function CreateProjectModal<T>({
    * question with a visible answer rather than something that just happens.
    */
   const [autoKeywords, setAutoKeywords] = useState(true)
+  // The keyword analysis is a paid feature: a free account sees it locked and
+  // always starts with its own keywords.
+  const { user } = useAuth()
+  const aiLocked = usePaidAccess(user?.id).paid === false
+  const wantsAi = autoKeywords && !aiLocked
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -116,12 +123,12 @@ export function CreateProjectModal<T>({
     try {
       // New projects start with NO auto-check schedule — the owner sets a
       // cadence afterward on the project page (paid-only).
-      const created = await api.post<T>("/api/projects", { name, domain, autoKeywords })
+      const created = await api.post<T>("/api/projects", { name, domain, autoKeywords: wantsAi })
       // Remember "I'll add my own". The server skips the run, but the dashboard
       // and the keywords page each ask again on their own unless they can see
       // that the question was already answered — which is how choosing manual
       // still ended in a prompt on the very next screen.
-      if (!autoKeywords) {
+      if (!wantsAi) {
         const id = (created as { id?: string } | null)?.id
         if (id) declineKeywordAi(id)
       }
@@ -153,7 +160,7 @@ export function CreateProjectModal<T>({
        * that is not.
        */
       const id = (created as { id?: string } | null)?.id
-      if (autoKeywords && id) {
+      if (wantsAi && id) {
         onCreated(created)
         router.push(`/dashboard/project/${id}/keywords`)
         return
@@ -236,11 +243,13 @@ export function CreateProjectModal<T>({
                     { on: true, title: t("autoTitle"), desc: t("autoDesc") },
                     { on: false, title: t("manualTitle"), desc: t("manualDesc") },
                   ].map((opt) => {
-                    const selected = autoKeywords === opt.on
+                    const selected = wantsAi === opt.on
+                    const locked = opt.on && aiLocked
                     return (
                       <button
                         key={String(opt.on)}
                         type="button"
+                        disabled={locked}
                         onClick={() => setAutoKeywords(opt.on)}
                         style={{
                           display: "flex",
@@ -251,7 +260,8 @@ export function CreateProjectModal<T>({
                           borderRadius: "var(--r-md)",
                           border: "1px solid " + (selected ? "var(--brand)" : "var(--border)"),
                           background: selected ? "var(--brand-soft)" : "transparent",
-                          cursor: "pointer",
+                          cursor: locked ? "not-allowed" : "pointer",
+                          opacity: locked ? 0.6 : 1,
                           font: "inherit",
                         }}
                       >
@@ -270,9 +280,12 @@ export function CreateProjectModal<T>({
                           }}
                         />
                         <span style={{ minWidth: 0 }}>
-                          <span className="b" style={{ fontSize: 13, display: "block" }}>{opt.title}</span>
+                          <span className="b" style={{ fontSize: 13, display: "block" }}>
+                            {opt.title}
+                            {locked && <span className="tiny muted" style={{ marginLeft: 6, fontWeight: 500 }}>· {t("paidPlansTag")}</span>}
+                          </span>
                           <span className="tiny muted" style={{ display: "block", marginTop: 2 }}>{opt.desc}</span>
-                          {opt.on && (
+                          {opt.on && !locked && (
                             <CreditCost
                               action={CREDIT_ACTION_KEYS.keywordSuggestions}
                               cost={findCost}

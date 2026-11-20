@@ -50,6 +50,8 @@ import { KeywordMovementCard } from "@/components/dashboard/cards/keyword-moveme
 import { CreateProjectModal } from "@/components/dashboard/create-project-modal"
 import { ProjectLimitModal } from "@/components/dashboard/project-limit-modal"
 import { useProjectLimit } from "@/hooks/use-project-limit"
+import { usePaidAccess } from "@/hooks/use-paid-access"
+import { useAuth } from "@/lib/auth"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -252,6 +254,9 @@ export default function SeoDashboardPage() {
   const t = useTranslations("dashOverview.page")
   const tTool = useTranslations("dashOverview.tools")
   const widgetDefs = useWidgetDefs()
+  // Site crawl is paid; the free plan is the Google rank tracker only.
+  const { user } = useAuth()
+  const { paid } = usePaidAccess(user?.id)
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ProjectDetail | null>(null)
@@ -812,7 +817,7 @@ export default function SeoDashboardPage() {
               }
               narrow={
                 <>
-                <SiteCrawlCard projectId={projectId} />
+                {paid && <SiteCrawlCard projectId={projectId} />}
                 <KeywordMovementCard
                   projectId={projectId}
                   loading={statsLoading || rowsLoading}

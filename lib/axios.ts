@@ -42,11 +42,14 @@ instance.interceptors.request.use(async (config) => {
  */
 instance.interceptors.response.use((res) => {
   if (typeof window === "undefined") return res
-  if (res.status === 402) {
-    const err = (res.data as { error?: { code?: string; message?: string; details?: unknown } } | undefined)?.error
+  const err = (res.data as { error?: { code?: string; message?: string; details?: unknown } } | undefined)?.error
+  // 403 paid_plan_required: same prompt, user actions only (see lib/api.ts).
+  const planRefused =
+    res.status === 403 && err?.code === "paid_plan_required" && (res.config.method ?? "get").toUpperCase() !== "GET"
+  if (res.status === 402 || planRefused) {
     window.dispatchEvent(
       new CustomEvent("billing:quota", {
-        detail: { code: err?.code, message: err?.message, details: err?.details },
+        detail: { code: planRefused ? "plan_upgrade_required" : err?.code, message: err?.message, details: err?.details },
       }),
     )
   } else if (res.status >= 200 && res.status < 300 && (res.config.method ?? "get").toUpperCase() !== "GET") {

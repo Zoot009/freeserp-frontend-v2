@@ -27,14 +27,23 @@ export type PaidTool =
   | "keywords"
   | "keywordMagic"
   | "keywordScore"
+  | "youtubeTracker"
+  | "mapsTracker"
+  | "aiPromptTracker"
+  | "siteAudit"
+  | "pageAudit"
+  | "serpChecker"
+  | "competitorSpy"
+  | "searchConsole"
 
 type Sample = {
   name: string
   pitch: string
   /** What the user gets, in a line each. */
   gets: string[]
-  stats: { label: string; value: string; caption: string; tone?: string }[]
-  table: { title: string; columns: string[]; rows: string[][] }
+  /** The static sample report. Optional: a tool whose live demo shows the real thing can skip it. */
+  stats?: { label: string; value: string; caption: string; tone?: string }[]
+  table?: { title: string; columns: string[]; rows: string[][] }
 }
 
 const RED = "text-red-500"
@@ -210,6 +219,47 @@ const SAMPLES: Record<PaidTool, Sample> = {
       ],
     },
   },
+  // The tools below lead with their live demo instead of a static sample.
+  youtubeTracker: {
+    name: "YouTube Rank Tracker",
+    pitch: "Track where your videos and channel rank in YouTube search for the keywords that matter, by country and language.",
+    gets: ["Daily YouTube positions per keyword", "Which of your videos ranks, and who beats you", "Rank history and movement", "Any country and language"],
+  },
+  mapsTracker: {
+    name: "Google Maps Rank Tracker",
+    pitch: "See where your business ranks on Google Maps across a grid of points around it, not just from one spot.",
+    gets: ["Rank at every point of a map grid", "Competitors that beat you, point by point", "Average and best rank per keyword", "A shareable map report"],
+  },
+  aiPromptTracker: {
+    name: "AI Prompt Tracker",
+    pitch: "Find out whether ChatGPT, Gemini, Claude and Perplexity mention your brand when people ask about your market.",
+    gets: ["Mention rate per AI assistant", "Which competitors get named instead", "The sources the answers cite", "Mention rate over time"],
+  },
+  siteAudit: {
+    name: "Site Audit",
+    pitch: "Crawl your whole website and get every technical SEO issue, grouped and prioritised, with the pages each one affects.",
+    gets: ["Your whole site crawled, page by page", "Broken links, redirects and missing tags", "Speed, indexability and structured data checks", "Fixes in priority order"],
+  },
+  pageAudit: {
+    name: "Page Audit",
+    pitch: "Audit one page in depth: content, tags, speed, links and structured data, with a score and the exact fixes.",
+    gets: ["A 0–100 score for any page", "Title, headings, content and link checks", "Speed and structured data checks", "Ask AI how to fix each issue"],
+  },
+  serpChecker: {
+    name: "Quick SERP Checker",
+    pitch: "Look up a live Google results page for any keyword, country and device, and see exactly where your site ranks.",
+    gets: ["The live top 100 for any keyword", "Your position, highlighted", "SERP features: AI Overview, maps, videos and more", "Any country and device"],
+  },
+  competitorSpy: {
+    name: "Competitor Tracking",
+    pitch: "Track your competitors' rankings on the same keywords as you, and see who is gaining on you.",
+    gets: ["Competitors ranked on your keywords", "Who gained and lost positions", "Suggested competitors from your SERPs", "Share of the top 10"],
+  },
+  searchConsole: {
+    name: "Search Console",
+    pitch: "Connect Google Search Console to see the clicks, impressions and click-through rate behind your rankings.",
+    gets: ["Clicks and impressions per keyword", "Click-through rate next to your position", "Queries you rank for but don't track yet", "Trends over time"],
+  },
 }
 
 const PLANS_HREF = "/dashboard/billing"
@@ -273,7 +323,7 @@ function ToolSample({ sample: s, demoHref }: { sample: Sample; demoHref?: string
             <h2 className="text-[17px] font-semibold tracking-tight">Upgrade to use {s.name}</h2>
             <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
               {s.name} is available on paid plans. Choose a plan or buy a credit pack to run it on your own website or business.{" "}
-              {demoHref ? "Or open the live demo to try the real tool on example data first." : "Below is a sample of what you get."}
+              {demoHref ? "Or open the live demo to try the real tool on example data first." : s.table ? "Below is a sample of what you get." : null}
             </p>
             <ul className="mt-3 grid gap-1.5 text-[13px] sm:grid-cols-2">
               {s.gets.map((g) => (
@@ -309,6 +359,8 @@ function ToolSample({ sample: s, demoHref }: { sample: Sample; demoHref?: string
         </div>
       </section>
 
+      {s.stats && s.table && (
+      <>
       <div className="relative mt-6">
         <div className="mb-3 flex items-center gap-2">
           <h2 className="text-[15px] font-semibold tracking-tight">Sample report</h2>
@@ -362,6 +414,8 @@ function ToolSample({ sample: s, demoHref }: { sample: Sample; demoHref?: string
           Upgrade to use {s.name}
         </Link>
       </div>
+      </>
+      )}
     </div>
   )
 }

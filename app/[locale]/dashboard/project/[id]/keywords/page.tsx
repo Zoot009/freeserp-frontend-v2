@@ -819,7 +819,8 @@ function AddKeywordsModal({
                   hides itself when the backend offers only Google, so a
                   single-engine deployment sees the modal it always saw. */}
               <EnginePicker
-                engines={availableEngines}
+                // Other engines are paid; with Google alone the picker hides itself.
+                engines={isFree ? availableEngines.filter((e) => e.id === "google") : availableEngines}
                 loading={enginesLoading}
                 value={selectedEngines}
                 onChange={setSelectedEngines}
@@ -2901,7 +2902,8 @@ export default function ProjectKeywordsPage() {
             </div>
             )}
 
-            {!hiddenRailCards.includes("competitors") && (
+            {/* Competitor tracking is paid; the free plan is the Google rank tracker only. */}
+            {!isFreePlan && !hiddenRailCards.includes("competitors") && (
               <CompetitorsCard
                 projectId={project.id}
                 yourAvg={stats.avgPos > 0 ? stats.avgPos : null}
@@ -2935,7 +2937,16 @@ export default function ProjectKeywordsPage() {
               <div className="b" style={{ fontSize: 18, marginTop: 8 }}>{t("aiChoiceTitle")}</div>
               <div className="tiny muted" style={{ marginTop: 8, maxWidth: 400 }}>{t("aiChoiceDesc")}</div>
               <div className="row" style={{ gap: 10, marginTop: 22, justifyContent: "center", flexWrap: "wrap" }}>
-                <button type="button" className="btn primary" onClick={() => setAiPhase("running")}>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() =>
+                    // The analysis is paid: a free account gets the upgrade prompt, not a run the API refuses.
+                    usage?.plan === "free"
+                      ? window.dispatchEvent(new CustomEvent("billing:quota", { detail: { code: "plan_upgrade_required" } }))
+                      : setAiPhase("running")
+                  }
+                >
                   <Icon.spark /> {t("aiChoiceAnalyze")}
                 </button>
                 <button

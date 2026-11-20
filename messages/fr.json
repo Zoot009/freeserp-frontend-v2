@@ -264,11 +264,8 @@
     "dashboardArrow": "Tableau de bord →",
     "backToDashboard": "Retour au tableau de bord →",
     "footerCopyright": "© FreeSERP — Tarifs",
-    "eyebrow": "Tarifs",
     "title": "Des forfaits simples. <hl>Sans surprises.</hl>",
-    "subtitle": "Commencez gratuitement avec des crédits mensuels, sans carte bancaire. Un seul solde paie tous les outils : vous ne prenez jamais un forfait pour une seule fonctionnalité.",
-    "trialBannerLead": "Commencez gratuitement : {credits} crédits par mois, sans carte bancaire.",
-    "trialBannerRest": "Rechargez ou passez à l'offre supérieure dès que vous en avez besoin.",
+    "subtitle": "Le suivi de positions Google est gratuit. Tous les autres outils sont inclus avec un forfait payant ou un pack de crédits.",
     "freeTitle": "Gratuit",
     "perMonth": "/mois",
     "freeForever": "10 vérifications de classement par jour pour essayer — sans carte bancaire.",
@@ -292,11 +289,12 @@
     "freeFeatures": [
       "10 vérifications de classement par jour — sans carte",
       "1 projet · mots-clés illimités",
-      "Vérifications manuelles et Quick SERP",
-      "1 analyse IA complète / jour",
+      "Suivi de positions Google, vérifié à la main",
+      "Historique de classement pour chaque mot-clé",
       "Les 69 pays, les deux appareils"
     ],
     "paidFeatures": [
+      "Tous les outils : audits, recherche de mots-clés, concurrents, suivi Maps, YouTube et IA",
       "Vérifications récurrentes automatisées",
       "Alertes de classement et fonctionnalités SERP par e-mail",
       "Rapports PDF et synthèses programmées",
@@ -304,13 +302,6 @@
       "50 projets · mots-clés illimités",
       "Support prioritaire"
     ],
-    "statMarketsLabel": "69 pays · 30 langues",
-    "statMarketsValue": "Mondial",
-    "statResultTimeLabel": "Temps moyen de résultat",
-    "statResultTimeValue": "< 1 min",
-    "statCommitmentLabel": "Satisfait ou remboursé",
-    "statCommitmentValue": "7 jours",
-    "faqEyebrow": "FAQ",
     "faqTitle": "Vos questions, nos réponses",
     "faq": [
       {
@@ -342,8 +333,7 @@
     "tierChecks": "{checks, number} vérifications/jour",
     "fewerChecks": "Moins de vérifications",
     "moreChecks": "Plus de vérifications",
-    "compareEyebrow": "Comparer",
-    "compareTitle": "Tout Free, et plus encore",
+    "compareTitle": "Ce qui est gratuit, ce qui est payant",
     "compareFree": "Free",
     "comparePaid": "Payant",
     "compareRows": [
@@ -449,9 +439,6 @@
     "saved": "Enregistré",
     "savedToast": "Mis à jour : {checks, number} vérifications/jour. Au prorata.",
     "errorSaveFailed": "Impossible de mettre à jour votre forfait",
-    "ctaTitle": "Prêt à mieux vous positionner ?",
-    "ctaSubtitle": "Commencez gratuitement — sans carte. Augmentez dès que vous en avez besoin.",
-    "ctaButton": "Commencer",
     "intervalMonthly": "Mensuel",
     "intervalAnnual": "Annuel",
     "perYear": "/an",
@@ -463,92 +450,58 @@
     "annualSaveNote": "Économisez {save} $/an vs mensuel ({pct}% de réduction)",
     "compareRowsCredits": [
       {
-        "group": "Crédits"
-      },
-      {
         "feature": "Crédits chaque mois",
         "free": "{free}",
         "paid": "{paid}"
       },
       {
-        "feature": "Packs de recharge de crédits",
+        "feature": "Suivi de positions Google",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "feature": "69 pays et les deux appareils",
+        "feature": "Historique des positions et citations AI Overviews",
         "free": "✓",
         "paid": "✓"
       },
       {
-        "group": "Automatisation et rapports"
-      },
-      {
-        "feature": "Vérifications récurrentes automatisées",
+        "feature": "Vérifications automatiques et alertes",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Alertes de classement et fonctionnalités SERP",
+        "feature": "Rapports PDF et synthèses par e-mail",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Alertes et synthèses par e-mail",
+        "feature": "Recherche de mots-clés",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Rapports PDF",
+        "feature": "Audits de site et de page",
         "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Support prioritaire",
+        "feature": "Analyse concurrentielle",
         "free": "—",
         "paid": "✓"
       },
       {
-        "group": "Outils d'analyse"
-      },
-      {
-        "feature": "Analyse concurrentielle IA",
-        "free": "✓",
+        "feature": "Suivi Google Maps et YouTube",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Chat avec le Copilote d'Audit IA",
-        "free": "✓",
+        "feature": "Suivi des prompts IA",
+        "free": "—",
         "paid": "✓"
       },
       {
-        "feature": "Competitor Spy",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Quick SERP",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Analyse on-page et de mots-clés",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Google Search Console",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Historique sur 12 mois",
-        "free": "✓",
-        "paid": "✓"
-      },
-      {
-        "feature": "Export CSV et liens de partage",
-        "free": "✓",
+        "feature": "Search Console et Quick SERP",
+        "free": "—",
         "paid": "✓"
       }
     ],
@@ -559,7 +512,7 @@
       },
       {
         "q": "Existe-t-il un forfait gratuit ?",
-        "a": "Oui. Chaque compte reçoit {free} crédits par mois sans carte, et tous les outils sont débloqués — utilisez-les comme vous le souhaitez."
+        "a": "Oui. Chaque compte reçoit {free} crédits par mois sans carte pour le suivi de positions Google. Les autres outils nécessitent un forfait payant ou un pack de crédits."
       },
       {
         "q": "Les crédits inutilisés sont-ils reportés ?",
@@ -763,7 +716,7 @@
     "yourPlan": "Votre forfait",
     "planCardHintPaid": "Chaque 1 $/mois ajoute 15 vérifications/jour",
     "planCardHintFree": "Passez à une offre supérieure pour augmenter vos vérifications quotidiennes",
-    "freePlanLine": "Vous êtes sur le forfait Gratuit — {count} vérifications de classement/jour, en manuel uniquement.",
+    "freePlanLine": "Vous êtes sur le forfait Gratuit — suivi Google, {count} vérifications/jour, en manuel uniquement.",
     "aiUsage": "Analyses IA",
     "usageAnalyses": "{used} / {limit} analyses",
     "aiUnlimited": "Illimité",
@@ -773,6 +726,7 @@
     "aiLineFree": "Il reste {remaining} analyse complète aujourd'hui · ensuite, les nouvelles analyses s'exécutent en aperçu. <link>Abonnez-vous</link> pour des analyses complètes à chaque fois.",
     "aiLineFreeUsed": "Vous avez utilisé l'analyse complète du jour · les nouvelles analyses s'exécutent en aperçu jusqu'à minuit (UTC). <link>Abonnez-vous</link> pour des analyses complètes à chaque fois.",
     "upgradePerks": [
+      "Tous les outils : audits, recherche de mots-clés, concurrents, suivi Maps, YouTube et IA",
       "Vérifications de classement récurrentes automatisées",
       "Alertes de classement et fonctionnalités SERP par e-mail",
       "Rapports PDF et synthèses programmées",
@@ -1431,6 +1385,7 @@
     "autoTitle": "Trouvez-les pour moi",
     "autoDesc": "Nous analyserons votre page d'accueil avec l'IA et commencerons à suivre les 10 mots-clés les plus forts sur lesquels elle devrait se positionner.",
     "manualTitle": "Je saisis les miens",
+    "paidPlansTag": "Forfaits payants",
     "manualDesc": "Sans analyse. Commencez avec une liste vide et saisissez vous-même les mots-clés à suivre — aucun crédit utilisé."
   },
   "dashSerpChecker": {
@@ -1662,6 +1617,8 @@
   "quotaUpsell": {
     "eyebrow": "Passer au niveau supérieur",
     "titleFree": "Vos vérifications gratuites sont épuisées",
+    "titlePaidFeature": "Cette fonctionnalité est payante",
+    "bodyPaidFeature": "Les comptes gratuits incluent le suivi de positions Google. Choisissez un forfait ou achetez un pack de crédits pour utiliser tout le reste.",
     "titlePaid": "Limite quotidienne de vérifications atteinte",
     "bodyDailyQuota": "Vous avez utilisé {used} sur {limit} vérifications aujourd'hui. Votre limite se réinitialise à minuit (UTC) — ou augmentez votre forfait maintenant pour continuer immédiatement.",
     "bodyProjectLimit": "Vous avez atteint la limite de projets de votre forfait. Passez au niveau supérieur pour suivre plus de sites.",
@@ -1723,41 +1680,27 @@
     "entryRefund": "Remboursés",
     "entryExpire": "Expirés",
     "entryAdjust": "Ajustement",
-    "pricingTitle": "Payez ce que vous utilisez",
-    "pricingIntro": "Une vérification de position coûte {check} crédits. Tout le reste est facturé sur le même solde — un scan de grille locale, un audit de site, une recherche de mots-clés — vous ne payez donc jamais pour un outil que vous n'utilisez pas. Les comptes gratuits reçoivent {credits} crédits par mois, sans carte.",
     "loadingPlans": "Chargement des forfaits…",
     "perMonth": "/mois",
     "mostPopular": "Le plus choisi",
     "freeRefilled": "Rechargé automatiquement. Sans carte.",
-    "freeCreditsEvery": "{credits} crédits chaque mois",
-    "freeEveryTool": "Tous les outils débloqués",
-    "freeCountries": "Plus de 190 pays, tous les appareils",
-    "freeNoCard": "Aucune carte bancaire requise",
     "freeCurrent": "Votre forfait actuel",
     "freeIncluded": "Inclus avec chaque compte",
     "whoStarter": "Un site, vérifié chaque jour",
     "whoPro": "Plusieurs sites, ou un seul travaillé en profondeur",
     "whoAgency": "Travail client et ensembles de mots-clés plus larges",
-    "buysChecks": "{credits} vérifications de position",
     "buysDaily": "{credits} mots-clés suivis quotidiennement",
-    "buysScans": "{credits} scans de carte locale sur une grille {grid}",
-    "buysAudits": "{credits} audits de site de {pages} pages",
     "currentPlan": "Forfait actuel",
     "openingCheckout": "Ouverture du paiement…",
     "choosePlan": "Choisir {plan}",
     "switchPlan": "Passer à {plan}",
     "openingPortal": "Ouverture de la facturation…",
     "portalFailed": "Nous n'avons pas pu ouvrir votre portail de facturation. Réessayez, ou contactez-nous si le problème persiste.",
-    "packsTitle": "Besoin de plus ce mois-ci ?",
-    "packsNote": "Les recharges n'expirent pas avec le cycle mensuel : elles durent un an à compter de l'achat.",
+    "packsTitle": "Vous préférez payer une seule fois ?",
+    "packsNote": "Les packs de crédits durent 12 mois et débloquent tous les outils, comme un forfait.",
     "packCredits": "{credits} crédits",
-    "pack1000": "Une semaine chargée",
-    "pack5000": "Un mois de marge supplémentaire",
-    "pack15000": "Un audit ou une migration ponctuels de grande ampleur",
-    "everyToolTitle": "Tous les outils, sur tous les forfaits",
-    "everyToolIntro": "Rien n'est réservé à un forfait supérieur : vos crédits fonctionnent partout.",
+    "everyToolTitle": "Combien de crédits utilise chaque outil ?",
     "checkoutFailed": "Nous n'avons pas pu ouvrir le paiement. Cela signifie généralement que le forfait n'est pas encore relié à un prestataire de paiement — réessayez, ou contactez-nous si cela persiste.",
-    "expiryNote": "Les crédits mensuels sont rechargés à votre date de facturation et ne se reportent pas. Les recharges achetées durent 12 mois. Ce qui expire le plus tôt est toujours dépensé en premier.",
     "toolRankWhat": "Positions quotidiennes dans n'importe quel pays, avec l'historique",
     "toolYoutubeWhat": "Positions des vidéos, avec les vues et l'ancienneté",
     "toolMapsWhat": "Une grille géographique des positions locales, rue par rue",
@@ -1819,7 +1762,10 @@
     "auditFreshBody": "Le site est exploré à nouveau au lieu de rouvrir le rapport enregistré.",
     "auditStartTitle": "Lancer l'audit du site ?",
     "auditStartBody": "Facturé par page réellement explorée : un site plus petit coûte donc moins.",
-    "checksBackEach": "{count, plural, one {Chaque vérification utilise {n} crédit.} other {Chaque vérification utilise {n} crédits.}}"
+    "checksBackEach": "{count, plural, one {Chaque vérification utilise {n} crédit.} other {Chaque vérification utilise {n} crédits.}}",
+    "freeRankTracker": "Suivi de positions Google",
+    "freeHistory": "Historique des positions de chaque mot-clé",
+    "paidEveryTool": "Tous les outils débloqués"
   },
   "widgets": {
     "hiddenNotice": "Le widget <b>{label}</b> est masqué. Vous pouvez toujours le restaurer depuis Widgets masqués, en bas du tableau de bord.",

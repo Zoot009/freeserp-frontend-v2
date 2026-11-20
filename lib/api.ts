@@ -268,10 +268,15 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInitWit
     // Global paywall signal: any 402 (quota exhausted, trial ended, plan limit
     // reached) also fires an event so the dashboard's upsell modal can offer the
     // upgrade path. Callers still receive the throw and keep their own handling.
-    if (res.status === 402 && typeof window !== "undefined") {
+    // A paid feature refused to a free account (403 paid_plan_required) opens the
+    // same prompt, but only for an action the user took: a background read on a
+    // free page failing quietly beats a modal nobody asked for.
+    const planRefused =
+      res.status === 403 && err.code === "paid_plan_required" && ((rest.method as string | undefined) ?? "GET").toUpperCase() !== "GET"
+    if ((res.status === 402 || planRefused) && typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent("billing:quota", {
-          detail: { code: err.code, message: err.message, details: err.details },
+          detail: { code: planRefused ? "plan_upgrade_required" : err.code, message: err.message, details: err.details },
         }),
       )
     }

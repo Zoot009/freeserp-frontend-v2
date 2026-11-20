@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { useSearchParams } from "next/navigation"
 import { Link, useRouter } from "@/i18n/navigation"
-import { CreditPricing } from "@/components/dashboard/credit-pricing"
+import { CreditCosts, CreditPricing } from "@/components/dashboard/credit-pricing"
 import { useCredits, useCreditRates, formatCredits } from "@/lib/credits"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Icon } from "@/components/dashboard/icons"
@@ -88,11 +88,6 @@ function PricingPageInner() {
       : (t.raw("compareRowsCredits") as CompareRow[]).map((r) =>
           "group" in r ? r : { ...r, free: fillCredits(r.free), paid: fillCredits(r.paid) },
         )
-  const stats = [
-    { label: t("statMarketsLabel"), value: t("statMarketsValue"), icon: <Icon.globe /> },
-    { label: t("statResultTimeLabel"), value: t("statResultTimeValue"), icon: <Icon.zap /> },
-    { label: t("statCommitmentLabel"), value: t("statCommitmentValue"), icon: <Icon.shield /> },
-  ]
   const faq = (t.raw(mode === "worker" ? "faq" : "faqCredits") as { q: string; a: string }[]).map((f) => ({
     ...f,
     a: fillCredits(f.a),
@@ -313,9 +308,6 @@ function PricingPageInner() {
       {/* Hero */}
       <div className="pricing-glow">
         <div style={{ maxWidth: 1040, margin: "0 auto", padding: "56px 24px 0", textAlign: "center" }}>
-          <span className="eyebrow" style={{ justifyContent: "center" }}>
-            <span className="spark">◆</span> {t("eyebrow")}
-          </span>
           <h1 style={{ margin: "6px 0 0", fontSize: "clamp(30px, 7vw, 42px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.08 }}>
             {t.rich("title", { hl: (chunks) => <span style={{ color: "var(--brand)" }}>{chunks}</span> })}
           </h1>
@@ -326,24 +318,12 @@ function PricingPageInner() {
       </div>
 
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "36px 24px 72px" }}>
-        {/* Free-tier callout. It is a recurring monthly allowance now, not a
-            one-off trial, so it keeps arriving — but paid users already have a
-            larger one, and it would only confuse them. */}
-        {!isPaid && rates && (
-          <p className="trial-banner">
-            <Icon.zap />
-            <span>
-              <b>{t("trialBannerLead", { credits: formatCredits(rates.freeMonthly) })}</b> {t("trialBannerRest")}
-            </span>
-          </p>
-        )}
-
         {/* Pricing cards */}
         {/* The current model. Rendered from the credit rate card, so the prices
             here are the rows that will actually be charged. */}
         {mode !== "worker" && (
           <div id="credit-plans">
-            <CreditPricing className="mb-10" highlight={highlight} />
+            <CreditPricing highlight={highlight} />
           </div>
         )}
 
@@ -601,9 +581,6 @@ function PricingPageInner() {
         {/* Comparison */}
         <div style={{ marginTop: 56 }}>
           <div style={{ textAlign: "center", marginBottom: 22 }}>
-            <span className="eyebrow" style={{ justifyContent: "center" }}>
-              <span className="spark">◆</span> {t("compareEyebrow")}
-            </span>
             <h2 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: "-0.025em" }}>{t("compareTitle")}</h2>
           </div>
           <div className="cmp">
@@ -626,23 +603,16 @@ function PricingPageInner() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="stat-band" style={{ marginTop: 48 }}>
-          {stats.map(s => (
-            <div key={s.label}>
-              <span className="ic">{s.icon}</span>
-              <div className="val">{s.value}</div>
-              <div className="lbl">{s.label}</div>
-            </div>
-          ))}
-        </div>
+        {/* What each tool costs, folded: reference, not a decision. */}
+        {mode !== "worker" && rates && (
+          <div style={{ marginTop: 24 }}>
+            <CreditCosts rates={rates} />
+          </div>
+        )}
 
         {/* FAQ */}
         <div style={{ marginTop: 56, maxWidth: 720, marginInline: "auto" }}>
           <div style={{ textAlign: "center", marginBottom: 22 }}>
-            <span className="eyebrow" style={{ justifyContent: "center" }}>
-              <span className="spark">◆</span> {t("faqEyebrow")}
-            </span>
             <h2 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: "-0.025em" }}>{t("faqTitle")}</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -668,32 +638,6 @@ function PricingPageInner() {
               </details>
             ))}
           </div>
-        </div>
-
-        {/* Final CTA */}
-        <div className="cta-band" style={{ marginTop: 56 }}>
-          <h2 style={{ margin: 0, fontSize: "clamp(24px, 5vw, 30px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-            {t("ctaTitle")}
-          </h2>
-          <p style={{ margin: "10px auto 0", maxWidth: 460, fontSize: 14.5, lineHeight: 1.5, opacity: 0.92 }}>
-            {t("ctaSubtitle")}
-          </p>
-          <button
-            className="btn on-brand"
-            style={{ marginTop: 22, paddingLeft: 20, paddingRight: 20 }}
-            onClick={() => {
-              // A credits visitor picks one of the credit plans above. The
-              // checkout below this button would have bought the legacy worker
-              // plan, which a new account was never meant to be sold.
-              if (mode !== "worker") {
-                trackEvent("clicked-buy-button")
-                document.getElementById("credit-plans")?.scrollIntoView({ behavior: "smooth", block: "start" })
-              } else if (isPaid) window.scrollTo({ top: 0, behavior: "smooth" })
-              else void handleUpgrade()
-            }}
-          >
-            {t("ctaButton")} →
-          </button>
         </div>
       </div>
 
