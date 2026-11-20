@@ -654,10 +654,28 @@ function ProfileFacts({ facts }: { facts: Facts }) {
 
 // ── The rank grid ────────────────────────────────────────────────────────────
 
-/** The grid with its headline numbers beside it. `large` is the Rankings tab's version, with every point listed. */
-function GridPanel({ facts, grid, onOpen, large = false, className = "" }: { facts: Facts; grid: Grid; onOpen?: () => void; large?: boolean; className?: string }) {
+/**
+ * The grid with its headline numbers beside it. `large` is the Rankings tab's
+ * version, with every point listed. `forClient` (the client report) leaves out
+ * the link into the team's own Maps Tracker.
+ */
+export function GridPanel({
+  facts,
+  grid,
+  onOpen,
+  large = false,
+  className = "",
+  forClient = false,
+}: {
+  facts: Facts
+  grid: Grid
+  onOpen?: () => void
+  large?: boolean
+  className?: string
+  forClient?: boolean
+}) {
   const [selected, setSelected] = useState<string | null>(null)
-  const shared = useContext(SharedReportContext)
+  const shared = useContext(SharedReportContext) || forClient
   const m = grid.metrics
   return (
     <Panel

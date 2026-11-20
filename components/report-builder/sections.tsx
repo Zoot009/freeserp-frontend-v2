@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Naviga
 import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
-import { ActionPlan, ReportHero } from "@/components/gbp-audit/report"
+import { ActionPlan, GridPanel, ReportHero } from "@/components/gbp-audit/report"
 import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
@@ -205,6 +205,8 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
           performance.
         </p>
       </Pitch>
+      {/* Where the profile ranks around the business: the audit's own local grid, as in the Maps audit tool. */}
+      {data.facts?.grid && data.facts.grid.points.length > 0 && <GridPanel facts={data.facts} grid={data.facts.grid} forClient className="print:break-inside-avoid" />}
       <ActionPlan
         report={{ ...report, findings: report.findings.map((f) => (f.id === "booking_contact" ? { ...f, category: "profile" as CategoryKey } : f)) }}
         planAtEnd
