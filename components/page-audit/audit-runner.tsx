@@ -22,13 +22,12 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { CreditCost, CreditCostConfirm, CONFIRM_THRESHOLD } from "@/components/dashboard/credit-cost"
 import { CREDIT_ACTION_KEYS, quoteCredits, useCreditRates, useCredits } from "@/lib/credits"
-import { Loader2, Search, ShieldAlert } from "lucide-react"
+import { CheckCircle2, Loader2, Search, ShieldAlert, Square } from "lucide-react"
 import { Link, usePathname, useRouter } from "@/i18n/navigation"
 import { api, ApiError } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { transformReport, type AuditReport } from "@/components/page-audit/audit-ui"
 import { AuditHistory } from "@/components/page-audit/audit-history"
 import { AuditProgressOverlay, type LiveTally } from "@/components/page-audit/audit-progress"
 import { ToolContext } from "@/components/dashboard/tool-context"
@@ -88,7 +87,6 @@ const COPY = {
     lede: "A full check of one page — technical health, on-page content, speed, accessibility, structured data and security — with the exact fixes, in priority order.",
     placeholder: "example.com/pricing",
     submit: "Run audit",
-    running: "Auditing…",
     toolContext: "page-audit",
     crossLink: {
       href: "/dashboard/site-audit",
@@ -101,7 +99,6 @@ const COPY = {
     lede: "Crawls outward from one URL with a real browser and audits every page it reaches — technical health, on-page content, speed, accessibility, structured data and security — then rolls the findings up into one prioritised list.",
     placeholder: "example.com",
     submit: "Crawl site",
-    running: "Crawling…",
     toolContext: "website-audit",
     crossLink: {
       href: "/dashboard/page-audit",
@@ -112,9 +109,9 @@ const COPY = {
 } as const
 
 /**
- * The audit in flight, remembered across a reload.
+ * The audits in flight, remembered across a reload.
  *
- * The job lived only in React state, so refreshing the page — or following a
+ * The jobs lived only in React state, so refreshing the page — or following a
  * link and coming back — left a crawl running on the server with nothing on
  * screen saying so. The audit still finished and still landed in the history,
  * which made it look like the run had been silently dropped.
@@ -131,38 +128,172 @@ const COPY = {
  * Per user too. The storage belongs to the browser, not the account, so a
  * mode-only key let whoever signed in next on the same machine pick up — and
  * sit watching — the previous person's crawl.
+ *
+ * A LIST, because a crawl of hundreds of pages takes a quarter of an hour and
+ * the form used to lock for all of it: one audit at a time, no way out but to
+ * wait. The server allows limits.maxConcurrent at once, so the page does too.
  */
 const RUNNING_KEY = (userId: string, mode: AuditMode) => `fs.audit.running.${userId}.${mode}`
 
 type RunningRun = { jobId: string; url: string; startedAt: number; timeoutMs: number }
 
-function readRunning(key: string): RunningRun | null {
+function readRuns(key: string): RunningRun[] {
   try {
     const raw = localStorage.getItem(key)
-    if (!raw) return null
-    const run = JSON.parse(raw) as RunningRun
-    if (!run?.jobId || typeof run.startedAt !== "number") return null
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    // A single object is the shape from before audits could run side by side.
+    const list = (Array.isArray(parsed) ? parsed : [parsed]) as RunningRun[]
     // Past its own deadline: the job is finished, failed, or gone. Resuming
     // would poll a jobId BullMQ has already retired and show a spinner forever.
-    if (Date.now() - run.startedAt > run.timeoutMs) {
-      localStorage.removeItem(key)
-      return null
-    }
-    return run
+    return list.filter(
+      (r) => !!r?.jobId && typeof r.startedAt === "number" && Date.now() - r.startedAt <= r.timeoutMs,
+    )
   } catch {
     // Private mode, disabled storage, or a value from an older shape.
-    return null
+    return []
   }
 }
 
-function writeRunning(key: string | null, run: RunningRun | null): void {
+function writeRuns(key: string | null, runs: RunningRun[]): void {
   if (!key) return
   try {
-    if (run) localStorage.setItem(key, JSON.stringify(run))
+    if (runs.length) localStorage.setItem(key, JSON.stringify(runs))
     else localStorage.removeItem(key)
   } catch {
-    /* storage unavailable — the run simply won't survive a reload */
+    /* storage unavailable — the runs simply won't survive a reload */
   }
+}
+
+/** Enough to tell "example.com" and "https://www.example.com/" are one target. */
+const sameTarget = (a: string, b: string) => {
+  const norm = (u: string) =>
+    u.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "")
+  return norm(a) === norm(b)
+}
+
+type RunEnd = { reportId: string } | { error: string } | { notice: string }
+
+/**
+ * One audit in flight: polls its own job and can stop it.
+ *
+ * The interval lives and dies with the card. Leaving the page stops polling and
+ * nothing more; the saved run is forgotten only when onEnd fires because the
+ * audit really ended. `live` drops a response that lands after that.
+ */
+function RunCard({
+  run,
+  mode,
+  onEnd,
+}: {
+  run: RunningRun
+  mode: AuditMode
+  onEnd: (jobId: string, end: RunEnd) => void
+}) {
+  const [job, setJob] = useState<JobState | null>(null)
+  const [stopping, setStopping] = useState(false)
+  const [stopError, setStopError] = useState<string | null>(null)
+  // A ref, so a new onEnd each parent render doesn't restart the interval.
+  const onEndRef = useRef(onEnd)
+  useEffect(() => {
+    onEndRef.current = onEnd
+  })
+
+  useEffect(() => {
+    let live = true
+    const end = (e: RunEnd) => {
+      live = false
+      onEndRef.current(run.jobId, e)
+    }
+
+    const tick = async () => {
+      if (!live) return
+      if (Date.now() - run.startedAt > run.timeoutMs) {
+        end({ error: "This audit is taking longer than expected. It may still finish — check your history shortly." })
+        return
+      }
+      try {
+        const next = await api.get<JobState>(`/api/page-audit/jobs/${run.jobId}`)
+        if (!live) return
+        if (next.status === "COMPLETED" && next.reportId) end({ reportId: next.reportId })
+        else if (next.status === "FAILED" || next.state === "failed") end({ error: next.error ?? "The audit failed." })
+        else
+          // Never backwards. The worker reports coarse stage numbers and a
+          // finer crawl percentage, and responses can land out of order; either
+          // way a bar that jumps back reads as a restart.
+          setJob((prev) => (prev && prev.progress > next.progress ? { ...next, progress: prev.progress } : next))
+      } catch (err) {
+        if (!live) return
+        // The queue has let go of the job and no report was written for it:
+        // there is nothing left to wait for.
+        if (err instanceof ApiError && err.status === 404) {
+          end({ error: "This audit is no longer running and didn't produce a report. Please run it again." })
+        }
+        // Anything else is one failed poll, not a failed audit — the next tick retries.
+      }
+    }
+
+    const id = setInterval(() => void tick(), POLL_MS)
+    void tick()
+    return () => {
+      live = false
+      clearInterval(id)
+    }
+  }, [run.jobId, run.startedAt, run.timeoutMs])
+
+  /**
+   * Stop, without throwing the work away.
+   *
+   * A queued audit is cancelled and refunded. A crawling one stops before its
+   * next page and the pages already read become the report — charged per page,
+   * like any crawl — so someone who has waited ten minutes leaves with ten
+   * minutes of findings rather than nothing. Polling carries on to that report.
+   */
+  const stop = async () => {
+    setStopping(true)
+    setStopError(null)
+    try {
+      const res = await api.post<{ stopped: "cancelled" | "stopping" }>(`/api/page-audit/jobs/${run.jobId}/stop`)
+      if (res.stopped === "cancelled") onEndRef.current(run.jobId, { notice: "Audit cancelled before it started — nothing was charged." })
+    } catch (err) {
+      setStopping(false)
+      setStopError(err instanceof ApiError ? err.message : "Couldn't stop the audit. Try again.")
+    }
+  }
+
+  return (
+    <div className="rounded-xl border bg-card px-5 py-6 shadow-sm">
+      <AuditProgressOverlay
+        inline
+        url={run.url}
+        mode={mode}
+        progress={job?.progress ?? 0}
+        pagesDone={job?.pagesDone}
+        pagesKnown={job?.pagesKnown}
+        recent={job?.recent}
+        tally={job?.tally}
+        onHide={() => {}}
+        action={
+          // Site crawls only: a single page is done in under a minute, and once
+          // its one page is being read there is nothing left to stop.
+          mode === "site" && (
+            <div className="flex flex-col items-center gap-1.5">
+              <Button type="button" variant="outline" size="sm" onClick={() => void stop()} disabled={stopping} className="gap-1.5">
+                {stopping ? <Loader2 className="size-3.5 animate-spin" /> : <Square className="size-3.5" />}
+                {stopping ? "Stopping…" : "Stop & see results so far"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                {stopping
+                  ? "Finishing the current page, then building the report from the pages already read."
+                  : "Ends the crawl and builds the report from the pages already read."}
+              </p>
+              {stopError && <p className="text-[11px] text-amber-600 dark:text-amber-400">{stopError}</p>}
+            </div>
+          )
+        }
+      />
+    </div>
+  )
 }
 
 export function AuditRunner({
@@ -185,9 +316,10 @@ export function AuditRunner({
   const copy = COPY[mode]
   const [historyKey, setHistoryKey] = useState(0)
   const [url, setUrl] = useState(initialUrl)
-  const [job, setJob] = useState<JobState | null>(null)
-  const [report, setReport] = useState<AuditReport | null>(null)
+  const [runs, setRuns] = useState<RunningRun[]>([])
   const [error, setError] = useState<string | null>(null)
+  /** Neutral news: a run finished while another is still going, or a cancel. */
+  const [notice, setNotice] = useState<{ text: string; href?: string } | null>(null)
   const [starting, setStarting] = useState(false)
   const [limits, setLimits] = useState<Limits | null>(null)
   const tc = useTranslations("credits")
@@ -205,11 +337,21 @@ export function AuditRunner({
   const resumed = useRef(false)
   /** Set once a run has been started or adopted, so neither happens twice. */
   const autoStarted = useRef(false)
-  const startedAt = useRef(0)
-  // Held in a ref rather than read from `limits` inside the polling effect: a
-  // resumed run brings its own deadline, and a dependency that arrives
-  // asynchronously would restart the interval mid-run.
-  const pollTimeout = useRef(pollTimeoutFor(undefined))
+  /**
+   * The runs as of right now, for the handlers. Two audits can end in the same
+   * tick, and "was that the last one?" must not read a stale render.
+   */
+  const runsRef = useRef<RunningRun[]>([])
+
+  const updateRuns = useCallback(
+    (fn: (prev: RunningRun[]) => RunningRun[]) => {
+      const next = fn(runsRef.current)
+      runsRef.current = next
+      writeRuns(runKey, next)
+      setRuns(next)
+    },
+    [runKey],
+  )
 
   // Non-fatal: without it the form just doesn't name a page count, and the
   // server clamps to the plan budget regardless. Only site mode shows it, but
@@ -223,129 +365,22 @@ export function AuditRunner({
     return () => { cancelled = true }
   }, [])
 
-  const loadReport = useCallback(async (reportId: string) => {
-    try {
-      const data = await api.get<Record<string, unknown>>(`/api/page-audit/reports/${reportId}`)
-      setReport(transformReport(data))
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't load the finished report.")
-    }
-  }, [])
-
   /**
-   * Poll the running job — as an effect of there being one.
-   *
-   * This was an interval threaded through start, resume and every end state,
-   * cleared by a stopPolling that ALSO forgot the saved run. Unmounting called
-   * it, and so did the resume itself, so a reload or a trip to another page
-   * wiped the run mid-crawl. Back on a "Run fresh" link (?fresh=1) there was
-   * then nothing to say a crawl was already going, and the page started — and
-   * charged for — a second one.
-   *
-   * Now the interval lives and dies with the job it polls. Leaving the page
-   * stops it and nothing more; the saved run is forgotten only when the audit
-   * really ends. `live` also drops a response that lands after that, so a late
-   * "still running" can't re-lock a form a failure has just unlocked.
-   */
-  const pollingId = job?.status === "PROCESSING" ? job.jobId : null
-
-  useEffect(() => {
-    if (!pollingId) return
-    let live = true
-
-    /** A real end state: forget the run so a reload doesn't reattach to it. */
-    const end = (message: string) => {
-      live = false
-      writeRunning(runKey, null)
-      // Clearing the job is what unlocks the form: `running` reads its status.
-      setJob(null)
-      setError(message)
-      // A failed audit still writes a row, so the table needs to know.
-      setHistoryKey((k) => k + 1)
-    }
-
-    const tick = async () => {
-      // Closed by an end state below, not only by the cleanup: a second poll
-      // already in flight could otherwise land before React has re-rendered
-      // and put the finished job back.
-      if (!live) return
-      if (Date.now() - startedAt.current > pollTimeout.current) {
-        // Not an end state — the audit may yet finish — so the saved run
-        // stays; a reload past this deadline finds it expired (readRunning).
-        live = false
-        setJob(null)
-        setError("This audit is taking longer than expected. It may still finish — check back shortly.")
-        return
-      }
-      try {
-        const next = await api.get<JobState>(`/api/page-audit/jobs/${pollingId}`)
-        if (!live) return
-        if (next.status === "COMPLETED" && next.reportId) {
-          live = false
-          writeRunning(runKey, null)
-          setJob(next)
-          await loadReport(next.reportId)
-        } else if (next.status === "FAILED" || next.state === "failed") {
-          end(next.error ?? "The audit failed.")
-        } else {
-          // Never backwards for the same job. The worker reports coarse stage
-          // numbers and a finer crawl percentage, and responses can land out
-          // of order; either way a bar that jumps back reads as a restart.
-          setJob((prev) =>
-            prev?.jobId === next.jobId && prev.progress > next.progress
-              ? { ...next, progress: prev.progress }
-              : next,
-          )
-        }
-      } catch (err) {
-        if (!live) return
-        // The queue has let go of the job and no report was written for it:
-        // there is nothing left to wait for, and polling on would spin until
-        // the timeout.
-        if (err instanceof ApiError && err.status === 404) {
-          end("This audit is no longer running and didn't produce a report. Please run it again.")
-        }
-        // Anything else is one failed poll, not a failed audit — the next
-        // tick retries.
-      }
-    }
-
-    const id = setInterval(() => void tick(), POLL_MS)
-    void tick()
-    return () => {
-      live = false
-      clearInterval(id)
-    }
-  }, [pollingId, runKey, loadReport])
-
-  /**
-   * Pick the run back up after a reload.
+   * Pick the runs back up after a reload.
    *
    * Runs before the auto-fresh effect can fire and guards it, so landing on
    * ?fresh=1 and then refreshing reattaches to the crawl already running rather
    * than starting a second one and spending the credits twice.
-   *
-   * Once per mount: setting the job is all it does — polling follows from that.
    */
   useEffect(() => {
     if (resumed.current || !runKey) return
     resumed.current = true
-    const run = readRunning(runKey)
+    const saved = readRuns(runKey)
     // Nothing to resume — the auto-start is released.
-    if (!run) return
+    if (!saved.length) return
     autoStarted.current = true // never auto-start over a run already in flight
-    setUrl(run.url)
-    startedAt.current = run.startedAt
-    pollTimeout.current = run.timeoutMs
-    setJob({
-      jobId: run.jobId,
-      state: "active",
-      progress: 0,
-      reportId: null,
-      status: "PROCESSING",
-      error: null,
-    })
-  }, [runKey])
+    updateRuns(() => saved)
+  }, [runKey, updateRuns])
 
   /**
    * Arrived from "Run fresh" on a report: start immediately, past the cache.
@@ -358,7 +393,7 @@ export function AuditRunner({
    * or by finding one already going. Left in the address bar, a reload or a
    * Back to this page read ?fresh=1 again. Replaced before the POST resolves,
    * so even a start that times out on our side but was queued on the server
-   * can't be sent twice. The url stays, so the form still shows the target.
+   * can't be sent twice.
    */
   useEffect(() => {
     if (!resumed.current || !autoFresh) return
@@ -377,15 +412,20 @@ export function AuditRunner({
   }, [autoFresh, initialUrl, limits, runKey, credits])
 
   const start = async (opts: { forceRecrawl?: boolean } = {}) => {
-    if (!url.trim() || starting) return
+    const target = url.trim()
+    if (!target || starting) return
+    // Already on screen below: a second crawl of the same site is the same
+    // answer, charged twice.
+    if (runsRef.current.some((r) => sameTarget(r.url, target))) {
+      setError("That one is already being audited — see its progress below.")
+      return
+    }
     setStarting(true)
     setError(null)
-    setReport(null)
-    setJob(null)
-    // A new run gets the full screen back, even if the last one was dismissed.
+    setNotice(null)
     try {
       const res = await api.post<{ jobId: string; reportId?: string | null }>("/api/page-audit", {
-        url: url.trim(),
+        url: target,
         mode,
         // Past the two-week reuse window. Only ever set by "Run fresh" on a
         // report — a plain submit should keep returning the saved one.
@@ -397,17 +437,16 @@ export function AuditRunner({
         router.push(`/dashboard/page-audit/${res.reportId}`)
         return
       }
-      startedAt.current = Date.now()
-      // A single-page audit is one page whatever the plan allows.
-      pollTimeout.current = pollTimeoutFor(mode === "site" ? limits?.maxPages : 1)
-      writeRunning(runKey, {
+      const run: RunningRun = {
         jobId: res.jobId,
-        url: url.trim(),
-        startedAt: startedAt.current,
-        timeoutMs: pollTimeout.current,
-      })
-      // Polling starts from this — see the job effect above.
-      setJob({ jobId: res.jobId, state: "waiting", progress: 0, reportId: null, status: "PROCESSING", error: null })
+        url: target,
+        startedAt: Date.now(),
+        // A single-page audit is one page whatever the plan allows.
+        timeoutMs: pollTimeoutFor(mode === "site" ? limits?.maxPages : 1),
+      }
+      updateRuns((prev) => [run, ...prev])
+      // The form is free for the next one; the run shows its own target.
+      setUrl("")
     } catch (err) {
       // The backend refuses with a specific reason (bad URL, too many running),
       // and each is worth showing verbatim.
@@ -418,20 +457,28 @@ export function AuditRunner({
   }
 
   /**
-   * A finished audit redirects to its own URL rather than swapping in place.
+   * A run is over — done, failed, or cancelled.
    *
-   * The report then lives somewhere linkable and survives a refresh, the back
-   * button returns here, and the history table's rows and a fresh run land on
-   * exactly the same page instead of two subtly different renderings of it.
-   *
-   * Both modes share that route: a report is a report, and which form started
-   * it stops mattering the moment it exists.
+   * A finished audit redirects to its own URL rather than swapping in place, so
+   * the report lives somewhere linkable and survives a refresh. But only when it
+   * was the last one on screen: with another crawl still going, yanking the
+   * page away from it would be its own kind of trap, so it is announced instead.
    */
-  useEffect(() => {
-    if (report?.id) router.replace(`/dashboard/page-audit/${report.id}`)
-  }, [report?.id, router])
+  const endRun = (jobId: string, end: RunEnd) => {
+    const run = runsRef.current.find((r) => r.jobId === jobId)
+    if (!run) return // already ended — a cancel and a late poll can both report it
+    updateRuns((prev) => prev.filter((r) => r.jobId !== jobId))
+    // A failed audit still writes a row, so the table needs to know either way.
+    setHistoryKey((k) => k + 1)
+    if ("reportId" in end) {
+      const href = `/dashboard/page-audit/${end.reportId}`
+      if (runsRef.current.length === 0) router.replace(href)
+      else setNotice({ text: `The audit of ${run.url} is ready.`, href })
+    } else if ("error" in end) setError(end.error)
+    else setNotice({ text: end.notice })
+  }
 
-  const running = !!job && job.status === "PROCESSING"
+  const atCapacity = !!limits && runs.length >= limits.maxConcurrent
 
   return (
     <div className="flex flex-col gap-5 px-6 pb-10 pt-5">
@@ -494,16 +541,22 @@ export function AuditRunner({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder={copy.placeholder}
-            disabled={running}
             className="min-w-[16rem] flex-1"
             inputMode="url"
             autoComplete="url"
           />
-          <Button type="submit" disabled={running || starting || !url.trim()} className="gap-1.5">
-            {running || starting ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-            {running ? copy.running : starting ? "Starting…" : copy.submit}
+          <Button type="submit" disabled={starting || atCapacity || !url.trim()} className="gap-1.5">
+            {starting ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+            {starting ? "Starting…" : copy.submit}
           </Button>
         </form>
+        {/* Said before the click rather than as a 409 after it — and after the
+            credits confirm, which would otherwise be asked for nothing. */}
+        {atCapacity && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {limits.maxConcurrent} audits are running — the most at once. Stop one or wait for it to finish.
+          </p>
+        )}
         {/*
           A single URL is one audit; a crawl is priced per page found (the rate
           card's site_crawl.page, currently a credit per twenty pages).
@@ -553,36 +606,36 @@ export function AuditRunner({
             <p className="text-[13px] leading-relaxed">{error}</p>
           </div>
         )}
+        {notice && (
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-[13px] leading-relaxed">
+              {notice.text}
+              {notice.href && (
+                <>
+                  {" "}
+                  <Link href={notice.href} className="font-semibold text-primary hover:underline">
+                    View report
+                  </Link>
+                </>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
-{/*
-        The run, in the page rather than over it.
+      {/*
+        The runs, in the page rather than over it.
 
         This was a full-screen modal. On a 500-page crawl that is a quarter of
         an hour during which the only thing the app will let you look at is a
-        progress bar, and the only way out was an X that hid the findings
-        entirely. Inline, the same content reads as the report assembling
+        progress bar. Inline, the same content reads as the report assembling
         itself: the stages tick over, the findings accumulate, the page list
         grows, and when the crawl ends the finished report takes its place.
-
-        Nothing is hidden behind a dismiss any more, so hideProgress is gone
-        with it — there is nothing left to dismiss.
       */}
-      {running && (
-        <div className="rounded-xl border bg-card px-5 py-6 shadow-sm">
-          <AuditProgressOverlay
-            inline
-            url={url.trim()}
-            mode={mode}
-            progress={job.progress}
-            pagesDone={job.pagesDone}
-            pagesKnown={job.pagesKnown}
-            recent={job.recent}
-            tally={job.tally}
-            onHide={() => {}}
-          />
-        </div>
-      )}
+      {runs.map((run) => (
+        <RunCard key={run.jobId} run={run} mode={mode} onEnd={endRun} />
+      ))}
 
       {/* refreshKey re-runs the query when an audit finishes, so the new row
           appears without a manual reload. `mode` keeps each page's history to

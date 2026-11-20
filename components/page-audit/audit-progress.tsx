@@ -18,7 +18,7 @@
  * attention rather than just consuming it.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Check, Lightbulb, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -118,6 +118,7 @@ export function AuditProgressOverlay({
   pagesKnown,
   recent,
   onHide,
+  action,
 }: {
   url: string
   mode: "single" | "site"
@@ -140,6 +141,8 @@ export function AuditProgressOverlay({
    */
   inline?: boolean
   onHide: () => void
+  /** Rendered under the description — the runner's Stop button. */
+  action?: ReactNode
 }) {
   const [tip, setTip] = useState(0)
 
@@ -209,6 +212,7 @@ export function AuditProgressOverlay({
               ? "Going through your site page by page — technical health, content, speed, accessibility and security. This takes a few minutes."
               : "Going through your page — technical health, content, speed, accessibility and security. This usually takes under a minute."}
           </p>
+          {action && <div className="mt-3">{action}</div>}
         </div>
 
         <div className="mt-6">
@@ -370,8 +374,8 @@ export function AuditProgressOverlay({
         </div>
 
         <p className="mt-5 text-center text-xs text-muted-foreground/70">
-          You can close this — the audit keeps running and appears in your history when it&apos;s
-          done.
+          You can leave this page or start another audit — this one keeps running and appears in
+          your history when it&apos;s done.
         </p>
       </div>
     </div>
