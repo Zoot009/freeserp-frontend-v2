@@ -32,7 +32,6 @@ import { LoadFailed } from "@/components/page-audit/site-issues"
 import { Hint } from "@/components/dashboard/widget"
 import { cn } from "@/lib/utils"
 import { DemoChip } from "@/components/dashboard/demo-banner"
-import { DEMO_ID } from "@/lib/demo/shared"
 import { pageAuditDemoListItem } from "@/lib/demo/page-audit"
 
 export type AuditListItem = {
@@ -263,17 +262,18 @@ function ScoreCell({ r }: { r: AuditListItem }) {
 }
 
 /** The pinned demo report: a run row, with the Demo chip and no index. */
-function DemoRow({ onOpen }: { onOpen: () => void }) {
-  const r = pageAuditDemoListItem()
+function DemoRow({ mode, onOpen }: { mode?: "single" | "site"; onOpen: (href: string) => void }) {
+  // Each history pins its own tool's report: whole-site, or the homepage alone.
+  const r = pageAuditDemoListItem(mode === "single" ? "single" : "site")
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
+      onClick={() => onOpen(r.href)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
-          onOpen()
+          onOpen(r.href)
         }
       }}
       className={cn(
@@ -548,7 +548,7 @@ export function AuditHistory({
       {/* The demo report, pinned first for everyone (.claude/skills/demo-report)
           and outside the count and pager. Hidden while searching — it isn't
           one of the results. */}
-      {!q && <DemoRow onOpen={() => router.push(`/dashboard/page-audit/${DEMO_ID}`)} />}
+      {!q && <DemoRow mode={mode} onOpen={(href) => router.push(href)} />}
 
       {loading ? (
         <div className="space-y-px p-4">

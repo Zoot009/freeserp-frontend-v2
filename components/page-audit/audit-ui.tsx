@@ -50,7 +50,7 @@ import {
 } from "lucide-react"
 import { downloadAuditPdf } from "@/lib/audit-pdf"
 import { useDemoGuard } from "@/components/dashboard/demo-banner"
-import { PAGE_AUDIT_CREATE_HREF } from "@/lib/demo/page-audit"
+import { PAGE_AUDIT_CREATE_HREF, PAGE_AUDIT_SINGLE_CREATE_HREF } from "@/lib/demo/page-audit"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4129,7 +4129,7 @@ export function AuditReportResults({
   demo?: boolean
 }) {
   const t = useTranslations("pageAudit")
-  const guard = useDemoGuard(demo, PAGE_AUDIT_CREATE_HREF)
+  const guard = useDemoGuard(demo, report.mode === "SINGLE" ? PAGE_AUDIT_SINGLE_CREATE_HREF : PAGE_AUDIT_CREATE_HREF)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareToken, setShareToken] = useState<string | null>(null)

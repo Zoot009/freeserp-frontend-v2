@@ -18,6 +18,8 @@ import { DAY_MS, DEMO_BRAND, DEMO_ID, perAnchor, prng, type DemoTool } from "./s
 
 /** Where the demo's CTAs lead: the whole-site audit form, which this report came from. */
 export const PAGE_AUDIT_CREATE_HREF = "/dashboard/site-audit"
+/** The single-page report (`?view=single`) is the Page Audit tool's, so its CTAs lead there. */
+export const PAGE_AUDIT_SINGLE_CREATE_HREF = "/dashboard/page-audit"
 
 const url = (path: string) => `${DEMO_BRAND.url}${path}`
 
@@ -131,6 +133,13 @@ const PROBLEMS: Problem[] = [
   { type: "GOOGLE_BUSINESS_PROFILE", title: "No Google Business Profile Link Detected", severity: "LOW", impact: 3, from: [], count: 0,
     description: "No link to a Google Business Profile was found in the site's schema or footer." },
 ]
+
+// The single-page report audits the homepage alone. Its title is short: the real
+// rule (TitleTagRule.ts) fails anything under 40 characters, in these words.
+const HOME_TITLE_PROBLEM: Problem = {
+  type: "TITLE_TAG", title: "Title Tag Too Short", severity: "MEDIUM", impact: 10, selector: "title", from: ["home"], count: 1,
+  description: 'Title "Nike. Just Do It. Nike.com" is only 26 characters. Recommended: 40-60 characters for optimal display in search results.',
+}
 
 // ── Each check's result for nike.com (the worst page's, as a site audit keeps) ──
 
@@ -265,6 +274,24 @@ function results(rand: () => number): Record<string, Result> {
   }
 }
 
+// The homepage's own results, for checks whose site-audit failure is on other pages.
+const HOME_RESULTS: Record<string, Result> = {
+  TITLE_TAG: { passed: false, frac: 0.4, short: "Title tag is too short (26 chars).", answer: HOME_TITLE_PROBLEM.description,
+    rec: "Expand your title tag to 40-60 characters by adding your primary keyword and brand name." },
+  META_DESCRIPTION: { passed: true, short: "Meta description is 142 characters." },
+  H1_TAG: { passed: true, short: "One H1 tag: \"Just Do It\"." },
+  HEADING_HIERARCHY: { passed: true, short: "Heading levels are in order." },
+  IMAGE_ALT_TEXT: { passed: true, short: "All 24 images have alt text.", data: {
+    total: 24, missing: 0, withAlt: 24,
+    samples: PRODUCTS.flatMap((p, i) => [0, 1].map((k) => ({ src: `https://static.nike.com/a/images/home/${i}-${k}.png`, alt: `${p} ${k ? "Women's" : "Men's"} Shoes`, hasAlt: true }))).slice(0, 24) } },
+  IMAGE_OPTIMIZATION: { passed: true, short: "Images are served as WebP and AVIF." },
+  JAVASCRIPT_ERRORS: { passed: true, short: "No JavaScript errors in the console." },
+  LLM_READABILITY: { passed: true, short: "Most of the page's text is in the initial HTML." },
+  PAGE_SIZE_TOO_LARGE: { passed: true, short: "Page weighs 2.4 MB." },
+  TOO_MANY_RESOURCES: { passed: true, short: "92 HTTP requests." },
+  TWITTER_CARD_TAGS: { passed: true, short: "Twitter Card tags are present." },
+}
+
 // ── Scoring: same formulas as analyzer/SeoAnalyzer.ts + scoring.ts ──────────
 
 const PRIORITY_WEIGHT = { 1: 1.0, 2: 0.7, 3: 0.4 } as const
@@ -328,7 +355,11 @@ interface IssueRow {
 
 const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 
-const demoData = perAnchor((anchor) => {
+type Mode = "SITE" | "SINGLE"
+const HOME = url("/")
+
+function build(anchor: number, mode: Mode) {
+  const site = mode === "SITE"
   const completedAt = new Date(anchor - 2 * 3_600_000)
   const createdAt = new Date(completedAt.getTime() - 11 * 60_000)
   const categoryOf = new Map(CHECK_DEFS.map((d) => [d.id, d.category]))
@@ -360,10 +391,18 @@ const demoData = perAnchor((anchor) => {
       })
     }
   })
+  const siteIssues = [...issues]
+  if (!site) {
+    // The homepage's findings and the site-wide ones, plus its short title.
+    issues.splice(0, issues.length, ...issues.filter((i) => i.pageUrl === HOME || i.pageUrl === null))
+    const p = HOME_TITLE_PROBLEM
+    issues.push({ id: `demo-issue-${siteIssues.length + 1}`, category: "ON_PAGE", type: p.type, title: p.title, description: p.description,
+      severity: p.severity, impactScore: p.impact, pageUrl: HOME, elementSelector: p.selector ?? null })
+  }
   issues.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.impactScore - a.impactScore)
 
-  const severityOf = new Map(PROBLEMS.map((p) => [p.type, p.severity]))
-  const res = results(prng(7))
+  const severityOf = new Map([...PROBLEMS, ...(site ? [] : [HOME_TITLE_PROBLEM])].map((p) => [p.type, p.severity]))
+  const res = { ...results(prng(7)), ...(site ? {} : HOME_RESULTS) }
   const checks: Check[] = CHECK_DEFS.map((def) => {
     const r = res[def.id] ?? { passed: true, short: "No issues found." }
     const frac = r.frac ?? (r.passed === false ? 0 : 1)
@@ -375,7 +414,7 @@ const demoData = perAnchor((anchor) => {
       answer: r.answer ?? r.short,
       recommendation: r.passed === false ? r.rec ?? null : null,
       ...(r.passed === false ? { severity: severityOf.get(def.id) ?? "LOW" } : {}),
-      pageUrl: firstPage.get(def.id) ?? url("/"),
+      pageUrl: site ? firstPage.get(def.id) ?? HOME : HOME,
       ...(r.data ? { data: r.data } : {}),
     }
   })
@@ -398,7 +437,7 @@ const demoData = perAnchor((anchor) => {
 
   const issuesByUrl = new Map<string, number>()
   for (const i of issues) if (i.pageUrl) issuesByUrl.set(i.pageUrl, (issuesByUrl.get(i.pageUrl) ?? 0) + 1)
-  const pages = PAGES.map(([path, title, kind], i) => {
+  const sitePages = PAGES.map(([path, title, kind], i) => {
     const rand = prng(500 + i)
     const words = { home: 1184, shop: 420, article: 1650, section: 880, help: 560, other: 640 }[kind]
     return {
@@ -411,6 +450,7 @@ const demoData = perAnchor((anchor) => {
       issueCount: issuesByUrl.get(url(path)) ?? 0,
     }
   })
+  const pages = site ? sitePages : sitePages.filter((p) => p.url === HOME)
 
   const passingChecks = checks
     .filter((c) => c.passed === true && !c.informational)
@@ -420,12 +460,12 @@ const demoData = perAnchor((anchor) => {
     id: DEMO_ID,
     jobId: "demo-job",
     url: url("/"),
-    mode: "SITE",
+    mode,
     status: "COMPLETED",
     errorMessage: null,
     pagesAnalyzed: pages.length,
-    pagesFailed: 1,
-    crawlNote: "1 page couldn't be read — first: Navigation timeout of 30000 ms exceeded",
+    pagesFailed: site ? 1 : 0,
+    crawlNote: site ? "1 page couldn't be read — first: Navigation timeout of 30000 ms exceeded" : null,
     sharedHiddenSections: [],
     shareToken: null,
     overallScore: overall,
@@ -446,14 +486,17 @@ const demoData = perAnchor((anchor) => {
     pages: [],
     totals: { pages: pages.length, issues: issues.length },
     screenshots: null,
-    linkGraph: linkGraph(pages),
+    linkGraph: linkGraph(sitePages),
     backlinks: backlinks(anchor),
     pageSpeedStatus: "completed",
     createdAt: createdAt.toISOString(),
     completedAt: completedAt.toISOString(),
   }
   return { report, issues, pages }
-})
+}
+
+const demoData = perAnchor((anchor) => ({ SITE: build(anchor, "SITE"), SINGLE: build(anchor, "SINGLE") }))
+const modeOf = (query: URLSearchParams): Mode => (query.get("view") === "single" ? "SINGLE" : "SITE")
 
 // Internal links, built the way site-crawl/linkGraph.ts builds them.
 function linkGraph(pages: { url: string; title: string; statusCode: number }[]) {
@@ -598,13 +641,15 @@ function issueGroups(issues: IssueRow[]) {
     .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.occurrences - a.occurrences)
 }
 
-/** The history row (GET /api/page-audit/reports list item) the history pins first. */
-export function pageAuditDemoListItem() {
-  const { report, issues } = demoData()
+/** The history row (GET /api/page-audit/reports list item) each history pins first. */
+export function pageAuditDemoListItem(mode: "site" | "single" = "site") {
+  const { report, issues } = demoData()[mode === "single" ? "SINGLE" : "SITE"]
   return {
     id: DEMO_ID,
+    /** Where the row opens: the single-page report rides on ?view=single. */
+    href: `/dashboard/page-audit/${DEMO_ID}${mode === "single" ? "?view=single" : ""}`,
     url: report.url,
-    mode: "SITE" as const,
+    mode: mode === "single" ? ("SINGLE" as const) : ("SITE" as const),
     status: "COMPLETED" as const,
     overallScore: report.overallScore,
     overallGrade: report.overallGrade,
@@ -619,7 +664,7 @@ export function pageAuditDemoListItem() {
 
 export const pageAuditDemo: DemoTool = {
   get([a, b, c], query) {
-    const { report, issues, pages } = demoData()
+    const { report, issues, pages } = demoData()[modeOf(query)]
     if (a === undefined) return report
     if (a === "issue-groups" && !b) return { groups: issueGroups(issues) }
     if (a === "pages" && !b) {
