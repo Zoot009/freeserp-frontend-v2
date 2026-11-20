@@ -9,9 +9,11 @@
 // The response mirrors keywordMagic.service.ts KeywordMagicResponse: rows in the
 // database's own order (volume, highest first), totals and the word groups
 // computed as summarize() and wordGroups() compute them. The seed is the one the
-// rank tracker and SERP checker demos track, so the demos read as one story.
+// rank tracker and SERP checker demos track, so the demos read as one story: a
+// keyword the rank tracker tracks carries the rank tracker's volume here.
 
 import { keywordWords } from "@/lib/keyword-magic"
+import { rankTrackerDemo } from "./rank-tracker"
 import { DEMO_BRAND, DEMO_ID, perAnchor, prng, type DemoTool } from "./shared"
 
 /** Where the demo's CTAs lead: the search form, out of demo view. */
@@ -83,24 +85,37 @@ function keywordList(): string[] {
 
 function buildRows(anchor: number) {
   const rand = prng(9001)
+  const tracked = new Map(
+    (rankTrackerDemo.get([], new URLSearchParams()) as { keywords: { keyword: string; searchVolume: number }[] })
+      .keywords.map((k) => [k.keyword, k.searchVolume]),
+  )
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(anchor)
     d.setUTCDate(1)
     d.setUTCMonth(d.getUTCMonth() - 12 + i)
     return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 }
   })
-  const rows = keywordList().map((keyword, i) => {
+  const list = keywordList()
+  const rows = list.map((keyword, i) => {
     const intent = intentOf(keyword)
-    // The seed itself leads; the rest fall away roughly as a power law, with noise.
-    const volume = i === 0 ? 301_000 : bucket(301_000 * (1 + rand() * 40 + i * 0.6) ** -1.35 * (0.6 + rand() * 0.8))
-    const difficulty = Math.max(4, Math.min(98, Math.round(10 + 12 * Math.log10(volume) + (rand() - 0.5) * 30)))
+    // The rest fall away from the seed roughly as a power law, with noise.
+    const generated = bucket(301_000 * (1 + rand() * 40 + i * 0.6) ** -1.35 * (0.6 + rand() * 0.8))
+    const volume = tracked.get(keyword) ?? generated
+    // The long tail is easy, the head terms hard, so all three KD bands show.
+    const kd = Math.max(4, Math.min(98, Math.round(20 * Math.log10(volume) - 22 + (rand() - 0.5) * 24)))
     const paidIntent = intent === "transactional" || intent === "commercial"
+    const cpc = Math.round((paidIntent ? 0.6 + rand() * 1.9 : 0.15 + rand() * 0.6) * 100) / 100
+    const competition = Math.round((paidIntent ? 0.5 + rand() * 0.5 : rand() * 0.4) * 100) / 100
+    // The database has gaps: no KD yet for the newest long-tail phrases, no ads
+    // (so no CPC) on some questions. The table shows "—" for them.
+    const noKd = i >= list.length - 3
+    const noAds = keyword === QUESTIONS[1] || keyword === QUESTIONS[5]
     return {
       keyword,
       volume,
-      cpc: Math.round((paidIntent ? 0.6 + rand() * 1.9 : 0.15 + rand() * 0.6) * 100) / 100,
-      competition: Math.round((paidIntent ? 0.5 + rand() * 0.5 : rand() * 0.4) * 100) / 100,
-      difficulty,
+      cpc: noAds ? null : cpc,
+      competition: noAds ? null : competition,
+      difficulty: noKd ? null : kd,
       intent,
       serpFeatures: featuresFor(intent, keyword, rand),
       // Running peaks in spring and around January resolutions.
@@ -142,7 +157,7 @@ const demoSearch = perAnchor((anchor) => {
     totalCount: TOTAL_COUNT,
     fetchedCount: keywords.length,
     totalVolume: keywords.reduce((s, r) => s + r.volume, 0),
-    avgDifficulty: Math.round(withKd.reduce((s, r) => s + r.difficulty, 0) / withKd.length),
+    avgDifficulty: Math.round(withKd.reduce((s, r) => s + (r.difficulty ?? 0), 0) / withKd.length),
     groups: wordGroups(keywords),
     keywords,
     // A paid account's allowance, metered in credits: the page keeps the
