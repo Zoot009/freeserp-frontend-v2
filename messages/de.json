@@ -599,7 +599,8 @@
     "ebay": "eBay",
     "workspace": "Arbeitsbereich",
     "teamTools": "Team-Tools",
-    "reportBuilder": "Kundenbericht-Generator"
+    "reportBuilder": "Kundenbericht-Generator",
+    "chatbotBuilder": "Chatbot-Builder"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",

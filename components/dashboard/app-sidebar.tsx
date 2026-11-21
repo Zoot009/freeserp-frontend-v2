@@ -125,7 +125,10 @@ const AUDIT: Item[] = [
 ]
 
 // The in-house team's own tools, shown only to the shared team account.
-const TEAM: Item[] = [{ key: "reportBuilder", url: "/dashboard/report-builder", icon: FileStack }]
+const TEAM: Item[] = [
+  { key: "reportBuilder", url: "/dashboard/report-builder", icon: FileStack },
+  { key: "chatbotBuilder", url: "/dashboard/chatbot-builder", icon: Bot },
+]
 
 const TOOLS: Item[] = [
   { key: "keywords", url: "/dashboard/keywords", icon: KeyRound },

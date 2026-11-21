@@ -599,7 +599,8 @@
     "ebay": "eBay",
     "workspace": "Rank Tracker Workspace",
     "teamTools": "Team tools",
-    "reportBuilder": "Client Report Builder"
+    "reportBuilder": "Client Report Builder",
+    "chatbotBuilder": "Chatbot Builder"
   },
   "dashFavorites": {
     "headerEyebrow": "Saved",
