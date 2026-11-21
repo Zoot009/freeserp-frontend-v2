@@ -96,3 +96,18 @@ export const LANGUAGES: [string, string][] = [
 
 export const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—")
 export const host = (url: string) => url.replace(/^https?:\/\//, "").replace(/\/$/, "")
+
+/** The chatbot CRM, whose demo pages FreeSERP's share links show (it allows framing by FreeSERP only). */
+export const CHATBOT_CRM_URL = (process.env.NEXT_PUBLIC_CHATBOT_CRM_URL || "https://whatsappchatbot.zootcloud.com").replace(/\/+$/, "")
+
+/** A demo token: the CRM's unguessable random part of a demo link. */
+export const DEMO_TOKEN = /^[A-Za-z0-9_-]{10,64}$/
+
+/**
+ * The link to give the client: FreeSERP's own share page for the chatbot's demo (/share/chatbot/<token>), made
+ * from the CRM's demo link. Null while the chatbot has no live demo.
+ */
+export function shareUrl(demoUrl: string | null, origin: string): string | null {
+  const token = demoUrl?.match(/\/demo\/([^/?#]+)$/)?.[1]
+  return token && DEMO_TOKEN.test(token) ? `${origin}/share/chatbot/${token}` : null
+}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Bot, Loader2, Plus, X } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, errorReason } from "@/lib/api"
-import { BUILDING, LANGUAGES, day, host, type Category, type ClientRow } from "@/lib/chatbot-builder"
+import { BUILDING, LANGUAGES, day, host, shareUrl, type Category, type ClientRow } from "@/lib/chatbot-builder"
 import { StatusBadge } from "@/components/chatbot-builder/status-badge"
 
 const TH = "border-b border-border px-3 py-2 text-left text-xs font-medium text-muted-foreground"
@@ -131,8 +131,8 @@ export default function ChatbotBuilderPage() {
                       <StatusBadge status={c.status} label={c.suspended ? "Suspended" : c.statusLabel} />
                     </td>
                     <td className={TD}>
-                      {c.demoUrl ? (
-                        <a href={c.demoUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">
+                      {shareUrl(c.demoUrl, "") ? (
+                        <a href={shareUrl(c.demoUrl, "")!} target="_blank" rel="noopener noreferrer" className="font-medium text-brand hover:underline">
                           Open
                         </a>
                       ) : (

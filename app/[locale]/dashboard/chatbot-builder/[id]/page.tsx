@@ -6,7 +6,7 @@ import { useParams } from "next/navigation"
 import { ArrowLeft, Check, Copy, ExternalLink, Loader2, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, errorReason } from "@/lib/api"
-import { BUILDING, LANGUAGES, day, host, type ClientDetail } from "@/lib/chatbot-builder"
+import { BUILDING, LANGUAGES, day, host, shareUrl, type ClientDetail } from "@/lib/chatbot-builder"
 import { StatusBadge } from "@/components/chatbot-builder/status-badge"
 
 const card = "rounded-2xl border border-border bg-card p-4 sm:p-5"
@@ -58,10 +58,12 @@ export default function ChatbotClientPage() {
     }
   }
 
+  // The link the client gets: FreeSERP's own share page for the demo, not the chatbot CRM's address.
+  const link = data ? shareUrl(data.chatbot.demoUrl, typeof window === "undefined" ? "" : window.location.origin) : null
   const copyDemo = async () => {
-    if (!data?.chatbot.demoUrl) return
+    if (!link) return
     try {
-      await navigator.clipboard.writeText(data.chatbot.demoUrl)
+      await navigator.clipboard.writeText(link)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -139,15 +141,15 @@ export default function ChatbotClientPage() {
       {/* The demo page holds both the chat and the client report (with its PDF download). */}
       <section className={card}>
         <h2 className="text-[15px] font-semibold tracking-tight">Demo and client report</h2>
-        {chatbot.demoUrl ? (
+        {link ? (
           <>
-            <p className="mt-1 text-[13px] text-muted-foreground">The client&apos;s demo page: they can chat with their chatbot and open or download their report.</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">The client&apos;s demo page, at FreeSERP&apos;s address: they can chat with their chatbot and open or download their report.</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input readOnly value={chatbot.demoUrl} onFocus={(e) => e.currentTarget.select()} className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px]" aria-label="Demo link" />
+              <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px]" aria-label="Demo link" />
               <button type="button" onClick={copyDemo} className={btn}>
                 {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />} {copied ? "Copied" : "Copy"}
               </button>
-              <a href={chatbot.demoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-3.5 text-[13px] font-semibold text-white hover:bg-brand-deep">
+              <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-3.5 text-[13px] font-semibold text-white hover:bg-brand-deep">
                 <ExternalLink className="h-4 w-4" aria-hidden /> Open demo
               </a>
             </div>
