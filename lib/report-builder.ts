@@ -40,6 +40,9 @@ export type Inputs = {
   yt?: string
   /** Maps Tracker grid size: 3 means 3×3. */
   grid?: string
+  /** Maps Tracker: how far the grid reaches from the business, and in miles or km. 0.5 mi when absent. */
+  radius?: string
+  unit?: "IMPERIAL" | "METRIC"
 }
 
 type Def = { key: Deliverable; group: string; title: string; text: string; run: RunKey; needs: Field[]; promise: string }

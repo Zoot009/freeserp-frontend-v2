@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { knownGeoCountry } from "@/hooks/use-geo-country"
 import { LocationPicker } from "@/components/location-picker"
-import { GRID_SIZES } from "@/components/maps-tracker/grid"
+import { DEFAULT_SCAN_RADIUS, GRID_SIZES, RADIUS_STEPS, nearestRadiusStep, toMeters, validateArea, type DistanceUnit } from "@/components/maps-tracker/grid"
+import { spacingCaption } from "@/components/maps-tracker/grid-controls"
 import { DELIVERABLES, GROUPS, def, fieldsFor, runsFor, type Deliverable, type Field, type StoredReport } from "@/lib/report-builder"
 import { domainOf, errorMessage } from "@/components/report-builder/runs"
 
@@ -41,6 +42,9 @@ export default function ReportBuilderPage() {
   const [name, setName] = useState("")
   const [yt, setYt] = useState("")
   const [grid, setGrid] = useState("3")
+  // How far the Maps Tracker grid reaches, as in the tracker itself: half a mile unless chosen.
+  const [radius, setRadius] = useState(DEFAULT_SCAN_RADIUS.radius)
+  const [unit, setUnit] = useState<DistanceUnit>(DEFAULT_SCAN_RADIUS.unit)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
 
@@ -68,6 +72,8 @@ export default function ReportBuilderPage() {
     if (fields.has("name") && !name.trim()) missing.push("the business name")
     if (fields.has("youtube") && !yt.trim()) missing.push("the YouTube channel")
     if (missing.length) return setError(`Add ${missing.join(", ")}.`)
+    const areaError = sel.includes("mapsTracker") ? validateArea(Number(grid), radius, unit, 1) : null
+    if (areaError) return setError(areaError)
     // The tools behind the report take no more than these.
     if (fields.has("keyword") && kw.trim().length > 80) return setError("Keep the main keyword under 80 characters.")
     if (fields.has("name") && name.trim().length > 100) return setError("Keep the business name under 100 characters.")
@@ -84,6 +90,8 @@ export default function ReportBuilderPage() {
           name: name.trim() || undefined,
           yt: yt.trim() || undefined,
           grid: sel.includes("mapsTracker") ? grid : undefined,
+          radius: sel.includes("mapsTracker") ? String(radius) : undefined,
+          unit: sel.includes("mapsTracker") ? unit : undefined,
           svc: svc
             .split(",")
             .map((s) => s.trim().slice(0, 60))
@@ -199,8 +207,51 @@ export default function ReportBuilderPage() {
                       ))}
                     </select>
                   </span>
-                  <span className="mt-1 block text-[11px] text-muted-foreground">Points spread over 3 km around the business. A bigger grid costs more credits.</span>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">A bigger grid costs more credits.</span>
                 </label>
+              )}
+              {sel.includes("mapsTracker") && (
+                <div>
+                  <span className={label}>Maps Tracker distance</span>
+                  <div className="flex gap-2">
+                    <span className={`${box} flex-1`}>
+                      <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <select
+                        className={`${inputCls} cursor-pointer`}
+                        value={String(nearestRadiusStep(radius, unit))}
+                        onChange={(e) => setRadius(Number(e.target.value))}
+                        aria-label="How far the grid reaches"
+                      >
+                        {RADIUS_STEPS[unit].map((s) => (
+                          <option key={s} value={s}>
+                            {s} {unit === "IMPERIAL" ? (s === 1 ? "mile" : "miles") : "km"} from the business
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                    <span className="inline-flex h-11 shrink-0 rounded-xl border border-border bg-background p-1" role="group" aria-label="Distance unit">
+                      {(["IMPERIAL", "METRIC"] as const).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          aria-pressed={unit === u}
+                          onClick={() => {
+                            if (u === unit) return
+                            // The same distance in the other unit, on its nearest step.
+                            setRadius(nearestRadiusStep(toMeters(radius, unit) / (u === "IMPERIAL" ? 1609.344 : 1000), u))
+                            setUnit(u)
+                          }}
+                          className={`rounded-lg px-3 text-[13px] font-medium transition-colors ${unit === u ? "bg-brand/10 text-brand" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {u === "IMPERIAL" ? "Miles" : "Km"}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
+                    {validateArea(Number(grid), radius, unit, 1) ?? `${spacingCaption(Number(grid), radius, unit)}. The Maps Tracker's own default is 0.5 miles.`}
+                  </span>
+                </div>
               )}
               {fields.has("location") && (
                 <div>
