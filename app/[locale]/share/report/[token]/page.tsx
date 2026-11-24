@@ -19,6 +19,8 @@ type Shared = {
   report: { id: string; createdAt: string; expiresAt: string; sel: string[]; inputs: Inputs; business: string | null }
   data: Partial<Record<RunKey, any>>
   post: GbpPost | null
+  /** Runs that failed: their sections are left out. Absent from servers before live sharing. */
+  failed?: RunKey[]
 }
 
 export default function SharedReportPage() {
@@ -40,7 +42,9 @@ export default function SharedReportPage() {
         if (!res.ok) throw new Error(String(res.status))
         return (await res.json()) as Shared
       })
-      .then((d) => !cancelled && setShared(d))
+      .then((d) => {
+        if (!cancelled) setShared(d)
+      })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error && (err.message === "404" || err.message === "400") ? "gone" : "unavailable")
       })
@@ -48,6 +52,14 @@ export default function SharedReportPage() {
       cancelled = true
     }
   }, [token, attempt])
+
+  // A report shared while it builds: check back every 15 seconds until every section is in.
+  const waiting = !!shared && sectionsOf(shared).some((d) => shared.data[def(d).run] === undefined || (d === "aiPost" && !shared.post))
+  useEffect(() => {
+    if (!waiting) return
+    const t = setTimeout(() => setAttempt((n) => n + 1), 15_000)
+    return () => clearTimeout(t)
+  }, [waiting, shared])
 
   if (error === "gone") {
     return (
@@ -80,9 +92,7 @@ export default function SharedReportPage() {
   }
 
   const { report, data, post } = shared
-  // Only the sections whose results came with the link.
-  // Only the sections whose results came with the link (the sample post, when it was written).
-  const sel = knownSections(report.sel).filter((d) => data[def(d).run] !== undefined && (d !== "aiPost" || !!post))
+  const sel = sectionsOf(shared)
   const business = data.gbp?.facts?.business?.name ?? report.business ?? report.inputs.name ?? (domainOf(report.inputs.web) || "Your business")
   return (
     <main className="min-h-screen bg-background">
@@ -103,13 +113,19 @@ export default function SharedReportPage() {
           sel={sel}
           inputs={report.inputs}
           business={business}
-          runOf={(d) => ({ state: "done", data: data[def(d).run] })}
+          runOf={(d) => (data[def(d).run] !== undefined ? { state: "done", data: data[def(d).run] } : { state: "running" })}
           post={post}
           shared
         />
       </div>
     </main>
   )
+}
+
+/** The sections the client sees: all of the report's, except those whose tool failed. */
+function sectionsOf(s: Shared) {
+  const failed = new Set(s.failed ?? [])
+  return knownSections(s.report.sel).filter((d) => !failed.has(def(d).run) || s.data[def(d).run] !== undefined)
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

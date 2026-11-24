@@ -111,7 +111,7 @@ export function ShareAuditDialog({
                 {busy ? "Working…" : "Stop sharing"}
               </button>
             </div>
-            {body && <p className="text-xs text-muted-foreground">The link shows the report as it was when shared. Changed something since? Update the shared copy.</p>}
+            {body && <p className="text-xs text-muted-foreground">The link fills in by itself as the report finishes, while this report is open. Update the shared copy to send the latest by hand.</p>}
             <p className="text-xs text-muted-foreground">Stopping makes this link, and any copies already sent, stop working.</p>
           </div>
         ) : (

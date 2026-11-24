@@ -245,6 +245,21 @@ export default function ReportBuilderReport() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gbpRun?.state])
 
+  // Once shared, the link follows the report: each section that finishes (and the sample post, once written) is
+  // sent to it as it comes in, so a link handed over the moment the report started fills in by itself.
+  const doneRuns = Object.entries(runs)
+    .flatMap(([k, r]) => (r?.state === "done" ? [k] : []))
+    .sort()
+    .join(",")
+  useEffect(() => {
+    if (!plan?.shareToken || (!doneRuns && !post)) return
+    const t = setTimeout(() => {
+      const data = Object.fromEntries(Object.entries(runsRef.current).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : [])))
+      api.post(`/api/report-builder/reports/${plan.id}/share`, { data, post }).catch(() => undefined)
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [plan?.id, plan?.shareToken, doneRuns, post])
+
   // Which sections go to the client, saved with the report.
   const saveSections = () => {
     if (!plan) return
@@ -307,8 +322,6 @@ export default function ReportBuilderReport() {
     setSaveState("idle")
     setOff((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   }
-  // Ready to share once every run has settled and the sample post (when there is one) is written.
-  const shareReady = allDone && (!sel.includes("aiPost") || runs.gbp?.state !== "done" || !!post)
   // What a shared link shows: every finished run's data, by run, and the sample post.
   const shareCopy = () => ({
     data: Object.fromEntries(Object.entries(runs).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : []))),
@@ -335,9 +348,9 @@ export default function ReportBuilderReport() {
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            disabled={!shareReady}
+
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-            title={shareReady ? "A link the client can open without an account" : "Sharing opens once every section has finished"}
+            title={allDone ? "A link the client can open without an account" : "Share now: the client's link fills in as each section finishes"}
           >
             <Share2 className="h-4 w-4" aria-hidden /> {plan.shareToken ? "Shared" : "Share"}
           </button>

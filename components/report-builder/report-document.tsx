@@ -275,7 +275,9 @@ export function ReportDocument({
         </ol>
         {!allDone && (
           <p className="mt-4 text-xs text-muted-foreground print:hidden">
-            The sections fill in as each tool finishes, usually within 2 to 8 minutes. You can leave this page: the report is saved, and reopening it from the history carries on.
+            {shared
+              ? "This report is still being prepared. Each section appears here as it finishes, usually within a few minutes; this page updates by itself."
+              : "The sections fill in as each tool finishes, usually within 2 to 8 minutes. You can leave this page: the report is saved, and reopening it from the history carries on."}
           </p>
         )}
       </header>
