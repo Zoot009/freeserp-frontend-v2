@@ -600,7 +600,8 @@
     "workspace": "Espace de travail",
     "teamTools": "Outils de l'équipe",
     "reportBuilder": "Générateur de rapports clients",
-    "chatbotBuilder": "Créateur de chatbots"
+    "chatbotBuilder": "Créateur de chatbots",
+    "caseStudies": "Études de cas"
   },
   "dashFavorites": {
     "headerEyebrow": "Enregistrés",

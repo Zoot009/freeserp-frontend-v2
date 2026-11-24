@@ -29,6 +29,7 @@ import {
   Bot,
   Megaphone,
   FileStack,
+  BookOpenCheck,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { useAuth } from "@/lib/auth"
@@ -128,6 +129,7 @@ const AUDIT: Item[] = [
 const TEAM: Item[] = [
   { key: "reportBuilder", url: "/dashboard/report-builder", icon: FileStack },
   { key: "chatbotBuilder", url: "/dashboard/chatbot-builder", icon: Bot },
+  { key: "caseStudies", url: "/dashboard/case-studies", icon: BookOpenCheck },
 ]
 
 const TOOLS: Item[] = [
