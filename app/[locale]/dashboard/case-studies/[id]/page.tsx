@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { AlertTriangle, ArrowLeft, BookOpenCheck, Check, CheckCircle2, Copy, ExternalLink, Loader2, Trash2 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, ApiError, errorReason } from "@/lib/api"
-import { caseStudyUrl, slugify, type CaseStudy } from "@/lib/case-studies"
+import { caseStudyUrl, slugify, type BeforeScores, type CaseStudy } from "@/lib/case-studies"
 
 const box =
   "flex h-11 items-center rounded-xl border border-border bg-background px-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20"
@@ -36,6 +36,33 @@ type Form = typeof EMPTY
 type TextKey = Exclude<keyof Form, "hideQr">
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean)
+
+const SCORES = [
+  ["gbpScore", "Google Business Profile"],
+  ["siteScore", "Website audit"],
+  ["pageSpeed", "Mobile speed"],
+  ["aeo", "AI answer engines (AEO)"],
+  ["geo", "Generative search (GEO)"],
+] as const
+const ENGINES = ["ChatGPT", "Claude", "Perplexity", "Gemini", "AI Overviews", "Copilot"]
+
+// Before-score inputs as text, keyed by score name or "engine:<name>"; empty means not set.
+function toBefore(b?: BeforeScores) {
+  const o: Record<string, string> = {}
+  for (const [k] of SCORES) o[k] = b?.[k] != null ? String(b[k]) : ""
+  for (const e of b?.engines ?? []) o[`engine:${e.name}`] = String(e.score)
+  return o
+}
+function fromBefore(o: Record<string, string>): BeforeScores {
+  const n = (v?: string) => (v == null || v.trim() === "" ? null : Number(v))
+  const out: BeforeScores = {}
+  for (const [k] of SCORES) out[k] = n(o[k])
+  out.engines = ENGINES.flatMap((name) => {
+    const score = n(o[`engine:${name}`])
+    return score == null ? [] : [{ name, score }]
+  })
+  return out
+}
 
 function toForm(c: CaseStudy): Form {
   const d = c.details
@@ -72,6 +99,7 @@ export default function CaseStudyEditor() {
   const [error, setError] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [copied, setCopied] = useState(false)
+  const [before, setBefore] = useState<Record<string, string>>(() => toBefore())
 
   useEffect(() => {
     if (!user?.inhouse || isNew) return
@@ -79,6 +107,7 @@ export default function CaseStudyEditor() {
       (r) => {
         setSaved(r.caseStudy)
         setForm(toForm(r.caseStudy))
+        setBefore(toBefore(r.caseStudy.details.beforeScores))
         setLoaded(true)
       },
       (e) => {
@@ -117,6 +146,7 @@ export default function CaseStudyEditor() {
       ownSites: Number(form.ownSites) || 0,
       qrUrl: form.qrUrl.trim(),
       hideQr: form.hideQr,
+      beforeScores: fromBefore(before),
     }
     try {
       const r = isNew
@@ -124,6 +154,7 @@ export default function CaseStudyEditor() {
         : await api.put<{ caseStudy: CaseStudy }>(`/api/case-studies/${encodeURIComponent(id)}`, body)
       setSaved(r.caseStudy)
       setForm(toForm(r.caseStudy))
+      setBefore(toBefore(r.caseStudy.details.beforeScores))
       setLinkEdited(true)
       if (isNew) router.replace(`/dashboard/case-studies/${r.caseStudy.id}`)
     } catch (err) {
@@ -252,6 +283,30 @@ export default function CaseStudyEditor() {
               {field("growthBeforeUrl", "Before growth report (optional)", "https://app.freeserp.com/share/report/…", "A report from before the work. Shows before → after audit and AI visibility scores.")}
               {field("growthReportUrl", "After growth report (optional)", "https://app.freeserp.com/share/report/…", "The share link from Client Report Builder. Adds the audit, AI visibility, reviews and business photo.")}
             </div>
+          </Card>
+
+          <Card
+            title="Before scores (optional)"
+            description="Shown as before → after on the page, 0–100. Leave empty to use the before growth report's numbers, or to show no before."
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {[...SCORES.map(([k, label]) => ({ key: k as string, label })), ...ENGINES.map((e) => ({ key: `engine:${e}`, label: e }))].map((x) => (
+                <Field key={x.key} label={x.label}>
+                  <span className={box}>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={100}
+                      value={before[x.key] ?? ""}
+                      onChange={(e) => setBefore((b) => ({ ...b, [x.key]: e.target.value }))}
+                    />
+                  </span>
+                </Field>
+              ))}
+            </div>
+            {fieldErrors.beforeScores && <p className="mt-2 text-xs text-red-600 dark:text-red-400">Scores must be whole numbers from 0 to 100.</p>}
           </Card>
 
           <Card title="Backlinks">

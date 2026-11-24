@@ -24,6 +24,16 @@ export interface CaseStudyRow {
   updatedAt: string
 }
 
+/** Before scores typed in by hand (0–100); they win over the before growth report's numbers. */
+export interface BeforeScores {
+  gbpScore?: number | null
+  siteScore?: number | null
+  pageSpeed?: number | null
+  aeo?: number | null
+  geo?: number | null
+  engines?: { name: string; score: number }[]
+}
+
 export interface CaseStudyDetails {
   agencyName: string
   address: string
@@ -37,6 +47,7 @@ export interface CaseStudyDetails {
   ownSites: number
   qrUrl?: string
   hideQr?: boolean
+  beforeScores?: BeforeScores
 }
 
 export interface CaseStudy extends CaseStudyRow {
