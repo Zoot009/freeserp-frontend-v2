@@ -10,9 +10,9 @@ import { caseStudyUrl, slugify, type CaseStudy } from "@/lib/case-studies"
 
 const box =
   "flex h-11 items-center rounded-xl border border-border bg-background px-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20"
-const inputCls = "h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+const inputCls = "h-full w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground sm:text-sm"
 const areaCls =
-  "min-h-[120px] w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-[13px] outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+  "min-h-[120px] w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-base outline-none focus:border-brand sm:text-[13px] focus:ring-2 focus:ring-brand/20"
 const labelCls = "mb-1.5 block text-xs font-medium text-muted-foreground"
 
 const EMPTY = {
@@ -25,12 +25,15 @@ const EMPTY = {
   rankBeforeUrl: "",
   rankAfterUrl: "",
   growthReportUrl: "",
+  growthBeforeUrl: "",
   citations: "",
   hiddenSites: "",
   ownSites: "",
   qrUrl: "",
+  hideQr: false,
 }
 type Form = typeof EMPTY
+type TextKey = Exclude<keyof Form, "hideQr">
 
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean)
 
@@ -46,10 +49,12 @@ function toForm(c: CaseStudy): Form {
     rankBeforeUrl: d.rankBeforeUrl ?? "",
     rankAfterUrl: d.rankAfterUrl ?? "",
     growthReportUrl: d.growthReportUrl ?? "",
+    growthBeforeUrl: d.growthBeforeUrl ?? "",
     citations: d.citations.join("\n"),
     hiddenSites: d.hiddenSites.join("\n"),
     ownSites: d.ownSites ? String(d.ownSites) : "",
     qrUrl: d.qrUrl ?? "",
+    hideQr: d.hideQr ?? false,
   }
 }
 
@@ -83,7 +88,7 @@ export default function CaseStudyEditor() {
     )
   }, [user?.inhouse, id, isNew])
 
-  const set = (k: keyof Form) => (v: string) =>
+  const set = (k: TextKey) => (v: string) =>
     setForm((f) => {
       const next = { ...f, [k]: v }
       if (!linkEdited && k === "agencyName") next.agency = slugify(v)
@@ -106,10 +111,12 @@ export default function CaseStudyEditor() {
       rankBeforeUrl: form.rankBeforeUrl.trim(),
       rankAfterUrl: form.rankAfterUrl.trim(),
       growthReportUrl: form.growthReportUrl.trim(),
+      growthBeforeUrl: form.growthBeforeUrl.trim(),
       citations: lines(form.citations),
       hiddenSites: lines(form.hiddenSites),
       ownSites: Number(form.ownSites) || 0,
       qrUrl: form.qrUrl.trim(),
+      hideQr: form.hideQr,
     }
     try {
       const r = isNew
@@ -154,7 +161,7 @@ export default function CaseStudyEditor() {
   const link = form.agency && form.slug ? caseStudyUrl(form.agency, form.slug) : ""
   const liveLink = saved ? caseStudyUrl(saved.agency, saved.slug) : ""
 
-  const field = (k: keyof Form, label: string, placeholder: string, hint?: string, type = "text") => (
+  const field = (k: TextKey, label: string, placeholder: string, hint?: string, type = "text") => (
     <Field label={label} hint={hint} errors={fieldErrors[k]}>
       <span className={box}>
         <input className={inputCls} type={type} placeholder={placeholder} value={form[k]} onChange={(e) => set(k)(e.target.value)} />
@@ -198,7 +205,7 @@ export default function CaseStudyEditor() {
                   </p>
                 ) : null}
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 gap-2 *:flex-1 *:justify-center sm:*:flex-none">
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(liveLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) })}
@@ -242,9 +249,8 @@ export default function CaseStudyEditor() {
             <div className="grid gap-4 sm:grid-cols-2">
               {field("rankBeforeUrl", "Before rank report", "https://localrankreports.com/reports/…", "localrankreports.com link")}
               {field("rankAfterUrl", "After rank report", "https://localrankreports.com/reports/…", "localrankreports.com link")}
-              <div className="sm:col-span-2">
-                {field("growthReportUrl", "Local growth report (optional)", "https://app.freeserp.com/share/report/…", "The share link from Client Report Builder. Adds the audit, AI visibility, reviews and business photo.")}
-              </div>
+              {field("growthBeforeUrl", "Before growth report (optional)", "https://app.freeserp.com/share/report/…", "A report from before the work. Shows before → after audit and AI visibility scores.")}
+              {field("growthReportUrl", "After growth report (optional)", "https://app.freeserp.com/share/report/…", "The share link from Client Report Builder. Adds the audit, AI visibility, reviews and business photo.")}
             </div>
           </Card>
 
@@ -264,6 +270,10 @@ export default function CaseStudyEditor() {
 
           <Card title="Review QR code">
             {field("qrUrl", "QR code link (optional)", "https://g.page/r/…/review", "Best: the client's Google review link. Empty: their Google Maps listing.")}
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.hideQr} onChange={(e) => setForm((f) => ({ ...f, hideQr: e.target.checked }))} className="h-4 w-4 accent-brand" />
+              Hide the QR code on this client&apos;s page
+            </label>
           </Card>
 
           {error && (
@@ -271,13 +281,13 @@ export default function CaseStudyEditor() {
               {error}
             </p>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col-reverse gap-3 *:justify-center sm:flex-row sm:items-center sm:justify-between">
             {saved ? (
               <button type="button" onClick={remove} disabled={busy} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:hover:bg-red-950/30">
                 <Trash2 className="h-4 w-4" aria-hidden /> Delete
               </button>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
             <button type="submit" disabled={busy} className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white hover:bg-brand-deep disabled:opacity-60">
               {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}

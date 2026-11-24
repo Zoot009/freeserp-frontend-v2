@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, BookOpenCheck, ExternalLink, Loader2, Plus } from "lucide-react"
+import { AlertTriangle, BookOpenCheck, ExternalLink, Loader2, Pencil, Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api, errorReason } from "@/lib/api"
 import { caseStudyUrl, type CaseStudyRow } from "@/lib/case-studies"
@@ -64,7 +64,26 @@ export default function CaseStudiesPage() {
         ) : rows.length === 0 ? (
           !error && <p className="px-4 py-4 text-[13px] text-muted-foreground">No case studies yet. Add one with New case study.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-border sm:hidden">
+            {rows.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3 text-[13px]">
+                <Link href={`/dashboard/case-studies/${c.id}`} className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{c.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {c.agency} · {c.snapshotError ? <span className="text-amber-600 dark:text-amber-400">Last refresh failed</span> : `Updated ${day(c.updatedAt)}`}
+                  </span>
+                </Link>
+<Link href={`/dashboard/case-studies/${c.id}`} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 font-medium hover:bg-muted">
+                  <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+                </Link>
+                <a href={caseStudyUrl(c.agency, c.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 font-medium text-brand">
+                  Open <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[720px] border-collapse text-[13px]">
               <thead>
                 <tr>
@@ -72,7 +91,7 @@ export default function CaseStudiesPage() {
                   <th className={TH}>Agency</th>
                   <th className={TH}>Report numbers</th>
                   <th className={TH}>Updated</th>
-                  <th className={TH}>Page</th>
+                  <th className={`${TH} text-right`}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -97,15 +116,21 @@ export default function CaseStudiesPage() {
                     </td>
                     <td className={`${TD} text-muted-foreground`}>{day(c.updatedAt)}</td>
                     <td className={TD}>
-                      <a href={caseStudyUrl(c.agency, c.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-brand hover:underline">
-                        Open <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                      </a>
+                      <span className="flex items-center justify-end gap-3">
+                        <Link href={`/dashboard/case-studies/${c.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 font-medium hover:bg-muted">
+                          <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+                        </Link>
+                        <a href={caseStudyUrl(c.agency, c.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-brand hover:underline">
+                          Open page <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                        </a>
+                      </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

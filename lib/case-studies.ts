@@ -31,10 +31,12 @@ export interface CaseStudyDetails {
   rankBeforeUrl?: string
   rankAfterUrl?: string
   growthReportUrl?: string
+  growthBeforeUrl?: string
   citations: string[]
   hiddenSites: string[]
   ownSites: number
   qrUrl?: string
+  hideQr?: boolean
 }
 
 export interface CaseStudy extends CaseStudyRow {
