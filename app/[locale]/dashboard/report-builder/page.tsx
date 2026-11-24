@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Building2, Check, FileStack, Globe, Grid3x3, History, Loader2, MapPin, Search, Tags, Youtube, Zap } from "lucide-react"
+import { Building2, Check, FileStack, Globe, Grid3x3, History, Loader2, MapPin, Search, Sparkles, Tags, Youtube, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { knownGeoCountry } from "@/hooks/use-geo-country"
 import { LocationPicker } from "@/components/location-picker"
+import { searchLocations } from "@/lib/locations"
 import { DEFAULT_SCAN_RADIUS, GRID_SIZES, RADIUS_STEPS, nearestRadiusStep, toMeters, validateArea, type DistanceUnit } from "@/components/maps-tracker/grid"
 import { spacingCaption } from "@/components/maps-tracker/grid-controls"
 import { DELIVERABLES, GROUPS, def, fieldsFor, runsFor, type Deliverable, type Field, type StoredReport } from "@/lib/report-builder"
@@ -17,6 +18,9 @@ const box =
   "flex h-11 items-center gap-2.5 rounded-xl border border-border bg-background px-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20"
 const inputCls = "h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
 const label = "mb-1.5 block text-xs font-medium text-muted-foreground"
+
+/** What the lookup found from a Maps link or a website. */
+type Found = { name: string | null; website: string | null; keyword: string | null; city: string | null; countryCode: string | null; maps: string | null }
 
 const NEEDS_LABEL: Record<Field, string> = {
   maps: "Google Maps link",
@@ -47,6 +51,13 @@ export default function ReportBuilderPage() {
   const [unit, setUnit] = useState<DistanceUnit>(DEFAULT_SCAN_RADIUS.unit)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  // The city the lookup chose, to name it in the picker; and whether the location was picked by hand.
+  const [locLabel, setLocLabel] = useState<string | null>(null)
+  const locPicked = useRef(false)
+  // "Fill in from link": what it's doing, and what it filled in (so a second lookup may replace those, never what was typed).
+  const [look, setLook] = useState<{ busy: boolean; msg: string }>({ busy: false, msg: "" })
+  const filled = useRef<Record<string, string>>({})
+  const looked = useRef("")
 
   if (loading) return null
   if (!user?.inhouse) {
@@ -106,13 +117,67 @@ export default function ReportBuilderPage() {
     }
   }
 
-  const field = (show: boolean, lbl: string, Icon: typeof Globe, value: string, set: (v: string) => void, placeholder: string, hint?: string) =>
+  // Fill in the business from its Maps link (or, without one, its website): name, website, keyword, city.
+  // Only empty fields, or ones an earlier lookup filled; the team checks them before building.
+  const lookup = async (auto = false) => {
+    const input = fields.has("maps") && maps.trim() ? { maps: maps.trim() } : web.trim() ? { web: web.trim() } : null
+    if (!input) return auto || setLook({ busy: false, msg: "Paste the Google Maps link or the website first." })
+    const key = JSON.stringify(input)
+    if (auto && key === looked.current) return
+    looked.current = key
+    // Against the field's value now, not when the lookup started: typing while it runs wins.
+    const put = (k: string, show: boolean, v: string | null, set: Dispatch<SetStateAction<string>>) =>
+      show &&
+      v &&
+      set((cur) => {
+        if (cur.trim() && cur !== filled.current[k]) return cur
+        filled.current[k] = v
+        return v
+      })
+    const apply = async (f: Found) => {
+      put("name", fields.has("name"), f.name, setName)
+      put("web", fields.has("website"), f.website, setWeb)
+      put("kw", fields.has("keyword") || fields.has("maps"), f.keyword, setKw)
+      put("maps", fields.has("maps"), f.maps, setMaps)
+      if (!fields.has("location") || locPicked.current || !f.countryCode) return
+      // The business's city, as the location picker knows it; else its country.
+      const city = f.city ? (await searchLocations(f.city, { country: f.countryCode })).find((l) => l.type === "City") : undefined
+      if (locPicked.current) return
+      setLoc(city?.code ?? f.countryCode)
+      setCountry(f.countryCode)
+      setLocLabel(city ? city.name : null)
+    }
+    setLook({ busy: true, msg: "" })
+    try {
+      const r = await api.post<{ found: Found; task?: string; note?: string }>("/api/report-builder/lookup", input)
+      await apply(r.found)
+      // DataForSEO takes 10 to 60 seconds for a listing it hasn't fetched before.
+      let task = r.task
+      for (const until = Date.now() + 90_000; task && Date.now() < until; ) {
+        await new Promise((ok) => setTimeout(ok, 4000))
+        const p = await api.get<{ found: Found | null }>(`/api/report-builder/lookup/${encodeURIComponent(task)}`)
+        if (p.found) {
+          await apply(p.found)
+          task = undefined
+        }
+      }
+      setLook({
+        busy: false,
+        msg: task ? "Google is slow to answer. Fill in the rest by hand, or try again in a minute." : (r.note ?? "Filled in. Check each field before you build the report."),
+      })
+    } catch (e) {
+      looked.current = ""
+      setLook({ busy: false, msg: errorMessage(e, "The business couldn't be looked up. Fill it in by hand.") })
+    }
+  }
+
+  const field = (show: boolean, lbl: string, Icon: typeof Globe, value: string, set: (v: string) => void, placeholder: string, hint?: string, onBlur?: () => void) =>
     show && (
       <label className="block">
         <span className={label}>{lbl}</span>
         <span className={box}>
           <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <input className={inputCls} placeholder={placeholder} value={value} onChange={(e) => set(e.target.value)} />
+          <input className={inputCls} placeholder={placeholder} value={value} onChange={(e) => set(e.target.value)} onBlur={onBlur} />
         </span>
         {hint && <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>}
       </label>
@@ -180,8 +245,24 @@ export default function ReportBuilderPage() {
           <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-tight">2. About the business</h2>
           <section className="space-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
             <div className="grid gap-3 lg:grid-cols-2">
-              {field(fields.has("maps"), "Google Maps link of the business", MapPin, maps, setMaps, "https://maps.app.goo.gl/…")}
-              {field(fields.has("website"), "Website", Globe, web, setWeb, "clientbusiness.com")}
+              {field(fields.has("maps"), "Google Maps link of the business", MapPin, maps, setMaps, "https://maps.app.goo.gl/…", undefined, () => void lookup(true))}
+              {field(fields.has("website"), "Website", Globe, web, setWeb, "clientbusiness.com", undefined, () => void lookup(true))}
+              {(fields.has("maps") || fields.has("website")) && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 lg:col-span-2">
+                  <button
+                    type="button"
+                    onClick={() => void lookup()}
+                    disabled={look.busy}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-brand/30 bg-brand/5 px-3.5 text-[13px] font-medium text-brand transition-colors hover:bg-brand/10 disabled:opacity-60"
+                  >
+                    {look.busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+                    {look.busy ? "Looking up the business…" : "Fill in from link"}
+                  </button>
+                  <span className="text-xs text-muted-foreground" aria-live="polite">
+                    {look.msg || `Paste the ${fields.has("maps") ? "Google Maps link or the website" : "website"}: the name, keyword and location fill in for you to check.`}
+                  </span>
+                </div>
+              )}
               {field(
                 fields.has("keyword") || fields.has("maps"),
                 fields.has("keyword") ? "Main keyword" : "Main keyword (optional)",
@@ -258,9 +339,12 @@ export default function ReportBuilderPage() {
                   <span className={label}>Where the business wants customers</span>
                   <LocationPicker
                     value={loc}
+                    valueLabel={locLabel}
                     onChange={(code, l) => {
                       setLoc(code)
                       setCountry(l?.countryIso ?? undefined)
+                      setLocLabel(null)
+                      locPicked.current = true
                     }}
                     variant="dashboard" showFlags placeholder="Search a country or city" />
                 </div>
