@@ -4,6 +4,8 @@
 // another first (the Maps Tracker needs the audit's location, Competitor
 // Analysis needs a SERP check's competitors).
 
+import { API_BASE } from "@/lib/api"
+
 export type Deliverable =
   | "rankTracker"
   | "quickSerp"
@@ -55,7 +57,7 @@ export const DELIVERABLES: Def[] = [
   // Maps
   { key: "mapsTracker", group: "Maps", title: "Google Maps Tracker", text: "A rank scan on a grid of points around the business on Google Maps for the main keyword. 3×3 unless you pick a bigger grid.", run: "maps", needs: ["maps"], promise: "How visible you are on Google Maps across your area, point by point." },
   { key: "gbpAudit", group: "Maps", title: "GMB audit (Google Business Profile)", text: "The full profile audit: the local ranking grid, the overall recommendation, 30-day plan and every fix, plus 3 ready-to-submit citations on directories the business is missing from.", run: "gbp", needs: ["maps"], promise: "Your Google Business Profile audit: where you rank on the map around you, what to fix and in what order, and the first 3 local listings we'll create for you." },
-  { key: "aiPost", group: "Maps", title: "AI Google Post", text: "A Google Business Profile post written by AI for the business, a sample of the daily posts we'll publish.", run: "gbp", needs: ["maps"], promise: "A sample of the Google Posts we'll write and publish for you, every day." },
+  { key: "aiPost", group: "Maps", title: "AI Google Posts", text: "Three Google Business Profile posts written by AI for the business, each with an AI image: a sample of the daily posts we'll publish.", run: "gbp", needs: ["maps"], promise: "Three samples of the Google Posts we'll write and publish for you, every day." },
   { key: "directions", group: "Maps", title: "Driving directions map", text: "A map of driving routes from the top competitors' locations to the business, and how we'll add them.", run: "gbp", needs: ["maps"], promise: "Driving routes from your top competitors to you, which we'll build and add for you." },
   // AI
   { key: "aiPrompts", group: "AI Prompt Tracker", title: "AI assistants: ChatGPT, Gemini, Claude, Perplexity", text: "Asks all four AI assistants three buying questions and shows whether they name the business.", run: "llm", needs: ["name", "keyword"], promise: "Whether ChatGPT, Gemini, Claude and Perplexity recommend you when customers ask." },
@@ -127,4 +129,17 @@ export function knownSections(sel: string[]): Deliverable[] {
   return [...new Set(sel.map((k) => (k === "citations" || k === "gbpPlan" ? "gbpAudit" : k)))].filter((k): k is Deliverable => keys.has(k))
 }
 
-export type GbpPost = { headline: string; body: string; cta: string; source: "ai" | "template" }
+export type GbpPost = {
+  /** Also its image's id. Absent on posts shared before there were images. */
+  id?: string
+  headline: string
+  body: string
+  cta: string
+  source: "ai" | "template"
+  image?: "ready" | "pending" | null
+  /** Why there's no image, for the team. Never on a shared report. */
+  imageError?: string
+}
+
+/** A post's image: no sign-in needed, so the shared report and the PDF show it too. */
+export const postImageUrl = (id: string) => `${API_BASE}/api/public/report-builder/images/${id}`

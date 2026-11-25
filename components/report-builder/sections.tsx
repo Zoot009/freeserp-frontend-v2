@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
-import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CircleDashed, Copy, Download, ExternalLink, ImageIcon, MapPin, Navigation, RefreshCw, Send, XCircle } from "lucide-react"
 import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
-import type { GbpPost } from "@/lib/report-builder"
+import { postImageUrl, type GbpPost } from "@/lib/report-builder"
 import { ActionPlan, GridPanel, ReportHero } from "@/components/gbp-audit/report"
 import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
@@ -244,52 +244,126 @@ function PostsActivity({ report }: { report: Report }) {
   )
 }
 
-// ── 3. AI Google Post ────────────────────────────────────────────────────────
+// ── 3. AI Google Posts ───────────────────────────────────────────────────────
 
-export function AiPostSection({ data, post, onRegenerate, busy }: { data: GbpAuditResponse; post: GbpPost | null; onRegenerate?: () => void; busy?: boolean }) {
+/** What the team can do with the posts; a shared report has none of it. */
+export type PostActions = { regenerate: (i: number) => void; retryImages: () => void; reload: () => void; busy: boolean }
+
+export function AiPostSection({ data, posts, actions }: { data: GbpAuditResponse; posts: GbpPost[]; actions?: PostActions }) {
   const b = data.facts!.business
+  const logo = b.logo ?? b.mainImage
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-      <div className={`${card} overflow-hidden`}>
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          {b.logo || b.mainImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Google-hosted photo
-            <img src={(b.logo ?? b.mainImage)!} alt="" referrerPolicy="no-referrer" className="h-9 w-9 rounded-full object-cover ring-1 ring-border" />
-          ) : (
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-muted text-xs font-semibold">{b.name.slice(0, 2).toUpperCase()}</span>
+    <div className="space-y-5">
+      <Pitch>
+        <p>
+          We have created {posts.length === 1 ? "a sample post" : "three sample posts"} for your Google Business Profile. We will create and publish posts like{" "}
+          {posts.length === 1 ? "this" : "these"} on a <b>daily basis</b>: offers, recent jobs, news and tips, each with a photo and a button.
+        </p>
+      </Pitch>
+      {posts.length ? (
+        <div className={`grid gap-4 ${posts.length === 1 ? "max-w-md" : "md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3 print:gap-2.5"}`}>
+          {posts.map((post, i) => (
+            <div key={post.id ?? i} className={`${card} flex flex-col overflow-hidden print:break-inside-avoid`}>
+              <div className="flex items-center gap-3 border-b border-border px-4 py-3 print:px-3 print:py-2">
+                {logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Google-hosted photo
+                  <img src={logo} alt="" referrerPolicy="no-referrer" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-border" />
+                ) : (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{b.name.slice(0, 2).toUpperCase()}</span>
+                )}
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-semibold">{b.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">Google Business Profile · Update</div>
+                </div>
+              </div>
+              <PostImage post={post} onRetry={actions?.retryImages} />
+              <div className="flex flex-1 flex-col items-start gap-2 p-4 print:p-3">
+                <div className="text-[15px] font-semibold leading-snug print:text-[12px]">{post.headline}</div>
+                <p className="whitespace-pre-line text-[13px] leading-relaxed print:text-[10.5px]">{post.body}</p>
+                <span className="mt-auto inline-flex h-9 items-center rounded-full bg-brand px-4 text-[13px] font-semibold text-white print:h-7 print:text-[11px]">{post.cta}</span>
+              </div>
+              {actions && <PostTools post={post} busy={actions.busy} onRegenerate={() => actions.regenerate(i)} />}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={`${card} flex flex-wrap items-center justify-between gap-3 p-4 text-[13px] text-muted-foreground`}>
+          {!actions ? "The sample posts aren't ready yet." : actions.busy ? "Writing the posts…" : "The posts couldn't be written just now."}
+          {actions && !actions.busy && (
+            <button type="button" onClick={actions.reload} className="font-medium text-brand hover:underline print:hidden">
+              Try again
+            </button>
           )}
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold">{b.name}</div>
-            <div className="text-xs text-muted-foreground">Google Business Profile · Update</div>
-          </div>
         </div>
-        {post ? (
-          <div className="space-y-2 p-4">
-            <div className="text-[15px] font-semibold">{post.headline}</div>
-            <p className="whitespace-pre-line text-[13px] leading-relaxed">{post.body}</p>
-            <span className="mt-1 inline-flex h-9 items-center rounded-full bg-brand px-4 text-[13px] font-semibold text-white">{post.cta}</span>
-          </div>
-        ) : (
-          <p className="p-4 text-[13px] text-muted-foreground">{onRegenerate ? "Writing the post…" : "The sample post isn't ready yet."}</p>
-        )}
+      )}
+      <div className={`${card} flex items-start gap-3 p-4 text-[13px] leading-relaxed print:break-inside-avoid`}>
+        <Send className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
+        <p>Regular posts show Google and searchers the business is active, and give people a reason to call today.</p>
       </div>
-      <div className="space-y-3 text-[13px] leading-relaxed">
-        <Pitch>
-          <p>
-            We have created a sample post for your Google Business Profile. We will create and publish posts like this on a <b>daily basis</b>: offers, recent jobs, news and tips, each
-            with a photo and a button.
-          </p>
-        </Pitch>
-        <div className={`${card} flex items-start gap-3 p-4`}>
-          <Send className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
-          <p>Regular posts show Google and searchers the business is active, and give people a reason to call today.</p>
-        </div>
-        {onRegenerate && (
-          <button type="button" onClick={onRegenerate} disabled={busy} className="text-xs font-medium text-brand hover:underline disabled:opacity-60 print:hidden">
-            {busy ? "Writing…" : "Write another version"}
-          </button>
-        )}
+    </div>
+  )
+}
+
+/** The post's image, in the 4:3 shape Google shows it in. Without one: nothing for the client, the reason for the team. */
+function PostImage({ post, onRetry }: { post: GbpPost; onRetry?: () => void }) {
+  if (post.image === "ready" && post.id) {
+    return (
+      <figure className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element -- our own API's image, already sized */}
+        <img src={postImageUrl(post.id)} alt={post.headline} className="aspect-[4/3] w-full bg-muted object-cover" />
+        <figcaption className="absolute bottom-2 right-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">AI image</figcaption>
+      </figure>
+    )
+  }
+  if (post.image === "pending") {
+    return (
+      <div className="grid aspect-[4/3] w-full animate-pulse place-items-center bg-muted text-xs text-muted-foreground print:hidden">
+        <span className="inline-flex items-center gap-2">
+          <ImageIcon className="h-4 w-4" aria-hidden /> Creating the image…
+        </span>
       </div>
+    )
+  }
+  if (!onRetry) return null
+  return (
+    <div className="grid aspect-[4/3] w-full place-items-center bg-muted px-5 text-center text-xs text-muted-foreground print:hidden">
+      <div>
+        <ImageIcon className="mx-auto mb-2 h-5 w-5" aria-hidden />
+        {post.imageError ?? "No image yet."}
+        <button type="button" onClick={onRetry} className="mx-auto mt-2 block font-medium text-brand hover:underline">
+          Try again
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** For publishing the post by hand: its text, its image, and another version of it. */
+function PostTools({ post, busy, onRegenerate }: { post: GbpPost; busy: boolean; onRegenerate: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const link = "inline-flex items-center gap-1.5 font-medium text-brand hover:underline disabled:opacity-60"
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${post.headline}\n\n${post.body}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // The text is on the page to select by hand.
+    }
+  }
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-4 py-2.5 text-xs print:hidden">
+      <button type="button" onClick={copy} className={link}>
+        <Copy className="h-3.5 w-3.5" aria-hidden /> {copied ? "Copied" : "Copy text"}
+      </button>
+      {post.image === "ready" && post.id && (
+        <a href={postImageUrl(post.id)} download={`google-post-${post.id.slice(0, 8)}`} target="_blank" rel="noopener noreferrer" className={link}>
+          <Download className="h-3.5 w-3.5" aria-hidden /> Image
+        </a>
+      )}
+      <button type="button" onClick={onRegenerate} disabled={busy} className={link} title="Writes this post again, with a new image">
+        <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} aria-hidden /> {busy ? "Writing…" : "Another version"}
+      </button>
     </div>
   )
 }

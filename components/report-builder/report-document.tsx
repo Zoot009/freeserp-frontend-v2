@@ -5,7 +5,7 @@ import Image from "next/image"
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
 import { def, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
 import { domainOf } from "@/components/report-builder/runs"
-import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
+import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection, type PostActions } from "@/components/report-builder/sections"
 import {
   AdsSection,
   AiPromptsSection,
@@ -96,11 +96,10 @@ export function ReportDocument({
   inputs,
   business,
   runOf,
-  post,
+  posts,
   off = [],
   onToggle,
-  onRegenerate,
-  writing,
+  postActions,
   onRetry,
   shared = false,
 }: {
@@ -110,13 +109,13 @@ export function ReportDocument({
   inputs: Inputs
   business: string
   runOf: (d: Deliverable) => RunState | undefined
-  post: GbpPost | null
+  posts: GbpPost[]
   /** Sections ticked off: folded on screen, left out of the print. */
   off?: Deliverable[]
   /** The team's view: a tick box on every section. */
   onToggle?: (d: Deliverable) => void
-  onRegenerate?: () => void
-  writing?: boolean
+  /** The team's view: what can be done with the sample posts. */
+  postActions?: PostActions
   /** Start a failed section's check again. */
   onRetry?: (d: Deliverable) => void
   /** Opened from a shared link, by someone with no account. */
@@ -188,7 +187,7 @@ export function ReportDocument({
           </div>
         )
       case "aiPost":
-        return <AiPostSection data={data} post={post} onRegenerate={onRegenerate} busy={writing} />
+        return <AiPostSection data={data} posts={posts} actions={postActions} />
       case "directions":
         return <DirectionsSection data={data} />
       case "mapsTracker":

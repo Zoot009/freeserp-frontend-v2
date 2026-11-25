@@ -38,7 +38,7 @@ export default function ReportBuilderReport() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [missing, setMissing] = useState("")
   const [runs, setRuns] = useState<Partial<Record<RunKey, RunState>>>({})
-  const [post, setPost] = useState<GbpPost | null>(null)
+  const [posts, setPosts] = useState<GbpPost[]>([])
   const [writing, setWriting] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
   // Sections ticked off on screen; `plan.hidden` is what's saved.
@@ -223,27 +223,38 @@ export default function ReportBuilderReport() {
     [persist],
   )
 
-  // The AI post, once the Maps audit it's written from is in.
+  // The AI posts, once the Maps audit they're written from is in. Their images are made on the server and fill in.
   const gbpRun = runs.gbp
-  const writePost = useCallback(
-    async (regenerate = false) => {
+  const postAsk = useRef(0)
+  const loadPosts = useCallback(
+    async (opts: { regenerate?: number; retryImages?: boolean; quiet?: boolean } = {}) => {
       if (!gbpRun?.id) return
-      setWriting(true)
+      const { quiet, ...body } = opts
+      // Only the latest ask counts: a check on the images, answered late, must not undo a rewrite.
+      const n = ++postAsk.current
+      if (!quiet) setWriting(true)
       try {
-        const res = await api.post<{ post: GbpPost }>("/api/report-builder/post", { gbpAuditId: gbpRun.id, regenerate })
-        if (alive.current) setPost(res.post)
+        const res = await api.post<{ posts: GbpPost[] }>("/api/report-builder/post", { gbpAuditId: gbpRun.id, ...body })
+        // Unchanged, they stay the same array: a new one would send the shared copy again.
+        if (alive.current && n === postAsk.current) setPosts((cur) => (JSON.stringify(cur) === JSON.stringify(res.posts) ? cur : (res.posts ?? [])))
       } catch {
-        /* the section keeps its "writing" note and the retry link */
+        /* the section shows what it has, with a way to try again */
       } finally {
-        if (alive.current) setWriting(false)
+        if (!quiet && alive.current) setWriting(false)
       }
     },
     [gbpRun?.id],
   )
   useEffect(() => {
-    if (gbpRun?.state === "done" && plan?.sel.includes("aiPost") && !post && !writing) void writePost()
+    if (gbpRun?.state === "done" && plan?.sel.includes("aiPost") && !posts.length && !writing) void loadPosts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gbpRun?.state])
+  const imagesPending = !writing && posts.some((p) => p.image === "pending")
+  useEffect(() => {
+    if (!imagesPending) return
+    const t = setInterval(() => void loadPosts({ quiet: true }), 5000)
+    return () => clearInterval(t)
+  }, [imagesPending, loadPosts])
 
   // Once shared, the link follows the report: each section that finishes (and the sample post, once written) is
   // sent to it as it comes in, so a link handed over the moment the report started fills in by itself.
@@ -252,13 +263,13 @@ export default function ReportBuilderReport() {
     .sort()
     .join(",")
   useEffect(() => {
-    if (!plan?.shareToken || (!doneRuns && !post)) return
+    if (!plan?.shareToken || (!doneRuns && !posts.length)) return
     const t = setTimeout(() => {
       const data = Object.fromEntries(Object.entries(runsRef.current).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : [])))
-      api.post(`/api/report-builder/reports/${plan.id}/share`, { data, post }).catch(() => undefined)
+      api.post(`/api/report-builder/reports/${plan.id}/share`, { data, posts }).catch(() => undefined)
     }, 1500)
     return () => clearTimeout(t)
-  }, [plan?.id, plan?.shareToken, doneRuns, post])
+  }, [plan?.id, plan?.shareToken, doneRuns, posts])
 
   // Which sections go to the client, saved with the report.
   const saveSections = () => {
@@ -322,10 +333,10 @@ export default function ReportBuilderReport() {
     setSaveState("idle")
     setOff((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))
   }
-  // What a shared link shows: every finished run's data, by run, and the sample post.
+  // What a shared link shows: every finished run's data, by run, and the sample posts.
   const shareCopy = () => ({
     data: Object.fromEntries(Object.entries(runs).flatMap(([k, r]) => (r?.state === "done" ? [[k, r.data]] : []))),
-    post,
+    posts,
   })
 
   return (
@@ -384,11 +395,15 @@ export default function ReportBuilderReport() {
         inputs={inputs}
         business={business}
         runOf={runOf}
-        post={post}
+        posts={posts}
         off={off}
         onToggle={toggle}
-        onRegenerate={() => writePost(true)}
-        writing={writing}
+        postActions={{
+          regenerate: (i) => void loadPosts({ regenerate: i }),
+          retryImages: () => void loadPosts({ retryImages: true, quiet: true }),
+          reload: () => void loadPosts(),
+          busy: writing,
+        }}
         onRetry={retry}
       />
 

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button"
 type Shared = {
   report: { id: string; createdAt: string; expiresAt: string; sel: string[]; inputs: Inputs; business: string | null }
   data: Partial<Record<RunKey, any>>
-  post: GbpPost | null
+  posts: GbpPost[]
   /** Runs that failed: their sections are left out. Absent from servers before live sharing. */
   failed?: RunKey[]
 }
@@ -43,7 +43,7 @@ export default function SharedReportPage() {
         return (await res.json()) as Shared
       })
       .then((d) => {
-        if (!cancelled) setShared(d)
+        if (!cancelled) setShared({ ...d, posts: d.posts ?? [] })
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error && (err.message === "404" || err.message === "400") ? "gone" : "unavailable")
@@ -54,7 +54,7 @@ export default function SharedReportPage() {
   }, [token, attempt])
 
   // A report shared while it builds: check back every 15 seconds until every section is in.
-  const waiting = !!shared && sectionsOf(shared).some((d) => shared.data[def(d).run] === undefined || (d === "aiPost" && !shared.post))
+  const waiting = !!shared && sectionsOf(shared).some((d) => shared.data[def(d).run] === undefined || (d === "aiPost" && (!shared.posts.length || shared.posts.some((p) => p.image === "pending"))))
   useEffect(() => {
     if (!waiting) return
     const t = setTimeout(() => setAttempt((n) => n + 1), 15_000)
@@ -91,7 +91,7 @@ export default function SharedReportPage() {
     )
   }
 
-  const { report, data, post } = shared
+  const { report, data, posts } = shared
   const sel = sectionsOf(shared)
   const business = data.gbp?.facts?.business?.name ?? report.business ?? report.inputs.name ?? (domainOf(report.inputs.web) || "Your business")
   return (
@@ -114,7 +114,7 @@ export default function SharedReportPage() {
           inputs={report.inputs}
           business={business}
           runOf={(d) => (data[def(d).run] !== undefined ? { state: "done", data: data[def(d).run] } : { state: "running" })}
-          post={post}
+          posts={posts}
           shared
         />
       </div>
