@@ -5,7 +5,8 @@ import Image from "next/image"
 import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
 import { def, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
 import { domainOf } from "@/components/report-builder/runs"
-import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection, type PostActions } from "@/components/report-builder/sections"
+import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
+import type { PostActions } from "@/components/report-builder/post-card"
 import {
   AdsSection,
   AiPromptsSection,

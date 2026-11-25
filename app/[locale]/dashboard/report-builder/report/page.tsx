@@ -223,7 +223,7 @@ export default function ReportBuilderReport() {
     [persist],
   )
 
-  // The AI posts, once the Maps audit they're written from is in. Their images are made on the server and fill in.
+  // The AI posts, once the Maps audit they're written from is in. AI pictures, when on, are made on the server and fill in.
   const gbpRun = runs.gbp
   const postAsk = useRef(0)
   const loadPosts = useCallback(
@@ -234,7 +234,7 @@ export default function ReportBuilderReport() {
       const n = ++postAsk.current
       if (!quiet) setWriting(true)
       try {
-        const res = await api.post<{ posts: GbpPost[] }>("/api/report-builder/post", { gbpAuditId: gbpRun.id, ...body })
+        const res = await api.post<{ posts: GbpPost[] }>("/api/report-builder/post", { gbpAuditId: gbpRun.id, web: plan?.inputs.web, ...body })
         // Unchanged, they stay the same array: a new one would send the shared copy again.
         if (alive.current && n === postAsk.current) setPosts((cur) => (JSON.stringify(cur) === JSON.stringify(res.posts) ? cur : (res.posts ?? [])))
       } catch {
@@ -243,7 +243,7 @@ export default function ReportBuilderReport() {
         if (!quiet && alive.current) setWriting(false)
       }
     },
-    [gbpRun?.id],
+    [gbpRun?.id, plan?.inputs.web],
   )
   useEffect(() => {
     if (gbpRun?.state === "done" && plan?.sel.includes("aiPost") && !posts.length && !writing) void loadPosts()
