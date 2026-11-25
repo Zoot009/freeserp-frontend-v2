@@ -1,4 +1,4 @@
-// A part of the page as a PNG, as the browser itself draws it: the part is copied
+// A part of the page as a PNG or a PDF, as the browser itself draws it: the part is copied
 // into an SVG with the page's own styles, fonts and pictures inside it, and that
 // SVG is drawn to a canvas. The browser loads nothing for a picture, so whatever
 // it needs goes in first. Chrome, Edge and Brave; Firefox as far as it goes.
@@ -12,26 +12,119 @@ const XHTML = "http://www.w3.org/1999/xhtml"
 export type CaptureCache = { css?: string; files: Map<string, Promise<string | null>> }
 export const captureCache = (): CaptureCache => ({ files: new Map() })
 
-/**
- * `el` as a PNG with `pad` around it, twice the screen's size where that fits.
- * While it's drawn it carries `data-capturing` (see addCaptureStyle).
- */
+/** `el` as a PNG with `pad` around it, twice the screen's size where that fits. */
 export async function capturePng(el: HTMLElement, { pad = 32, cache = captureCache() }: { pad?: number; cache?: CaptureCache } = {}): Promise<Blob> {
+  return whileCapturing(el, null, async () => {
+    const { img, width, height } = await drawing(el, pad, cache)
+    const scale = Math.min(2, MAX_SIDE / Math.max(width, height))
+    const { canvas, g } = sheet(width * scale, height * scale)
+    g.scale(scale, scale)
+    g.drawImage(img, 0, 0)
+    return new Promise<Blob>((ok, no) => canvas.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/png"))
+  })
+}
+
+// A4 in millimetres, and how wide `el` is laid out to fill it: narrower than a desktop, so the words print at a readable size.
+const A4 = { w: 210, h: 297, side: 10, top: 10, foot: 16 }
+const PDF_WIDTH = 960
+const PX_PER_MM = PDF_WIDTH / (A4.w - A4.side * 2)
+const PAGE = Math.floor((A4.h - A4.top - A4.foot) * PX_PER_MM)
+
+/** `el` as an A4 PDF, cut between its rows and cards rather than through them, with a footer on every page. */
+export async function capturePdf(el: HTMLElement, { title, footer, cache = captureCache() }: { title: string; footer: string; cache?: CaptureCache }): Promise<Blob> {
+  const { jsPDF } = await import("jspdf")
+  return whileCapturing(el, PDF_WIDTH, async () => {
+    const { img, height, width } = await drawing(el, 0, cache)
+    const cuts = pageCuts(el, height)
+    const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true })
+    pdf.setProperties({ title })
+    const scale = 2
+    for (const [i, from] of cuts.slice(0, -1).entries()) {
+      const tall = cuts[i + 1] - from
+      const { canvas, g } = sheet(A4.w * PX_PER_MM * scale, A4.h * PX_PER_MM * scale)
+      g.scale(scale, scale)
+      g.save()
+      g.beginPath()
+      g.rect(A4.side * PX_PER_MM, A4.top * PX_PER_MM, width, tall)
+      g.clip()
+      g.drawImage(img, A4.side * PX_PER_MM, A4.top * PX_PER_MM - from)
+      g.restore()
+      // Drawn, not typed into the PDF, whose own fonts only know Western letters.
+      g.fillStyle = "#71717a"
+      g.font = "14px Inter, 'Segoe UI', system-ui, sans-serif"
+      const line = (A4.h - 7) * PX_PER_MM
+      g.fillText(footer, A4.side * PX_PER_MM, line)
+      g.textAlign = "right"
+      g.fillText(`Page ${i + 1} of ${cuts.length - 1}`, (A4.w - A4.side) * PX_PER_MM, line)
+      if (i) pdf.addPage()
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, A4.w, A4.h)
+    }
+    return pdf.output("blob")
+  })
+}
+
+/** Where each page starts, and the end: as far down each page as goes through nothing that should stay whole. */
+function pageCuts(el: HTMLElement, height: number): number[] {
+  const top = el.getBoundingClientRect().top
+  const blocks = [...el.querySelectorAll<HTMLElement | SVGElement>("tr, li, p, h1, h2, h3, h4, summary, button, label, img, svg, canvas, .gm-style, [class*=rounded], [class*=card]")]
+    // What a folded row holds still has a place on the page, but nothing is drawn there.
+    .filter((n) => n.checkVisibility())
+    .map((n) => {
+      const r = n.getBoundingClientRect()
+      const picture = n instanceof SVGElement || n.matches("img, canvas, .gm-style")
+      // A heading stays with what it's the heading of.
+      return { from: r.top - top, to: r.bottom - top + (/^H[1-4]$/.test(n.tagName) ? 60 : 0), picture }
+    })
+    .filter((r) => r.to - r.from > 2 && r.to - r.from < PAGE * 0.9)
+  /** The furthest cut on the page from `start`, keeping pictures whole, and anything else up to `most` tall. */
+  const furthest = (start: number, most: number) => {
+    let y = start + PAGE
+    for (let moved = true; moved; ) {
+      moved = false
+      for (const r of blocks) if ((r.picture || r.to - r.from <= most) && r.from < y - 1 && r.to > y + 1) [y, moved] = [r.from, true]
+    }
+    return y
+  }
+  const cuts = [0]
+  while (height - cuts[cuts.length - 1] > PAGE) {
+    const start = cuts[cuts.length - 1]
+    // Whole cards where that fills most of the page; else between a card's rows; else between lines; else anywhere.
+    const y = [PAGE * 0.5, PAGE * 0.25, 160, 60].map((most) => furthest(start, most)).find((at) => at >= start + PAGE * 0.75) ?? furthest(start, 60)
+    cuts.push(Math.round(y < start + PAGE * 0.4 ? start + PAGE : y))
+  }
+  return [...cuts, height]
+}
+
+/** With `el` ready to be drawn: at `width` when one's given, loaded, and without what stays out of it. */
+async function whileCapturing<T>(el: HTMLElement, width: number | null, draw: () => Promise<T>): Promise<T> {
   addCaptureStyle()
   const top = document.scrollingElement?.scrollTop ?? 0
+  const had = el.style.width
+  // A PDF can't be clicked: rows that fold away are open in it, as in the print.
+  const shut = width ? [...el.querySelectorAll<HTMLDetailsElement>("details:not([open])")].filter((d) => !d.parentElement?.closest("details")) : []
+  shut.forEach((d) => (d.open = true))
+  if (width) el.style.width = `${width}px`
   el.setAttribute("data-capturing", "")
   try {
     await settled(el)
-    const box = el.getBoundingClientRect()
-    const width = Math.ceil(box.width) + pad * 2
-    const height = Math.ceil(box.height) + pad * 2
-    cache.css ??= await pageCss(cache)
-    const svg = await toSvg(el, box.width, width, height, pad, cache)
-    return await draw(svg, width, height, Math.min(2, MAX_SIDE / Math.max(width, height)), pageColor(el))
+    return await draw()
   } finally {
     el.removeAttribute("data-capturing")
+    el.style.width = had
+    shut.forEach((d) => (d.open = false))
     document.scrollingElement?.scrollTo({ top, behavior: "instant" })
   }
+}
+
+/** A white canvas. */
+function sheet(width: number, height: number) {
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.round(width)
+  canvas.height = Math.round(height)
+  const g = canvas.getContext("2d")!
+  g.fillStyle = "#ffffff"
+  g.fillRect(0, 0, canvas.width, canvas.height)
+  return { canvas, g }
 }
 
 /** What the print leaves out (the team's own controls) and a map's zoom buttons stay out; a card in a row is only as tall as it needs. */
@@ -71,15 +164,6 @@ async function settled(el: HTMLElement) {
   while (Date.now() < until && [...el.querySelectorAll("img")].some((i) => i.src && !i.complete)) await wait(150)
 }
 
-/** The colour behind it: the nearest one that isn't see-through. */
-function pageColor(el: HTMLElement): string {
-  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
-    const c = getComputedStyle(n).backgroundColor
-    if (c && c !== "transparent" && !/[,/]\s*0\)$/.test(c)) return c
-  }
-  return "#ffffff"
-}
-
 // ── The copy ─────────────────────────────────────────────────────────────────
 
 async function toSvg(el: HTMLElement, inner: number, width: number, height: number, pad: number, cache: CaptureCache): Promise<string> {
@@ -102,12 +186,14 @@ async function toSvg(el: HTMLElement, inner: number, width: number, height: numb
 
   const doc = document.implementation.createDocument("http://www.w3.org/2000/svg", "svg", null)
   const svg = doc.documentElement
-  // <html>'s classes and theme, on what is now the root. As wide as the window, so the same breakpoints apply.
-  for (const a of document.documentElement.attributes) if (a.name !== "xmlns") svg.setAttribute(a.name, a.value)
+  // <html>'s classes, on what is now the root, but in the light theme: these are files to send. As wide as the window, so the same breakpoints apply.
+  for (const a of document.documentElement.attributes) if (!["xmlns", "data-theme", "style"].includes(a.name)) svg.setAttribute(a.name, a.value)
+  svg.classList.remove("dark")
+  svg.classList.add("light")
   const w = Math.max(width, window.innerWidth)
   svg.setAttribute("width", String(w))
   svg.setAttribute("height", String(height))
-  svg.setAttribute("style", `${document.documentElement.getAttribute("style") ?? ""};width:${w}px!important;height:${height}px!important;margin:0;padding:0;overflow:hidden`)
+  svg.setAttribute("style", `color-scheme:light;width:${w}px!important;height:${height}px!important;margin:0;padding:0;overflow:hidden`)
   const style = document.createElementNS(XHTML, "style")
   // Animations would start again, at their first frame.
   style.textContent = `${cache.css}\n*,*::before,*::after{animation:none!important;transition:none!important}\n[data-shell]::before,[data-shell]::after{display:none!important}`
@@ -235,25 +321,17 @@ const sameRange = (a: string, b: string) => a.replace(/\s/g, "").toLowerCase() =
 
 // ── The picture ──────────────────────────────────────────────────────────────
 
-async function draw(svg: string, width: number, height: number, scale: number, background: string): Promise<Blob> {
+async function drawing(el: HTMLElement, pad: number, cache: CaptureCache) {
+  const box = el.getBoundingClientRect()
+  const width = Math.ceil(box.width) + pad * 2
+  const height = Math.ceil(box.height) + pad * 2
+  cache.css ??= await pageCss(cache)
   const img = new Image()
   // A data: address, not a blob: one, which would mark the canvas as another site's.
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(await toSvg(el, box.width, width, height, pad, cache))}`
   await img.decode()
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.round(width * scale)
-  canvas.height = Math.round(height * scale)
-  const g = canvas.getContext("2d")!
-  const paint = () => {
-    g.setTransform(1, 0, 0, 1, 0, 0)
-    g.fillStyle = background
-    g.fillRect(0, 0, canvas.width, canvas.height)
-    g.setTransform(scale, 0, 0, scale, 0, 0)
-    g.drawImage(img, 0, 0)
-  }
-  // Twice: fonts inside an SVG can arrive just after it's first drawn.
-  paint()
-  await new Promise((ok) => setTimeout(ok, 120))
-  paint()
-  return new Promise<Blob>((ok, no) => canvas.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/png"))
+  // Drawn once and left a moment: fonts inside an SVG can arrive just after it's first drawn.
+  sheet(1, 1).g.drawImage(img, 0, 0)
+  await new Promise((ok) => setTimeout(ok, 150))
+  return { img, width, height }
 }

@@ -26,5 +26,5 @@ export async function saveFolder(client: string, files: SaveFile[], zipName = cl
   saveAs(zip(await Promise.all(files.map(async ({ path, blob }) => ({ name: `${folder}/${path}`, data: new Uint8Array(await blob.arrayBuffer()) })))), `${safeName(zipName, "Client")}.zip`)
 }
 
-/** Save one picture as it is. */
-export const savePng = (client: string, title: string, png: Blob) => saveAs(png, `${safeName(`${client} - ${title}`, "Image")}.png`)
+/** Save one file as it is. `ext` with its dot. */
+export const saveOne = (client: string, title: string, ext: string, blob: Blob) => saveAs(blob, `${safeName(`${client} - ${title}`, "Report")}${ext}`)

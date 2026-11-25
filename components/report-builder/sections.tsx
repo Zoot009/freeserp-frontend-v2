@@ -310,8 +310,14 @@ function RouteLines({ to, from }: { to: google.maps.LatLngLiteral; from: google.
     )
     const bounds = new google.maps.LatLngBounds(to)
     from.forEach((f) => bounds.extend(f))
-    if (from.length) map.fitBounds(bounds, 60)
-    return () => lines.forEach((l) => l.setMap(null))
+    const fit = () => void (from.length && map.fitBounds(bounds, 60))
+    // Now, and whenever the map's size changes.
+    const watch = new ResizeObserver(fit)
+    watch.observe(map.getDiv())
+    return () => {
+      watch.disconnect()
+      lines.forEach((l) => l.setMap(null))
+    }
   }, [map, to, from])
   return null
 }

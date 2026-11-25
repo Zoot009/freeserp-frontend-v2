@@ -78,7 +78,7 @@ function PostGraphic({ post, business: b, photo, logo, look }: { post: GbpPost; 
   const lastLine = contact ? bottom - 78 : bottom
   const at = (i: number) => (photo ? lastLine - (lines.length - 1 - i) * (size + 12) : 520 + i * (size + 14))
   return (
-    <svg data-post-picture viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${b.name}: ${post.headline}`} className="block aspect-[4/3] w-full" fontFamily={FONT}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${b.name}: ${post.headline}`} className="block aspect-[4/3] w-full" fontFamily={FONT}>
       <defs>
         <linearGradient id={`${uid}s`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={deep} stopOpacity="0" />
@@ -247,44 +247,6 @@ function readLogo(img: HTMLImageElement): LogoLook {
 
 // ── The team's tools ─────────────────────────────────────────────────────────
 
-/** The picture as a PNG, as drawn. Its photo and logo are put inside it first: an SVG drawn to a canvas loads nothing. */
-async function toPng(svg: SVGSVGElement): Promise<Blob> {
-  const copy = svg.cloneNode(true) as SVGSVGElement
-  copy.setAttribute("xmlns", "http://www.w3.org/2000/svg")
-  copy.setAttribute("width", String(W))
-  copy.setAttribute("height", String(H))
-  await Promise.all(
-    [...copy.querySelectorAll("image")].map(async (el) => {
-      const res = await fetch(el.getAttribute("href")!)
-      // Gone from the server: drawn without it, as it is on the page.
-      if (!res.ok) return el.remove()
-      const blob = await res.blob()
-      el.setAttribute(
-        "href",
-        await new Promise<string>((ok, no) => {
-          const r = new FileReader()
-          r.onload = () => ok(String(r.result))
-          r.onerror = () => no(r.error)
-          r.readAsDataURL(blob)
-        }),
-      )
-    }),
-  )
-  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: "image/svg+xml" }))
-  try {
-    const img = new Image()
-    img.src = url
-    await img.decode()
-    const c = document.createElement("canvas")
-    c.width = W
-    c.height = H
-    c.getContext("2d")!.drawImage(img, 0, 0, W, H)
-    return await new Promise<Blob>((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/png"))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 /** The posts on the page, with the card each is shown in. */
 export const postItems = (posts: GbpPost[]) =>
   posts.flatMap((post, i) => {
@@ -292,16 +254,11 @@ export const postItems = (posts: GbpPost[]) =>
     return card ? [{ post, card, n: i + 1 }] : []
   })
 
-/** What posts are saved as: each whole post (picture and written text) as a PNG, then its picture alone and its text, to publish with. */
+/** Each whole post, picture and written text, as a PNG. */
 export async function postFiles(items: ReturnType<typeof postItems>, cache: CaptureCache = captureCache()): Promise<SaveFile[]> {
   const files: SaveFile[] = []
   for (const { post, card, n } of items) {
-    const name = `${n} - ${safeName(post.headline, "Post")}`
-    files.push(
-      { path: `${name}.png`, blob: await capturePng(card, { pad: 24, cache }) },
-      { path: `Image only/${name}.png`, blob: await toPng(card.querySelector<SVGSVGElement>("svg[data-post-picture]")!) },
-      { path: `Text/${name}.txt`, blob: new Blob([`${post.headline}\n\n${post.body}\n\nButton: ${post.cta}\n`]) },
-    )
+    files.push({ path: `${n} - ${safeName(post.headline, "Post")}.png`, blob: await capturePng(card, { pad: 24, cache }) })
   }
   if (!files.length) throw new Error("no posts on the page")
   return files
@@ -326,7 +283,7 @@ export function DownloadAll({ posts, client }: { posts: GbpPost[]; client: strin
       onClick={save}
       disabled={state === "busy"}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-60 print:hidden"
-      title={`Saves every post, with its image and text, in a folder named ${client}`}
+      title={`Saves every post as a PNG, in a folder named ${client}`}
     >
       {state === "busy" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <FolderDown className="h-4 w-4" aria-hidden />}
       <span aria-live="polite">{state === "busy" ? "Preparing…" : state === "failed" ? "Couldn't save. Try again" : "Download all"}</span>
@@ -334,7 +291,7 @@ export function DownloadAll({ posts, client }: { posts: GbpPost[]; client: strin
   )
 }
 
-/** For publishing the post by hand: its text, all of it as files, and another version of it. */
+/** For publishing the post by hand: its text, all of it as a picture, and another version of it. */
 function PostTools({ post, index, client, actions }: { post: GbpPost; index: number; client: string; actions: PostActions }) {
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
@@ -369,7 +326,7 @@ function PostTools({ post, index, client, actions }: { post: GbpPost; index: num
         <button type="button" onClick={copy} className={link}>
           <Copy className="h-3.5 w-3.5" aria-hidden /> Copy text
         </button>
-        <button type="button" onClick={(e) => save(e.currentTarget.closest<HTMLElement>("[data-post-card]"))} disabled={saving} className={link} title="A ZIP with the whole post, its image alone, and its text">
+        <button type="button" onClick={(e) => save(e.currentTarget.closest<HTMLElement>("[data-post-card]"))} disabled={saving} className={link} title="The whole post as a PNG, in a ZIP">
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Download className="h-3.5 w-3.5" aria-hidden />} {saving ? "Preparing…" : "Download"}
         </button>
         <button type="button" onClick={() => actions.regenerate(index)} disabled={actions.busy} className={link} title="Writes this post again">
