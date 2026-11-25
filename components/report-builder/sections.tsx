@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
 import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
 import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
@@ -10,7 +10,7 @@ import { ActionPlan, GridPanel, ReportHero } from "@/components/gbp-audit/report
 import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
-import { DownloadAll, PostCard, type PostActions } from "@/components/report-builder/post-card"
+import { PostCard, type PostActions } from "@/components/report-builder/post-card"
 import { Pitch, listOf } from "@/components/report-builder/tool-sections"
 
 // The client report's sections, one per deliverable. Each takes the finished
@@ -26,6 +26,7 @@ export function Section({
   children,
   included = true,
   onToggle,
+  action,
 }: {
   /** Where the cover's link for it lands. */
   id?: string
@@ -35,15 +36,18 @@ export function Section({
   children: ReactNode
   included?: boolean
   onToggle?: () => void
+  /** The team's: a button in the header, while the section is in the report. */
+  action?: ReactNode
 }) {
   return (
     <section id={id} className={`scroll-mt-6 space-y-4 print:break-before-page ${included ? "" : "print:hidden"}`}>
-      <div className="flex items-start gap-3 border-b border-border pb-3">
+      <div className={`flex items-start gap-3 border-b border-border pb-3 ${action ? "max-sm:flex-wrap" : ""}`}>
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold ${included ? "bg-brand text-white" : "bg-muted text-muted-foreground"}`}>{n ?? "–"}</span>
-        <div className="min-w-0 flex-1">
+        <div className={`min-w-0 flex-1 ${action ? "max-sm:min-w-[70%]" : ""}`}>
           <h2 className={`text-[18px] font-semibold tracking-tight ${included ? "" : "text-muted-foreground"}`}>{title}</h2>
           <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{promise}</p>
         </div>
+        {included && action}
         {onToggle && (
           <label
             className={`flex shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors print:hidden ${included ? "border-brand/40 bg-brand/5 text-brand" : "border-border text-muted-foreground hover:bg-muted"}`}
@@ -249,7 +253,6 @@ function PostsActivity({ report }: { report: Report }) {
 
 export function AiPostSection({ data, posts, actions }: { data: GbpAuditResponse; posts: GbpPost[]; actions?: PostActions }) {
   const b = data.facts!.business
-  const cards = useRef<HTMLDivElement>(null)
   return (
     <div className="space-y-5">
       <Pitch>
@@ -258,11 +261,10 @@ export function AiPostSection({ data, posts, actions }: { data: GbpAuditResponse
           {posts.length === 1 ? "this" : "these"} on a <b>daily basis</b>: offers, recent jobs, news and tips, each with your logo, a photo and a button.
         </p>
       </Pitch>
-      {actions && posts.length > 0 && <DownloadAll posts={posts} business={b} within={cards} />}
       {posts.length ? (
-        <div ref={cards} className={`grid gap-4 ${posts.length === 1 ? "max-w-md" : "md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3 print:gap-2.5"}`}>
+        <div className={`grid gap-4 ${posts.length === 1 ? "max-w-md" : "md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3 print:gap-2.5"}`}>
           {posts.map((post, i) => (
-            <PostCard key={post.id ?? i} post={post} business={b} actions={actions} onRegenerate={() => actions?.regenerate(i)} />
+            <PostCard key={post.id ?? i} post={post} index={i} business={b} actions={actions} />
           ))}
         </div>
       ) : (

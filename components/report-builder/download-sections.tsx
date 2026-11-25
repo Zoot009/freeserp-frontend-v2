@@ -4,7 +4,9 @@ import { useState } from "react"
 import { Download, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { captureCache, capturePng, keepMapPictures } from "@/lib/capture"
-import { saveImages } from "@/lib/save-images"
+import type { GbpPost } from "@/lib/report-builder"
+import { safeName, saveFolder, savePng, type SaveFile } from "@/lib/save-images"
+import { postFiles, postItems } from "@/components/report-builder/post-card"
 
 // Before the report's maps load.
 keepMapPictures()
@@ -12,8 +14,11 @@ keepMapPictures()
 /** A section of the report: the element it's in, and whether it's finished and in the report. */
 export type SectionChoice = { id: string; title: string; ready: boolean }
 
-/** Save any of the report's sections as pictures: one as a PNG, more as a ZIP with the client's folder inside. */
-export function DownloadSections({ sections, client }: { sections: SectionChoice[]; client: string }) {
+/** The AI Google Posts: saved with each post's image and text as well, so always as a ZIP. */
+const POSTS = "section-aiPost"
+
+/** Save any of the report's sections: one as a PNG; more, or the AI Google Posts, as a ZIP with the client's folder inside. */
+export function DownloadSections({ sections, posts, client }: { sections: SectionChoice[]; posts: GbpPost[]; client: string }) {
   const [open, setOpen] = useState(false)
   // The ones unticked: a section that finishes while this is open starts ticked, like the rest.
   const [off, setOff] = useState<string[]>([])
@@ -21,13 +26,12 @@ export function DownloadSections({ sections, client }: { sections: SectionChoice
   const [error, setError] = useState("")
   const ready = sections.filter((s) => s.ready)
   const chosen = ready.filter((s) => !off.includes(s.id))
+  const zipped = chosen.length > 1 || chosen.some((s) => s.id === POSTS)
 
   const save = async () => {
     setError("")
-    const images: { title: string; png: Blob }[] = []
+    const files: SaveFile[] = []
     const failed: string[] = []
-    const main = document.scrollingElement
-    const top = main?.scrollTop ?? 0
     const cache = captureCache()
     try {
       // One at a time: each is scrolled into view, so its map and photos load.
@@ -36,27 +40,31 @@ export function DownloadSections({ sections, client }: { sections: SectionChoice
         try {
           const el = document.getElementById(s.id)
           if (!el) throw new Error("no section")
-          images.push({ title: s.title, png: await capturePng(el, { cache }) })
+          const alone = chosen.length === 1
+          files.push({ path: `${alone ? "" : `${i + 1} - `}${safeName(s.title, "Image")}.png`, blob: await capturePng(el, { cache }) })
+          if (s.id === POSTS) {
+            // Alone, the posts are the folder; among others, they have one of their own.
+            const inside = alone ? "" : `${safeName(s.title, "Posts")}/`
+            files.push(...(await postFiles(postItems(posts), cache)).map((f) => ({ ...f, path: inside + f.path })))
+          }
         } catch (e) {
-          console.warn("[report] section not saved as an image", s.id, e)
+          console.warn("[report] section not saved", s.id, e)
           failed.push(s.title)
         }
       }
-      if (images.length) await saveImages(client, images)
-    } catch {
-      failed.push(...images.map((i) => i.title))
+      if (files.length) await (zipped ? saveFolder(client, files) : savePng(client, chosen[0].title, files[0].blob))
+    } catch (e) {
+      console.warn("[report] download failed", e)
+      failed.push("the download")
     } finally {
-      main?.scrollTo({ top })
       setStep(null)
     }
-    if (failed.length) setError(`Couldn't make the image for: ${failed.join(", ")}. Please try again.`)
+    if (failed.length) setError(`Couldn't save: ${failed.join(", ")}. Please try again.`)
     else setOpen(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !step && setOpen(o)}>
-      {/* The team's own controls are left out, as in the print, and the maps' zoom buttons. */}
-      <style>{"[data-capturing] .print\\:hidden, [data-capturing] .gm-bundled-control { display: none !important }"}</style>
       <DialogTrigger asChild>
         <button
           type="button"
@@ -70,7 +78,7 @@ export function DownloadSections({ sections, client }: { sections: SectionChoice
       <DialogContent className="max-w-md" showCloseButton={!step}>
         <DialogHeader>
           <DialogTitle>Download as images</DialogTitle>
-          <DialogDescription>Choose the sections to save. One is saved as a PNG; two or more as a ZIP with a folder named {client}.</DialogDescription>
+          <DialogDescription>Choose the sections to save. One is saved as a PNG; two or more, or the AI Google Posts with their images and text, as a ZIP with a folder named {client}.</DialogDescription>
         </DialogHeader>
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
@@ -116,7 +124,7 @@ export function DownloadSections({ sections, client }: { sections: SectionChoice
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
         >
           {step ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}
-          {step ? `Making image ${step.n} of ${step.of}…` : chosen.length > 1 ? `Download ${chosen.length} images (ZIP)` : "Download PNG"}
+          {step ? `Making ${step.n} of ${step.of}…` : !zipped ? "Download PNG" : chosen.length > 1 ? `Download ${chosen.length} sections (ZIP)` : "Download ZIP"}
         </button>
       </DialogContent>
     </Dialog>

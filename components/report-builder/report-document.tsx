@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
 import { def, type Deliverable, type GbpPost, type Inputs, type RunKey } from "@/lib/report-builder"
 import { domainOf } from "@/components/report-builder/runs"
 import { AeoSection, AiPostSection, CitationsSection, DirectionsSection, GbpPlanSection, Pending, Section, SiteAuditSection } from "@/components/report-builder/sections"
-import type { PostActions } from "@/components/report-builder/post-card"
+import { DownloadAll, type PostActions } from "@/components/report-builder/post-card"
 import {
   AdsSection,
   AiPromptsSection,
@@ -291,6 +291,7 @@ export function ReportDocument({
           promise={def(d).promise}
           included={!off.includes(d)}
           onToggle={onToggle ? () => onToggle(d) : undefined}
+          action={d === "aiPost" && postActions && posts.length > 0 && runOf(d)?.state === "done" ? <DownloadAll posts={posts} client={business} /> : undefined}
         >
           {/* Keyed by the run's state, so trying again starts the section afresh. */}
           <SectionBoundary key={`${d}:${runOf(d)?.state ?? "new"}`} onRetry={onRetry ? () => onRetry(d) : undefined}>

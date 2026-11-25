@@ -14,9 +14,11 @@ export const captureCache = (): CaptureCache => ({ files: new Map() })
 
 /**
  * `el` as a PNG with `pad` around it, twice the screen's size where that fits.
- * While it's drawn it carries `data-capturing`, for styles that leave things out.
+ * While it's drawn it carries `data-capturing` (see addCaptureStyle).
  */
 export async function capturePng(el: HTMLElement, { pad = 32, cache = captureCache() }: { pad?: number; cache?: CaptureCache } = {}): Promise<Blob> {
+  addCaptureStyle()
+  const top = document.scrollingElement?.scrollTop ?? 0
   el.setAttribute("data-capturing", "")
   try {
     await settled(el)
@@ -28,7 +30,17 @@ export async function capturePng(el: HTMLElement, { pad = 32, cache = captureCac
     return await draw(svg, width, height, Math.min(2, MAX_SIDE / Math.max(width, height)), pageColor(el))
   } finally {
     el.removeAttribute("data-capturing")
+    document.scrollingElement?.scrollTo({ top, behavior: "instant" })
   }
+}
+
+/** What the print leaves out (the team's own controls) and a map's zoom buttons stay out; a card in a row is only as tall as it needs. */
+function addCaptureStyle() {
+  if (document.getElementById("capture-style")) return
+  const style = document.createElement("style")
+  style.id = "capture-style"
+  style.textContent = "[data-capturing] .print\\:hidden,[data-capturing] .gm-bundled-control{display:none!important}[data-capturing]{align-self:start}"
+  document.head.append(style)
 }
 
 let keeping = false

@@ -368,6 +368,7 @@ export default function ReportBuilderReport() {
           </button>
           <DownloadSections
             client={business}
+            posts={posts}
             sections={shown.map((d) => ({ id: `section-${d}`, title: def(d).title, ready: runOf(d)?.state === "done" && (d !== "aiPost" || posts.length > 0) }))}
           />
           <button
