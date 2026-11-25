@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { Copy, Download, FolderDown, Loader2, RefreshCw } from "lucide-react"
 import type { GbpAuditResponse } from "@/lib/gbp-audit"
 import { postImageUrl, type GbpPost } from "@/lib/report-builder"
-import { zip } from "@/lib/zip"
+import { saveImages } from "@/lib/save-images"
 
 type Business = NonNullable<GbpAuditResponse["facts"]>["business"]
 
@@ -238,25 +238,7 @@ async function toPng(svg: SVGSVGElement): Promise<Blob> {
   }
 }
 
-/** A name safe for a file or folder on Windows, Mac and Linux, whatever alphabet it is in. */
-const safeName = (s: string, fallback: string) =>
-  s
-    .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80)
-    .replace(/[. ]+$/, "") || fallback
-
-function saveAs(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
-}
-
-/** Every post's picture at once: a ZIP holding a folder named after the client, a PNG per post inside. A web page can't make the folder itself. */
+/** Every post's picture at once. */
 export function DownloadAll({ posts, business, within }: { posts: GbpPost[]; business: Business; within: React.RefObject<HTMLElement | null> }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -265,15 +247,8 @@ export function DownloadAll({ posts, business, within }: { posts: GbpPost[]; bus
     setFailed(false)
     try {
       const pictures = [...(within.current?.querySelectorAll<SVGSVGElement>("svg[data-post-picture]") ?? [])]
-      const folder = safeName(business.name, "Client")
-      const files = await Promise.all(
-        pictures.map(async (svg, i) => ({
-          name: `${folder}/${i + 1} - ${safeName(posts[i]?.headline ?? "", "Post")}.png`,
-          data: new Uint8Array(await (await toPng(svg)).arrayBuffer()),
-        })),
-      )
-      if (!files.length) throw new Error("no pictures")
-      saveAs(zip(files), `${folder}.zip`)
+      if (!pictures.length) throw new Error("no pictures")
+      await saveImages(business.name, await Promise.all(pictures.map(async (svg, i) => ({ title: posts[i]?.headline ?? "Post", png: await toPng(svg) }))))
     } catch {
       setFailed(true)
     } finally {
@@ -317,7 +292,7 @@ function PostTools({ post, svg, business, actions, onRegenerate }: { post: GbpPo
   const save = async () => {
     if (!svg.current) return
     try {
-      saveAs(await toPng(svg.current), `${safeName(`${business.name} - ${post.headline}`, "Post")}.png`)
+      await saveImages(business.name, [{ title: post.headline, png: await toPng(svg.current) }])
     } catch {
       say("The image couldn't be saved. Please try again.")
     }

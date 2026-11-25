@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth"
 import { api, ApiError, errorReason, isTransient } from "@/lib/api"
 import { def, knownSections, readReport, runsFor, type Deliverable, type GbpPost, type Inputs, type RunKey, type StoredReport } from "@/lib/report-builder"
 import { RUNS, domainOf } from "@/components/report-builder/runs"
+import { DownloadSections } from "@/components/report-builder/download-sections"
 import { ReportDocument, day, type RunState } from "@/components/report-builder/report-document"
 import { ShareAuditDialog } from "@/components/gbp-audit/share-dialog"
 
@@ -365,6 +366,10 @@ export default function ReportBuilderReport() {
           >
             <Share2 className="h-4 w-4" aria-hidden /> {plan.shareToken ? "Shared" : "Share"}
           </button>
+          <DownloadSections
+            client={business}
+            sections={shown.map((d) => ({ id: `section-${d}`, title: def(d).title, ready: runOf(d)?.state === "done" && (d !== "aiPost" || posts.length > 0) }))}
+          />
           <button
             type="button"
             onClick={() => window.print()}

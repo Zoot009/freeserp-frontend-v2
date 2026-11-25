@@ -336,14 +336,14 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
           <APIProvider apiKey={MAPS_KEY}>
             <Map mapId={MAP_ID} defaultCenter={here} defaultZoom={13} gestureHandling="cooperative" disableDefaultUI>
               <AdvancedMarker position={here} title={b.name}>
-                <span className="flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-xs font-semibold text-white shadow">
+                <span className="flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 font-sans text-xs font-semibold text-white shadow">
                   <MapPin className="h-3.5 w-3.5" aria-hidden /> {b.name}
                 </span>
               </AdvancedMarker>
               {rivals.map((r, i) =>
                 r.pos ? (
                   <AdvancedMarker key={i} position={r.pos} title={r.title}>
-                    <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold text-white shadow">{r.title}</span>
+                    <span className="rounded-full bg-red-500 px-2 py-0.5 font-sans text-[11px] font-semibold text-white shadow">{r.title}</span>
                   </AdvancedMarker>
                 ) : null,
               )}
