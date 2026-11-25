@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
-import { Copy, Download, RefreshCw } from "lucide-react"
+import { Copy, Download, FolderDown, Loader2, RefreshCw } from "lucide-react"
 import type { GbpAuditResponse } from "@/lib/gbp-audit"
 import { postImageUrl, type GbpPost } from "@/lib/report-builder"
+import { zip } from "@/lib/zip"
 
 type Business = NonNullable<GbpAuditResponse["facts"]>["business"]
 
@@ -71,7 +72,7 @@ function PostGraphic({ ref, post, business: b, photo, logo }: { ref: React.Ref<S
   const lastLine = contact ? bottom - 78 : bottom
   const at = (i: number) => (photo ? lastLine - (lines.length - 1 - i) * (size + 12) : 520 + i * (size + 14))
   return (
-    <svg ref={ref} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${b.name}: ${post.headline}`} className="block aspect-[4/3] w-full" fontFamily={FONT}>
+    <svg ref={ref} data-post-picture viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${b.name}: ${post.headline}`} className="block aspect-[4/3] w-full" fontFamily={FONT}>
       <defs>
         <linearGradient id={`${uid}s`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={deep} stopOpacity="0" />
@@ -199,15 +200,18 @@ function useLogoLook(logo: string | null): { color: string; light: boolean } {
 
 // ── The team's tools ─────────────────────────────────────────────────────────
 
-/** The picture as a JPEG, as drawn. Its photo and logo are put inside it first: an SVG drawn to a canvas loads nothing. */
-async function toJpeg(svg: SVGSVGElement): Promise<Blob> {
+/** The picture as a PNG, as drawn. Its photo and logo are put inside it first: an SVG drawn to a canvas loads nothing. */
+async function toPng(svg: SVGSVGElement): Promise<Blob> {
   const copy = svg.cloneNode(true) as SVGSVGElement
   copy.setAttribute("xmlns", "http://www.w3.org/2000/svg")
   copy.setAttribute("width", String(W))
   copy.setAttribute("height", String(H))
   await Promise.all(
     [...copy.querySelectorAll("image")].map(async (el) => {
-      const blob = await (await fetch(el.getAttribute("href")!)).blob()
+      const res = await fetch(el.getAttribute("href")!)
+      // Gone from the server: drawn without it, as it is on the page.
+      if (!res.ok) return el.remove()
+      const blob = await res.blob()
       el.setAttribute(
         "href",
         await new Promise<string>((ok, no) => {
@@ -228,10 +232,70 @@ async function toJpeg(svg: SVGSVGElement): Promise<Blob> {
     c.width = W
     c.height = H
     c.getContext("2d")!.drawImage(img, 0, 0, W, H)
-    return await new Promise<Blob>((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/jpeg", 0.92))
+    return await new Promise<Blob>((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/png"))
   } finally {
     URL.revokeObjectURL(url)
   }
+}
+
+/** A name safe for a file or folder on Windows, Mac and Linux, whatever alphabet it is in. */
+const safeName = (s: string, fallback: string) =>
+  s
+    .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80)
+    .replace(/[. ]+$/, "") || fallback
+
+function saveAs(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = name
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** Every post's picture at once: a ZIP holding a folder named after the client, a PNG per post inside. A web page can't make the folder itself. */
+export function DownloadAll({ posts, business, within }: { posts: GbpPost[]; business: Business; within: React.RefObject<HTMLElement | null> }) {
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const save = async () => {
+    setBusy(true)
+    setFailed(false)
+    try {
+      const pictures = [...(within.current?.querySelectorAll<SVGSVGElement>("svg[data-post-picture]") ?? [])]
+      const folder = safeName(business.name, "Client")
+      const files = await Promise.all(
+        pictures.map(async (svg, i) => ({
+          name: `${folder}/${i + 1} - ${safeName(posts[i]?.headline ?? "", "Post")}.png`,
+          data: new Uint8Array(await (await toPng(svg)).arrayBuffer()),
+        })),
+      )
+      if (!files.length) throw new Error("no pictures")
+      saveAs(zip(files), `${folder}.zip`)
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-3 print:hidden">
+      <span aria-live="polite" className="text-xs text-red-600 empty:hidden dark:text-red-400">
+        {failed ? "The images couldn't be saved. Please try again." : ""}
+      </span>
+      <button
+        type="button"
+        onClick={save}
+        disabled={busy}
+        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-60"
+        title={`Saves ${posts.length === 1 ? "the image" : `all ${posts.length} images`} in a folder named ${business.name}`}
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <FolderDown className="h-4 w-4" aria-hidden />} {busy ? "Preparing…" : "Download all"}
+      </button>
+    </div>
+  )
 }
 
 /** For publishing the post by hand: its text, its picture, and another version of it. */
@@ -253,12 +317,7 @@ function PostTools({ post, svg, business, actions, onRegenerate }: { post: GbpPo
   const save = async () => {
     if (!svg.current) return
     try {
-      const url = URL.createObjectURL(await toJpeg(svg.current))
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `${business.name} post ${post.headline}`.replace(/[^\w -]+/g, "").slice(0, 80).trim() + ".jpg"
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      saveAs(await toPng(svg.current), `${safeName(`${business.name} - ${post.headline}`, "Post")}.png`)
     } catch {
       say("The image couldn't be saved. Please try again.")
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
 import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
 import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
@@ -10,7 +10,7 @@ import { ActionPlan, GridPanel, ReportHero } from "@/components/gbp-audit/report
 import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
-import { PostCard, type PostActions } from "@/components/report-builder/post-card"
+import { DownloadAll, PostCard, type PostActions } from "@/components/report-builder/post-card"
 import { Pitch, listOf } from "@/components/report-builder/tool-sections"
 
 // The client report's sections, one per deliverable. Each takes the finished
@@ -249,6 +249,7 @@ function PostsActivity({ report }: { report: Report }) {
 
 export function AiPostSection({ data, posts, actions }: { data: GbpAuditResponse; posts: GbpPost[]; actions?: PostActions }) {
   const b = data.facts!.business
+  const cards = useRef<HTMLDivElement>(null)
   return (
     <div className="space-y-5">
       <Pitch>
@@ -257,8 +258,9 @@ export function AiPostSection({ data, posts, actions }: { data: GbpAuditResponse
           {posts.length === 1 ? "this" : "these"} on a <b>daily basis</b>: offers, recent jobs, news and tips, each with your logo, a photo and a button.
         </p>
       </Pitch>
+      {actions && posts.length > 0 && <DownloadAll posts={posts} business={b} within={cards} />}
       {posts.length ? (
-        <div className={`grid gap-4 ${posts.length === 1 ? "max-w-md" : "md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3 print:gap-2.5"}`}>
+        <div ref={cards} className={`grid gap-4 ${posts.length === 1 ? "max-w-md" : "md:grid-cols-2 xl:grid-cols-3 print:grid-cols-3 print:gap-2.5"}`}>
           {posts.map((post, i) => (
             <PostCard key={post.id ?? i} post={post} business={b} actions={actions} onRegenerate={() => actions?.regenerate(i)} />
           ))}
