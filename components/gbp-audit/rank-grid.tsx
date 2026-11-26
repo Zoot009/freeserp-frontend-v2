@@ -5,36 +5,16 @@
 // The grid IS a Maps Tracker scan, so it is shown the tracker's way. Without a
 // key, or when Google refuses the one there is, the box says so instead of
 // letting a map error take the whole report down.
-import { Component, useEffect, useState, type ReactNode } from "react"
 import { APIProvider } from "@vis.gl/react-google-maps"
 import { MapPinOff } from "lucide-react"
 import { ScanMap, type MapPinData } from "@/components/maps-tracker/scan-map"
+import { SafeMap } from "@/components/maps-tracker/safe-map"
 import { formatDistance, RANK_BANDS, rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
 import { pointPlace, type Grid } from "@/lib/gbp-audit"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
 const keyOf = (p: { row: number; col: number }) => `${p.row}:${p.col}`
-
-/**
- * Contains a map that throws. A rejected key (InvalidKeyMapError, a referrer
- * restriction, billing off) makes the Maps library throw while the markers
- * mount, and uncaught that took the whole report down to the dashboard's error
- * page. Here it only replaces the map with a note.
- */
-class MapBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-  componentDidCatch(error: unknown) {
-    console.warn("[gbp-audit] map failed to load:", error)
-    this.props.onError()
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children
-  }
-}
 
 /** The map box, and the band legend under it. */
 export function RankGridView({
@@ -54,24 +34,9 @@ export function RankGridView({
   /** Off when several maps share one legend. */
   legend?: boolean
 }) {
-  const [mapFailed, setMapFailed] = useState(false)
   // The grid card runs the full width of the report, so the map can be tall
   // enough for its nine pins to sit apart.
   const height = size === "lg" ? 440 : size === "sm" ? 250 : 360
-
-  // Google reports a rejected key through this global rather than by throwing.
-  useEffect(() => {
-    if (!GOOGLE_MAPS_API_KEY) return
-    const w = window as Window & { gm_authFailure?: () => void }
-    const previous = w.gm_authFailure
-    w.gm_authFailure = () => {
-      setMapFailed(true)
-      previous?.()
-    }
-    return () => {
-      w.gm_authFailure = previous
-    }
-  }, [])
 
   const unavailable = (
     <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/40 px-6 text-center">
@@ -87,8 +52,8 @@ export function RankGridView({
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-xl border border-border" style={{ height }}>
-        {GOOGLE_MAPS_API_KEY && !mapFailed ? (
-          <MapBoundary fallback={unavailable} onError={() => setMapFailed(true)}>
+        {GOOGLE_MAPS_API_KEY ? (
+          <SafeMap fallback={unavailable}>
             <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
               <ScanMap
                 centerLat={grid.centerLat}
@@ -106,7 +71,7 @@ export function RankGridView({
                 pinBoost={size === "lg" ? 1.3 : size === "sm" ? 0.95 : 1.1}
               />
             </APIProvider>
-          </MapBoundary>
+          </SafeMap>
         ) : (
           unavailable
         )}

@@ -11,6 +11,7 @@ import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { PostCard, type PostActions } from "@/components/report-builder/post-card"
+import { SafeMap } from "@/components/maps-tracker/safe-map"
 import { Pitch, listOf } from "@/components/report-builder/tool-sections"
 
 // The client report's sections, one per deliverable. Each takes the finished
@@ -235,6 +236,7 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
     <div className="space-y-4">
       {here && MAPS_KEY ? (
         <div className={`${card} h-[380px] overflow-hidden`}>
+          <SafeMap fallback={<p className="grid h-full place-items-center bg-muted/40 px-6 text-center text-[13px] text-muted-foreground">Google Maps didn&apos;t load, so the map isn&apos;t shown. The routes are listed below.</p>}>
           <APIProvider apiKey={MAPS_KEY}>
             <Map mapId={MAP_ID} defaultCenter={here} defaultZoom={13} gestureHandling="cooperative" disableDefaultUI>
               <AdvancedMarker position={here} title={b.name}>
@@ -252,6 +254,7 @@ export function DirectionsSection({ data }: { data: GbpAuditResponse }) {
               <RouteLines to={here} from={pins} />
             </Map>
           </APIProvider>
+          </SafeMap>
         </div>
       ) : (
         <div className={`${card} p-4 text-[13px] text-muted-foreground`}>The map needs the business&apos;s pin and a Google Maps key; the routes are listed below.</div>
