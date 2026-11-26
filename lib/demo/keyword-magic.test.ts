@@ -46,7 +46,7 @@ describe("demo keyword magic", () => {
   it("gives a keyword the rank tracker tracks the rank tracker's volume", () => {
     const tracked = (rankTrackerDemo.get([], new URLSearchParams()) as { keywords: { keyword: string; searchVolume: number }[] }).keywords
     const shared = tracked.filter((t) => s.keywords.some((k) => k.keyword === t.keyword))
-    expect(shared.map((t) => t.keyword)).toEqual(expect.arrayContaining(["running shoes", "best running shoes", "trail running shoes"]))
+    expect(shared.map((t) => t.keyword)).toEqual(expect.arrayContaining([s.seed, `${s.seed} store near me`, `${s.seed} promo code`]))
     for (const t of shared) expect(s.keywords.find((k) => k.keyword === t.keyword)?.volume).toBe(t.searchVolume)
   })
 

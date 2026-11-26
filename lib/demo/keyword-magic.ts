@@ -8,9 +8,9 @@
 //
 // The response mirrors keywordMagic.service.ts KeywordMagicResponse: rows in the
 // database's own order (volume, highest first), totals and the word groups
-// computed as summarize() and wordGroups() compute them. The seed is the one the
-// rank tracker and SERP checker demos track, so the demos read as one story: a
-// keyword the rank tracker tracks carries the rank tracker's volume here.
+// computed as summarize() and wordGroups() compute them. The seed is the brand
+// itself, which the rank tracker demo also tracks, so the demos read as one story:
+// a keyword the rank tracker tracks carries the rank tracker's volume here.
 
 import { keywordWords } from "@/lib/keyword-magic"
 import { rankTrackerDemo } from "./rank-tracker"
@@ -21,43 +21,56 @@ export const KEYWORD_MAGIC_CREATE_HREF = "/dashboard/keyword-magic"
 /** The demo view — what PaidToolGate's sample screen links free users to. */
 export const KEYWORD_MAGIC_DEMO_HREF = `${KEYWORD_MAGIC_CREATE_HREF}?view=${DEMO_ID}`
 
-const SEED = "running shoes"
+/** The brand itself: what someone researching Nike's market types first. */
+const SEED = DEMO_BRAND.name.toLowerCase()
 /** What the keyword database holds for the seed (the "of N" under the tiles). */
-const TOTAL_COUNT = 2_316
+const TOTAL_COUNT = 38_906
 
 // ── Keywords ─────────────────────────────────────────────────────────────────
 
 type Intent = "informational" | "navigational" | "commercial" | "transactional"
 
-const PREFIXES = [
-  "best", "women's", "men's", "kids", "cheap", "wide", "trail", "waterproof", "cushioned", "lightweight",
-  "neutral", "stability", "carbon plate", "zero drop", "minimalist", "white", "black", "pink",
-  DEMO_BRAND.name.toLowerCase(), "adidas", "hoka", "brooks", "asics", "new balance",
+/** "<seed> …": the products people search the brand for. */
+const PRODUCTS = [
+  "shoes", "air max", "air force 1", "dunks", "jordan", "running shoes", "basketball shoes", "hoodie", "shorts", "socks",
+  "sneakers", "pegasus", "vomero", "air max 90", "tech fleece", "slides", "backpack", "golf shoes", "soccer cleats",
+  "sports bra", "leggings", "joggers", "jacket", "hat", "sweatpants",
 ]
+/** "… <seed>". */
+const PREFIXES = ["women's", "men's", "kids", "cheap", "white", "black", "pink", "custom", "vintage"]
+/** "<seed> …": the store, its deals and its help pages. */
 const SUFFIXES = [
-  "for women", "for men", "for flat feet", "for beginners", "for plantar fasciitis", "for wide feet",
-  "for overpronation", "for high arches", "for knee pain", "for shin splints", "sale", "near me",
-  "on sale", "clearance", "review", "vs walking shoes",
+  "outlet", "store", "store near me", "sale", "outlet near me", "promo code", "student discount", "gift card", "return policy",
+  "size chart", "factory store", "clearance", "black friday", "membership", "app", "careers", "customer service",
 ]
+/** Searches for the brand's own site and services rather than its products. */
+const NAVIGATIONAL = new Set(
+  ["store", "app", "membership", "careers", "customer service", "return policy", "size chart", "factory store"].map((x) => `${SEED} ${x}`),
+)
 const QUESTIONS = [
-  "how to choose running shoes", "how often to replace running shoes", "how long do running shoes last",
-  "what are the best running shoes", "are running shoes good for walking", "how to clean running shoes",
-  "how should running shoes fit", "how to lace running shoes",
+  `how to clean ${SEED} shoes`, `are ${SEED} shoes true to size`, `how to return ${SEED} online order`, `who owns ${SEED}`,
+  `what does ${SEED} mean`, `is ${SEED} or adidas better`, `how to use ${SEED} gift card`, `how long does ${SEED} shipping take`,
 ]
-const BRANDS = new Set([DEMO_BRAND.name.toLowerCase(), "adidas", "hoka", "brooks", "asics", "new balance"])
+const RIVALS = ["adidas", "hoka", "new balance", "under armour"]
+/** The head of the list, at the volumes a brand this size has; the rest follow a power law. */
+const HEADS: Record<string, number> = {
+  shoes: 450_000, "air force 1": 450_000, "air max": 368_000, outlet: 368_000, dunks: 301_000, store: 246_000, jordan: 246_000,
+  sale: 201_000, "tech fleece": 201_000, "running shoes": 165_000, hoodie: 135_000, shorts: 110_000, socks: 90_500, slides: 90_500,
+  "outlet near me": 90_500, pegasus: 74_000, sneakers: 60_500, app: 49_500, "student discount": 40_500, "gift card": 33_100,
+}
 
 // Google's search-volume buckets, so the figures look like the database's.
 const BUCKETS = [
   110, 140, 170, 210, 260, 320, 390, 480, 590, 720, 880, 1_000, 1_300, 1_600, 1_900, 2_400, 2_900, 3_600, 4_400,
   5_400, 6_600, 8_100, 9_900, 12_100, 14_800, 18_100, 22_200, 27_100, 33_100, 40_500, 49_500, 60_500, 74_000,
-  90_500, 110_000, 135_000, 165_000, 201_000, 246_000, 301_000,
+  90_500, 110_000, 135_000, 165_000, 201_000, 246_000, 301_000, 368_000, 450_000,
 ]
 const bucket = (v: number) => BUCKETS.reduce((best, b) => (Math.abs(b - v) < Math.abs(best - v) ? b : best), BUCKETS[0])
 
 function intentOf(kw: string): Intent {
-  if (/^(how|what|are)\b/.test(kw)) return "informational"
-  if (/\b(near me|sale|clearance|cheap)\b/.test(kw)) return "transactional"
-  if ([...BRANDS].some((b) => kw.startsWith(`${b} `))) return "navigational"
+  if (/^(how|what|are|is|who)\b/.test(kw)) return "informational"
+  if (/\b(near me|sale|clearance|cheap|outlet|promo code|discount|black friday|gift card)\b/.test(kw)) return "transactional"
+  if (kw === SEED || NAVIGATIONAL.has(kw)) return "navigational"
   return "commercial"
 }
 
@@ -75,10 +88,17 @@ function featuresFor(intent: Intent, kw: string, rand: () => number): string[] {
 }
 
 function keywordList(): string[] {
-  const out = [SEED, ...PREFIXES.map((p) => `${p} ${SEED}`), ...SUFFIXES.map((s) => `${SEED} ${s}`), ...QUESTIONS]
-  // A few two-sided phrases, the long tail a broad match is full of.
-  for (const p of ["best", "women's", "men's", "trail", "cushioned"]) {
-    for (const s of ["for flat feet", "for beginners", "for wide feet", "sale"]) out.push(`${p} ${SEED} ${s}`)
+  const out = [
+    SEED,
+    ...PRODUCTS.map((p) => `${SEED} ${p}`),
+    ...SUFFIXES.map((x) => `${SEED} ${x}`),
+    ...PREFIXES.map((p) => `${p} ${SEED}`),
+    ...RIVALS.map((r) => `${SEED} vs ${r}`),
+    ...QUESTIONS,
+  ]
+  // A few longer phrases, the long tail a broad match is full of.
+  for (const p of ["shoes", "running shoes", "air max", "dunks", "hoodie"]) {
+    for (const q of ["for women", "for men", "sale", "white"]) out.push(`${SEED} ${p} ${q}`)
   }
   return out
 }
@@ -98,13 +118,15 @@ function buildRows(anchor: number) {
   const list = keywordList()
   const rows = list.map((keyword, i) => {
     const intent = intentOf(keyword)
-    // The rest fall away from the seed roughly as a power law, with noise.
-    const generated = bucket(301_000 * (1 + rand() * 40 + i * 0.6) ** -1.35 * (0.6 + rand() * 0.8))
-    const volume = tracked.get(keyword) ?? generated
+    // The head at its known volume; the rest fall away roughly as a power law, with noise.
+    const head = keyword.startsWith(`${SEED} `) ? HEADS[keyword.slice(SEED.length + 1)] : undefined
+    const tail = bucket(60_000 * (1 + rand() * 12 + i * 0.25) ** -1.25 * (0.6 + rand() * 0.8))
+    const volume = tracked.get(keyword) ?? head ?? tail
     // The long tail is easy, the head terms hard, so all three KD bands show.
     const kd = Math.max(4, Math.min(98, Math.round(20 * Math.log10(volume) - 22 + (rand() - 0.5) * 24)))
     const paidIntent = intent === "transactional" || intent === "commercial"
-    const cpc = Math.round((paidIntent ? 0.6 + rand() * 1.9 : 0.15 + rand() * 0.6) * 100) / 100
+    // Branded clicks are cheap: the brand owns its own name.
+    const cpc = Math.round((paidIntent ? 0.4 + rand() * 1.4 : 0.1 + rand() * 0.5) * 100) / 100
     const competition = Math.round((paidIntent ? 0.5 + rand() * 0.5 : rand() * 0.4) * 100) / 100
     // The database has gaps: no KD yet for the newest long-tail phrases, no ads
     // (so no CPC) on some questions. The table shows "—" for them.
@@ -118,10 +140,10 @@ function buildRows(anchor: number) {
       difficulty: noKd ? null : kd,
       intent,
       serpFeatures: featuresFor(intent, keyword, rand),
-      // Running peaks in spring and around January resolutions.
+      // Sportswear peaks in November and December: Black Friday, then gifts.
       trend: months.map((m) => ({
         ...m,
-        searchVolume: bucket(volume * (1 + 0.22 * Math.cos(((m.month - 3) / 12) * 2 * Math.PI))),
+        searchVolume: bucket(volume * (1 + 0.24 * Math.cos(((m.month - 11.5) / 12) * 2 * Math.PI))),
       })),
     }
   })
