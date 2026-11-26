@@ -2,7 +2,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- each tool's payload is read loosely, a few fields each */
 import { useState } from "react"
-import { CheckCircle2, ExternalLink, Quote, XCircle } from "lucide-react"
+import { CheckCircle2, ExternalLink, XCircle } from "lucide-react"
+import { Pitch } from "@/components/report-builder/pitch"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { BrandEngines } from "@/components/dashboard/ai-tracker/brand-engines"
 import { RankGridView } from "@/components/gbp-audit/rank-grid"
@@ -25,19 +26,8 @@ const posTone = (p: unknown) => (typeof p === "number" && p > 0 ? (p <= 3 ? "tex
  * The team's word to the client under a section, set as a quote: what the
  * numbers mean and what we'll do about them. `note` follows it in plain text.
  */
-export function Pitch({ children, note }: { children?: React.ReactNode; note?: React.ReactNode }) {
-  return (
-    <figure className="relative rounded-[10px] border border-emerald-500/30 bg-emerald-500/[0.07] py-4 pl-14 pr-5 print:break-inside-avoid">
-      <Quote className="absolute left-4 top-4 h-6 w-6 rotate-180 fill-emerald-500/20 text-emerald-600 dark:text-emerald-400" aria-hidden />
-      {children && (
-        <blockquote className="space-y-2 text-[14px] font-semibold leading-relaxed text-foreground [&_b]:font-bold [&_b]:text-emerald-700 dark:[&_b]:text-emerald-400 [&>p:first-child]:before:content-['“'] [&>p:last-child]:after:content-['”']">
-          {children}
-        </blockquote>
-      )}
-      {note && <div className={`space-y-2 text-[13px] leading-relaxed text-muted-foreground [&_b]:text-foreground ${children ? "mt-3 border-t border-emerald-500/20 pt-3" : ""}`}>{note}</div>}
-    </figure>
-  )
-}
+
+export { Pitch }
 
 /** "a", "a and b", "a, b and c". */
 export const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`)

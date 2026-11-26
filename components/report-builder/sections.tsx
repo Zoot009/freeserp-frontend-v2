@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { APIProvider, AdvancedMarker, Map, useMap } from "@vis.gl/react-google-maps"
-import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, MapPin, Navigation, Send, XCircle } from "lucide-react"
-import type { CategoryKey, GbpAuditResponse, Report } from "@/lib/gbp-audit"
+import { ExternalLink, MapPin, Navigation, Send } from "lucide-react"
+import type { CategoryKey, GbpAuditResponse } from "@/lib/gbp-audit"
 import type { AeoReport } from "@/lib/aeo"
 import type { GbpPost } from "@/lib/report-builder"
-import { ActionPlan, GridPanel, ReportHero } from "@/components/gbp-audit/report"
+import { GridPanel, ProfilePlan, ReportHero } from "@/components/gbp-audit/report"
 import { SEVERITY_META, WebsiteScreenshot } from "@/components/page-audit/audit-ui"
 import { FixList, Overview } from "@/components/aeo/report"
 import { StatCard } from "@/components/dashboard/stat-card"
@@ -64,83 +64,9 @@ export function Section({
 
 const card = "rounded-[10px] border border-border bg-card shadow-sm print:shadow-none"
 
-// ── 1. Citations ─────────────────────────────────────────────────────────────
+// ── 1. Citations: shared with the Maps audit report ─────────────────────────
 
-export function CitationsSection({ data }: { data: GbpAuditResponse }) {
-  const facts = data.facts!
-  const b = facts.business
-  const rows = data.report?.directories ?? []
-  // Missing directories, the ones competitors use first; else straight from the business's own check.
-  const fromRows = rows.filter((r) => r.you === "missing").map((r) => ({ name: r.name, url: r.url, addUrl: r.addUrl, rivals: r.competitors.length }))
-  const fromOwn = (facts.citations?.sites ?? []).filter((s) => s.status === "missing").map((s) => ({ name: s.name, url: s.url, addUrl: s.addUrl, rivals: 0 }))
-  const picks = (fromRows.length ? fromRows : fromOwn).slice(0, 3)
-  const listed = (facts.citations?.sites ?? []).filter((s) => s.status === "listed").length
-  const nap: [string, ReactNode][] = [
-    ["Business name", b.name],
-    ["Address", b.address ?? "—"],
-    ["Phone", b.phone ?? "—"],
-    ["Website", b.website ?? "—"],
-    ["Category", [b.category, ...b.additionalCategories].filter(Boolean).join(", ") || "—"],
-  ]
-  if (picks.length === 0) {
-    return (
-      <div className={`${card} p-4 text-[13px] text-muted-foreground`}>
-        {facts.citations
-          ? `${b.name} is already listed on every directory we checked (${listed}). We'll keep these listings accurate.`
-          : "The local directories couldn't be checked for this business. Run the report again to include them."}
-      </div>
-    )
-  }
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard compact label="Listed now" hint="Local directories where the business already has a listing." value={listed} caption={`of ${facts.citations?.sites.length ?? 25} checked`} tone="text-foreground" />
-        <StatCard compact label="Free citations" hint="The citations we've created for the business, free." value={picks.length} caption="created for you" tone="text-brand" />
-        <StatCard
-          compact
-          label="Competitors use"
-          hint="How many of these the top competitors are already listed on."
-          value={fromRows.length ? picks.filter((p) => p.rivals > 0).length : "—"}
-          caption={picks.length === 3 ? "of the three" : `of the ${picks.length}`}
-          tone="text-foreground"
-        />
-      </div>
-      <Pitch>
-        <p>
-          We have created <b>{picks.length} free {picks.length === 1 ? "citation" : "citations"}</b> for your business; you can check {picks.length === 1 ? "it" : "them"} from the{" "}
-          {picks.length === 1 ? "link" : "links"} below. Each listing uses exactly the same name, address and phone as your Google Business Profile, so Google can match them.
-        </p>
-      </Pitch>
-      <div className="grid gap-4 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
-        {picks.map((p, i) => (
-          <div key={p.name} className={`${card} flex flex-col p-4 print:break-inside-avoid`}>
-            <div className="text-xs text-muted-foreground">Citation {i + 1}</div>
-            <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold hover:underline">
-              {p.name}
-            </a>
-            {p.rivals > 0 && <div className="mt-0.5 text-xs text-muted-foreground">{p.rivals} of your top competitors are listed here</div>}
-            <dl className="mt-3 space-y-1.5 text-[13px]">
-              {nap.map(([k, v]) => (
-                <div key={k} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2 print:block!">
-                  <dt className="text-muted-foreground print:text-xs">{k}</dt>
-                  <dd className="break-words">{v}</dd>
-                </div>
-              ))}
-            </dl>
-            <a
-              href={p.addUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-medium text-brand hover:underline print:hidden"
-            >
-              Submission page <ExternalLink className="h-3 w-3" aria-hidden />
-            </a>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+export { CitationsSection } from "@/components/gbp-audit/report"
 
 // ── 2. Maps audit action plan ────────────────────────────────────────────────
 
@@ -212,39 +138,7 @@ export function GbpPlanSection({ data }: { data: GbpAuditResponse }) {
       </Pitch>
       {/* Where the profile ranks around the business: the audit's own local grid, as in the Maps audit tool. */}
       {data.facts?.grid && data.facts.grid.points.length > 0 && <GridPanel facts={data.facts} grid={data.facts.grid} forClient className="print:break-inside-avoid" />}
-      <ActionPlan
-        report={{ ...report, findings: report.findings.map((f) => (f.id === "booking_contact" ? { ...f, category: "profile" as CategoryKey } : f)) }}
-        planAtEnd
-        notes={notes}
-        bodies={{ engagement: <PostsActivity report={report} /> }}
-        covered={["recent_posts", "posting_frequency"]}
-      />
-    </div>
-  )
-}
-
-/** The profile's Google Posts, in a line: none lately, or how long ago the last one went up. */
-function PostsActivity({ report }: { report: Report }) {
-  const last = report.checks.find((c) => c.id === "recent_posts")
-  const pace = report.checks.find((c) => c.id === "posting_frequency")
-  const known = !!last && last.status !== "unknown"
-  const since = known && /^last post /i.test(last.value) ? last.value.replace(/^last post /i, "") : null
-  const Icon = !known ? CircleDashed : last.status === "pass" ? CheckCircle2 : last.status === "warn" ? AlertTriangle : XCircle
-  const tone = !known ? "text-muted-foreground" : last.status === "pass" ? "text-green-600 dark:text-green-400" : last.status === "warn" ? "text-amber-500" : "text-red-500"
-  return (
-    <div id="fix-recent_posts" className="flex scroll-mt-24 items-start gap-3 px-4 py-3 text-[13px] print:break-inside-avoid">
-      <span id="fix-posting_frequency" className="sr-only" />
-      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden />
-      <div className="min-w-0">
-        <b className="font-medium">
-          {!known
-            ? "We couldn't read the posts on your profile this time."
-            : since
-              ? `Your last Google Business Profile post was ${since}.`
-              : "There are no recent Google Business Profile posts on your profile."}
-        </b>
-        {known && pace && pace.status !== "unknown" && <div className="mt-1 text-xs text-muted-foreground">Posting frequency: {pace.value}</div>}
-      </div>
+      <ProfilePlan report={report} notes={notes} />
     </div>
   )
 }

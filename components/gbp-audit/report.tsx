@@ -9,7 +9,8 @@
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { flushSync } from "react-dom"
 import Link from "next/link"
-import { AlertCircle, AlertTriangle, BadgeCheck, Camera, CheckCircle2, CircleDashed, Globe, Link2, MapPin, MessageSquare, Phone, Search, Star, Store, XCircle, type LucideIcon } from "lucide-react"
+import { AlertCircle, AlertTriangle, BadgeCheck, Camera, CheckCircle2, CircleDashed, ExternalLink, Globe, Link2, MapPin, MessageSquare, Phone, Search, Star, Store, XCircle, type LucideIcon } from "lucide-react"
+import { Pitch } from "@/components/report-builder/pitch"
 import { gradeStroke, sectionScoreToGrade } from "@/components/page-audit/audit-ui"
 import { formatDistance, rankColor, type DistanceUnit } from "@/components/maps-tracker/grid"
 import { useCompetitors } from "@/components/maps-tracker/use-competitors"
@@ -1479,8 +1480,14 @@ export function ReportSections({
           {k === "reviews" && <Reviews facts={facts} report={report} />}
           {k === "rankings" && <Rankings facts={facts} report={report} onCheckKeyword={onCheckKeyword} checking={checking} printing={printAll} />}
           {k === "website" && <WebsiteHealth facts={facts} report={report} />}
-          {k === "citations" && <LocalCitations facts={facts} report={report} />}
-          {k === "plan" && <ActionPlan report={report} />}
+          {k === "citations" && (
+            <>
+              <LocalCitations facts={facts} report={report} />
+              <h3 className="pt-2 text-[15px] font-semibold tracking-tight">Free citations we&apos;ve created for you</h3>
+              <CitationsSection data={data} />
+            </>
+          )}
+          {k === "plan" && <ProfilePlan report={report} />}
         </section>
       ))}
     </>
@@ -1658,6 +1665,132 @@ export function ActionPlan({
 
       {planAtEnd && <PlanSummary report={report} />}
     </div>
+  )
+}
+
+// ── Shared with the client report (components/report-builder/sections.tsx) ──
+
+const citationCard = "rounded-[10px] border border-border bg-card shadow-sm print:shadow-none"
+
+/** The 3 free citations: the directories to list the business on first, with the exact details to enter. Shown in the client report and the Maps audit. */
+export function CitationsSection({ data }: { data: GbpAuditResponse }) {
+  const facts = data.facts!
+  const b = facts.business
+  const rows = data.report?.directories ?? []
+  // Missing directories, the ones competitors use first; else straight from the business's own check.
+  const fromRows = rows.filter((r) => r.you === "missing").map((r) => ({ name: r.name, url: r.url, addUrl: r.addUrl, rivals: r.competitors.length }))
+  const fromOwn = (facts.citations?.sites ?? []).filter((s) => s.status === "missing").map((s) => ({ name: s.name, url: s.url, addUrl: s.addUrl, rivals: 0 }))
+  const picks = (fromRows.length ? fromRows : fromOwn).slice(0, 3)
+  const listed = (facts.citations?.sites ?? []).filter((s) => s.status === "listed").length
+  const nap: [string, ReactNode][] = [
+    ["Business name", b.name],
+    ["Address", b.address ?? "—"],
+    ["Phone", b.phone ?? "—"],
+    ["Website", b.website ?? "—"],
+    ["Category", [b.category, ...b.additionalCategories].filter(Boolean).join(", ") || "—"],
+  ]
+  if (picks.length === 0) {
+    return (
+      <div className={`${citationCard} p-4 text-[13px] text-muted-foreground`}>
+        {facts.citations
+          ? `${b.name} is already listed on every directory we checked (${listed}). We'll keep these listings accurate.`
+          : "The local directories couldn't be checked for this business. Run the report again to include them."}
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard compact label="Listed now" hint="Local directories where the business already has a listing." value={listed} caption={`of ${facts.citations?.sites.length ?? 25} checked`} tone="text-foreground" />
+        <StatCard compact label="Free citations" hint="The citations we've created for the business, free." value={picks.length} caption="created for you" tone="text-brand" />
+        <StatCard
+          compact
+          label="Competitors use"
+          hint="How many of these the top competitors are already listed on."
+          value={fromRows.length ? picks.filter((p) => p.rivals > 0).length : "—"}
+          caption={picks.length === 3 ? "of the three" : `of the ${picks.length}`}
+          tone="text-foreground"
+        />
+      </div>
+      <Pitch>
+        <p>
+          We have created <b>{picks.length} free {picks.length === 1 ? "citation" : "citations"}</b> for your business; you can check {picks.length === 1 ? "it" : "them"} from the{" "}
+          {picks.length === 1 ? "link" : "links"} below. Each listing uses exactly the same name, address and phone as your Google Business Profile, so Google can match them.
+        </p>
+      </Pitch>
+      <div className="grid gap-4 lg:grid-cols-3 print:grid-cols-3 print:gap-3">
+        {picks.map((p, i) => (
+          <div key={p.name} className={`${citationCard} flex flex-col p-4 print:break-inside-avoid`}>
+            <div className="text-xs text-muted-foreground">Citation {i + 1}</div>
+            <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[14px] font-semibold hover:underline">
+              {p.name}
+            </a>
+            {p.rivals > 0 && <div className="mt-0.5 text-xs text-muted-foreground">{p.rivals} of your top competitors are listed here</div>}
+            <dl className="mt-3 space-y-1.5 text-[13px]">
+              {nap.map(([k, v]) => (
+                <div key={k} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2 print:block!">
+                  <dt className="text-muted-foreground print:text-xs">{k}</dt>
+                  <dd className="break-words">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <a
+              href={p.addUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-medium text-brand hover:underline print:hidden"
+            >
+              Submission page <ExternalLink className="h-3 w-3" aria-hidden />
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+/** The profile's Google Posts, in a line: none lately, or how long ago the last one went up. */
+export function PostsActivity({ report }: { report: Report }) {
+  const last = report.checks.find((c) => c.id === "recent_posts")
+  const pace = report.checks.find((c) => c.id === "posting_frequency")
+  const known = !!last && last.status !== "unknown"
+  const since = known && /^last post /i.test(last.value) ? last.value.replace(/^last post /i, "") : null
+  const Icon = !known ? CircleDashed : last.status === "pass" ? CheckCircle2 : last.status === "warn" ? AlertTriangle : XCircle
+  const tone = !known ? "text-muted-foreground" : last.status === "pass" ? "text-green-600 dark:text-green-400" : last.status === "warn" ? "text-amber-500" : "text-red-500"
+  return (
+    <div id="fix-recent_posts" className="flex scroll-mt-24 items-start gap-3 px-4 py-3 text-[13px] print:break-inside-avoid">
+      <span id="fix-posting_frequency" className="sr-only" />
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} aria-hidden />
+      <div className="min-w-0">
+        <b className="font-medium">
+          {!known
+            ? "We couldn't read the posts on your profile this time."
+            : since
+              ? `Your last Google Business Profile post was ${since}.`
+              : "There are no recent Google Business Profile posts on your profile."}
+        </b>
+        {known && pace && pace.status !== "unknown" && <div className="mt-1 text-xs text-muted-foreground">Posting frequency: {pace.value}</div>}
+      </div>
+    </div>
+  )
+}
+
+
+/**
+ * The plan as the client report shows it: the recommendation, every fix by area (the
+ * Google Posts line heading engagement), what to check by hand, and the 30-day plan
+ * in brief. `notes` are the team's words in the client report.
+ */
+export function ProfilePlan({ report, notes }: { report: Report; notes?: Partial<Record<CategoryKey, ReactNode>> }) {
+  return (
+    <ActionPlan
+      report={{ ...report, findings: report.findings.map((f) => (f.id === "booking_contact" ? { ...f, category: "profile" as CategoryKey } : f)) }}
+      planAtEnd
+      notes={notes}
+      bodies={{ engagement: <PostsActivity report={report} /> }}
+      covered={["recent_posts", "posting_frequency"]}
+    />
   )
 }
 
