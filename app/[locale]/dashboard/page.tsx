@@ -577,7 +577,7 @@ export default function SeoDashboardPage() {
             chevron AND its own open-in-new-tab link, so the heading adds
             neither — it only names the page. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <h1 className="flex min-w-0 items-center gap-2 text-[26px] font-bold leading-tight tracking-[-0.02em]">
+          <h1 className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2 text-[22px] sm:text-[26px] font-bold leading-tight tracking-[-0.02em]">
             <span className="shrink-0">{t("title")}{domain ? ":" : ""}</span>
             <ProjectSwitcher
               value={projectId}

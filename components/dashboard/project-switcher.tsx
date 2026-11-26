@@ -100,7 +100,7 @@ export function ProjectSwitcher({
   // gap 6, not 8: the chevron already carries its own optical space on the
   // right, so a wider gap read as the icon drifting away from the domain.
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%", minWidth: 0 }}>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {/* A plain button, not the shadcn <Button>: this sits INSIDE the page
@@ -121,6 +121,7 @@ export function ProjectSwitcher({
             color: "var(--brand)",
             cursor: "pointer",
             maxWidth: "100%",
+            minWidth: 0,
           }}
         >
           {/* Underline lives on the label, not the button, so the chevron isn't
