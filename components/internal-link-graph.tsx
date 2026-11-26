@@ -125,6 +125,8 @@ function LinkGraphViz({
   const svgRef = useRef<SVGSVGElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const simRef = useRef<d3.Simulation<any, any> | null>(null)
+  /** Lays the graph out afresh from scattered positions, off screen, and draws it settled. */
+  const relayoutRef = useRef<(() => void) | null>(null)
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const gRootRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null)
 
@@ -206,9 +208,22 @@ function LinkGraphViz({
           .radius((d) => d.r + 20)
           .strength(0.98),
       )
-      .force("x", d3.forceX(W / 2).strength(0.04))
-      .force("y", d3.forceY(H / 2).strength(0.04))
+      // Pages with no links have nothing holding them in, and drifted so far out that framing them shrank
+      // the rest to a dot: pulled in harder, they sit at the edge of the cluster.
+      .force("x", d3.forceX<SimNode>(W / 2).strength((d) => (d.inboundCount + d.outboundCount === 0 ? 0.3 : 0.04)))
+      .force("y", d3.forceY<SimNode>(H / 2).strength((d) => (d.inboundCount + d.outboundCount === 0 ? 0.3 : 0.04)))
+      // Calmer when a node is dragged: the rest follow without bouncing.
+      .velocityDecay(0.55)
+      // Not run on screen: a dense site's forces fight for ten seconds or more, and every
+      // node visibly shook the whole time. settle() runs it to rest before it's drawn.
+      .stop()
     simRef.current = sim
+    const settle = () => {
+      sim.alpha(1)
+      const ticks = Math.ceil(Math.log(sim.alphaMin()) / Math.log(1 - sim.alphaDecay()))
+      for (let i = 0; i < ticks; i++) sim.tick()
+    }
+    settle()
 
     const link = gLinks
       .selectAll<SVGPathElement, any>("path")
@@ -232,7 +247,7 @@ function LinkGraphViz({
             d3
               .drag<SVGGElement, SimNode>()
               .on("start", (event, d) => {
-                if (!event.active) sim.alphaTarget(0.3).restart()
+                if (!event.active) sim.alphaTarget(0.1).restart()
                 d.fx = d.x
                 d.fy = d.y
               })
@@ -277,7 +292,7 @@ function LinkGraphViz({
         return grp
       })
 
-    sim.on("tick", () => {
+    const draw = () => {
       link.attr("d", (d: any) => {
         const dx = d.target.x - d.source.x
         const dy = d.target.y - d.source.y
@@ -285,9 +300,12 @@ function LinkGraphViz({
         return `M${d.source.x},${d.source.y} A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`
       })
       node.attr("transform", (d: any) => `translate(${d.x ?? 0},${d.y ?? 0})`)
-    })
+    }
+    // Only a drag moves it from here.
+    sim.on("tick", draw)
+    draw()
 
-    const doFit = () => {
+    const doFit = (animate = true) => {
       try {
         const b = gRoot.node()?.getBBox()
         if (!b?.width || !b?.height) return
@@ -296,16 +314,27 @@ function LinkGraphViz({
         const ty = H / 2 - scale * (b.y + b.height / 2)
         svg
           .transition()
-          .duration(500)
+          .duration(animate ? 500 : 0)
           .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(Math.min(scale, 2.5)))
       } catch {
         /* graph empty / not yet laid out */
       }
     }
-    const fitTimer = setTimeout(doFit, 700)
+    // Framed at once: the layout is already final.
+    const fitFrame = requestAnimationFrame(() => doFit(false))
+    relayoutRef.current = () => {
+      for (const n of simNodes) {
+        n.x = W / 2 + (Math.random() - 0.5) * W * 0.6
+        n.y = H / 2 + (Math.random() - 0.5) * H * 0.6
+      }
+      settle()
+      draw()
+      doFit()
+    }
 
     return () => {
-      clearTimeout(fitTimer)
+      cancelAnimationFrame(fitFrame)
+      relayoutRef.current = null
       sim.stop()
     }
   }, [activeTab, nodes, edges])
@@ -377,10 +406,7 @@ function LinkGraphViz({
     }
   }, [])
 
-  const reshuffle = useCallback(() => {
-    if (simRef.current) simRef.current.alpha(1).restart()
-    setTimeout(fitGraph, 700)
-  }, [fitGraph])
+  const reshuffle = useCallback(() => relayoutRef.current?.(), [])
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null
@@ -782,7 +808,7 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
           <Stat label="Orphans" value={orphanCount} />
           <Stat label="Hubs" value={hubCount} />
           <Stat label="Authorities" value={authorityCount} />
-          <Stat label="Avg/Page" value={avgLinks.toFixed(1)} />
+          <Stat label="Links per page" value={avgLinks.toFixed(1)} />
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -800,11 +826,14 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
         </p>
       )}
 
+      {/* The user's own site: what to fix, before the picture. A competitor's has nothing to fix. */}
+      {hasGraph && d.isOwnSite && <Findings nodes={nodes} topLinked={topLinkedPages} />}
+
       {hasGraph && expanded && (
         <div className="mt-4 space-y-4">
           <LinkGraphViz nodes={nodes} edges={edges} />
 
-          {topLinkedPages.length > 0 && (
+          {!d.isOwnSite && topLinkedPages.length > 0 && (
             <div>
               <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">Top Linked Pages</h4>
               <div className="space-y-2">
@@ -837,7 +866,7 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
             </div>
           )}
 
-          {orphanCount > 0 && (
+          {!d.isOwnSite && orphanCount > 0 && (
             <div className="flex items-start gap-2.5">
               <Icon.info size={14} />
               <div>
@@ -847,6 +876,170 @@ function DomainCard({ d, defaultExpanded = false }: { d: LinkGraphDomain; defaul
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   These pages have no inbound internal links and may be missed by search engine crawlers.
                 </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Findings: the report on the user's own site ────────────────────────────
+
+const pathOf = (url: string) => {
+  try {
+    return new URL(url).pathname || "/"
+  } catch {
+    return url
+  }
+}
+
+const TONE = {
+  high: { chip: "bg-red-500/10 text-red-600 dark:text-red-400", bar: "bg-red-500", label: "High" },
+  medium: { chip: "bg-amber-500/10 text-amber-700 dark:text-amber-400", bar: "bg-amber-500", label: "Medium" },
+} as const
+
+/** A page in a finding: its title, its path, and the count the finding is about. */
+function PageRow({ url, title, metric }: { url: string; title: string | null; metric: string }) {
+  const path = pathOf(url)
+  return (
+    <li className="flex items-center justify-between gap-3 py-1.5">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="group min-w-0">
+        <span className="flex items-center gap-1 truncate text-[13px] text-foreground group-hover:text-accent">
+          <span className="truncate">{title || path}</span>
+          <Icon.external size={11} />
+        </span>
+        {title && <span className="block truncate font-mono text-[11px] text-muted-foreground">{path}</span>}
+      </a>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{metric}</span>
+    </li>
+  )
+}
+
+/** A list of pages, the first five and the rest on request. */
+function PageList({ rows }: { rows: { url: string; title: string | null; metric: string }[] }) {
+  const [all, setAll] = useState(false)
+  const shown = all || rows.length <= 6 ? rows : rows.slice(0, 5)
+  return (
+    <>
+      <ul className="divide-y divide-border/40">
+        {shown.map((r) => (
+          <PageRow key={r.url} {...r} />
+        ))}
+      </ul>
+      {shown.length < rows.length && (
+        <button type="button" onClick={() => setAll(true)} className="mt-1 text-xs font-medium text-accent hover:underline">
+          Show all {rows.length}
+        </button>
+      )}
+    </>
+  )
+}
+
+/** What the link graph says to do about the site: each problem with its pages and the fix, what passed, and the pages to build on. */
+function Findings({ nodes, topLinked }: { nodes: GraphNode[]; topLinked: GraphMetadata["topLinkedPages"] }) {
+  const linked = nodes.filter((n) => !n.isOrphan)
+  const checks = [
+    {
+      key: "orphans",
+      tone: "high" as const,
+      pages: nodes.filter((n) => n.isOrphan),
+      title: (n: number) => `${n} orphan ${n === 1 ? "page" : "pages"}`,
+      passed: "Every page is linked from at least one other page",
+      why: "No other page on the site links here, so search engines may never find these pages, and they get none of the site's link value.",
+      fix: "Link to each one from a related category or hub page (listed below), with anchor text that says what the page is about.",
+      metric: () => "0 links in",
+    },
+    {
+      key: "weak",
+      tone: "medium" as const,
+      pages: linked.filter((n) => n.inboundCount <= 2).sort((a, z) => a.inboundCount - z.inboundCount),
+      title: (n: number) => `${n} weakly linked ${n === 1 ? "page" : "pages"}`,
+      passed: "Every linked page has at least three links pointing to it",
+      why: "Only one or two internal links point here, so Google reads these pages as minor ones.",
+      fix: "Add two or three links to each from related pages, in the body text rather than the footer.",
+      metric: (n: GraphNode) => `${n.inboundCount} ${n.inboundCount === 1 ? "link" : "links"} in`,
+    },
+    {
+      key: "deep",
+      tone: "medium" as const,
+      pages: linked.filter((n) => n.depth >= 4).sort((a, z) => z.depth - a.depth),
+      title: (n: number) => `${n} ${n === 1 ? "page" : "pages"} buried deep`,
+      passed: "Every page is within three clicks of the homepage",
+      why: "These pages are four or more clicks from the homepage, which crawlers visit less often.",
+      fix: "Link to them from a hub page or the main navigation, so each is within three clicks of the homepage.",
+      metric: (n: GraphNode) => `${n.depth} clicks deep`,
+    },
+  ]
+  const found = checks.filter((c) => c.pages.length > 0)
+  const passed = checks.filter((c) => c.pages.length === 0)
+  const hubs = nodes.filter((n) => n.isHub).sort((a, z) => z.outboundCount - a.outboundCount)
+  const most = (topLinked.length ? topLinked : nodes.filter((n) => n.isAuthority).map((n) => ({ url: n.url, title: n.title, inboundLinks: n.inboundCount })))
+    .slice()
+    .sort((a, z) => z.inboundLinks - a.inboundLinks)
+
+  return (
+    <div className="mt-5 space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-[15px] font-semibold tracking-tight">Findings</h4>
+        <span className="text-xs text-muted-foreground">
+          {found.length === 0 ? "Nothing to fix" : `${found.length} to fix`} · {passed.length} passed
+        </span>
+      </div>
+
+      {found.map((c) => (
+        <div key={c.key} className="relative overflow-hidden rounded-[10px] border border-border bg-card">
+          <span className={`absolute inset-y-0 left-0 w-1 ${TONE[c.tone].bar}`} aria-hidden />
+          <div className="grid gap-4 p-4 pl-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[14px] font-semibold">{c.title(c.pages.length)}</span>
+                <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${TONE[c.tone].chip}`}>{TONE[c.tone].label}</span>
+              </div>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">{c.why}</p>
+              <p className="rounded-md bg-muted/50 px-3 py-2 text-[13px] leading-relaxed">
+                <b className="font-medium">How to fix: </b>
+                {c.fix}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <PageList rows={c.pages.map((n) => ({ url: n.url, title: n.title, metric: c.metric(n) }))} />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {passed.length > 0 && (
+        <ul className="flex flex-wrap gap-x-5 gap-y-1.5 rounded-[10px] border border-border bg-card px-4 py-3">
+          {passed.map((c) => (
+            <li key={c.key} className="flex items-center gap-1.5 text-[13px]">
+              <span className="grid h-4 w-4 place-items-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400" aria-hidden>
+                ✓
+              </span>
+              {c.passed}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {(hubs.length > 0 || most.length > 0) && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {hubs.length > 0 && (
+            <div className="rounded-[10px] border border-border bg-card p-4">
+              <div className="text-[14px] font-semibold">Hub pages</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">They link out to the most pages: the best places to add links to the pages above.</p>
+              <div className="mt-2">
+                <PageList rows={hubs.map((n) => ({ url: n.url, title: n.title, metric: `${n.outboundCount} links out` }))} />
+              </div>
+            </div>
+          )}
+          {most.length > 0 && (
+            <div className="rounded-[10px] border border-border bg-card p-4">
+              <div className="text-[14px] font-semibold">Most linked pages</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">The pages the site points to most, which Google reads as its most important.</p>
+              <div className="mt-2">
+                <PageList rows={most.map((p) => ({ url: p.url, title: p.title, metric: `${p.inboundLinks} links in` }))} />
               </div>
             </div>
           )}
