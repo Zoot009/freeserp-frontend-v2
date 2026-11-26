@@ -239,8 +239,9 @@ Edit only your own rows. If two branches touched neighbouring rows, merging conf
 | `aeo-audit` | `/dashboard/aeo-audit/demo` | `/api/aeo-audit` | `ReportHistory` | `QuestionChoice` POSTs `/question-mix`, so guard it; re-run guarded | B | built — browser check pending |
 | `competitor-analysis` | `/dashboard/competitor-analysis/results?analysisId=demo&keyword=running+shoes` | `/api/competitor-analysis` | `ReportHistory` | Uses the **axios** client (covered); `/link-graph`; guard recrawl, AI plan, AI chat (`ai-chat-panel.tsx`) and share; favourites hidden. When done, point the rank-tracker demo's "Rank #n → #1" and "New analysis" at it | B | built — browser check pending |
 | `internal-links` | `/dashboard/ai-internal-linking/results?analysisId=demo` | `/api/internal-link-analysis` | `ReportHistory` | The create page uses axios (covered); results use `api` | B | built — browser check pending |
+| `keywords` | `/dashboard/keywords?view=demo` | `/api/projects` (the rank tracker demo's project) | "See an example" button, and in the empty state | An aggregate over projects with no data of its own: demo view lists the rank-tracker demo project; `lib/demo/keywords.ts` holds only the links; favourites hidden; "Add keywords" guarded; rows open the rank-tracker demo's keyword pages | — | done |
 | `keyword-score` | `/dashboard/keyword-analysis/results?id=demo` | `/api/keyword-analysis` | own cursor history | Guard re-run; when done, point the rank-tracker demo's score badge at it | B | built — browser check pending |
 
-**Out of scope** (aggregate or account pages, not tools): Keywords (all-keywords view), Overview,
+**Out of scope** (aggregate or account pages, not tools): Overview,
 Favorites, Alerts, Billing, the AI platform pages, Report Builder (in-house only), Search
 Console (paused).

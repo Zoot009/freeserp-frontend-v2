@@ -1016,7 +1016,8 @@
     "colTraffic": "Traffic",
     "colProject": "Project",
     "colSerp": "SERP",
-    "colTrend": "Trend"
+    "colTrend": "Trend",
+    "seeExample": "See an example"
   },
   "dashOverview": {
     "eyebrow": "WELCOME BACK",

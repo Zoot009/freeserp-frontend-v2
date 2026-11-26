@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
-import { useRouter } from "@/i18n/navigation"
+import { useSearchParams } from "next/navigation"
+import { Link, useRouter } from "@/i18n/navigation"
 import { api } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Flag } from "@/components/flag"
@@ -21,6 +22,9 @@ import {
 } from "@/components/dashboard/primitives"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { useEngines, engineOf } from "@/hooks/use-engines"
+import { DemoBanner, useDemoGuard } from "@/components/dashboard/demo-banner"
+import { DEMO_ID } from "@/lib/demo/shared"
+import { KEYWORDS_CREATE_HREF, KEYWORDS_DEMO_HREF } from "@/lib/demo/keywords"
 
 type ProjectSummary = {
   id: string
@@ -81,6 +85,9 @@ type EnrichedRow = KeywordRow & {
 export default function KeywordsListPage() {
   const t = useTranslations("dashKeywords")
   const router = useRouter()
+  // The demo: this page over the rank tracker demo's project (lib/demo/keywords.ts).
+  const isDemo = useSearchParams().get("view") === DEMO_ID
+  const guard = useDemoGuard(isDemo, KEYWORDS_CREATE_HREF)
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [rows, setRows] = useState<EnrichedRow[]>([])
   const [favKw, setFavKw] = useState<Set<string>>(new Set())
@@ -104,21 +111,32 @@ export default function KeywordsListPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const list = await api.get<ProjectSummary[]>("/api/projects")
-        if (cancelled) return
-        setProjects(list)
+        let details: (ProjectDetail | null)[]
+        let favPromise: Promise<Set<string>>
+        if (isDemo) {
+          // Answered in the browser: no request leaves it, and no favourites (they're stored by id, server-side).
+          const demo = await api.get<ProjectDetail & Pick<ProjectSummary, "isActive" | "createdAt">>(`/api/projects/${DEMO_ID}`)
+          if (cancelled) return
+          setProjects([{ id: demo.id, name: demo.name, domain: demo.domain, isActive: demo.isActive, createdAt: demo.createdAt, _count: { keywords: demo.keywords.length } }])
+          details = [demo]
+          favPromise = Promise.resolve(new Set<string>())
+        } else {
+          const list = await api.get<ProjectSummary[]>("/api/projects")
+          if (cancelled) return
+          setProjects(list)
 
-        // Cross-reference the user's keyword favorites so each row's star renders
-        // in the correct state from first mount. Lightweight and best-effort —
-        // an empty set just means every star starts hollow.
-        const favPromise = api
-          .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=keyword")
-          .then((r) => new Set((r.favorites ?? []).map((f) => f.entity.id)))
-          .catch(() => new Set<string>())
+          // Cross-reference the user's keyword favorites so each row's star renders
+          // in the correct state from first mount. Lightweight and best-effort —
+          // an empty set just means every star starts hollow.
+          favPromise = api
+            .get<{ favorites: { entity: { id: string } }[] }>("/api/favorites?entityType=keyword")
+            .then((r) => new Set((r.favorites ?? []).map((f) => f.entity.id)))
+            .catch(() => new Set<string>())
 
-        const details = await Promise.all(
-          list.map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
-        )
+          details = await Promise.all(
+            list.map((p) => api.get<ProjectDetail>(`/api/projects/${p.id}`).catch(() => null))
+          )
+        }
 
         const acc: EnrichedRow[] = []
         for (const detail of details) {
@@ -162,7 +180,7 @@ export default function KeywordsListPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [t])
+  }, [t, isDemo])
 
   const filtered = useMemo(() => {
     let out = rows
@@ -215,6 +233,7 @@ export default function KeywordsListPage() {
 
   return (
     <div className="page">
+      {isDemo && <DemoBanner createHref={KEYWORDS_CREATE_HREF} />}
       <div className="page-h">
         <div style={{ minWidth: 0 }}>
           <h1>
@@ -237,7 +256,13 @@ export default function KeywordsListPage() {
           </div>
         </div>
         <div className="row">
-          <button className="btn primary" onClick={() => router.push("/dashboard/projects")}>
+          {/* What a filled-in page looks like, before tracking anything. */}
+          {!isDemo && (
+            <Link href={KEYWORDS_DEMO_HREF} className="btn">
+              {t("seeExample")}
+            </Link>
+          )}
+          <button className="btn primary" onClick={guard(() => router.push("/dashboard/projects"))}>
             <Icon.plus /> {t("addKeywords")}
           </button>
         </div>
@@ -359,9 +384,16 @@ export default function KeywordsListPage() {
               ? t("emptyBodyNone")
               : t("emptyBodyNoMatches", { count: rows.length })}
           </div>
-          <button className="btn primary" style={{ marginTop: 16 }} onClick={() => router.push("/dashboard/projects")}>
-            <Icon.plus /> {rows.length === 0 ? t("createProject") : t("manageProjects")}
-          </button>
+          <div className="row" style={{ marginTop: 16, gap: 8, justifyContent: "center" }}>
+            <button className="btn primary" onClick={guard(() => router.push("/dashboard/projects"))}>
+              <Icon.plus /> {rows.length === 0 ? t("createProject") : t("manageProjects")}
+            </button>
+            {rows.length === 0 && !isDemo && (
+              <Link href={KEYWORDS_DEMO_HREF} className="btn">
+                {t("seeExample")}
+              </Link>
+            )}
+          </div>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -394,7 +426,7 @@ export default function KeywordsListPage() {
                   style={{ cursor: "pointer" }}
                 >
                   <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }}>
-                    <FavoriteButton entityType="keyword" entityId={r.id!} initial={favKw.has(r.id!)} />
+                    {!isDemo && <FavoriteButton entityType="keyword" entityId={r.id!} initial={favKw.has(r.id!)} />}
                   </td>
                   <td>
                     <div className="kw" title={r.kw}>{r.kw}</div>
