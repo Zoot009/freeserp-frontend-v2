@@ -502,7 +502,7 @@ function KeywordsPanel({ data }: { data: AdsAnalysisResponse }) {
               <tbody>
                 {g.keywords.map((r) => (
                   <tr key={r.term} className="border-t border-border/60">
-                    <td className="max-w-0 truncate px-3 py-1.5">{r.term}</td>
+                    <td className="px-3 py-1.5 sm:max-w-0 sm:truncate">{r.term}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.volume === null ? "–" : num(r.volume)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.cpc === null ? "–" : money(r.cpc, 2)}</td>
                     <td className={`px-3 py-1.5 text-right ${r.competition === null ? "" : compTone(r.competition)}`}>

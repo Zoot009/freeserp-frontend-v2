@@ -723,7 +723,7 @@ export function WebsiteScreenshot({
 
   if (!data || data.failed || (!data.desktop && !data.mobile)) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border/40 bg-muted/30">
+      <div className="flex h-28 sm:h-64 items-center justify-center rounded-xl border border-border/40 bg-muted/30">
         <p className="text-sm text-muted-foreground">{t("screenshotUnavailable")}</p>
       </div>
     )
@@ -2010,6 +2010,7 @@ export function RadarChart({ categories }: { categories: Array<{ label: string; 
   const cy = size / 2
   const maxR = size / 2 - 22
   const n = categories.length
+  const PAD = 28 // room either side for the axis labels
 
   const pt = (i: number, r: number) => {
     const angle = (i / n) * 2 * Math.PI - Math.PI / 2
@@ -2022,7 +2023,7 @@ export function RadarChart({ categories }: { categories: Array<{ label: string; 
   const dataPoints = categories.map((cat, i) => pt(i, maxR * Math.max(cat.score / 100, 0.05)))
 
   return (
-    <svg width={size} height={size} className="shrink-0 overflow-visible">
+    <svg width={size + 2 * PAD} height={size} viewBox={`${-PAD} 0 ${size + 2 * PAD} ${size}`} className="shrink-0 self-center overflow-visible sm:self-auto">
       {[0.25, 0.5, 0.75, 1].map((level) => (
         <polygon key={level} points={polyPoints(maxR * level)} fill="none" className="stroke-border/30" strokeWidth={1} />
       ))}
@@ -2392,9 +2393,9 @@ export function CategoryResultSection({
     <div className="overflow-hidden rounded-2xl border border-border/40 bg-card">
       <div className="border-b border-border/40 px-6 pb-6 pt-6">
         <h2 className="mb-5 text-lg font-bold">{title}</h2>
-        <div className="flex items-center gap-8">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-8">
           <GaugeDial grade={grade} score={score} size={128} pending={pageSpeedPending} />
-          <div className="min-w-0 flex-1">
+          <div className="w-full min-w-0 flex-1">
             <p className="mb-2 text-base font-semibold">
               {pageSpeedPending ? "Measuring page speed…" : categoryTagline(categoryLabel, grade)}
             </p>
@@ -3649,7 +3650,7 @@ export function BacklinksView({
                   {t.label}
                 </div>
                 <div
-                  className={`mt-1 text-xl font-bold tabular-nums ${
+                  className={`mt-1 text-base font-bold tabular-nums sm:text-xl ${
                     t.tone === "good"
                       ? "text-green-600"
                       : t.tone === "warn"
@@ -3667,7 +3668,7 @@ export function BacklinksView({
           </div>
 
           {totalLinks > 0 && (
-            <div className="flex items-center gap-4 lg:flex-col lg:items-center">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:justify-start lg:flex-col lg:items-center">
               <BacklinkDonut dofollow={data.dofollow} nofollow={data.nofollow} />
               <div className="space-y-1.5 text-xs">
                 <div className="flex items-center gap-2">

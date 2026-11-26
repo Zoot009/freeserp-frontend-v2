@@ -167,12 +167,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <SidebarTrigger />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <DashboardBreadcrumb className="hidden min-w-0 sm:flex" />
-            {/* Narrower until lg, so the page name beside it has room. */}
-            <div className="relative ml-auto w-full max-w-[200px] lg:max-w-xs xl:max-w-sm">
+            {/* Narrower until lg, so the page name beside it has room. Hidden on phones,
+                where the space left beside the icons showed one letter of the placeholder. */}
+            <div className="relative ml-auto hidden w-full max-w-[200px] sm:block lg:max-w-xs xl:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search keywords, projects, competitors…" className="pl-9" />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
               <Button variant="outline" size="icon" aria-label="Toggle theme" onClick={() => setTheme(isDark ? "light" : "dark")}>
                 {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </Button>

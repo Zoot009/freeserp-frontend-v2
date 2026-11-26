@@ -50,6 +50,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 type Item = { key: string; url: string; icon: React.ComponentType<{ className?: string }>; soon?: boolean }
@@ -176,6 +177,10 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const search = searchParams.toString()
+  const { setOpenMobile } = useSidebar()
+
+  // On phones the sidebar is a sheet over the page: close it once a link takes you somewhere.
+  React.useEffect(() => setOpenMobile(false), [pathname, search, setOpenMobile])
 
   // Google Maps Tracker and the AI Prompt Tracker were both allowlisted once,
   // each because it spends DataForSEO money per action with no billing in front
@@ -217,7 +222,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
           return (
             <SidebarMenuItem key={it.url}>
               <SidebarMenuButton asChild isActive={isActive(it.url, pathname, search)} tooltip={t(it.key)}>
-                <Link href={it.url}>
+                <Link href={it.url} onClick={() => setOpenMobile(false)}>
                   <Icon />
                   <span>{t(it.key)}</span>
                 </Link>

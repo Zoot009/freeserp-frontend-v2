@@ -817,7 +817,7 @@ export function PageDetails({ pages, findings, origin }: { pages: AeoReport["pag
               <details className="group">
                 <summary className={`${ROW} flex-wrap`}>
                   {issues.length ? <XCircle className="h-4 w-4 shrink-0 text-red-500" /> : <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />}
-                  <span className="min-w-0 flex-1 break-all font-mono text-xs">{group.label}</span>
+                  <span className="min-w-36 flex-1 break-all font-mono text-xs">{group.label}</span>
                   <span className="text-[11px] text-muted-foreground">{group.meta}</span>
                   <span className={`text-xs font-medium ${issues.length ? "text-red-500" : "text-green-600 dark:text-green-400"}`}>
                     {issues.length ? `${issues.length} issue${issues.length === 1 ? "" : "s"}` : "No issues"}

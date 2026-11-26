@@ -587,7 +587,7 @@ export default function SeoDashboardPage() {
             />
           </h1>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2.5">
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
             <div className="inline-flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
               {(["24h", "7d", "30d", "90d"] as const).map((r) => (
                 <button
