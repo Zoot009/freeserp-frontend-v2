@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { Panel, ScoreRing } from "@/components/gbp-audit/report"
+import { StatCard } from "@/components/dashboard/stat-card"
 import {
   BAND_LABEL,
   host,
@@ -45,6 +46,8 @@ const BAND_TONE = {
   needs_work: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
   not_ready: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
 } as const
+
+const PRIORITY_BAR: Record<Priority, string> = { critical: "bg-red-500", high: "bg-orange-500", medium: "bg-amber-400", low: "bg-slate-300 dark:bg-slate-600" }
 
 const PRIORITY_TONE: Record<Priority, string> = {
   critical: "bg-red-500/10 text-red-700 dark:text-red-400",
@@ -166,14 +169,32 @@ export function AdsReport({ data, onSaveAssumptions }: { data: AdsAnalysisRespon
           </span>
         </p>
       )}
+      <KeyNumbers data={data} />
+      <nav className="flex flex-wrap gap-2 print:hidden" aria-label="Parts of this report">
+        {PARTS.map((p, i) => (
+          <a key={p.id} href={`#${p.id}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-foreground">
+            {i + 1}. {p.title}
+          </a>
+        ))}
+      </nav>
+
+      <Part n={1} />
       <Priorities issues={scorecard.issues} />
+
+      <Part n={2} />
       <LandingPages data={data} />
+
+      <Part n={3} />
       <div className="grid gap-4 lg:grid-cols-2">
         <TrackingPanel data={data} />
         <SpeedPanel data={data} />
       </div>
+
+      <Part n={4} />
       <BudgetPanel data={data} onSave={onSaveAssumptions} />
       <KeywordsPanel data={data} />
+
+      <Part n={5} />
       <div className="grid gap-4 lg:grid-cols-2">
         <QuickWinsPanel data={data} />
         <TechnicalPanel data={data} />
@@ -183,6 +204,95 @@ export function AdsReport({ data, onSaveAssumptions }: { data: AdsAnalysisRespon
         Forecasts are ranges from those estimates and your assumptions, not a promise of results. Tags were detected from outside the site: whether a click-to-call
         or WhatsApp click is tracked as a conversion can only be confirmed inside Google Ads.
       </p>
+    </div>
+  )
+}
+
+/** The report in five parts, each with a heading saying what it answers. */
+const PARTS = [
+  { id: "ads-fix", title: "What to fix first", text: "Fix these before spending on ads, in this order: each one wastes budget until it's done." },
+  { id: "ads-pages", title: "Where your ads land", text: "Every service you advertise needs a page that matches the ad and shows a way to get in touch on the first screen." },
+  { id: "ads-tracking", title: "Tracking and speed", text: "Whether Google Ads can count your leads, and how quickly your pages load on a phone." },
+  { id: "ads-budget", title: "Budget and keywords", text: "What a month of ads would cost and bring in, and the keywords to bid on, grouped the way the campaign should be." },
+  { id: "ads-more", title: "Quick wins and technical health", text: "What helps your ads straight away, and the basics that have to work." },
+]
+
+function Part({ n }: { n: number }) {
+  const p = PARTS[n - 1]!
+  return (
+    <div id={p.id} className="scroll-mt-24 pt-5 print:break-before-auto">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-semibold text-white">{n}</span>
+        <h2 className="text-[18px] font-semibold tracking-tight">{p.title}</h2>
+      </div>
+      <p className="mt-1 pl-[38px] text-[13px] leading-relaxed text-muted-foreground">{p.text}</p>
+    </div>
+  )
+}
+
+const speedTone = (v: number) => (v >= 90 ? "text-emerald-600 dark:text-emerald-400" : v >= 50 ? "text-amber-600" : "text-red-500")
+const speedFill = (v: number) => (v >= 90 ? "bg-emerald-500" : v >= 50 ? "bg-amber-500" : "bg-red-500")
+
+/** The numbers that decide whether to run ads yet, first. */
+function KeyNumbers({ data }: { data: AdsAnalysisResponse }) {
+  const { result, scorecard, forecast: f } = data
+  if (!result || !scorecard) return null
+  const urgent = scorecard.issues.filter((i) => i.priority === "critical" || i.priority === "high").length
+  const found = result.services.filter((s) => s.status === "found").length
+  const conversion = result.tracking?.adsConversion ?? null
+  const speeds = result.pages.flatMap((p) => (p.psi ? [p.psi.score] : []))
+  const slowest = speeds.length ? Math.min(...speeds) : null
+  const CONVERSION = {
+    detected: { value: "Set up", tone: "text-emerald-600 dark:text-emerald-400", caption: "Google Ads can count leads" },
+    not_found: { value: "Missing", tone: "text-red-500", caption: "Google Ads can't see which clicks became leads" },
+    cannot_confirm: { value: "Can't confirm", tone: "text-amber-600", caption: "Check it inside Google Ads" },
+  } as const
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <StatCard
+        compact
+        label="Fix first"
+        hint="Critical and high-priority problems: each one wastes ad spend until it's fixed."
+        value={urgent}
+        tone={urgent > 0 ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}
+        caption={`critical or high · ${scorecard.issues.length} issues in all`}
+      />
+      <StatCard
+        compact
+        label="Landing pages"
+        hint="Services that have a page of their own to send their ads to."
+        value={`${found} of ${result.services.length}`}
+        tone={found === result.services.length ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}
+        caption="services with their own page"
+        fill={result.services.length ? (found / result.services.length) * 100 : null}
+        fillClass={found === result.services.length ? "bg-emerald-500" : "bg-amber-500"}
+      />
+      <StatCard
+        compact
+        label="Conversion tracking"
+        hint="The Google Ads conversion action that tells Google which clicks became leads, so it can bid for more of them."
+        value={conversion ? CONVERSION[conversion].value : "—"}
+        tone={conversion ? CONVERSION[conversion].tone : "text-foreground"}
+        caption={conversion ? CONVERSION[conversion].caption : "Couldn't be checked"}
+      />
+      <StatCard
+        compact
+        label="Slowest page on mobile"
+        hint="The lowest Google PageSpeed score among the landing pages. Slow pages raise the cost per click and lose visitors."
+        value={slowest !== null ? `${slowest}/100` : "—"}
+        tone={slowest !== null ? speedTone(slowest) : "text-foreground"}
+        caption="PageSpeed, mobile"
+        fill={slowest}
+        fillClass={slowest !== null ? speedFill(slowest) : undefined}
+      />
+      <StatCard
+        compact
+        label="Leads a month"
+        hint="The forecast from the budget below: a range, never a promise."
+        value={f ? range(f.leads, num) : "—"}
+        tone="text-foreground"
+        caption={f ? `${range(f.costPerLead, (n) => money(n))} each · ${money(f.budget)} a month` : "No cost data for these services"}
+      />
     </div>
   )
 }
@@ -201,15 +311,25 @@ function Priorities({ issues }: { issues: Issue[] }) {
       <ul className="divide-y divide-border">
         {/* Past the first 6, hidden on screen until "Show all", but always printed. */}
         {issues.map((i, n) => (
-          <li key={n} className={`${n >= 6 && !all ? "hidden print:block" : ""} min-w-0 px-4 py-2.5`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill tone={PRIORITY_TONE[i.priority]}>{i.priority[0]!.toUpperCase() + i.priority.slice(1)}</Pill>
-              <span className="text-[13px] font-semibold">{i.title}</span>
+          <li
+            key={n}
+            className={`${n >= 6 && !all ? "hidden print:grid" : "grid"} relative min-w-0 gap-x-6 gap-y-2 py-3 pl-5 pr-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] print:break-inside-avoid`}
+          >
+            <span className={`absolute inset-y-3 left-0 w-1 rounded-r ${PRIORITY_BAR[i.priority]}`} aria-hidden />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="w-4 text-xs tabular-nums text-muted-foreground">{n + 1}</span>
+                <Pill tone={PRIORITY_TONE[i.priority]}>{i.priority[0]!.toUpperCase() + i.priority.slice(1)}</Pill>
+                <span className="text-[14px] font-semibold">{i.title}</span>
+              </div>
+              <div className="mt-1 pl-6 text-xs text-muted-foreground">
+                {i.where} · {i.impact}
+              </div>
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {i.where} · {i.impact}
+            <div className="min-w-0 rounded-lg bg-muted/50 px-3 py-2 text-[13px] leading-relaxed">
+              <span className="mb-0.5 block text-[11px] font-medium text-muted-foreground">How to fix</span>
+              {i.fix}
             </div>
-            <div className="mt-0.5 text-xs leading-relaxed">{i.fix}</div>
           </li>
         ))}
       </ul>
