@@ -3206,6 +3206,17 @@
 .fs-app .cmp-compare tbody tr:not(.cmp-section) > td:first-child { border-left: 1px solid var(--border); }
 .fs-app .cmp-compare tbody tr:not(.cmp-section) > td:last-child  { border-right: 1px solid var(--border); }
 
+/* Red marks issues on the user's own site only. In a competitor's column a weak spot is a
+   fact about them, not something to fix, so it reads in neutral grey: text, icons, score
+   rings and the "worst" cell wash all draw on these. Amber too, so a worse value never looks
+   calmer than a milder one. Green stays: what a competitor does well is worth seeing. */
+.fs-app .cmp-compare tbody tr:not(.cmp-section) > td:nth-child(n+3) {
+  --neg: var(--text-soft);
+  --neg-soft: var(--bg-inset);
+  --warn: var(--text-soft);
+  --warn-soft: var(--bg-inset);
+}
+
 .fs-app .cmp-compare tbody tr:not(.cmp-section) > td:not([class*="pos-soft"]):not([class*="neg-soft"]) {
   background: var(--bg-elev);            /* elevated panel interior */
 }
