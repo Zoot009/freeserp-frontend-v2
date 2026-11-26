@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Map, AdvancedMarker } from "@vis.gl/react-google-maps"
+import { MapPinOff } from "lucide-react"
+import { SafeMap } from "@/components/maps-tracker/safe-map"
 import {
   bandKeyFor,
   deriveSpacingMeters,
@@ -358,7 +360,10 @@ export function ScanMap({
     mapInstance.fitBounds(bounds, pad)
   }, [mapInstance, centerLat, centerLng, gridSize, radiusMeters, sizeTick, userMoved])
 
+  // Every Maps Tracker map is this one: if Google refuses the key or the map throws,
+  // its box says so and the page carries on (the report, the share page, the new-scan form).
   return (
+    <SafeMap fallback={<MapUnavailable />}>
     <Map
       mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || DEFAULT_MAP_ID}
       defaultCenter={{ lat: centerLat, lng: centerLng }}
@@ -409,5 +414,15 @@ export function ScanMap({
         />
       ))}
     </Map>
+    </SafeMap>
+  )
+}
+
+function MapUnavailable() {
+  return (
+    <div style={{ height: "100%", minHeight: 160, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 24, textAlign: "center", background: "var(--bg-inset)" }}>
+      <MapPinOff size={22} style={{ color: "var(--text-mute)" }} aria-hidden />
+      <span style={{ fontSize: 12, color: "var(--text-mute)" }}>Google Maps didn&apos;t load, so the map isn&apos;t shown. Everything else on this page still works.</span>
+    </div>
   )
 }
