@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useTranslations } from "next-intl"
 import { Check, ChevronDown, Loader2 } from "lucide-react"
-import { api, ApiError } from "@/lib/api"
+import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import {
   useCreditRates,
@@ -196,7 +196,7 @@ function TierCard({
   pending: string | null
   /** Never subscribed: monthly plans show their first-month intro price. */
   introEligible: boolean
-  /** The account already subscribes to another plan: this card switches it in the billing portal. */
+  /** The account already subscribes: other plans open up when its plan ends. */
   switching: boolean
   /** Plan slug from a "Get Pro" link on the marketing site. */
   highlight: string | null | undefined
@@ -355,7 +355,7 @@ function PlanCard({
       />
       <button
         type="button"
-        disabled={current || busy}
+        disabled={current || busy || switching}
         onClick={onChoose}
         className={cn(
           "mt-6 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-70",
@@ -369,9 +369,11 @@ function PlanCard({
         {busy && <Loader2 className="size-3.5 animate-spin" />}
         {current
           ? t("currentPlan")
-          : busy
-            ? t(switching ? "openingPortal" : "openingCheckout")
-            : t(switching ? "switchPlan" : "choosePlan", { plan: name })}
+          : switching
+            ? t("planLocked")
+            : busy
+              ? t("openingCheckout")
+              : t("choosePlan", { plan: name })}
       </button>
     </div>
   )
@@ -482,7 +484,6 @@ export function CreditPricing({
   // button with no explanation is the worst outcome on a pricing page.
   const [pending, setPending] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
-  const [portalError, setPortalError] = useState<string | null>(null)
   const packsRef = useRef<HTMLDivElement>(null)
 
   // "Buy credits" links from anywhere in the app land here with ?topup=packs.
@@ -498,7 +499,6 @@ export function CreditPricing({
   const go = async (key: string, body: { planSlug?: string; topupCents?: number }) => {
     setPending(key)
     setFailed(false)
-    setPortalError(null)
     const url = await startCheckout(body)
     if (url) {
       window.location.href = url
@@ -508,24 +508,11 @@ export function CreditPricing({
     setFailed(true)
   }
 
-  // An account with a live subscription changes plan in the billing portal.
-  // A second checkout would start a second subscription billed beside the
-  // first, so the server refuses it (already_subscribed); the card goes to the
-  // portal instead. The server's message is shown as it is, since it can be
-  // specific (PayU plans are changed by cancelling first).
+  // No plan changes mid-period, by policy: a subscriber tops up for more
+  // credits now, and picks another plan once theirs ends (cancel in Billing).
+  // The server refuses a second checkout anyway (already_subscribed), and the
+  // Stripe portal has upgrades/downgrades switched off.
   const subscribed = !!credits?.planSlug && credits.planSlug !== "free"
-  const switchPlan = async (key: string) => {
-    setPending(key)
-    setFailed(false)
-    setPortalError(null)
-    try {
-      const { url } = await api.post<{ url: string }>("/api/billing/portal")
-      window.location.href = url
-    } catch (err) {
-      setPending(null)
-      setPortalError(err instanceof ApiError && err.message ? err.message : t("portalFailed"))
-    }
-  }
 
   // Annual unless the visitor arrived holding a monthly plan's link, or is on one.
   const isMonthly = (slug: string | null | undefined) => !!slug && TIERS.some((t) => t.month.includes(slug))
@@ -590,16 +577,14 @@ export function CreditPricing({
             switching={subscribed}
             highlight={highlight}
             introEligible={credits?.introEligible ?? false}
-            onChoose={(p) =>
-              void (subscribed ? switchPlan(p.key) : go(p.key, { planSlug: p.key.replace(/^plan:/, "") }))
-            }
+            onChoose={(p) => void go(p.key, { planSlug: p.key.replace(/^plan:/, "") })}
           />
         ))}
       </div>
 
-      {(failed || portalError) && (
-        <p className="text-xs font-medium text-red-600 dark:text-red-400">{portalError ?? t("checkoutFailed")}</p>
-      )}
+      {subscribed && <p className="text-[13px] text-muted-foreground">{t("subscribedNote")}</p>}
+
+      {failed && <p className="text-xs font-medium text-red-600 dark:text-red-400">{t("checkoutFailed")}</p>}
 
       {rates.topup && (
         <div

@@ -255,6 +255,8 @@
     "creditSize": "Credits per maand",
     "buysDaily": "{credits} zoekwoorden dagelijks gevolgd",
     "currentPlan": "Huidig abonnement",
+    "planLocked": "Beschikbaar als je abonnement afloopt",
+    "subscribedNote": "Meer credits nodig deze maand? Gebruik \"Tegoed toevoegen\" hieronder. Wil je van abonnement wisselen, zeg dan op bij Facturering en kies een nieuw abonnement als het huidige afloopt.",
     "openingCheckout": "Afrekenen wordt geopend…",
     "choosePlan": "{plan} kiezen",
     "everyToolTitle": "Hoeveel credits gebruikt elke tool?",
