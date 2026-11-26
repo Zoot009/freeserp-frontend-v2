@@ -157,15 +157,19 @@ limit, count, quota or "X of Y used" text.
   only where no id is at hand.
 
 ### 6. Paid tools
-`PaidToolGate` already lets every demo view through, for every plan. Don't touch the gate, and
-don't add plan checks around the demo. For a free user, the CTA leading to the tool's real start
-page is the upsell: the gate shows them the paywall there.
+`PaidToolGate` lets every demo view through, for every plan. Don't touch the gate, and don't add
+plan checks around the demo.
 
-Free users never see a paid tool's own list (the gate's sample screen replaces it), so the demo
-pinned there is invisible to exactly the people it is for. **Pass the demo's URL from your tool's
-layout:** `<PaidToolGate tool="…" demoHref={<TOOL>_DEMO_HREF}>`, with `<TOOL>_DEMO_HREF` exported
-from your module. The sample screen then leads with "Explore the live demo". That prop is the
-gate's only per-tool input; the gate itself stays untouched.
+A free account sees a paid tool's real page with a one-line "paid tool" strip on top, so the demo
+pinned first in the list is exactly what it opens. The server refuses the account's own list
+(`403 paid_plan_required`): treat that as an empty list, never as an error
+(`isPaidPlanRefusal(err)` from `lib/api.ts`; `ReportHistory` already does). Starting a run is
+refused too, and `lib/api.ts` turns that refusal into the upgrade dialog. A create flow that
+takes several steps before its first write (a wizard, an OAuth popup) should call
+`openUpgradePrompt()` up front instead, as the AI Prompt Tracker and Search Console do.
+
+Pass the demo's URL from your tool's layout, `<PaidToolGate tool="…" demoHref={<TOOL>_DEMO_HREF}>`,
+with `<TOOL>_DEMO_HREF` exported from your module: the strip links to it.
 
 ### 7. Text and i18n
 - Use the `demo` namespace: `DemoBanner`, `DemoChip` and the prompt already render it. Don't add

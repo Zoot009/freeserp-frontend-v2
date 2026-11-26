@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, isPaidPlanRefusal } from "@/lib/api"
 import { CreditCost } from "@/components/dashboard/credit-cost"
 import { rankCheckAction } from "@/lib/credits"
 import { Favicon } from "@/components/favicon"
@@ -559,6 +559,9 @@ export default function CompetitorSpyPage() {
         return data.competitors[0]?.id ?? null
       })
     } catch (err: unknown) {
+      // A free account is refused: it tracks no competitors, so the empty state
+      // (the strip above says why), not an error.
+      if (isPaidPlanRefusal(err)) return
       if (err instanceof ApiError && err.status === 404) { router.replace("/dashboard/projects"); return }
       setError(err instanceof Error ? err.message : "Failed to load competitors")
     } finally {

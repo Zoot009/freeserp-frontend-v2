@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import { Link } from "@/i18n/navigation"
-import { api } from "@/lib/api"
+import { api, isPaidPlanRefusal } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { Favicon } from "@/components/favicon"
 import { DemoChip } from "@/components/dashboard/demo-banner"
@@ -60,7 +60,9 @@ export function ReportHistory<T>({
     let cancelled = false
     api.get<{ analyses?: T[] }>(path, { query: { limit: RECENT_LIMIT } })
       .then((d) => { if (!cancelled) setRows((d.analyses ?? []).slice(0, RECENT_LIMIT).map(toRow)) })
-      .catch(() => { if (!cancelled) setFailed(true) })
+      // A free account is refused a paid tool's list. It has no reports of its
+      // own, so it gets the empty state under the demo, not an error.
+      .catch((err) => { if (!cancelled && !isPaidPlanRefusal(err)) setFailed(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

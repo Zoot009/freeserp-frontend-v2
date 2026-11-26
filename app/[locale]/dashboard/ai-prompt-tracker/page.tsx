@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, isPaidPlanRefusal, openUpgradePrompt } from "@/lib/api"
 import { useAuth } from "@/lib/auth"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
@@ -47,6 +47,9 @@ export default function LlmPromptsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  // A free account is refused the list: it tracks nothing, gets the demo row
+  // rather than the setup wizard, and "New brand" opens the upgrade dialog.
+  const [refused, setRefused] = useState(false)
   const [unavailable, setUnavailable] = useState<"" | "missing" | "unverified">("")
   const [showAdd, setShowAdd] = useState(false)
 
@@ -63,7 +66,8 @@ export default function LlmPromptsPage() {
       // the early-access allowlist. Both are states, not failures, so neither
       // belongs in the red error card — and now that this is the headline nav
       // item, the 403 is what most users will hit.
-      if (err instanceof ApiError && err.status === 404) setUnavailable("missing")
+      if (isPaidPlanRefusal(err)) setRefused(true)
+      else if (err instanceof ApiError && err.status === 404) setUnavailable("missing")
       else if (err instanceof ApiError && err.status === 403) setUnavailable("unverified")
       else setError(err instanceof Error ? err.message : "Failed to load projects")
     } finally {
@@ -112,7 +116,7 @@ export default function LlmPromptsPage() {
   // state whose only action opened a modal -- one click and one dialog between
   // a new account and the thing it came here for, and the empty state said
   // nothing the wizard's own first step does not say better.
-  const firstRun = projects.length === 0
+  const firstRun = projects.length === 0 && !refused
   const setupOpen = firstRun || showAdd
 
   return (
@@ -127,7 +131,7 @@ export default function LlmPromptsPage() {
           </div>
         </div>
         {!setupOpen && (
-          <button className="btn primary" onClick={() => setShowAdd(true)}>
+          <button className="btn primary" onClick={() => (refused ? openUpgradePrompt() : setShowAdd(true))}>
             <Icon.plus /> New brand
           </button>
         )}

@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
-import { api } from "@/lib/api"
+import { api, isPaidPlanRefusal } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -370,8 +370,10 @@ export function AuditHistory({
           setItems(data.items ?? [])
           setTotal(data.total ?? 0)
         }
-      } catch {
-        setFailed(true)
+      } catch (err) {
+        // A free account is refused the list: no audits of its own, so the
+        // empty state under the demo row rather than an error.
+        setFailed(!isPaidPlanRefusal(err))
         setGroups([])
         setItems([])
         setTotal(0)

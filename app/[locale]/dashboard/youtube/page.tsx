@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Link, useRouter } from "@/i18n/navigation"
 import { useAuth } from "@/lib/auth"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, isPaidPlanRefusal } from "@/lib/api"
 import { ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Favicon } from "@/components/favicon"
@@ -266,6 +266,9 @@ export default function YoutubeProjectsPage() {
       const data = await api.get<{ projects: YtProjectSummary[] }>("/api/youtube/projects")
       setProjects(data.projects)
     } catch (err: unknown) {
+      // A free account is refused the list: it has no projects of its own, so
+      // it gets the empty state with the demo, not an error.
+      if (isPaidPlanRefusal(err)) return
       // 404 = the feature flag is off on this backend. Say so plainly rather
       // than showing a generic failure.
       if (err instanceof ApiError && err.status === 404) setError("YouTube tracking isn't enabled on this account yet.")

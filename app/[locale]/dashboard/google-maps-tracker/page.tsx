@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Plus } from "lucide-react"
 import { useRouter } from "@/i18n/navigation"
-import { api } from "@/lib/api"
+import { api, isPaidPlanRefusal } from "@/lib/api"
 import { Icon } from "@/components/dashboard/icons"
 import { ToolContext } from "@/components/dashboard/tool-context"
 import { ScanHistory } from "@/components/maps-tracker/scan-history"
@@ -44,7 +44,13 @@ export default function GoogleMapsTrackerPage() {
       setHistory(scans)
       setFailed(false)
       return scans
-    } catch {
+    } catch (err) {
+      // A free account is refused the list: it has no scans of its own, so it
+      // gets the empty state with the demo, not an error.
+      if (isPaidPlanRefusal(err)) {
+        setHistory([])
+        return []
+      }
       // An API error is not "you have no scans" — leaving `history` null keeps
       // the first-run redirect below from firing on a failed request.
       setFailed(true)

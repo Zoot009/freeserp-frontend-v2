@@ -7,7 +7,7 @@ import { useGoogleLogin } from "@react-oauth/google"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"
-import { api, ApiError } from "@/lib/api"
+import { api, ApiError, isPaidPlanRefusal, openUpgradePrompt } from "@/lib/api"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -263,6 +263,9 @@ export default function SearchConsolePage() {
   const [showAddModal, setShowAddModal] = useState(false)
 
   const [loading, setLoading] = useState(true)
+  // A free account is refused Search Console: it sees the "connect" screen, and
+  // the button opens the upgrade dialog instead of Google's consent popup.
+  const [refused, setRefused] = useState(false)
   const [busy, setBusy] = useState(false)
   const [perfLoading, setPerfLoading] = useState(false)
   // Whether the first performance request has come back at all — success or
@@ -351,7 +354,8 @@ export default function SearchConsolePage() {
         if (!active) return
         if (base.connected && !base.linked) await loadSites()
       } catch (err) {
-        if (active) noteError(err, "Failed to load")
+        if (active && isPaidPlanRefusal(err)) setRefused(true)
+        else if (active) noteError(err, "Failed to load")
       } finally {
         if (active) setLoading(false)
       }
@@ -592,7 +596,7 @@ export default function SearchConsolePage() {
           {/* The only thing that fixes a revoked grant is signing in again, so
               the banner that reports it carries the button that does it. */}
           {needsReauth && (
-            <button type="button" className="btn primary" onClick={() => connectGsc()} disabled={busy}>
+            <button type="button" className="btn primary" onClick={() => (refused ? openUpgradePrompt() : connectGsc())} disabled={busy}>
               {busy ? t("connecting") : t("reconnectCta")}
             </button>
           )}
@@ -606,7 +610,7 @@ export default function SearchConsolePage() {
           <p className="muted" style={{ maxWidth: 460, margin: "8px auto 20px", fontSize: 13 }}>
             {t("connectDesc")}
           </p>
-          <button type="button" className="btn primary" onClick={() => connectGsc()} disabled={busy}>
+          <button type="button" className="btn primary" onClick={() => (refused ? openUpgradePrompt() : connectGsc())} disabled={busy}>
             {busy ? t("connecting") : t("connectCta")}
           </button>
         </div>

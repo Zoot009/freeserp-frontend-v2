@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { PaidToolGate } from "@/components/dashboard/paid-tool-gate"
 import { DEMO_ID } from "@/lib/demo/shared"
 
-// A paid tool (the free plan is the Google rank tracker only): free accounts see a sample, the live demo and an upgrade prompt instead (the API refuses them too).
+// A paid tool: free accounts see this page with a "paid tool" strip on top and the demo in its list; the API refuses their runs.
 export default function Layout({ children }: { children: ReactNode }) {
   return <PaidToolGate tool="pageAudit" demoHref={`/dashboard/page-audit/${DEMO_ID}?view=single`}>{children}</PaidToolGate>
 }

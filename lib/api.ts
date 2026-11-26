@@ -66,6 +66,16 @@ export class ApiError extends Error {
   }
 }
 
+/** The server refused a free account a paid tool (403 paid_plan_required). */
+export function isPaidPlanRefusal(err: unknown): boolean {
+  return err instanceof ApiError && err.code === "paid_plan_required"
+}
+
+/** Open the "This is a paid feature" upgrade dialog (QuotaUpsellModal). */
+export function openUpgradePrompt(): void {
+  window.dispatchEvent(new CustomEvent("billing:quota", { detail: { code: "plan_upgrade_required" } }))
+}
+
 /**
  * The message in an error body — { error: { code, message } }, or a legacy
  * plain string. Reading `body.error` alone rendered as "[object Object]".
