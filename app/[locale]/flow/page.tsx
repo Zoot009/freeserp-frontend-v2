@@ -51,19 +51,19 @@ const FOCUS_OPTIONS = [
 // `recommended` is the tier the step's "For you" badge lands on — the same one
 // the pricing page marks most popular.
 const PLAN_COPY: Record<string, { name: string; recommended?: boolean }> = {
-  "plan:credits-19": { name: "Starter" },
-  "plan:credits-49": { name: "Pro", recommended: true },
-  "plan:credits-99": { name: "Agency" },
+  "plan:starter-monthly": { name: "Starter" },
+  "plan:pro-monthly": { name: "Pro", recommended: true },
+  "plan:agency-3k-monthly": { name: "Agency" },
 }
-const RECOMMENDED_PLAN_KEY = "plan:credits-49"
+const RECOMMENDED_PLAN_KEY = "plan:pro-monthly"
 
 // Offline fallback, mirroring DEFAULT_CREDIT_RATES in the backend's
 // credits/catalog.ts. GET /api/credits/rates is the source of truth; this only
 // keeps the step from rendering an empty card row if that call fails.
 const FALLBACK_PLANS: CreditPlan[] = [
-  { key: "plan:credits-19", credits: 2000, priceCents: 1900, currency: "USD" },
-  { key: "plan:credits-49", credits: 6000, priceCents: 4900, currency: "USD" },
-  { key: "plan:credits-99", credits: 15000, priceCents: 9900, currency: "USD" },
+  { key: "plan:starter-monthly", credits: 120, priceCents: 900, currency: "USD" },
+  { key: "plan:pro-monthly", credits: 1000, priceCents: 4900, currency: "USD" },
+  { key: "plan:agency-3k-monthly", credits: 3000, priceCents: 12900, currency: "USD" },
 ]
 const FALLBACK_FREE_MONTHLY = 100
 const PLAN_FEATURES = [

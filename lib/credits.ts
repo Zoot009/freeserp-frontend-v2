@@ -18,6 +18,10 @@ export interface CreditSummary {
   monthlyAllowance: number
   nextRefillAt: string | null
   planSlug: string
+  /** When the free plan stops (or stopped) refilling; null on a plan. */
+  freeEndsAt?: string | null
+  /** Never subscribed, so a monthly plan's first-month intro price applies. */
+  introEligible?: boolean
   /**
    * The backend's rule for plan-priced actions (a free account holding bought
    * credits counts as paid). Quote variant "paid" off this, not planSlug.
@@ -40,6 +44,8 @@ export interface CreditPlan {
   credits: number
   priceCents: number | null
   currency: string
+  /** A monthly plan's first month for a first-time subscriber; renews at priceCents. */
+  introCents?: number | null
 }
 
 export interface CreditActionRate {
@@ -59,7 +65,8 @@ export interface CreditActionRate {
 export interface CreditRateCard {
   actions: CreditActionRate[]
   plans: CreditPlan[]
-  packages: CreditPlan[]
+  /** Any-amount top-ups (subscribers only). Optional: older API builds sent fixed packs instead. */
+  topup?: { minCents: number; maxCents: number; creditsPerDollar: number; expiryMonths: number }
   freeMonthly: number
 }
 

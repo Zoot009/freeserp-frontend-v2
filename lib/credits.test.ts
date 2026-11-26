@@ -13,7 +13,6 @@ const card = (over: Partial<CreditRateCard["actions"][number]> = {}): CreditRate
     { action: "maps.scan.point", variant: null, credits: 1, unitSize: 8, unitLabel: "grid point", baseCredits: 1, ...over },
   ],
   plans: [],
-  packages: [],
   freeMonthly: 0,
 })
 
@@ -73,7 +72,6 @@ describe("quotePromptRuns", () => {
       { action: "llm.prompt.sample", variant: "claude", credits: 3, unitSize: 1, unitLabel: "answer" },
     ],
     plans: [],
-    packages: [],
     freeMonthly: 0,
   }
 

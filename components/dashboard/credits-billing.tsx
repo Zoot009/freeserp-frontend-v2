@@ -23,7 +23,7 @@ import { ChevronLeft, ChevronRight, Coins, Loader2, TriangleAlert } from "lucide
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { CreditPricing } from "@/components/dashboard/credit-pricing"
+import { CreditPricing, planNameKey } from "@/components/dashboard/credit-pricing"
 import {
   useCredits,
   formatCredits,
@@ -35,12 +35,7 @@ import {
 const STATEMENT_PAGE_SIZE = 20
 
 /** Plan slug to the message key naming it. Unknown slugs fall back to the slug. */
-const PLAN_KEYS: Record<string, string> = {
-  free: "planFree",
-  "credits-19": "planStarter",
-  "credits-49": "planPro",
-  "credits-99": "planAgency",
-}
+const planKey = (slug: string) => (slug === "free" ? "planFree" : planNameKey(slug))
 
 /**
  * Ledger rows carry a SIGNED delta: a hold is negative, a settle or refund is
@@ -147,7 +142,7 @@ function BalanceCard({ credits }: { credits: CreditSummary }) {
           <div>
             {t("planLabel")}{" "}
             <span className="font-semibold text-foreground">
-              {PLAN_KEYS[credits.planSlug] ? t(PLAN_KEYS[credits.planSlug]!) : credits.planSlug}
+              {planKey(credits.planSlug) ? t(planKey(credits.planSlug)!) : credits.planSlug}
             </span>
           </div>
           {allowance > 0 && <div className="mt-0.5">{t("creditsAMonth", { credits: formatCredits(allowance) })}</div>}
