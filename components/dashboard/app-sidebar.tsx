@@ -30,6 +30,9 @@ import {
   Megaphone,
   FileStack,
   BookOpenCheck,
+  BadgeCheck,
+  PenLine,
+  MessageSquareText,
 } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import { useAuth } from "@/lib/auth"
@@ -73,7 +76,15 @@ const SEARCH_ENGINE: Item[] = [
   { key: "youtubeTracker", url: "/dashboard/youtube", icon: Youtube },
 ]
 
-const MAPS: Item[] = [
+// Everything for a Google Business Profile (GMB): fixing it, posting to it,
+// answering its reviews, then the audit that scores it and the grid that tracks
+// where it ranks. The Maps Audit moved here from the audits: someone looking for
+// GMB tools looks here first, and it shares its listing data with these tools.
+const GMB: Item[] = [
+  { key: "gmbOptimizer", url: "/dashboard/gmb/profile-optimizer", icon: BadgeCheck },
+  { key: "gmbPostCreator", url: "/dashboard/gmb/post-creator", icon: PenLine },
+  { key: "gmbReviewManager", url: "/dashboard/gmb/review-manager", icon: MessageSquareText },
+  { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store },
   { key: "mapsTracker", url: "/dashboard/google-maps-tracker", icon: MapPin },
   { key: "bingMapsTracker", url: "/dashboard/bing-maps-tracker", icon: Map, soon: true },
   { key: "appleMapsTracker", url: "/dashboard/apple-maps-tracker", icon: Navigation, soon: true },
@@ -115,10 +126,6 @@ const AUDIT: Item[] = [
   // URL, title and history.
   { key: "websiteAudit", url: "/dashboard/site-audit", icon: ScanSearch },
   { key: "pageAudit", url: "/dashboard/page-audit", icon: FileSearch },
-  // A Business Profile audit from a pasted Maps link: the listing, its reviews,
-  // and where it ranks for its own category. Sits with the audits, not under
-  // Maps, because what it produces is a report, like the two above it.
-  { key: "mapsAudit", url: "/dashboard/google-maps-audit", icon: Store },
   // Is this site ready to spend money on Google Ads: landing pages, tracking, speed, keywords and a budget forecast.
   { key: "adsAnalysis", url: "/dashboard/ads-analysis", icon: Megaphone },
   { key: "competitorAnalysis", url: "/dashboard/competitor-analysis", icon: Users },
@@ -256,7 +263,7 @@ export function AppSidebar({ name, plan, initial, ...props }: Props) {
         {user?.inhouse && <Group labelKey="teamTools" items={TEAM} />}
         <Group items={PRIMARY} />
         <Group labelKey="searchEngine" items={SEARCH_ENGINE} />
-        <Group labelKey="maps" items={MAPS} />
+        <Group labelKey="gmb" items={GMB} />
         <Group labelKey="aiPlatforms" items={AI_PLATFORMS} />
         <Group labelKey="auditAnalysis" items={AUDIT} />
         <Group labelKey="tools" items={TOOLS} />

@@ -585,7 +585,6 @@
     "aeoAudit": "Auditoría AEO y GEO",
     "soon": "Próximamente",
     "searchEngine": "Motor de búsqueda",
-    "maps": "Mapas",
     "ai": "IA",
     "auditAnalysis": "Auditoría y análisis",
     "comingSoon": "Herramientas — Próximamente",
@@ -602,7 +601,11 @@
     "teamTools": "Herramientas del equipo",
     "reportBuilder": "Generador de informes para clientes",
     "chatbotBuilder": "Creador de chatbots",
-    "caseStudies": "Casos de éxito"
+    "caseStudies": "Casos de éxito",
+    "gmb": "GMB",
+    "gmbOptimizer": "Optimizador de perfil",
+    "gmbPostCreator": "Creador de publicaciones",
+    "gmbReviewManager": "Gestor de reseñas"
   },
   "dashFavorites": {
     "headerEyebrow": "Guardados",

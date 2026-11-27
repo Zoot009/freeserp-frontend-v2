@@ -97,6 +97,11 @@ export const CREDIT_ACTION_KEYS = {
   aeoAudit: "aeo.audit",
   gbpAudit: "gbp.audit",
   adsAnalysis: "ads.analysis",
+  gmbOptimize: "gmb.optimize",
+  gmbPost: "gmb.post",
+  gmbPostImage: "gmb.post.image",
+  gmbReviews: "gmb.reviews",
+  gmbReviewReply: "gmb.review.reply",
 } as const
 
 export type CreditActionKey = (typeof CREDIT_ACTION_KEYS)[keyof typeof CREDIT_ACTION_KEYS]

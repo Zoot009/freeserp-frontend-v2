@@ -585,7 +585,6 @@
     "aeoAudit": "AEO- & GEO-Audit",
     "soon": "Demnächst",
     "searchEngine": "Suchmaschine",
-    "maps": "Karten",
     "ai": "KI",
     "auditAnalysis": "Audit & Analyse",
     "comingSoon": "Tools — demnächst",
@@ -602,7 +601,11 @@
     "teamTools": "Team-Tools",
     "reportBuilder": "Kundenbericht-Generator",
     "chatbotBuilder": "Chatbot-Builder",
-    "caseStudies": "Fallstudien"
+    "caseStudies": "Fallstudien",
+    "gmb": "GMB",
+    "gmbOptimizer": "Profiloptimierer",
+    "gmbPostCreator": "Beitragsersteller",
+    "gmbReviewManager": "Bewertungsmanager"
   },
   "dashFavorites": {
     "headerEyebrow": "Gespeichert",

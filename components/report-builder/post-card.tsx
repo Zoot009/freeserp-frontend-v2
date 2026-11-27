@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useState } from "react"
-import { Copy, Download, FolderDown, Loader2, RefreshCw } from "lucide-react"
+import { Copy, Download, FolderDown, ImagePlus, Loader2, RefreshCw } from "lucide-react"
 import type { GbpAuditResponse } from "@/lib/gbp-audit"
 import { postImageUrl, type GbpPost } from "@/lib/report-builder"
 import { captureCache, capturePng, type CaptureCache } from "@/lib/capture"
@@ -10,7 +10,14 @@ import { safeName, saveFolder, type SaveFile } from "@/lib/save-images"
 type Business = NonNullable<GbpAuditResponse["facts"]>["business"]
 
 /** What the team can do with the posts; a shared report has none of it. */
-export type PostActions = { regenerate: (i: number) => void; retryImages: () => void; reload: () => void; busy: boolean }
+export type PostActions = {
+  regenerate: (i: number) => void
+  retryImages: () => void
+  reload: () => void
+  busy: boolean
+  /** The GMB Post Creator: an AI photo is made only when asked for (it is charged), one post at a time. */
+  createImage?: (i: number) => void
+}
 
 const card = "rounded-[10px] border border-border bg-card shadow-sm print:shadow-none"
 
@@ -332,6 +339,11 @@ function PostTools({ post, index, client, actions }: { post: GbpPost; index: num
         <button type="button" onClick={() => actions.regenerate(index)} disabled={actions.busy} className={link} title="Writes this post again">
           <RefreshCw className={`h-3.5 w-3.5 ${actions.busy ? "animate-spin" : ""}`} aria-hidden /> {actions.busy ? "Writing…" : "Another version"}
         </button>
+        {actions.createImage && !post.image && !post.imageError && (
+          <button type="button" onClick={() => actions.createImage!(index)} disabled={actions.busy} className={link} title="An AI photo in the style of the business's own">
+            <ImagePlus className="h-3.5 w-3.5" aria-hidden /> Create AI photo
+          </button>
+        )}
       </div>
       <div aria-live="polite" className="text-muted-foreground empty:hidden">
         {note}
@@ -339,7 +351,7 @@ function PostTools({ post, index, client, actions }: { post: GbpPost; index: num
       {post.imageError && (
         <div className="text-muted-foreground">
           Using the business&apos;s own photo. {post.imageError}{" "}
-          <button type="button" onClick={actions.retryImages} className="font-medium text-brand hover:underline">
+          <button type="button" onClick={() => (actions.createImage ? actions.createImage(index) : actions.retryImages())} className="font-medium text-brand hover:underline">
             Try again
           </button>
         </div>

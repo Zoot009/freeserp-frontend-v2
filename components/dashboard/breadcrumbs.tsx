@@ -81,6 +81,11 @@ const CRUMB_KEYS: Record<string, CrumbDef[]> = {
   "/dashboard/page-audit": [WORKSPACE, { key: "pageAudit" }],
   "/dashboard/aeo-audit": [WORKSPACE, { key: "aeoAudit" }],
   "/dashboard/google-maps-audit": [WORKSPACE, { key: "mapsAudit" }],
+  // A directory, never a page, like /dashboard/ai-platforms: its tools name themselves.
+  "/dashboard/gmb": [WORKSPACE],
+  "/dashboard/gmb/profile-optimizer": [WORKSPACE, { key: "gmbOptimizer" }],
+  "/dashboard/gmb/post-creator": [WORKSPACE, { key: "gmbPostCreator" }],
+  "/dashboard/gmb/review-manager": [WORKSPACE, { key: "gmbReviewManager" }],
 }
 
 // Path segments that are database ids (uuid/cuid/ObjectId…) shouldn't become

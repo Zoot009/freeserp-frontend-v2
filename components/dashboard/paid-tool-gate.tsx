@@ -29,6 +29,9 @@ export type PaidTool =
   | "serpChecker"
   | "competitorSpy"
   | "searchConsole"
+  | "gmbOptimizer"
+  | "gmbPostCreator"
+  | "gmbReviewManager"
 
 const TOOL_NAMES: Record<PaidTool, string> = {
   mapsAudit: "Google Maps Audit",
@@ -46,6 +49,9 @@ const TOOL_NAMES: Record<PaidTool, string> = {
   serpChecker: "Quick SERP Checker",
   competitorSpy: "Competitor Tracking",
   searchConsole: "Search Console",
+  gmbOptimizer: "GMB Profile Optimizer",
+  gmbPostCreator: "GMB Post Creator",
+  gmbReviewManager: "GMB Review Manager",
 }
 
 const PLANS_HREF = "/dashboard/billing"

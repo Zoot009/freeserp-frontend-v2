@@ -221,7 +221,7 @@ export function ScoreRing({
   )
 }
 
-function Stars({ value, size = "h-3.5 w-3.5" }: { value: number; size?: string }) {
+export function Stars({ value, size = "h-3.5 w-3.5" }: { value: number; size?: string }) {
   return (
     <span className="inline-flex items-center gap-0.5" role="img" aria-label={`${value.toFixed(1)} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((i) => (
@@ -245,7 +245,7 @@ function StatusIcon({ status }: { status: CheckStatus }) {
 }
 
 /** One check: what it is, what we found, why it matters and the fix. */
-function CheckRow({ check: c, showPriority = true }: { check: Check; showPriority?: boolean }) {
+export function CheckRow({ check: c, showPriority = true }: { check: Check; showPriority?: boolean }) {
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <StatusIcon status={c.status} />
