@@ -13,8 +13,10 @@ import {
   clientName,
   dayLabel,
   filterReports,
+  memberKey,
   nameOf,
   presetRange,
+  siteLabel,
   type ClientWork,
   type DailyReport,
   type MemberWork,
@@ -90,7 +92,7 @@ export default function DeliveryWorkPage() {
           <h1 className="flex items-center gap-2">
             <ClipboardCheck className="h-6 w-6 text-brand" aria-hidden /> Delivery Work
           </h1>
-          <div className="sub">What the team did for each client, day by day, from their PMS daily reports. For the in-house team only.</div>
+          <div className="sub">What the team did for each client, day by day, from the daily reports on both PMS sites. For the in-house team only.</div>
         </div>
       </div>
 
@@ -129,7 +131,7 @@ export default function DeliveryWorkPage() {
           <select className={field} value={member} onChange={(e) => setMember(e.target.value)} aria-label="Team member">
             <option value="all">Everyone ({people.length})</option>
             {people.map((u) => (
-              <option key={u.id} value={u.id}>
+              <option key={memberKey(u)} value={memberKey(u)}>
                 {nameOf(u)}
               </option>
             ))}
@@ -160,7 +162,8 @@ export default function DeliveryWorkPage() {
           <p className={error.setup ? "font-medium" : "text-red-600 dark:text-red-400"}>{error.text}</p>
           {error.setup && (
             <p className="mt-1.5 leading-relaxed text-muted-foreground">
-              Set <code className="rounded bg-muted px-1">DAILY_REPORTS_API_KEY</code> on the FreeSERP backend to the same value as on PMS, then redeploy it.
+              On the FreeSERP backend, set <code className="rounded bg-muted px-1">DAILY_REPORTS_API_KEY</code> to the same value as on pms.zootcloud.com and{" "}
+              <code className="rounded bg-muted px-1">PMSKP_DAILY_REPORTS_API_KEY</code> to the DAILY_REPORTS_API_KEY on pmskp.zootcloud.com, then redeploy it.
             </p>
           )}
         </div>
@@ -170,6 +173,14 @@ export default function DeliveryWorkPage() {
         </p>
       ) : (
         <div className="space-y-4">
+          {/* A site that failed or isn't connected: the other one's reports are still shown. */}
+          {data.sites
+            .filter((s) => s.error)
+            .map((s) => (
+              <p key={s.name} role="status" className="rounded-[10px] border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-[13px] text-amber-800 dark:text-amber-300">
+                <b className="font-semibold">{siteLabel(s.name)} isn&apos;t included.</b> {s.error}
+              </p>
+            ))}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard compact label="Clients worked on" hint="Client orders with at least one update in this period." value={clients.length} tone="text-foreground" caption={`${dayLabel(range.startDate)} – ${dayLabel(range.endDate)}`} />
             <StatCard compact label="Updates" hint="One person's work on one client on one day." value={updates} tone="text-foreground" caption="from the daily reports" />
@@ -184,7 +195,7 @@ export default function DeliveryWorkPage() {
           ) : view === "clients" ? (
             clients.map((c) => <ClientCard key={c.orderId} work={c} />)
           ) : (
-            members.map((m) => <MemberCard key={m.user.id} work={m} />)
+            members.map((m) => <MemberCard key={memberKey(m.user)} work={m} />)
           )}
         </div>
       )}
@@ -194,6 +205,15 @@ export default function DeliveryWorkPage() {
 
 function Empty({ children }: { children: ReactNode }) {
   return <div className={`${card} p-8 text-center text-[13px] text-muted-foreground`}>{children}</div>
+}
+
+/** Which PMS site the client is on. */
+function Site({ name }: { name: string }) {
+  return (
+    <span className="rounded bg-muted px-1 py-px text-[10px] font-semibold tracking-wide text-muted-foreground" title={name}>
+      {siteLabel(name)}
+    </span>
+  )
 }
 
 function Tasks({ tasks }: { tasks: DailyReport["clients"][number]["completedTasks"] }) {
@@ -227,7 +247,7 @@ function ClientCard({ work: c }: { work: ClientWork }) {
         <div className="min-w-0">
           <h2 className="truncate text-[15px] font-semibold">{clientName(c)}</h2>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {c.orderNumber} · {c.orderType}
+            {c.orderNumber} · {c.orderType} · <Site name={c.source} />
           </div>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -299,7 +319,10 @@ function MemberCard({ work: m }: { work: MemberWork }) {
               {d.clients.map((c) => (
                 <div key={c.orderId}>
                   <div className="text-[13px] font-semibold">
-                    {clientName(c)} <span className="font-normal text-muted-foreground">· {c.orderNumber}</span>
+                    {clientName(c)}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      · {c.orderNumber} · <Site name={c.source} />
+                    </span>
                   </div>
                   <Work text={c.workDone} tasks={c.completedTasks.length} />
                   <Tasks tasks={c.completedTasks} />

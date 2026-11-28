@@ -10,7 +10,7 @@ const client = (orderId: string, customerName: string, workDone: string, tasks =
   workDone,
   completedTasks: Array.from({ length: tasks }, (_, i) => ({ id: `${orderId}-t${i}`, title: `Task ${i}`, status: "COMPLETED" as const })),
 })
-const report = (date: string, u: ReturnType<typeof user>, clients: ReturnType<typeof client>[]): DailyReport => ({ date, submittedAt: `${date}T12:00:00Z`, updatedAt: `${date}T13:00:00Z`, user: u, clients })
+const report = (date: string, u: ReturnType<typeof user>, clients: ReturnType<typeof client>[], source = "pms.zootcloud.com"): DailyReport => ({ source, date, submittedAt: `${date}T12:00:00Z`, updatedAt: `${date}T13:00:00Z`, user: u, clients })
 
 const priya = user("u1", "Priya")
 const arjun = user("u2", null)
@@ -44,9 +44,27 @@ describe("delivery work", () => {
   })
 
   it("narrows to a member and to the clients the search matches", () => {
-    expect(filterReports(reports, { member: "u2", search: "" }).length).toBe(2)
+    expect(filterReports(reports, { member: "u2@example.com", search: "" }).length).toBe(2)
     const found = filterReports(reports, { member: "all", search: "audit" })
     expect(found.flatMap((r) => r.clients.map((c) => c.customerName))).toEqual(["Harbor Dental"])
+  })
+
+  it("puts one person on both sites together, and keeps each site's orders apart", () => {
+    // The same person has a different PMS id on each site; the backend puts the site in front of order ids.
+    const kpPriya = { ...priya, id: "kp-u9", email: "U1@example.com" }
+    const both = [
+      report("2026-11-27", priya, [client("pms.zootcloud.com:o1", "Sunrise Bakery", "Banner")]),
+      report("2026-11-27", kpPriya, [client("pmskp.zootcloud.com:o1", "Lotus Spa", "Menu page", 1)], "pmskp.zootcloud.com"),
+    ]
+    const members = byMember(both)
+    expect(members.length).toBe(1)
+    expect(members[0]!.days.map((d) => [d.date, d.clients.map((c) => c.source)])).toEqual([["2026-11-27", ["pms.zootcloud.com", "pmskp.zootcloud.com"]]])
+    expect(members[0]).toMatchObject({ clients: 2, tasks: 1 })
+    expect(byClient(both).map((c) => [c.customerName, c.source])).toEqual([
+      ["Lotus Spa", "pmskp.zootcloud.com"],
+      ["Sunrise Bakery", "pms.zootcloud.com"],
+    ])
+    expect(filterReports(both, { member: "u1@example.com", search: "" }).length).toBe(2)
   })
 
   it("turns the period buttons into days", () => {
